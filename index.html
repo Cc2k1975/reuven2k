@@ -19,7 +19,7 @@
       background: radial-gradient(1000px 700px at 80% -10%, #1b2233 0%, #0f1115 55%) fixed;
       color:var(--text);
       font-family:"Heebo",sans-serif;
-      font-size:12px; /* קומפקטי */
+      font-size:12px;
     }
     .wrap{max-width:1000px;margin:auto;padding:12px 10px 110px;}
 
@@ -115,7 +115,7 @@
     .bar-inner{
       max-width:1000px;margin:auto;
       display:grid;gap:8px;
-      grid-template-columns: 1fr 1fr auto auto; /* הוספתי מקום לכפתור רענון */
+      grid-template-columns: 1fr 1fr auto auto; /* מקום גם לרענון */
       align-items:end;
     }
     label{font-size:10px;color:var(--muted);margin-bottom:4px;display:block}
@@ -179,7 +179,7 @@
     const GH_EDIT_URL="https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
     const faviconFor=u=>`https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(u).hostname)}&sz=64`;
 
-    /* טעינת JSON עם cache-buster לעקוף קאש */
+    /* טעינת JSON עם cache-buster */
     async function loadJson(){
       try{
         const r=await fetch(`${JSON_PATH}?v=${Date.now()}`,{cache:"no-store"});
@@ -198,7 +198,6 @@
       catch{ throw new Error("כתובת לא תקינה"); }
     }
 
-    /* רנדר + אנימציה + פקדים זעירים */
     function render(withAnimation=false){
       cards.innerHTML="";
       if(!list.length){ empty.hidden=false; return; }
@@ -217,7 +216,7 @@
               <svg viewBox="0 0 24 24" fill="none"><path d="M4 16.5V20h3.3L19 8.3l-3.3-3.3L4 16.5z" stroke="white" stroke-width="1.2"/></svg>
             </button>
             <button class="iconbtn" title="מחק" data-action="delete" data-index="${i}">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5h6v2m-8 3 1 9h8l1-9" stroke="white" stroke-width="1.2"/></svg>
+              <svg viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5h6v2m-8 3 1 9h8ל1-9" stroke="white" stroke-width="1.2"/></svg>
             </button>
           </div>
         `;
@@ -290,22 +289,16 @@
       }
     }
 
-    /* כפתורים ואירועים */
+    /* כפתור רענון – רענון מלא לכל הדף, עוקף קאש */
+    function refreshData(){
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', Date.now().toString()); // cache-buster
+      window.location.replace(url.toString());
+    }
+
+    /* אירועים והפעלה */
     btnSave.addEventListener("click", addAndSave);
     [inpName, inpUrl].forEach(el=>el.addEventListener("keydown", e=>{ if(e.key==="Enter") addAndSave(); }));
-
-    /* כפתור רענון נתונים – מושך שוב את links.json ומרענן את הכרטיסים */
-    async function refreshData(){
-      const original = refreshBtn.textContent;
-      try{
-        refreshBtn.disabled = true;
-        refreshBtn.textContent = "טוען...";
-        await loadJson(); // כבר כולל cache-buster
-      }finally{
-        refreshBtn.textContent = original;
-        refreshBtn.disabled = false;
-      }
-    }
     refreshBtn.addEventListener("click", refreshData);
 
     /* טעינה ראשונית */
