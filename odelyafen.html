@@ -47,7 +47,7 @@
     <tbody></tbody>
   </table>
 
-  <div class="ver">Version: 1.3.2</div>
+  <div class="ver">Version: 1.3.3</div>
 </div>
 
 <script>
@@ -102,7 +102,11 @@ async function render(){
       if(!confirm('לשחרר את התור '+d+' '+t+' ?')) return;
       try{
         const latest = await fetchRecord();
-        const newBookings = latest.bookings.filter(b=> !(b.date===d && b.time===t) );
+        let newBookings = latest.bookings.filter(b=> !(b.date===d && b.time===t));
+        // ✅ אם לא נשאר אף תור, שולחים מערך ריק ברור
+        if (newBookings.length === 0) {
+          newBookings = [];
+        }
         const put = await fetch(BIN_URL + '?ts=' + Date.now(), {
           method:'PUT',
           headers: { 'Content-Type':'application/json', 'X-Master-Key': MASTER_KEY },
@@ -116,15 +120,4 @@ async function render(){
   });
 }
 
-document.getElementById('refresh').addEventListener('click', render);
-filterDate.addEventListener('change', render);
-showAll.addEventListener('change', ()=>{
-  filterDate.disabled = showAll.checked;
-  render();
-});
-
-render();
-</script>
-</body>
-</html>
-```0
+document
