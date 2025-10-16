@@ -10,16 +10,12 @@
   h1{margin:0 0 6px;font-size:32px;color:#0c5e78;text-align:center}
   h2{margin:0 0 22px;font-size:20px;color:#2a6f83;text-align:center}
   label{display:block;margin:14px 4px 6px;font-weight:600;color:#2d3a40}
-  input,select,button{
-    width:100%;padding:12px 14px;border:1px solid #cfe3ea;border-radius:10px;font-size:16px;box-sizing:border-box;background:#f9feff
-  }
-  select:has(option[disabled]:checked){color:#aaa}
+  input,select,button{width:100%;padding:12px 14px;border:1px solid #cfe3ea;border-radius:10px;font-size:16px;box-sizing:border-box;background:#f9feff}
   .btn{background:#12acc5;color:#fff;border:0;cursor:pointer;margin-top:18px;font-weight:700}
   .btn:hover{filter:brightness(1.05)}
   .note{font-size:13px;color:#567;margin-top:8px}
   .error{background:#ffecec;color:#b00020;border:1px solid #f6c; padding:10px;border-radius:10px;margin-top:10px;display:none}
   .success{background:#eafff2;color:#0a7a3f;border:1px solid #a6e7c3; padding:10px;border-radius:10px;margin-top:10px;display:none}
-  /* אפור לשעות תפוסות בתוך ה-select */
   option.taken{color:#888;background:#f1f1f1}
 </style>
 </head>
@@ -36,9 +32,9 @@
 
     <label for="time">שעה פנויה:</label>
     <select id="time" required>
-      <option value="">טען שעות…</option>
+      <option value="">טוען שעות…</option>
     </select>
-    <div class="note">השעות המוצגות הן בין 08:00 ל-20:00 בקפיצות של 30 דק׳. שעות תפוסות מסומנות באפור וחסומות.</div>
+    <div class="note">השעות: 08:00–20:00 בקפיצות של 20 דקות. שעות תפוסות אפורות וחסומות.</div>
 
     <label for="name">שם הלקוחה:</label>
     <input type="text" id="name" placeholder="הכנס שם" required />
@@ -47,70 +43,21 @@
     <input type="tel" id="phone" placeholder="הכנס טלפון" required />
 
     <button id="save" class="btn">שמור</button>
-    <div class="note">בלחיצה על “שמור” התור נרשם בקובץ הנתונים.</div>
   </div>
 
 <script>
-/** ====== תצורת אחסון ======
- * ברירת מחדל: localStorage (דמו מקומי).
- * כדי לעבוד בענן משותף, הפעל JSONBinBackend והכנס API Key ו-BIN ID.
- */
-const STORAGE_MODE = "local"; // "local" או "jsonbin"
+const BIN_ID = '68f0e7bed0ea881f40a63b29';
+const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO';
+const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
-// JSONBin — אם תרצה שימוש משותף אונליין:
-const JSONBIN = {
-  ENABLED: (STORAGE_MODE === "jsonbin"),
-  BIN_ID: "PASTE_YOUR_BIN_ID_HERE",
-  API_KEY: "PASTE_JSONBIN_X_MASTER_KEY_HERE" // X-Master-Key
-};
-
-// שכבת נתונים אחידה
-class LocalStorageBackend {
-  key = 'pen_express_bookings_v1';
-  async load(){
-    const raw = localStorage.getItem(this.key);
-    return raw ? JSON.parse(raw) : { bookings: [] };
-  }
-  async save(data){
-    localStorage.setItem(this.key, JSON.stringify(data));
-  }
-}
-
-class JSONBinBackend {
-  constructor(cfg){ this.cfg = cfg; this.url = `https://api.jsonbin.io/v3/b/${cfg.BIN_ID}`; }
-  async load(){
-    const r = await fetch(this.url, { headers: { 'X-Master-Key': this.cfg.API_KEY }});
-    if(!r.ok) throw new Error('קריאת JSONBin נכשלה');
-    const j = await r.json();
-    return j.record || { bookings: [] };
-  }
-  async save(data){
-    const r = await fetch(this.url, {
-      method:'PUT',
-      headers:{
-        'Content-Type':'application/json',
-        'X-Master-Key': this.cfg.API_KEY
-      },
-      body: JSON.stringify(data)
-    });
-    if(!r.ok) throw new Error('שמירת JSONBin נכשלה');
-  }
-}
-
-const db = JSONBIN.ENABLED ? new JSONBinBackend(JSONBIN) : new LocalStorageBackend();
-
-// כלים
 const pad2 = n => (n<10?('0'+n):''+n);
 function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
-function addDaysStr(days){
-  const d = new Date(); d.setDate(d.getDate()+days);
-  return d.toISOString().slice(0,10);
-}
+function addDaysStr(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
 function genTimeSlots(){
   const slots=[];
   for(let h=8; h<=20; h++){
-    for(let m of [0,30]){
-      if(h===20 && m>0) continue; // לא אחרי 20:00
+    for(let m of [0,20,40]){
+      if(h===20 && m>0) continue;
       slots.push(`${pad2(h)}:${pad2(m)}`);
     }
   }
@@ -118,7 +65,6 @@ function genTimeSlots(){
 }
 const SLOTS = genTimeSlots();
 
-// UI
 const elDate = document.getElementById('date');
 const elTime = document.getElementById('time');
 const elName = document.getElementById('name');
@@ -137,10 +83,17 @@ function setDateLimits(){
 }
 setDateLimits();
 
+async function fetchRecord(){
+  const r = await fetch(BIN_URL, { headers: { 'X-Master-Key': MASTER_KEY }});
+  if(!r.ok) throw new Error('fetch failed');
+  const j = await r.json();
+  return j.record || { bookings: [] };
+}
+
 async function refreshTimes(){
   elTime.innerHTML = `<option value="">טוען…</option>`;
   try{
-    const data = await db.load();
+    const data = await fetchRecord();
     const date = elDate.value;
     const taken = new Set(data.bookings.filter(b=>b.date===date).map(b=>b.time));
     elTime.innerHTML = `<option value="">בחר שעה…</option>` + SLOTS.map(t=>{
@@ -148,42 +101,39 @@ async function refreshTimes(){
       return `<option value="${t}" ${isTaken?'disabled class="taken"':''}>${t}${isTaken?' – תפוס':''}</option>`;
     }).join('');
   }catch(e){
-    showErr('שגיאה בטעינת נתונים. נסה שוב.');
+    showErr('שגיאה בטעינת נתונים');
   }
 }
 elDate.addEventListener('change', refreshTimes);
 refreshTimes();
 
-function validPhone(p){
-  const digits = (p||'').replace(/\D/g,'');
-  return digits.length>=8; // בדיקה בסיסית
-}
+function validPhone(p){ return (p||'').replace(/\D/g,'').length>=8; }
 
 elSave.addEventListener('click', async ()=>{
-  const date = elDate.value;
-  const time = elTime.value;
-  const name = elName.value.trim();
-  const phone = elPhone.value.trim();
-
-  if(!date || !time || !name || !phone){ showErr('נא למלא את כל השדות.'); return; }
-  if(!validPhone(phone)){ showErr('מספר טלפון לא תקין.'); return; }
+  const payload = {
+    date: elDate.value,
+    time: elTime.value,
+    name: elName.value.trim(),
+    phone: elPhone.value.trim()
+  };
+  if(!payload.date || !payload.time || !payload.name || !payload.phone){ showErr('נא למלא את כל השדות'); return; }
+  if(!validPhone(payload.phone)){ showErr('מספר טלפון לא תקין'); return; }
 
   try{
-    // טעינה עדכנית + נעילה ליתר ביטחון
-    const data = await db.load();
-    const exists = data.bookings.find(b=>b.date===date && b.time===time);
-    if(exists){ showErr('השעה כבר נתפסה עכשיו. בחר שעה אחרת.'); await refreshTimes(); return; }
-
-    data.bookings.push({ date, time, name, phone, ts: Date.now() });
-    // מיון לפי תאריך+שעה
-    data.bookings.sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time) );
-    await db.save(data);
-
-    showOk('התור נשמר בהצלחה! תודה ❤');
+    const rec = await fetchRecord();
+    if(rec.bookings.find(b=>b.date===payload.date && b.time===payload.time)){ showErr('השעה נתפסה הרגע. בחר שעה אחרת.'); await refreshTimes(); return; }
+    rec.bookings.push({ date: payload.date, time: payload.time, name: payload.name, phone: payload.phone, ts: Date.now() });
+    const put = await fetch(BIN_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
+      body: JSON.stringify(rec)
+    });
+    if(!put.ok){ showErr('שגיאה בשמירה'); return; }
+    showOk('התור נשמר בהצלחה!');
     await refreshTimes();
     elTime.value=""; elName.value=""; elPhone.value="";
   }catch(e){
-    showErr('אירעה שגיאה בשמירה.');
+    showErr('שגיאת רשת');
   }
 });
 </script>
