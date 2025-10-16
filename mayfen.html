@@ -16,7 +16,7 @@
   input,select,button{width:100%;padding:12px 14px;border:1px solid #cfe3ea;border-radius:10px;font-size:16px;box-sizing:border-box;background:#f9feff}
   input[type="tel"]{text-align:right;}
   .btn{background:#12acc5;color:#fff;border:0;cursor:pointer;margin-top:18px;font-weight:700}
-  .btn:hover{filter:brightness(1.05)}
+  .btn[disabled]{opacity:.6;cursor:not-allowed}
   .error{background:#ffecec;color:#b00020;border:1px solid #f6c; padding:10px;border-radius:10px;margin-top:10px;display:none}
   .success{background:#eafff2;color:#0a7a3f;border:1px solid #a6e7c3; padding:10px;border-radius:10px;margin-top:10px;display:none}
   option.taken{color:#888;background:#f1f1f1}
@@ -46,7 +46,7 @@
     <input type="tel" id="phone" placeholder="הכנס טלפון" required />
 
     <button id="save" class="btn">שמור</button>
-    <div class="ver">Version: 1.4.3</div>
+    <div class="ver">Version: 1.4.4</div>
   </div>
 
 <script>
@@ -54,9 +54,8 @@ const BIN_ID = '68f0e7bed0ea881f40a63b29';
 const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO';
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
+// מחולל שעות 08:00–20:00 בקפיצות 20 דק'
 const pad2 = n => (n<10?('0'+n):''+n);
-function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
-function addDaysStr(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
 function genTimeSlots(){
   const slots=[];
   for(let h=8; h<=20; h++){
@@ -69,6 +68,7 @@ function genTimeSlots(){
 }
 const SLOTS = genTimeSlots();
 
+// אלמנטים
 const elDate = document.getElementById('date');
 const elTime = document.getElementById('time');
 const elName = document.getElementById('name');
@@ -80,13 +80,12 @@ const msgOk = document.getElementById('msgOk');
 function showErr(t){ msgErr.textContent=t; msgErr.style.display='block'; setTimeout(()=>msgErr.style.display='none',4000); }
 function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout(()=>msgOk.style.display='none',4000); }
 
-function setDateLimits(){
-  elDate.min = todayStr();
-  elDate.max = addDaysStr(3);
-  if(!elDate.value) elDate.value = todayStr();
-}
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function addDaysStr(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+function setDateLimits(){ elDate.min=todayStr(); elDate.max=addDaysStr(3); if(!elDate.value) elDate.value=todayStr(); }
 setDateLimits();
 
+// JSONBin helpers
 async function fetchRecord(){
   const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
     headers: { 'X-Master-Key': MASTER_KEY },
@@ -96,13 +95,24 @@ async function fetchRecord(){
   const j = await r.json();
   return (j.record && Array.isArray(j.record.bookings)) ? j.record : { bookings: [] };
 }
+async function putRecord(rec){
+  const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
+    method:'PUT',
+    headers:{ 'Content-Type':'application/json', 'X-Master-Key': MASTER_KEY },
+    body: JSON.stringify(rec),
+    cache:'no-store'
+  });
+  if(!r.ok) throw new Error('put failed');
+  return r.json().catch(()=> ({}));
+}
 
+// רענון שעות + סימון תפוסים
 async function refreshTimes(){
   elTime.innerHTML = `<option value="">טוען…</option>`;
   try{
-    const data = await fetchRecord();
+    const { bookings } = await fetchRecord();
     const date = elDate.value;
-    const taken = new Set(data.bookings.filter(b=>b.date===date).map(b=>b.time));
+    const taken = new Set(bookings.filter(b=>b.date===date).map(b=>b.time));
     elTime.innerHTML = `<option value="">בחר שעה…</option>` + SLOTS.map(t=>{
       const isTaken = taken.has(t);
       return `<option value="${t}" ${isTaken?'disabled class="taken"':''}>${t}${isTaken?' – תפוס':''}</option>`;
@@ -112,9 +122,11 @@ async function refreshTimes(){
 elDate.addEventListener('change', refreshTimes);
 refreshTimes();
 
+// ולידציה בסיסית
 function validPhone(p){ return (p||'').replace(/\D/g,'').length>=8; }
 function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
 
+// שמירה עם הגנות נגד כפילות/מרוץ
 elSave.addEventListener('click', async ()=>{
   const payload = {
     date: elDate.value,
@@ -125,40 +137,58 @@ elSave.addEventListener('click', async ()=>{
   if(!payload.date || !payload.time || !payload.name || !payload.phone){ showErr('נא למלא את כל השדות'); return; }
   if(!validPhone(payload.phone)){ showErr('מספר טלפון לא תקין'); return; }
 
+  elSave.disabled = true;
+
   try{
-    const rec = await fetchRecord();
+    // שלב 1: קריאה ראשונה – בדיקות
+    let rec = await fetchRecord();
     const normNew = normalizePhone(payload.phone);
 
-    // מניעת דאבל באותו יום לפי טלפון (הודעה כללית כפי שביקשת)
     const existsSameDayPhone = rec.bookings.some(b =>
       b.date === payload.date && normalizePhone(b.phone) === normNew
     );
     if(existsSameDayPhone){
       showErr('קיים כבר תור על שמך לאותו יום. נא לבחור תאריך אחר.');
-      await refreshTimes();
-      return;
+      elSave.disabled = false; await refreshTimes(); return;
     }
 
-    if(rec.bookings.find(b=>b.date===payload.date && b.time===payload.time)){
-      showErr('השעה נתפסה הרגע. בחר שעה אחרת.'); await refreshTimes(); return;
+    const slotTaken1 = rec.bookings.some(b => b.date===payload.date && b.time===payload.time);
+    if(slotTaken1){
+      showErr('השעה נתפסה הרגע. בחר שעה אחרת.');
+      elSave.disabled = false; await refreshTimes(); return;
     }
 
+    // שלב 2: קריאה שנייה מיד לפני PUT (הגנה מפני איטיות/מרוץ)
+    await new Promise(r=>setTimeout(r,250));
+    rec = await fetchRecord();
+
+    const slotTaken2 = rec.bookings.some(b => b.date===payload.date && b.time===payload.time);
+    if(slotTaken2){
+      showErr('השעה נתפסה הרגע. בחר שעה אחרת.');
+      elSave.disabled = false; await refreshTimes(); return;
+    }
+    const existsSameDayPhone2 = rec.bookings.some(b =>
+      b.date === payload.date && normalizePhone(b.phone) === normNew
+    );
+    if(existsSameDayPhone2){
+      showErr('קיים כבר תור על שמך לאותו יום. נא לבחור תאריך אחר.');
+      elSave.disabled = false; await refreshTimes(); return;
+    }
+
+    // שמירה
     rec.bookings.push({ date: payload.date, time: payload.time, name: payload.name, phone: payload.phone, ts: Date.now() });
-    const put = await fetch(BIN_URL + '?ts=' + Date.now(), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-      body: JSON.stringify(rec),
-      cache: 'no-store'
-    });
-    if(!put.ok){ showErr('שגיאה בשמירה'); return; }
+    await putRecord(rec);
+
     showOk('התור נשמר בהצלחה!');
+    await new Promise(r=>setTimeout(r,300)); // המתנה קצרה לעדכון שרת
     await refreshTimes();
     elTime.value=""; elName.value=""; elPhone.value="";
   }catch(e){
     showErr('שגיאת רשת');
+  }finally{
+    elSave.disabled = false;
   }
 });
 </script>
 </body>
 </html>
-```0
