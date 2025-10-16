@@ -22,7 +22,6 @@
   option.taken{color:#888;background:#f1f1f1}
   .ver{margin-top:14px;font-size:12px;color:#678;text-align:center}
 
-  /* Modal */
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50}
   .modal{background:#fff;border-radius:14px;max-width:420px;width:92%;padding:18px 18px 12px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
   .modal h3{margin:0 0 8px;font-size:20px;color:#0c5e78}
@@ -56,14 +55,14 @@
     <input type="tel" id="phone" placeholder="הכנס טלפון" required />
 
     <button id="save" class="btn">שמור</button>
-    <div class="ver">Version: 1.5.0</div>
+    <div class="ver">Version: 1.5.1</div>
   </div>
 
-  <!-- Modal: add to calendar -->
+  <!-- Modal -->
   <div id="icsModal" class="modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal">
       <h3>להוסיף תזכורת ליומן?</h3>
-      <p id="icsText">ניצור עבורך אירוע יומן עם תזכורת שעה לפני.</p>
+      <p id="icsText">ניצור אירוע יומן עם תזכורת שעה לפני.</p>
       <div class="row">
         <button type="button" class="cancel" id="btnCancel">ביטול</button>
         <button type="button" class="ok" id="btnOk">אישור</button>
@@ -72,28 +71,22 @@
   </div>
 
 <script>
-/* ====== JSONBin ====== */
+/* ===== JSONBin ===== */
 const BIN_ID = '68f0e7bed0ea881f40a63b29';
 const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO';
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
-/* ====== קבועים ====== */
+/* ===== Const ===== */
 const MAP_URL = 'https://maps.google.com/?q=33.003292,35.108864';
-const TIMEZONE = 'Asia/Jerusalem';   // ל-ICS
+const TIMEZONE = 'Asia/Jerusalem';
 const EVENT_TITLE = 'תור לפן – פן אקספרס';
-const ALARM_MINUTES = 60;            // התראה שעה לפני
-const SLOT_MINUTES = 20;             // משך אירוע
+const ALARM_MINUTES = 60;
+const SLOT_MINUTES = 20;
 
-/* ====== עזרי תאריך/שעה ====== */
+/* ===== Utils ===== */
 const pad2 = n => (n<10?('0'+n):''+n);
 function genTimeSlots(){
-  const slots=[];
-  for(let h=8; h<=20; h++){
-    for(let m of [0,20,40]){
-      if(h===20 && m>0) continue;
-      slots.push(`${pad2(h)}:${pad2(m)}`);
-    }
-  }
+  const slots=[]; for(let h=8; h<=20; h++){ for(let m of [0,20,40]){ if(h===20 && m>0) continue; slots.push(`${pad2(h)}:${pad2(m)}`);} }
   return slots;
 }
 const SLOTS = genTimeSlots();
@@ -101,84 +94,70 @@ const SLOTS = genTimeSlots();
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function addDaysStr(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
 function setDateLimits(){ elDate.min=todayStr(); elDate.max=addDaysStr(3); if(!elDate.value) elDate.value=todayStr(); }
-function fmtDateHeb(yyyy_mm_dd){ const [y,m,d]=yyyy_mm_dd.split('-'); return `${d}.${m}.${y}`; }
+function fmtDateHeb(s){ const [y,m,d]=s.split('-'); return `${d}.${m}.${y}`; }
 
-/* ====== DOM ====== */
-const elDate  = document.getElementById('date');
-const elTime  = document.getElementById('time');
-const elName  = document.getElementById('name');
-const elPhone = document.getElementById('phone');
-const elSave  = document.getElementById('save');
-const msgErr  = document.getElementById('msgError');
-const msgOk   = document.getElementById('msgOk');
-const icsModal = document.getElementById('icsModal');
-const btnOk = document.getElementById('btnOk');
-const btnCancel = document.getElementById('btnCancel');
-const icsText = document.getElementById('icsText');
+/* ===== DOM ===== */
+const elDate=document.getElementById('date');
+const elTime=document.getElementById('time');
+const elName=document.getElementById('name');
+const elPhone=document.getElementById('phone');
+const elSave=document.getElementById('save');
+const msgErr=document.getElementById('msgError');
+const msgOk=document.getElementById('msgOk');
+const icsModal=document.getElementById('icsModal');
+const btnOk=document.getElementById('btnOk');
+const btnCancel=document.getElementById('btnCancel');
+const icsText=document.getElementById('icsText');
 
 function showErr(t){ msgErr.textContent=t; msgErr.style.display='block'; setTimeout(()=>msgErr.style.display='none',4000); }
 function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout(()=>msgOk.style.display='none',4000); }
 
 setDateLimits();
 
-/* ====== JSONBin helpers ====== */
+/* ===== JSONBin ===== */
 async function fetchRecord(){
-  const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
-    headers: { 'X-Master-Key': MASTER_KEY },
-    cache: 'no-store'
-  });
+  const r=await fetch(BIN_URL+'?ts='+Date.now(),{headers:{'X-Master-Key':MASTER_KEY},cache:'no-store'});
   if(!r.ok) throw new Error('fetch failed');
-  const j = await r.json();
-  return (j.record && Array.isArray(j.record.bookings)) ? j.record : { bookings: [] };
+  const j=await r.json();
+  return (j.record && Array.isArray(j.record.bookings))? j.record : {bookings:[]};
 }
 async function putRecord(rec){
-  const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
-    method:'PUT',
-    headers:{ 'Content-Type':'application/json', 'X-Master-Key': MASTER_KEY },
-    body: JSON.stringify(rec),
-    cache:'no-store'
-  });
+  const r=await fetch(BIN_URL+'?ts='+Date.now(),{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':MASTER_KEY},body:JSON.stringify(rec),cache:'no-store'});
   if(!r.ok) throw new Error('put failed');
   return r.json().catch(()=> ({}));
 }
 
-/* ====== רענון שעות ====== */
+/* ===== Times ===== */
 async function refreshTimes(){
   elTime.innerHTML = `<option value="">טוען…</option>`;
   try{
-    const { bookings } = await fetchRecord();
-    const date = elDate.value;
-    const taken = new Set(bookings.filter(b=>b.date===date).map(b=>b.time));
+    const {bookings}=await fetchRecord();
+    const date=elDate.value;
+    const taken=new Set(bookings.filter(b=>b.date===date).map(b=>b.time));
     elTime.innerHTML = `<option value="">בחר שעה…</option>` + SLOTS.map(t=>{
-      const isTaken = taken.has(t);
+      const isTaken=taken.has(t);
       return `<option value="${t}" ${isTaken?'disabled class="taken"':''}>${t}${isTaken?' – תפוס':''}</option>`;
     }).join('');
   }catch(e){ showErr('שגיאה בטעינת נתונים'); }
 }
-elDate.addEventListener('change', refreshTimes);
+elDate.addEventListener('change',refreshTimes);
 refreshTimes();
 
-/* ====== ולידציה ====== */
+/* ===== Validation ===== */
 function validPhone(p){ return (p||'').replace(/\D/g,'').length>=8; }
 function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
 
-/* ====== ICS ====== */
-function toICSDateLocalTz(dateStr, timeStr){
-  // YYYY-MM-DD + HH:MM  ->  YYYYMMDDTHHMMSS
-  const [y,m,d] = dateStr.split('-').map(Number);
-  const [hh,mm] = timeStr.split(':').map(Number);
-  const dt = new Date(y, m-1, d, hh, mm, 0);
-  const YYYY = dt.getFullYear();
-  const MM = pad2(dt.getMonth()+1);
-  const DD = pad2(dt.getDate());
-  const HH = pad2(dt.getHours());
-  const MIN = pad2(dt.getMinutes());
-  const SS = '00';
-  return `${YYYY}${MM}${DD}T${HH}${MIN}${SS}`;
+/* ===== ICS build (for iOS) ===== */
+function toICSLocal(dateStr,timeStr){
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const [hh,mm]=timeStr.split(':').map(Number);
+  const dt=new Date(y,m-1,d,hh,mm,0);
+  return `${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${pad2(dt.getHours())}${pad2(dt.getMinutes())}00`;
 }
-function buildICS({title, desc, location, startLocal, endLocal, tzid}){
-  const uid = `${Date.now()}-${Math.random().toString(36).slice(2)}@fenexpress`;
-  const dtstamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+function buildICS({title,location,startLocal,endLocal,tzid}){
+  const uid=`${Date.now()}-${Math.random().toString(36).slice(2)}@fenexpress`;
+  const dtstamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+  const details=`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}`;
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -191,114 +170,97 @@ function buildICS({title, desc, location, startLocal, endLocal, tzid}){
     `DTSTART;TZID=${tzid}:${startLocal}`,
     `DTEND;TZID=${tzid}:${endLocal}`,
     `SUMMARY:${title}`,
-    `DESCRIPTION:${desc.replace(/\n/g,'\\n')}`,
+    `DESCRIPTION:${details.replace(/\n/g,'\\n')}`,
     `LOCATION:${location}`,
     'BEGIN:VALARM',
     `TRIGGER:-PT${ALARM_MINUTES}M`,
     'ACTION:DISPLAY',
-    'DESCRIPTION:תזכורת לתור לפן',
+    'DESCRIPTION:Reminder',
     'END:VALARM',
     'END:VEVENT',
     'END:VCALENDAR'
   ].join('\r\n');
 }
-function downloadICS(filename, content){
-  const blob = new Blob([content], {type:'text/calendar;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
+function downloadICS(filename,content){
+  const blob=new Blob([content],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename;
   document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1500);
+  setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},1200);
 }
 
-/* ====== שמירה ====== */
-let lastSavedPayload = null; // לשימוש המודל
-elSave.addEventListener('click', async ()=>{
-  const payload = {
-    date: elDate.value,
-    time: elTime.value,
-    name: elName.value.trim(),
-    phone: elPhone.value.trim()
-  };
-  if(!payload.date || !payload.time || !payload.name || !payload.phone){ showErr('נא למלא את כל השדות'); return; }
-  if(!validPhone(payload.phone)){ showErr('מספר טלפון לא תקין'); return; }
+/* ===== Open Calendar (Android → GCal, iOS → ICS) ===== */
+function openCalendarForPlatform(dateStr,timeStr){
+  // build end time
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const [hh,mm]=timeStr.split(':').map(Number);
+  const start=new Date(y,m-1,d,hh,mm,0);
+  const end=new Date(start.getTime()+SLOT_MINUTES*60000);
 
-  elSave.disabled = true;
+  const ua = navigator.userAgent || '';
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
 
+  if(isAndroid){
+    // Google Calendar template (opens app אם מותקנת, אחרת דפדפן)
+    const fmt = (dt)=>`${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${pad2(dt.getHours())}${pad2(dt.getMinutes())}00`;
+    const dates = `${fmt(start)}/${fmt(end)}`;
+    const text = encodeURIComponent(EVENT_TITLE);
+    const details = encodeURIComponent(`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}`);
+    const loc = encodeURIComponent(MAP_URL);
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${loc}`;
+    window.location.href = url;
+  }else{
+    // iOS (וגם דסקטופ): ICS
+    const startLocal=toICSLocal(dateStr,timeStr);
+    const endLocal=`${end.getFullYear()}${pad2(end.getMonth()+1)}${pad2(end.getDate())}T${pad2(end.getHours())}${pad2(end.getMinutes())}00`;
+    const ics = buildICS({title:EVENT_TITLE,location:MAP_URL,startLocal,endLocal,tzid:TIMEZONE});
+    downloadICS('fen-appointment.ics', ics);
+  }
+}
+
+/* ===== Save ===== */
+let lastSavedPayload=null;
+elSave.addEventListener('click',async ()=>{
+  const payload={date:elDate.value,time:elTime.value,name:elName.value.trim(),phone:elPhone.value.trim()};
+  if(!payload.date||!payload.time||!payload.name||!payload.phone){showErr('נא למלא את כל השדות');return;}
+  if(!validPhone(payload.phone)){showErr('מספר טלפון לא תקין');return;}
+
+  elSave.disabled=true;
   try{
-    // בדיקות כפילות
-    let rec = await fetchRecord();
-    const normPhone = normalizePhone(payload.phone);
+    let rec=await fetchRecord();
+    const normPhone=normalizePhone(payload.phone);
+    const existsSameDayPhone=rec.bookings.some(b=>b.date===payload.date && normalizePhone(b.phone)===normPhone);
+    if(existsSameDayPhone){showErr('קיים כבר תור על שמך לאותו יום. נא לבחור תאריך אחר.'); elSave.disabled=false; await refreshTimes(); return;}
+    if(rec.bookings.some(b=>b.date===payload.date && b.time===payload.time)){showErr('השעה נתפסה הרגע. בחר שעה אחרת.'); elSave.disabled=false; await refreshTimes(); return;}
 
-    const existsSameDayPhone = rec.bookings.some(b =>
-      b.date === payload.date && normalizePhone(b.phone) === normPhone
-    );
-    if(existsSameDayPhone){
-      showErr('קיים כבר תור על שמך לאותו יום. נא לבחור תאריך אחר.');
-      elSave.disabled = false; await refreshTimes(); return;
-    }
-    if(rec.bookings.some(b=>b.date===payload.date && b.time===payload.time)){
-      showErr('השעה נתפסה הרגע. בחר שעה אחרת.');
-      elSave.disabled = false; await refreshTimes(); return;
-    }
-
-    // בדיקה נוספת לפני PUT
     await new Promise(r=>setTimeout(r,250));
-    rec = await fetchRecord();
-    if(rec.bookings.some(b=>b.date===payload.date && b.time===payload.time)){
-      showErr('השעה נתפסה הרגע. בחר שעה אחרת.');
-      elSave.disabled = false; await refreshTimes(); return;
-    }
+    rec=await fetchRecord();
+    if(rec.bookings.some(b=>b.date===payload.date && b.time===payload.time)){showErr('השעה נתפסה הרגע. בחר שעה אחרת.'); elSave.disabled=false; await refreshTimes(); return;}
 
-    // שמירה
-    rec.bookings.push({ date: payload.date, time: payload.time, name: payload.name, phone: payload.phone, ts: Date.now() });
+    rec.bookings.push({date:payload.date,time:payload.time,name:payload.name,phone:payload.phone,ts:Date.now()});
     await putRecord(rec);
 
-    lastSavedPayload = payload; // לשימוש ביצירת ICS
+    lastSavedPayload=payload;
     showOk('התור נשמר בהצלחה!');
-    // הצגת מודל אישור הוספה ליומן
-    icsText.textContent = `ניצור אירוע ליומן בתאריך ${fmtDateHeb(payload.date)} בשעה ${payload.time} כולל תזכורת שעה לפני.`;
-    icsModal.style.display = 'flex';
+    icsText.textContent=`ניצור אירוע ליומן בתאריך ${fmtDateHeb(payload.date)} בשעה ${payload.time} כולל תזכורת שעה לפני.`;
+    icsModal.style.display='flex';
 
     await new Promise(r=>setTimeout(r,300));
     await refreshTimes();
     elTime.value=""; elName.value=""; elPhone.value="";
-  }catch(e){
-    showErr('שגיאת רשת');
-  }finally{
-    elSave.disabled = false;
-  }
+  }catch(e){ showErr('שגיאת רשת'); }
+  finally{ elSave.disabled=false; }
 });
 
-/* ====== התנהגות מודל ====== */
-btnCancel.addEventListener('click', ()=>{ icsModal.style.display='none'; });
-btnOk.addEventListener('click', ()=>{
-  if(!lastSavedPayload){ icsModal.style.display='none'; return; }
-  const startLocal = toICSDateLocalTz(lastSavedPayload.date, lastSavedPayload.time);
-  // חישוב סיום לפי 20 דק׳
-  const [y,m,d] = lastSavedPayload.date.split('-').map(Number);
-  const [hh,mm] = lastSavedPayload.time.split(':').map(Number);
-  const start = new Date(y, m-1, d, hh, mm, 0);
-  const end = new Date(start.getTime() + SLOT_MINUTES*60000);
-  const endLocal = [
-    end.getFullYear(),
-    pad2(end.getMonth()+1),
-    pad2(end.getDate())
-  ].join('') + 'T' + pad2(end.getHours()) + pad2(end.getMinutes()) + '00';
-
-  const desc = `שם: ${lastSavedPayload.name}\nטלפון: ${lastSavedPayload.phone}\nנקבע דרך מערכת ההזמנות.`;
-  const ics = buildICS({
-    title: EVENT_TITLE,
-    desc,
-    location: MAP_URL,
-    startLocal,
-    endLocal,
-    tzid: TIMEZONE
-  });
-  downloadICS('fen-appointment.ics', ics);
-  icsModal.style.display = 'none';
+/* Modal buttons */
+btnCancel.addEventListener('click',()=>{ icsModal.style.display='none'; });
+btnOk.addEventListener('click',()=>{
+  icsModal.style.display='none';
+  if(!lastSavedPayload) return;
+  openCalendarForPlatform(lastSavedPayload.date,lastSavedPayload.time);
 });
 </script>
 </body>
 </html>
-```0
