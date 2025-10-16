@@ -3,96 +3,105 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>פן אקספרס – ניהול תורים</title>
+<title>ניהול תורים – פן אקספרס</title>
 <style>
   body{font-family:Arial,Helvetica,sans-serif;background:#f2f7fb;margin:0}
-  .wrap{max-width:900px;margin:28px auto;padding:20px}
+  .wrap{max-width:980px;margin:20px auto;padding:20px}
   h1{margin:0 0 16px;color:#0c5e78}
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-  button{padding:10px 14px;border:0;background:#0da8c1;color:#fff;border-radius:10px;cursor:pointer;font-weight:700}
-  button:hover{filter:brightness(1.05)}
-  table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.06)}
-  th,td{padding:12px 10px;border-bottom:1px solid #eef5f8;text-align:right}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  input[type="date"]{padding:8px;border-radius:8px;border:1px solid #cfe3ea}
+  button{padding:8px 12px;border:0;background:#0da8c1;color:#fff;border-radius:8px;cursor:pointer;font-weight:700}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 6px 16px rgba(0,0,0,.06)}
+  th,td{padding:10px;border-bottom:1px solid #eef5f8;text-align:right}
   th{background:#e7f6fa;color:#164b59;font-weight:700}
-  tr:last-child td{border-bottom:0}
-  .muted{color:#667}
-  .note{margin-top:10px;color:#567}
+  .small-btn{background:#ef5350;padding:6px 8px;border-radius:8px;font-size:13px}
+  .export{background:#4caf50}
+  a.tel{color:#0b5e66;text-decoration:none;font-weight:600}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>ניהול תורים – פן אקספרס</h1>
   <div class="toolbar">
+    <label>תאריך: <input type="date" id="filterDate" /></label>
     <button id="refresh">רענן</button>
-    <button id="export">ייצוא JSON</button>
+    <button id="export" class="export">ייצוא JSON</button>
   </div>
+
   <table id="tbl">
     <thead>
-      <tr><th>תאריך</th><th>שעה</th><th>שם</th><th>טלפון</th><th class="muted">נוצר</th></tr>
+      <tr><th>תאריך</th><th>שעה</th><th>שם</th><th>טלפון</th><th>נוצר</th><th>פעולות</th></tr>
     </thead>
     <tbody></tbody>
   </table>
-  <div class="note">הערה: כדי שכל הלקוחות יראו תורים תפוסים בזמן אמת, השתמש במצב JSONBin כמו שמופיע בקוד (הכנס API Key ו-BIN ID גם כאן כפי שב-client.html).</div>
 </div>
 
 <script>
-// אותה שכבת נתונים כמו בדף הלקוח
-const STORAGE_MODE = "local"; // שנה ל-"jsonbin" אם אתה עובר לענן
-const JSONBIN = {
-  ENABLED: (STORAGE_MODE === "jsonbin"),
-  BIN_ID: "PASTE_YOUR_BIN_ID_HERE",
-  API_KEY: "PASTE_JSONBIN_X_MASTER_KEY_HERE"
-};
-
-class LocalStorageBackend {
-  key='pen_express_bookings_v1';
-  async load(){const raw=localStorage.getItem(this.key);return raw?JSON.parse(raw):{bookings:[]};}
-  async save(data){localStorage.setItem(this.key,JSON.stringify(data));}
-}
-class JSONBinBackend {
-  constructor(cfg){this.cfg=cfg;this.url=`https://api.jsonbin.io/v3/b/${cfg.BIN_ID}`;}
-  async load(){
-    const r=await fetch(this.url,{headers:{'X-Master-Key':this.cfg.API_KEY}});
-    if(!r.ok) throw new Error('קריאת JSONBin נכשלה');
-    const j=await r.json();return j.record||{bookings:[]};
-  }
-  async save(data){
-    const r=await fetch(this.url,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':this.cfg.API_KEY},body:JSON.stringify(data)});
-    if(!r.ok) throw new Error('שמירת JSONBin נכשלה');
-  }
-}
-const db = JSONBIN.ENABLED ? new JSONBinBackend(JSONBIN) : new LocalStorageBackend();
+const BIN_ID = '68f0e7bed0ea881f40a63b29';
+const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO';
+const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
 const tbody = document.querySelector('#tbl tbody');
-function fmtDate(ts){const d=new Date(ts);return d.toLocaleString('he-IL');}
+const filterDate = document.getElementById('filterDate');
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+filterDate.value = todayStr();
+
+async function fetchRecord(){
+  const r = await fetch(BIN_URL, { headers: { 'X-Master-Key': MASTER_KEY }});
+  if(!r.ok) throw new Error('fetch failed');
+  const j = await r.json();
+  return j.record || { bookings: [] };
+}
+
+function fmtDate(ts){ const d=new Date(Number(ts||0)); return isNaN(d)?'':d.toLocaleString('he-IL'); }
 
 async function render(){
-  const data = await db.load();
-  // מיון לפי תאריך+זמן
-  data.bookings.sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time) );
-  tbody.innerHTML = data.bookings.map(b=>`
+  const rec = await fetchRecord();
+  const selDate = filterDate.value;
+  const rows = rec.bookings.slice().sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
+  const filtered = selDate ? rows.filter(r=>r.date===selDate) : rows;
+  tbody.innerHTML = filtered.map(b=>`
     <tr>
       <td>${b.date}</td>
       <td>${b.time}</td>
       <td>${b.name}</td>
-      <td><a href="tel:${b.phone.replace(/\D/g,'')}">${b.phone}</a></td>
-      <td class="muted">${b.ts?fmtDate(b.ts):''}</td>
+      <td><a class="tel" href="tel:${String(b.phone).replace(/\D/g,'')}">${b.phone}</a></td>
+      <td>${fmtDate(b.ts)}</td>
+      <td><button class="small-btn" data-date="${b.date}" data-time="${b.time}">שחרר תור</button></td>
     </tr>
-  `).join('') || `<tr><td colspan="5" class="muted">אין רשומות.</td></tr>`;
+  `).join('') || `<tr><td colspan="6" style="text-align:center;color:#667;padding:12px">אין רשומות.</td></tr>`;
+  Array.from(document.querySelectorAll('.small-btn')).forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      const d = btn.getAttribute('data-date');
+      const t = btn.getAttribute('data-time');
+      if(!confirm('לשחרר את התור '+d+' '+t+' ?')) return;
+      try{
+        const latest = await fetchRecord();
+        const newBookings = latest.bookings.filter(b=> !(b.date===d && b.time===t) );
+        const put = await fetch(BIN_URL, {
+          method:'PUT',
+          headers: { 'Content-Type':'application/json', 'X-Master-Key': MASTER_KEY },
+          body: JSON.stringify({ bookings: newBookings })
+        });
+        if(!put.ok){ alert('שגיאה בשחרור'); return; }
+        await render();
+      }catch(err){ alert('שגיאת רשת'); }
+    });
+  });
 }
 
 document.getElementById('refresh').addEventListener('click', render);
 document.getElementById('export').addEventListener('click', async ()=>{
-  const data = await db.load();
-  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const rec = await fetchRecord();
+  const blob = new Blob([JSON.stringify(rec,null,2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = Object.assign(document.createElement('a'), { href:url, download:'bookings.json' });
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
 });
+filterDate.addEventListener('change', render);
 
 render();
 </script>
 </body>
 </html>
-
