@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>יצירת תזכורת ליומן</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      direction: rtl;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #e0f7fa;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    h2 {
+      font-size: 50%;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+    label, input, button {
+      width: 100%;
+      max-width: 300px;
+      margin: 0;
+      font-size: 1.2em;
+    }
+    label {
+      font-size: 1.5em;
+    }
+    button {
+      cursor: pointer;
+      font-size: 1.2em;
+    }
+    #linkContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+    #eventLink {
+      width: 100%;
+      max-width: 300px;
+      text-align: center;
+      font-size: 1.2em;
+    }
+    #qrCode {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>יצירת תזכורת ליומן</h1>
+  <h2>Created by charles.s</h2>
+
+  <form id="eventForm">
+    <label for="title">נושא:</label>
+    <input type="text" id="title" name="title" required>
+
+    <label for="time">זמן:</label>
+    <input type="datetime-local" id="time" name="time" required>
+
+    <label for="location">מיקום:</label>
+    <input type="text" id="location" name="location" required>
+
+    <button type="button" onclick="createEventLink()">צור קישור</button>
+  </form>
+
+  <div id="linkContainer" style="display: none;">
+    <label>מצורף לך קישור לתזכורת ביומן:</label>
+    <input type="text" id="eventLink" readonly>
+
+    <button onclick="copyLink()">העתק קישור</button>
+
+    <canvas id="qrCode"></canvas>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <script>
+    let qr = null; // נגדיר מופע קבוע
+
+    function formatDateTime(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}${month}${day}T${hours}${minutes}00`;
+    }
+
+    function createEventLink() {
+      const title = document.getElementById('title').value;
+      const time = document.getElementById('time').value;
+      const location = document.getElementById('location').value;
+
+      const dateTime = new Date(time);
+      const startDateTime = formatDateTime(dateTime);
+      const endDateTime = formatDateTime(new Date(dateTime.getTime() + 60 * 60 * 1000));
+
+      const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startDateTime}/${endDateTime}&location=${encodeURIComponent(location)}`;
+
+      const linkContainer = document.getElementById('linkContainer');
+      const eventLinkInput = document.getElementById('eventLink');
+      linkContainer.style.display = 'flex';
+      eventLinkInput.value = url;
+
+      // יצירת QR או עדכון שלו אם כבר נוצר
+      if (!qr) {
+        qr = new QRious({
+          element: document.getElementById('qrCode'),
+          value: url,
+          size: 200
+        });
+      } else {
+        qr.value = url;
+      }
+    }
+
+    function copyLink() {
+      const eventLinkInput = document.getElementById('eventLink');
+      eventLinkInput.select();
+      eventLinkInput.setSelectionRange(0, 99999);
+
+      try {
+        const successful = document.execCommand('copy');
+        alert(successful ? "הקישור הועתק בהצלחה!" : "נכשל להעתיק את הקישור.");
+      } catch (err) {
+        alert("הייתה שגיאה בהעתקה.");
+      }
+    }
+  </script>
+</body>
+</html>
