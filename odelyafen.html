@@ -19,6 +19,7 @@
   th{background:#e7f6fa;color:#164b59;font-weight:700}
   .small-btn{background:#ef5350;padding:6px 8px;border-radius:8px;font-size:13px}
   a.tel{color:#0b5e66;text-decoration:none;font-weight:600}
+  .badge{display:inline-block;padding:2px 6px;border-radius:6px;background:#eee;color:#555;font-size:12px;margin-right:6px}
   .ver{margin-top:14px;font-size:12px;color:#678;text-align:center}
   .stats{margin-left:auto;color:#345}
   .chk{display:flex;gap:6px;align-items:center}
@@ -46,13 +47,17 @@
     <tbody></tbody>
   </table>
 
-  <div class="ver">Version: 1.3.4</div>
+  <div class="ver">Version: 1.4.0</div>
 </div>
 
 <script>
 const BIN_ID = '68f0e7bed0ea881f40a63b29';
 const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO';
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
+
+// רשומת שמורה קבועה (תמיד ראשונה ברשימה לפי תאריך)
+const SENTINEL = { date:'1970-01-01', time:'20:30', name:'שומר מקום', phone:'-', ts:0 };
+const isSentinel = b => b.date===SENTINEL.date && b.time===SENTINEL.time;
 
 const tbody = document.querySelector('#tbl tbody');
 const filterDate = document.getElementById('filterDate');
@@ -69,9 +74,25 @@ async function fetchRecord(){
   });
   if(!r.ok) throw new Error('fetch failed');
   const j = await r.json();
-  // ✅ החזרת מבנה ריק אם אין record כלל
-  if (!j.record || !Array.isArray(j.record.bookings)) return { bookings: [] };
-  return j.record;
+  let rec = (j.record && Array.isArray(j.record.bookings)) ? j.record : { bookings: [] };
+  // ודא שקיימת רשומת שמירה
+  if (!rec.bookings.some(isSentinel)) {
+    rec.bookings.unshift(SENTINEL);
+    await saveBookings(rec.bookings); // מסנכרן מיידית אם חסר
+  }
+  return rec;
+}
+
+async function saveBookings(bookings){
+  // ודא שה-SENTINEL קיים תמיד, ואי־אפשר למחוק אותו
+  const arr = bookings.some(isSentinel) ? bookings : [SENTINEL, ...bookings];
+  const put = await fetch(BIN_URL + '?ts=' + Date.now(), {
+    method:'PUT',
+    headers: { 'Content-Type':'application/json', 'X-Master-Key': MASTER_KEY },
+    body: JSON.stringify({ bookings: arr }),
+    cache: 'no-store'
+  });
+  if(!put.ok) throw new Error('save failed');
 }
 
 function fmtDate(ts){ const d=new Date(Number(ts||0)); return isNaN(d)?'':d.toLocaleString('he-IL'); }
@@ -81,18 +102,21 @@ async function render(){
   const rows = rec.bookings.slice().sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
   const useAll = showAll.checked;
   const selDate = filterDate.value;
-  const filtered = useAll ? rows : rows.filter(r=>r.date===selDate);
+  const filtered = (useAll ? rows : rows.filter(r=>r.date===selDate));
 
-  tbody.innerHTML = filtered.map(b=>`
-    <tr>
-      <td>${b.date}</td>
-      <td>${b.time}</td>
-      <td>${b.name}</td>
-      <td><a class="tel" href="tel:${String(b.phone).replace(/\D/g,'')}">${b.phone}</a></td>
-      <td>${fmtDate(b.ts)}</td>
-      <td><button class="small-btn" data-date="${b.date}" data-time="${b.time}">שחרר תור</button></td>
-    </tr>
-  `).join('') || `<tr><td colspan="6" style="text-align:center;color:#667;padding:12px">אין רשומות.</td></tr>`;
+  tbody.innerHTML = filtered.map(b=>{
+    const btn = isSentinel(b) ? '' : `<button class="small-btn" data-date="${b.date}" data-time="${b.time}">שחרר תור</button>`;
+    const nameCell = isSentinel(b) ? `<span class="badge">שומר מקום</span>${b.name}` : b.name;
+    return `
+      <tr>
+        <td>${b.date}</td>
+        <td>${b.time}</td>
+        <td>${nameCell}</td>
+        <td>${isSentinel(b)?'-':`<a class="tel" href="tel:${String(b.phone).replace(/\D/g,'')}">${b.phone}</a>`}</td>
+        <td>${fmtDate(b.ts)}</td>
+        <td>${btn}</td>
+      </tr>`;
+  }).join('') || `<tr><td colspan="6" style="text-align:center;color:#667;padding:12px">אין רשומות.</td></tr>`;
 
   stats.textContent = `סה״כ: ${filtered.length} | עודכן: ${new Date().toLocaleTimeString('he-IL')}`;
 
@@ -103,14 +127,9 @@ async function render(){
       if(!confirm('לשחרר את התור '+d+' '+t+' ?')) return;
       try{
         const latest = await fetchRecord();
-        let newBookings = latest.bookings.filter(b=> !(b.date===d && b.time===t));
-        const put = await fetch(BIN_URL + '?ts=' + Date.now(), {
-          method:'PUT',
-          headers: { 'Content-Type':'application/json', 'X-Master-Key': MASTER_KEY },
-          body: JSON.stringify({ bookings: newBookings }),
-          cache: 'no-store'
-        });
-        if(!put.ok){ alert('שגיאה בשחרור'); return; }
+        let newBookings = latest.bookings.filter(b=> !(b.date===d && b.time===t) && !isSentinel(b));
+        // שמור חזרה תמיד עם SENTINEL
+        await saveBookings(newBookings);
         await render();
       }catch(err){ alert('שגיאת רשת'); }
     });
@@ -128,3 +147,4 @@ render();
 </script>
 </body>
 </html>
+```0
