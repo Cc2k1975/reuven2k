@@ -46,15 +46,16 @@
     <input type="tel" id="phone" placeholder="הכנס טלפון" required />
 
     <button id="save" class="btn">שמור</button>
-    <div class="ver">Version: 1.4.4</div>
+    <div class="ver">Version: 1.4.5</div>
   </div>
 
 <script>
+/* ====== הגדרות JSONBin ====== */
 const BIN_ID = '68f0e7bed0ea881f40a63b29';
 const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO';
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
-// מחולל שעות 08:00–20:00 בקפיצות 20 דק'
+/* ====== עזרי תאריך/שעה ====== */
 const pad2 = n => (n<10?('0'+n):''+n);
 function genTimeSlots(){
   const slots=[];
@@ -68,24 +69,28 @@ function genTimeSlots(){
 }
 const SLOTS = genTimeSlots();
 
-// אלמנטים
-const elDate = document.getElementById('date');
-const elTime = document.getElementById('time');
-const elName = document.getElementById('name');
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function addDaysStr(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+function setDateLimits(){ elDate.min=todayStr(); elDate.max=addDaysStr(3); if(!elDate.value) elDate.value=todayStr(); }
+function fmtDateHeb(yyyy_mm_dd){
+  const [y,m,d]=yyyy_mm_dd.split('-'); return `${d}.${m}.${y}`;
+}
+
+/* ====== DOM ====== */
+const elDate  = document.getElementById('date');
+const elTime  = document.getElementById('time');
+const elName  = document.getElementById('name');
 const elPhone = document.getElementById('phone');
-const elSave = document.getElementById('save');
-const msgErr = document.getElementById('msgError');
-const msgOk = document.getElementById('msgOk');
+const elSave  = document.getElementById('save');
+const msgErr  = document.getElementById('msgError');
+const msgOk   = document.getElementById('msgOk');
 
 function showErr(t){ msgErr.textContent=t; msgErr.style.display='block'; setTimeout(()=>msgErr.style.display='none',4000); }
 function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout(()=>msgOk.style.display='none',4000); }
 
-function todayStr(){ return new Date().toISOString().slice(0,10); }
-function addDaysStr(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
-function setDateLimits(){ elDate.min=todayStr(); elDate.max=addDaysStr(3); if(!elDate.value) elDate.value=todayStr(); }
 setDateLimits();
 
-// JSONBin helpers
+/* ====== JSONBin ====== */
 async function fetchRecord(){
   const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
     headers: { 'X-Master-Key': MASTER_KEY },
@@ -106,7 +111,7 @@ async function putRecord(rec){
   return r.json().catch(()=> ({}));
 }
 
-// רענון שעות + סימון תפוסים
+/* ====== רענון שעות ====== */
 async function refreshTimes(){
   elTime.innerHTML = `<option value="">טוען…</option>`;
   try{
@@ -122,11 +127,25 @@ async function refreshTimes(){
 elDate.addEventListener('change', refreshTimes);
 refreshTimes();
 
-// ולידציה בסיסית
+/* ====== ולידציה ====== */
 function validPhone(p){ return (p||'').replace(/\D/g,'').length>=8; }
-function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
+function normalizePhoneInternational(p){
+  let digits = (p||'').replace(/\D/g,'');
+  digits = digits.replace(/^0+/, ''); // להסיר אפסים מובילים
+  if(digits.startsWith('972')) return digits;
+  return '972' + digits;
+}
 
-// שמירה עם הגנות נגד כפילות/מרוץ
+/* ====== וואטסאפ (קליינטי) ====== */
+function sendWhatsAppReminder(phone, name, dateStr, timeStr){
+  const intl = normalizePhoneInternational(phone);
+  const msg = `שלום ${name}, מזכירה לך שיש לך תור לפן בתאריך ${fmtDateHeb(dateStr)} בשעה ${timeStr}.`;
+  const url = `https://wa.me/${intl}?text=${encodeURIComponent(msg)}`;
+  // פתיחה/הפניה – במובייל זה יפתח את וואטסאפ
+  window.location.href = url;
+}
+
+/* ====== שמירה ====== */
 elSave.addEventListener('click', async ()=>{
   const payload = {
     date: elDate.value,
@@ -140,38 +159,27 @@ elSave.addEventListener('click', async ()=>{
   elSave.disabled = true;
 
   try{
-    // שלב 1: קריאה ראשונה – בדיקות
+    // בדיקות כפילות
     let rec = await fetchRecord();
-    const normNew = normalizePhone(payload.phone);
+    const normPhone = normalizePhoneInternational(payload.phone);
 
     const existsSameDayPhone = rec.bookings.some(b =>
-      b.date === payload.date && normalizePhone(b.phone) === normNew
+      b.date === payload.date && normalizePhoneInternational(b.phone) === normPhone
     );
     if(existsSameDayPhone){
       showErr('קיים כבר תור על שמך לאותו יום. נא לבחור תאריך אחר.');
       elSave.disabled = false; await refreshTimes(); return;
     }
-
-    const slotTaken1 = rec.bookings.some(b => b.date===payload.date && b.time===payload.time);
-    if(slotTaken1){
+    if(rec.bookings.some(b=>b.date===payload.date && b.time===payload.time)){
       showErr('השעה נתפסה הרגע. בחר שעה אחרת.');
       elSave.disabled = false; await refreshTimes(); return;
     }
 
-    // שלב 2: קריאה שנייה מיד לפני PUT (הגנה מפני איטיות/מרוץ)
+    // בדיקה נוספת לפני PUT
     await new Promise(r=>setTimeout(r,250));
     rec = await fetchRecord();
-
-    const slotTaken2 = rec.bookings.some(b => b.date===payload.date && b.time===payload.time);
-    if(slotTaken2){
+    if(rec.bookings.some(b=>b.date===payload.date && b.time===payload.time)){
       showErr('השעה נתפסה הרגע. בחר שעה אחרת.');
-      elSave.disabled = false; await refreshTimes(); return;
-    }
-    const existsSameDayPhone2 = rec.bookings.some(b =>
-      b.date === payload.date && normalizePhone(b.phone) === normNew
-    );
-    if(existsSameDayPhone2){
-      showErr('קיים כבר תור על שמך לאותו יום. נא לבחור תאריך אחר.');
       elSave.disabled = false; await refreshTimes(); return;
     }
 
@@ -180,7 +188,11 @@ elSave.addEventListener('click', async ()=>{
     await putRecord(rec);
 
     showOk('התור נשמר בהצלחה!');
-    await new Promise(r=>setTimeout(r,300)); // המתנה קצרה לעדכון שרת
+    // שליחת וואטסאפ אוטומטית ללקוחה
+    sendWhatsAppReminder(payload.phone, payload.name, payload.date, payload.time);
+
+    // רענון אחרי שליחה
+    await new Promise(r=>setTimeout(r,300));
     await refreshTimes();
     elTime.value=""; elName.value=""; elPhone.value="";
   }catch(e){
@@ -192,3 +204,4 @@ elSave.addEventListener('click', async ()=>{
 </script>
 </body>
 </html>
+```0
