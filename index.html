@@ -19,9 +19,11 @@
       background: radial-gradient(1000px 700px at 80% -10%, #1b2233 0%, #0f1115 55%) fixed;
       color:var(--text);
       font-family:"Heebo",sans-serif;
-      font-size:12px;
+      font-size:12px; /* קומפקטי */
     }
     .wrap{max-width:1000px;margin:auto;padding:12px 10px 110px;}
+
+    /* כותרת ממורכזת וגדולה פי 2 */
     header{
       text-align:center;
       margin-bottom:12px;
@@ -35,7 +37,7 @@
     .logo svg{width:16px;height:16px;}
     h1{
       margin:8px 0 0 0;
-      font-size:28px; /* פי 2 מהגודל הקודם */
+      font-size:28px; /* פי 2 */
       font-weight:900;
       letter-spacing:.2px;
     }
@@ -54,6 +56,7 @@
       to   { opacity:1; transform: translateY(0); }
     }
 
+    /* כרטיס */
     .card{
       background: linear-gradient(180deg, var(--card), var(--card-2));
       border-radius: var(--radius);
@@ -68,6 +71,7 @@
     .card.appear{ animation: fadeUp .40s ease forwards; }
     .card:hover{ transform: translateY(-2px); border-color: rgba(122,162,255,.22); box-shadow: 0 12px 28px rgba(0,0,0,.45) }
 
+    /* אייקון */
     .fav{
       width:40px;height:40px;border-radius:14px;
       margin:0 auto 8px;
@@ -76,6 +80,7 @@
     }
     .fav img{width:22px;height:22px}
 
+    /* כפתור פתח קישור */
     .card a.open{
       display:inline-block;width:100%;
       font-size:10px;font-weight:800;
@@ -86,7 +91,7 @@
     }
     .card a.open:hover{ transform: translateY(-1px); border-color: rgba(255,255,255,.24) }
 
-    /* פקדי עריכה/מחיקה */
+    /* עריכה/מחיקה זעירים ושקופים – רק בהובר */
     .actions{
       position:absolute; top:3px; inset-inline-start:3px; display:flex; gap:3px; z-index:2;
       opacity:0; transition: opacity .15s ease;
@@ -101,7 +106,7 @@
     .iconbtn:hover{ transform:translateY(-1px); border-color: rgba(255,255,255,.22); background:#11141b; opacity:1; }
     .iconbtn svg{width:8px;height:8px;opacity:.85}
 
-    /* סרגל תחתון */
+    /* סרגל תחתון + שני כפתורים */
     .bar{
       position:fixed;bottom:0;left:0;right:0;
       background:rgba(15,17,21,.92);backdrop-filter: blur(8px);
@@ -110,7 +115,7 @@
     .bar-inner{
       max-width:1000px;margin:auto;
       display:grid;gap:8px;
-      grid-template-columns: 1fr 1fr auto;
+      grid-template-columns: 1fr 1fr auto auto; /* הוספתי מקום לכפתור רענון */
       align-items:end;
     }
     label{font-size:10px;color:var(--muted);margin-bottom:4px;display:block}
@@ -122,18 +127,24 @@
     .btn{
       padding:9px 10px;border:none;border-radius:10px;font-weight:800;font-size:12px;
       background: linear-gradient(135deg,#7aa2ff,#4dd6c1);color:#0b0d12;cursor:pointer;box-shadow:var(--shadow);
+      white-space:nowrap;
     }
     .btn:hover{transform:translateY(-1px);filter:saturate(112%)}
+    .btn-sec{
+      background:#0d0f14;border:1px solid rgba(255,255,255,.14);color:#e8ebf1;
+    }
     .err{color:var(--danger);font-size:10px;margin-top:4px}
     .empty{margin:14px 0 18px;color:var(--muted);text-align:center;font-size:12px}
-
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <div class="logo">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 1 0 16 0" stroke="white" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="12" r="3" fill="white"/></svg>
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M4 12a8 8 0 1 0 16 0" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="3" fill="white"/>
+        </svg>
       </div>
       <h1>מועדפים</h1>
     </header>
@@ -154,6 +165,7 @@
         <div id="err" class="err" hidden></div>
       </div>
       <button id="saveAll" class="btn" type="button">שמור לכולם</button>
+      <button id="refreshBtn" class="btn btn-sec" type="button">רענן נתונים</button>
     </div>
   </div>
 
@@ -161,11 +173,13 @@
     const $ = s=>document.querySelector(s);
     const cards=$("#cards"), empty=$("#empty"),
           inpName=$("#name"), inpUrl=$("#url"),
-          btnSave=$("#saveAll"), err=$("#err");
+          btnSave=$("#saveAll"), err=$("#err"),
+          refreshBtn=$("#refreshBtn");
     const JSON_PATH="data/links.json"; let list=[];
     const GH_EDIT_URL="https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
     const faviconFor=u=>`https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(u).hostname)}&sz=64`;
 
+    /* טעינת JSON עם cache-buster לעקוף קאש */
     async function loadJson(){
       try{
         const r=await fetch(`${JSON_PATH}?v=${Date.now()}`,{cache:"no-store"});
@@ -184,6 +198,7 @@
       catch{ throw new Error("כתובת לא תקינה"); }
     }
 
+    /* רנדר + אנימציה + פקדים זעירים */
     function render(withAnimation=false){
       cards.innerHTML="";
       if(!list.length){ empty.hidden=false; return; }
@@ -206,7 +221,6 @@
             </button>
           </div>
         `;
-
         c.innerHTML = actions + fav + open;
         cards.appendChild(c);
       });
@@ -216,6 +230,7 @@
       });
     }
 
+    /* הוספה + שמירה לכולם (העתקה + פתיחת עריכה בגיטהאב) */
     function addAndSave(){
       err.hidden=true; err.textContent="";
       const name=(inpName.value||"").trim();
@@ -245,6 +260,7 @@
       }
     }
 
+    /* עריכה/מחיקה */
     function onAction(e){
       const btn = e.currentTarget;
       const idx = Number(btn.getAttribute("data-index"));
@@ -255,7 +271,7 @@
         if(confirm(`למחוק את "${list[idx].name}"?`)){
           list.splice(idx,1);
           render();
-          copyAndOpen();
+          copyAndOpen(); // עדכון JSON לכלל הדף
         }
       }else if(action==="edit"){
         const curr = list[idx];
@@ -267,16 +283,32 @@
           const newUrl = normalizeUrl(newUrlRaw);
           list[idx] = { ...curr, name: (newName||"").trim() || curr.name, url: newUrl, ts: Date.now() };
           render();
-          copyAndOpen();
+          copyAndOpen(); // עדכון JSON לכלל הדף
         }catch(errMsg){
           alert(errMsg.message || "כתובת לא תקינה");
         }
       }
     }
 
+    /* כפתורים ואירועים */
     btnSave.addEventListener("click", addAndSave);
     [inpName, inpUrl].forEach(el=>el.addEventListener("keydown", e=>{ if(e.key==="Enter") addAndSave(); }));
 
+    /* כפתור רענון נתונים – מושך שוב את links.json ומרענן את הכרטיסים */
+    async function refreshData(){
+      const original = refreshBtn.textContent;
+      try{
+        refreshBtn.disabled = true;
+        refreshBtn.textContent = "טוען...";
+        await loadJson(); // כבר כולל cache-buster
+      }finally{
+        refreshBtn.textContent = original;
+        refreshBtn.disabled = false;
+      }
+    }
+    refreshBtn.addEventListener("click", refreshData);
+
+    /* טעינה ראשונית */
     loadJson();
   </script>
 </body>
