@@ -9,17 +9,19 @@
 <meta http-equiv="Expires" content="0" />
 <style>
   body{font-family:Arial,Helvetica,sans-serif;background:#e8f4f8;margin:0;padding:0}
-  /* לוגו גיף קטן וממורכז בראש הדף (צמצום מרווחים) */
-  .hero-logo{width:100px;display:block;margin:8px auto 4px auto}
-  /* צמצום המרווח החיצוני העליון של הקונטיינר */
-  .wrap{max-width:520px;margin:20px auto;padding:24px;background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
-  h1{margin:0 0 6px;font-size:32px;color:#0c5e78;text-align:center}
-  h2{margin:0 0 22px;font-size:20px;color:#2a6f83;text-align:center}
+  /* לוגו גיף קטן וממורכז בראש הדף (צמצום מרווחים יותר) */
+  .hero-logo{width:92px;display:block;margin:6px auto 0 auto}
+  /* צמצום נוסף של המרווח העליון של הקונטיינר */
+  .wrap{max-width:520px;margin:14px auto;padding:24px;background:#fff;border-radius:16px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  h1{margin:0 0 4px;font-size:32px;color:#0c5e78;text-align:center}
+  h2{margin:0 0 18px;font-size:20px;color:#2a6f83;text-align:center}
   label{display:block;margin:14px 4px 6px;font-weight:600;color:#2d3a40}
   input,select,button{width:100%;padding:12px 14px;border:1px solid #cfe3ea;border-radius:10px;font-size:16px;box-sizing:border-box;background:#f9feff}
   input[type="tel"]{text-align:right;}
   .btn{background:#12acc5;color:#fff;border:0;cursor:pointer;margin-top:18px;font-weight:700}
   .btn[disabled]{opacity:.6;cursor:not-allowed}
+  /* לחצן משני קטן לנווט */
+  .btn-secondary{background:#ffffff;color:#0c5e78;border:1px solid #12acc5;margin-top:10px;font-size:14px;padding:10px}
   .error{background:#ffecec;color:#b00020;border:1px solid #f6c; padding:10px;border-radius:10px;margin-top:10px;display:none}
   .success{background:#eafff2;color:#0a7a3f;border:1px solid #a6e7c3; padding:10px;border-radius:10px;margin-top:10px;display:none}
   option.taken{color:#888;background:#f1f1f1}
@@ -42,7 +44,6 @@
 
   <div class="wrap">
     <h1>פן אקספרס</h1>
-    <!-- שינוי הכיתוב בלבד -->
     <h2>מערכת לזימון תורים</h2>
 
     <div id="msgError" class="error"></div>
@@ -63,7 +64,11 @@
     <input type="tel" id="phone" placeholder="הכנס טלפון" required />
 
     <button id="save" class="btn">שמור</button>
-    <div class="ver">Version: 1.5.3</div>
+
+    <!-- לחצן נווט קטן -->
+    <button id="navWaze" type="button" class="btn-secondary">נווט ל פן-אקספרס</button>
+
+    <div class="ver">Version: 1.5.4</div>
   </div>
 
   <!-- Modal -->
@@ -86,6 +91,8 @@ const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
 const MAP_URL = 'https://maps.google.com/?q=33.003292,35.108864';
+const WAZE_DEEP = 'waze://?ll=33.003292,35.108864&navigate=yes';
+const WAZE_WEB  = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
 const TIMEZONE = 'Asia/Jerusalem';
 const EVENT_TITLE = 'תור לפן – פן אקספרס';
 const ALARM_MINUTES = 60;
@@ -114,6 +121,7 @@ const icsModal=document.getElementById('icsModal');
 const btnOk=document.getElementById('btnOk');
 const btnCancel=document.getElementById('btnCancel');
 const icsText=document.getElementById('icsText');
+const btnWaze=document.getElementById('navWaze');
 
 function showErr(t){ msgErr.textContent=t; msgErr.style.display='block'; setTimeout(()=>msgErr.style.display='none',4000); }
 function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout(()=>msgOk.style.display='none',4000); }
@@ -187,7 +195,7 @@ function openCalendarForPlatform(dateStr,timeStr){
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
 
   if(isAndroid){
-    const fmt = (dt)=>`${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${pad2(dt.getHours())}${pad2(dt.getMinutes())}00`;
+    const fmt = (dt)=>`${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${dt.getHours().toString().padStart(2,'0')}${dt.getMinutes().toString().padStart(2,'0')}00`;
     const dates = `${fmt(start)}/${fmt(end)}`;
     const text = encodeURIComponent(EVENT_TITLE);
     const details = encodeURIComponent(`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}`);
@@ -201,6 +209,18 @@ function openCalendarForPlatform(dateStr,timeStr){
     downloadICS('fen-appointment.ics', ics);
   }
 }
+
+/* ניווט בוייז: ניסיון לפתוח את האפליקציה עם נפילה אוטומטית לקישור ווב */
+btnWaze.addEventListener('click', ()=>{
+  const start = Date.now();
+  window.location.href = WAZE_DEEP;
+  setTimeout(()=>{
+    // אם לא נפתח (לרוב ב־iOS/Safari), נבצע נפילה לקישור הווב
+    if (Date.now() - start < 1200) {
+      window.location.href = WAZE_WEB;
+    }
+  }, 900);
+});
 
 let lastSavedPayload=null;
 elSave.addEventListener('click',async ()=>{
