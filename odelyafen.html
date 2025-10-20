@@ -64,7 +64,7 @@
 <div class="wrap">
   <h1>ניהול תורים – פן אקספרס</h1>
 
-  <!-- כפתור כבוי/פועל (נשמר מקומית) -->
+  <!-- כפתור כבוי/פועל (גלובלי דרך JSONBin) -->
   <div class="toggle-wrap">
     <button id="toggle" class="toggle off" aria-pressed="false">מצב: כבוי</button>
   </div>
@@ -88,7 +88,7 @@
     <tbody></tbody>
   </table>
 
-  <div class="ver">Version: 1.4.2</div>
+  <div class="ver">Version: 1.4.3</div>
 </div>
 
 <script>
@@ -104,31 +104,7 @@ const tbody = document.querySelector('#tbl tbody');
 const filterDate = document.getElementById('filterDate');
 const showAll = document.getElementById('showAll');
 const stats = document.getElementById('stats');
-
-// ===== כפתור דו-מצבי עם שמירה מקומית =====
 const toggleBtn = document.getElementById('toggle');
-const TOGGLE_KEY = 'bookingToggleState'; // 'on' | 'off'
-function loadToggle(){
-  return localStorage.getItem(TOGGLE_KEY) === 'on';
-}
-function saveToggle(isOn){
-  localStorage.setItem(TOGGLE_KEY, isOn ? 'on' : 'off');
-}
-function applyToggleVisual(isOn){
-  toggleBtn.classList.toggle('on', isOn);
-  toggleBtn.classList.toggle('off', !isOn);
-  toggleBtn.textContent = isOn ? 'מצב: פועל' : 'מצב: כבוי';
-  toggleBtn.setAttribute('aria-pressed', String(isOn));
-}
-// אתחול מצב מהאחסון המקומי
-applyToggleVisual(loadToggle());
-// האזנה ללחיצה
-toggleBtn.addEventListener('click', ()=>{
-  const next = !loadToggle();
-  saveToggle(next);
-  applyToggleVisual(next);
-});
-// ===== סוף הכפתור =====
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 filterDate.value = todayStr();
@@ -140,22 +116,26 @@ async function fetchRecord(){
   });
   if(!r.ok) throw new Error('fetch failed');
   const j = await r.json();
+  // אם אין bookings – ניצור מבנה בסיסי.
   let rec = (j.record && Array.isArray(j.record.bookings)) ? j.record : { bookings: [] };
+  // אם אין שדה bookingOpen – ברירת מחדל true כדי לא לשנות התנהגות קיימת.
+  if (typeof rec.bookingOpen !== 'boolean') rec.bookingOpen = true;
+
   // ודא שקיימת רשומת שמירה
   if (!rec.bookings.some(isSentinel)) {
     rec.bookings.unshift(SENTINEL);
-    await saveBookings(rec.bookings); // מסנכרן מיידית אם חסר
+    await saveAll(rec.bookings, rec.bookingOpen); // מסנכרן מיידית אם חסר
   }
   return rec;
 }
 
-async function saveBookings(bookings){
-  // ודא שה-SENTINEL קיים תמיד, ואי־אפשר למחוק אותו
+async function saveAll(bookings, bookingOpen){
   const arr = bookings.some(isSentinel) ? bookings : [SENTINEL, ...bookings];
+  const body = { bookings: arr, bookingOpen: !!bookingOpen };
   const put = await fetch(BIN_URL + '?ts=' + Date.now(), {
     method:'PUT',
     headers: { 'Content-Type':'application/json', 'X-Master-Key': MASTER_KEY },
-    body: JSON.stringify({ bookings: arr }),
+    body: JSON.stringify(body),
     cache: 'no-store'
   });
   if(!put.ok) throw new Error('save failed');
@@ -163,8 +143,19 @@ async function saveBookings(bookings){
 
 function fmtDate(ts){ const d=new Date(Number(ts||0)); return isNaN(d)?'':d.toLocaleString('he-IL'); }
 
+function applyToggleVisual(isOn){
+  toggleBtn.classList.toggle('on', isOn);
+  toggleBtn.classList.toggle('off', !isOn);
+  toggleBtn.textContent = isOn ? 'מצב: פועל' : 'מצב: כבוי';
+  toggleBtn.setAttribute('aria-pressed', String(isOn));
+}
+
 async function render(){
   const rec = await fetchRecord();
+
+  // עדכן מצב הלחצן לפי JSONBin
+  applyToggleVisual(!!rec.bookingOpen);
+
   const rows = rec.bookings.slice().sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
   const useAll = showAll.checked;
   const selDate = filterDate.value;
@@ -194,13 +185,24 @@ async function render(){
       try{
         const latest = await fetchRecord();
         let newBookings = latest.bookings.filter(b=> !(b.date===d && b.time===t) && !isSentinel(b));
-        // שמור חזרה תמיד עם SENTINEL
-        await saveBookings(newBookings);
+        await saveAll(newBookings, latest.bookingOpen); // שמור גם את מצב המערכת כמו שהוא
         await render();
       }catch(err){ alert('שגיאת רשת'); }
     });
   });
 }
+
+// לחיצה על הטוגל – עדכון bookingOpen בגלובלי
+toggleBtn.addEventListener('click', async ()=>{
+  try{
+    const rec = await fetchRecord();
+    const next = !rec.bookingOpen;
+    await saveAll(rec.bookings, next);
+    applyToggleVisual(next);
+  }catch(e){
+    alert('שגיאת רשת');
+  }
+});
 
 document.getElementById('refresh').addEventListener('click', render);
 filterDate.addEventListener('change', render);
