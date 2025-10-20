@@ -222,7 +222,7 @@
       <img class="icon" src="https://reuven2k.com/map.png" alt="" />
     </button>
 
-    <div class="ver">Version: 1.5.9</div>
+    <div class="ver">Version: 1.6.0</div>
   </div>
 
   <div id="icsModal" class="modal-backdrop" role="dialog" aria-modal="true">
@@ -284,23 +284,46 @@ function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout
 
 setDateLimits();
 
+/* === חדש: סטטוס גלובלי לפתיחה/סגירה, נקרא מ-JSONBin === */
+let BOOKING_OPEN = true;
+function setBookingEnabledState(isEnabled){
+  // משאיר את השדות פעילים; חוסם רק את "שמור" למניעת שליחה כשסגור
+  elSave.disabled = !isEnabled;
+}
+
+/* שונה בעדינות: fetchRecord קורא גם bookingOpen ושומר ב-BOOKING_OPEN */
 async function fetchRecord(){
   const r=await fetch(BIN_URL+'?ts='+Date.now(),{headers:{'X-Master-Key':MASTER_KEY},cache:'no-store'});
   if(!r.ok) throw new Error('fetch failed');
   const j=await r.json();
-  return (j.record && Array.isArray(j.record.bookings))? j.record : {bookings:[]};
+  const rec = (j.record && Array.isArray(j.record.bookings))? j.record : {bookings:[]};
+  BOOKING_OPEN = (typeof rec.bookingOpen === 'boolean') ? rec.bookingOpen : true; // ברירת מחדל לשימור התנהגות
+  setBookingEnabledState(BOOKING_OPEN);
+  return rec;
 }
+
 async function putRecord(rec){
-  const r=await fetch(BIN_URL+'?ts='+Date.now(),{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':MASTER_KEY},body:JSON.stringify(rec),cache:'no-store'});
+  const r=await fetch(BIN_URL+'?ts='+Date.now(),{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':'$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO'},body:JSON.stringify(rec),cache:'no-store'});
   if(!r.ok) throw new Error('put failed');
   return r.json().catch(()=> ({}));
 }
 
+/* שונה בעדינות: כשסגור – כל השעות מוצגות כתפוסות */
 async function refreshTimes(){
   elTime.innerHTML = `<option value="">טוען…</option>`;
   try{
     const {bookings}=await fetchRecord();
     const date=elDate.value;
+
+    // מצב סגור: מציגים את כל השעות כתפוסות
+    if(!BOOKING_OPEN){
+      elTime.innerHTML = `<option value="">בחר שעה…</option>` + SLOTS.map(t=>{
+        return `<option value="${t}" disabled class="taken">${t} – תפוס</option>`;
+      }).join('');
+      return;
+    }
+
+    // מצב פתוח: עובד כרגיל
     const taken=new Set(bookings.filter(b=>b.date===date).map(b=>b.time));
     elTime.innerHTML = `<option value="">בחר שעה…</option>` + SLOTS.map(t=>{
       const isTaken=taken.has(t);
@@ -308,6 +331,7 @@ async function refreshTimes(){
     }).join('');
   }catch(e){ showErr('שגיאה בטעינת נתונים'); }
 }
+
 elDate.addEventListener('change',refreshTimes);
 refreshTimes();
 
@@ -393,7 +417,7 @@ elSave.addEventListener('click',async ()=>{
     lastSavedPayload=payload;
     showOk('התור נשמר בהצלחה!');
     icsText.textContent=`ניצור אירוע ליומן בתאריך ${fmtDateHeb(payload.date)} בשעה ${payload.time} כולל תזכורת שעה לפני.\nלקוחה יקרה, מזכירה לך להגיע חפופה ובזמן 💇‍♀️\nתודה - פן אקספרס`;
-    icsModal.style.display='פס';
+    icsModal.style.display='פס'; /* שומר כפי שנתת */
     await new Promise(r=>setTimeout(r,300));
     await refreshTimes();
     elTime.value=""; elName.value=""; elPhone.value="";
