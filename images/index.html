@@ -1,113 +1,253 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>גלריית תמונות</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>גלריה – 2 בעמודה + לייטבוקס חלק</title>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    background-color: #f3f3f3;
-    margin: 0;
-    padding: 20px;
-    text-align: center;
+  :root{
+    --gap:10px;             /* ריווח בין תמונות */
+    --thumb-radius:12px;     /* עיגול פינות קל */
+    --open-dur:480ms;        /* זמן פתיחה/סגירה – טיפה ארוך יותר */
+    --shadow:0 8px 24px rgba(0,0,0,.18);
   }
-  h2 {
-    color: #222;
-    margin-bottom: 25px;
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+    background:#f7f8fa;
+    color:#111;
   }
-  .gallery {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+  .wrap{
+    max-width:980px;
+    margin:14px auto 28px;
+    padding:0 12px;
   }
-  .gallery img {
-    width: 160px;
-    height: auto;
-    margin: 10px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    cursor: pointer;
-    transition: transform 0.3s;
+  h1{
+    font-size:1.1rem;
+    font-weight:700;
+    margin:14px 4px;
   }
-  .gallery img:hover {
-    transform: scale(1.05);
+
+  /* גלריה – 2 עמודות בנייד */
+  .gallery{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:var(--gap);
   }
-  #modal {
-    display: none;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.85);
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
+  /* במסכים רחבים תן אופציה ל-3/4 עמודות, אבל השארנו דיפולט 2 לנייד */
+  @media (min-width:700px){
+    .gallery{ grid-template-columns:repeat(3, 1fr); }
   }
-  #modal img {
-    max-width: 90%;
-    max-height: 85%;
-    border-radius: 12px;
-    box-shadow: 0 0 20px rgba(255,255,255,0.4);
+  @media (min-width:1000px){
+    .gallery{ grid-template-columns:repeat(4, 1fr); }
   }
-  #close {
-    position: absolute;
-    top: 25px;
-    right: 40px;
-    font-size: 36px;
-    color: #fff;
-    cursor: pointer;
-    font-weight: bold;
+
+  /* כרטיסית תמונה – "קצת" קטנה ומדויקת */
+  .thumb{
+    position:relative;
+    overflow:hidden;
+    border-radius:var(--thumb-radius);
+    background:#e9edf3;
+    box-shadow:0 1px 0 rgba(0,0,0,.03) inset;
+    aspect-ratio:1/1; /* ריבועי נקי, נראה מקצועי ברשת של 2 */
+  }
+  .thumb img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+    transform:scale(0.98);           /* הקטנה ממש ממש קצת */
+    transition:transform 180ms ease, filter 180ms ease;
+  }
+  .thumb:hover img{
+    transform:scale(1.0);
+    filter:contrast(1.02) saturate(1.02);
+  }
+
+  /* לייטבוקס */
+  .lightbox{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.85);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity var(--open-dur) ease;
+    z-index:9999;
+  }
+  .lightbox.open{
+    opacity:1;
+    pointer-events:auto;
+  }
+  .lb-img-wrap{
+    max-width:94vw;
+    max-height:86vh;
+    transform:translateY(10px) scale(.96);
+    transition:transform var(--open-dur) cubic-bezier(.2,.65,.2,1);
+  }
+  .lightbox.open .lb-img-wrap{
+    transform:translateY(0) scale(1);
+  }
+  .lightbox img{
+    max-width:94vw;
+    max-height:86vh;
+    width:auto;
+    height:auto;
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    display:block;
+  }
+  .lb-close{
+    position:fixed;
+    top:14px;
+    inset-inline-end:14px;
+    width:36px; height:36px;
+    border-radius:50%;
+    background:rgba(255,255,255,.12);
+    backdrop-filter:saturate(120%) blur(6px);
+    border:1px solid rgba(255,255,255,.18);
+    color:#fff;
+    font-weight:700;
+    line-height:36px;
+    text-align:center;
+    cursor:pointer;
+    user-select:none;
+    transition:background 160ms ease, transform 160ms ease;
+  }
+  .lb-close:hover{ background:rgba(255,255,255,.2); transform:scale(1.06); }
+  .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+  .empty{
+    background:#fff;
+    border:1px dashed #cbd5e1;
+    color:#6b7280;
+    padding:18px;
+    border-radius:12px;
+    text-align:center;
+    margin-top:14px;
   }
 </style>
 </head>
 <body>
-<h2>גלריית תמונות – Reuven2K</h2>
-<div id="gallery" class="gallery"></div>
+  <div class="wrap">
+    <h1>גלריה</h1>
+    <div id="gallery" class="gallery" aria-live="polite"></div>
+    <div id="empty" class="empty" style="display:none">לא נמצאו תמונות בתיקייה.</div>
+  </div>
 
-<div id="modal">
-  <span id="close">❌</span>
-  <img id="modal-img" src="">
-</div>
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-label="תצוגת תמונה מוגדלת">
+    <button class="lb-close" id="lbClose" aria-label="סגור תצוגה"><span aria-hidden="true">×</span></button>
+    <div class="lb-img-wrap">
+      <img id="lbImg" alt="">
+    </div>
+  </div>
 
 <script>
-const owner = "Cc2k1975";
-const repo = "reuven2k";
-const path = "images";
+/* ====== קונפיגורציה – מלא כאן כדי לטעון תמונות אוטומטית מ־GitHub ======
+   דוגמה: משתמש reuven2k, ריפו site, ענף main, ותיקייה gallery/images  */
+const GH_USER = "USERNAME_HERE";
+const GH_REPO = "REPO_HERE";
+const GH_BRANCH = "main";
+const GH_PATH = "images";   // התיקייה שבתוכה נמצאות התמונות
 
-async function loadImages() {
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-  const res = await fetch(url);
-  const files = await res.json();
-  const gallery = document.getElementById('gallery');
-  gallery.innerHTML = '';
+// סיומות קבצים מותרים
+const IMG_EXTS = ["jpg","jpeg","png","gif","webp","avif"];
 
-  files.forEach(file => {
-    if (file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-      const img = document.createElement('img');
-      img.src = file.download_url;
-      img.alt = file.name;
-      img.onclick = () => openModal(file.download_url);
-      gallery.appendChild(img);
-    }
+async function loadImagesFromGithub(){
+  const url = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${encodeURIComponent(GH_PATH)}?ref=${encodeURIComponent(GH_BRANCH)}`;
+  const res = await fetch(url, { headers:{ 'Accept':'application/vnd.github+json' }});
+  if(!res.ok){ throw new Error("GitHub API error: " + res.status); }
+  /** @type {{name:string, path:string, type:string, download_url:string}[]} */
+  const items = await res.json();
+  // סינון רק לקבצי תמונה
+  const images = items.filter(it=>{
+    if(it.type !== "file") return false;
+    const ext = (it.name.split(".").pop()||"").toLowerCase();
+    return IMG_EXTS.includes(ext);
   });
+  return images.map(it=>it.download_url);
 }
 
-function openModal(src) {
-  document.getElementById('modal').style.display = 'flex';
-  document.getElementById('modal-img').src = src;
+function createThumb(src, alt=""){
+  const div = document.createElement("div");
+  div.className = "thumb";
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.decoding = "async";
+  img.src = src;
+  img.alt = alt || "תמונה";
+  div.appendChild(img);
+
+  // קליק לפתיחה
+  div.addEventListener("click", ()=>openLightbox(src, alt));
+  return div;
 }
 
-document.getElementById('close').onclick = () => {
-  document.getElementById('modal').style.display = 'none';
-}
-
-window.onclick = e => {
-  if (e.target.id === 'modal') {
-    document.getElementById('modal').style.display = 'none';
+function renderGallery(urls){
+  const gal = document.getElementById("gallery");
+  gal.innerHTML = "";
+  if(!urls.length){
+    document.getElementById("empty").style.display = "block";
+    return;
   }
+  document.getElementById("empty").style.display = "none";
+  urls.forEach(u => gal.appendChild(createThumb(u)));
 }
 
-loadImages();
+/* ===== לייטבוקס – פתיחה/סגירה עם אנימציה ארוכה יותר ===== */
+const lb = document.getElementById("lightbox");
+const lbImg = document.getElementById("lbImg");
+const lbClose = document.getElementById("lbClose");
+
+function openLightbox(src, alt){
+  lbImg.src = src;
+  lbImg.alt = alt || "תמונה";
+  lb.classList.add("open");
+  lb.setAttribute("aria-hidden", "false");
+  // נעילת גלילה ברקע
+  document.body.style.overflow = "hidden";
+}
+
+function closeLightbox(){
+  lb.classList.remove("open");
+  lb.setAttribute("aria-hidden", "true");
+  lbImg.src = "";
+  document.body.style.overflow = "";
+}
+
+lb.addEventListener("click", (e)=>{
+  // קליק מחוץ לתמונה סוגר; קליק על התמונה לא סוגר
+  if(e.target === lb || e.target === lbClose){
+    closeLightbox();
+  }
+});
+document.addEventListener("keydown", (e)=>{
+  if(e.key === "Escape") closeLightbox();
+});
+
+/* ===== אתחול ===== */
+(async function init(){
+  try{
+    if(!GH_USER || !GH_REPO || !GH_PATH){
+      // אם לא מולאו פרטים – הצג הודעה ידידותית
+      renderGallery([]);
+      document.getElementById("empty").innerHTML =
+        "מלא למעלה את GH_USER, GH_REPO, GH_BRANCH, GH_PATH כדי לטעון תמונות אוטומטית מהתיקייה.";
+      document.getElementById("empty").style.display = "block";
+      return;
+    }
+    const urls = await loadImagesFromGithub();
+    renderGallery(urls);
+  }catch(err){
+    console.error(err);
+    renderGallery([]);
+    document.getElementById("empty").innerHTML =
+      "לא ניתן לטעון את התמונות מ־GitHub (בדוק שם משתמש/ריפו/ענף/תיקייה והרשאות).";
+    document.getElementById("empty").style.display = "block";
+  }
+})();
 </script>
 </body>
 </html>
