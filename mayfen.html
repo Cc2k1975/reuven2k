@@ -87,7 +87,6 @@
     padding: 10px;
   }
 
-  /* אייקון קטן בתוך כפתורי המשנה – מוגדל ב-30% ל-23.4px */
   .btn-secondary img.icon {
     width: 23.4px;
     height: 23.4px;
@@ -222,7 +221,7 @@
       <img class="icon" src="https://reuven2k.com/map.png" alt="" />
     </button>
 
-    <div class="ver">Version: 1.6.1</div>
+    <div class="ver">Version: 1.6.2</div>
   </div>
 
   <div id="icsModal" class="modal-backdrop" role="dialog" aria-modal="true">
@@ -247,7 +246,7 @@ const WAZE_DEEP = 'waze://?ll=33.003292,35.108864&navigate=yes';
 const WAZE_WEB  = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
 const GALLERY_URL = 'https://reuven2k.com/images/index.html';
 const TIMEZONE = 'Asia/Jerusalem';
-const EVENT_TITLE = 'תור ל פן אקספרס'; // עודכן לפי הבקשה
+const EVENT_TITLE = 'תור ל פן אקספרס';
 const ALARM_MINUTES = 60;
 const SLOT_MINUTES = 20;
 
@@ -284,7 +283,7 @@ function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout
 
 setDateLimits();
 
-/* === סטטוס פתיחה/סגירה כפי שהיה בשינויים הקודמים (כיבוד bookingOpen אם קיים) === */
+/* === סטטוס פתיחה/סגירה (אם קיים) — ללא שינוי לוגיקה אחרת === */
 let BOOKING_OPEN = true;
 function setBookingEnabledState(isEnabled){
   elSave.disabled = !isEnabled;
@@ -329,7 +328,7 @@ refreshTimes();
 function validPhone(p){ return (p||'').replace(/\D/g,'').length>=8; }
 function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
 
-/* ==== ICS עם תזכורת 60 דק' — עובד גם באייפון וגם באנדרואיד ==== */
+/* ===== בניית ICS (כולל VALARM של 60 דקות) ===== */
 function toICSLocal(dateStr,timeStr){
   const [y,m,d]=dateStr.split('-').map(Number);
   const [hh,mm]=timeStr.split(':').map(Number);
@@ -355,33 +354,63 @@ function buildICS({title,location,startLocal,endLocal,tzid}){
     `DESCRIPTION:${details.replace(/\n/g,'\\n')}`,
     `LOCATION:${location}`,
     'BEGIN:VALARM',
-    `TRIGGER:-PT${ALARM_MINUTES}M`,
     'ACTION:DISPLAY',
     'DESCRIPTION:Reminder',
+    `TRIGGER:-PT${ALARM_MINUTES}M`,
     'END:VALARM',
     'END:VEVENT',
     'END:VCALENDAR'
   ].join('\r\n');
 }
-function downloadICS(filename,content){
-  const blob=new Blob([content],{type:'text/calendar;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=filename;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},1200);
-}
-function openCalendarICS(dateStr,timeStr){
+
+/* ===== פתיחה ישירה של היומן:
+   - Android: Google Calendar TEMPLATE
+   - iOS: מעבר ישיר ל-Blob URL של ICS (פותח את Calendar בלי "הורד קובץ")
+===== */
+function openCalendarDirect(dateStr,timeStr){
+  const ua = navigator.userAgent || '';
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
   const [y,m,d]=dateStr.split('-').map(Number);
   const [hh,mm]=timeStr.split(':').map(Number);
   const start=new Date(y,m-1,d,hh,mm,0);
   const end=new Date(start.getTime()+SLOT_MINUTES*60000);
-  const startLocal=toICSLocal(dateStr,timeStr);
-  const endLocal=`${end.getFullYear()}${pad2(end.getMonth()+1)}${pad2(end.getDate())}T${pad2(end.getHours())}${pad2(end.getMinutes())}00`;
-  const ics = buildICS({title:EVENT_TITLE,location:MAP_URL,startLocal,endLocal,tzid:TIMEZONE});
-  downloadICS('fen-appointment.ics', ics);
+
+  if(isAndroid){
+    const fmt = (dt)=>`${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${dt.getHours().toString().padStart(2,'0')}${dt.getMinutes().toString().padStart(2,'0')}00`;
+    const dates = `${fmt(start)}/${fmt(end)}`;
+    const text = encodeURIComponent(EVENT_TITLE);
+    const details = encodeURIComponent(`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}\n(תזכורת 60 דק׳ לפני)`);
+    const loc = encodeURIComponent(MAP_URL);
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${loc}`;
+    window.location.href = url; // פותח את Google Calendar עם כפתור שמירה
+    return;
+  }
+
+  if(isIOS){
+    // בניית ICS וניווט ישיר ל-Blob (פותח את אפליקציית Calendar עם Add)
+    const startLocal=toICSLocal(dateStr,timeStr);
+    const endLocal=`${end.getFullYear()}${pad2(end.getMonth()+1)}${pad2(end.getDate())}T${pad2(end.getHours())}${pad2(end.getMinutes())}00`;
+    const ics = buildICS({title:EVENT_TITLE,location:MAP_URL,startLocal,endLocal,tzid:TIMEZONE});
+    const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    // מעבר ישיר לקובץ – ב-iOS זה פותח את Calendar עם המסך "הוסף"
+    window.location.href = url;
+    // ניקוי ה-blob אחרי זמן קצר
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    return;
+  }
+
+  // ברירת מחדל (דסקטופ/אחר): נפתח גם כן את Google Calendar
+  const fmt = (dt)=>`${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${dt.getHours().toString().padStart(2,'0')}${dt.getMinutes().toString().padStart(2,'0')}00`;
+  const dates = `${fmt(start)}/${fmt(end)}`;
+  const text = encodeURIComponent(EVENT_TITLE);
+  const details = encodeURIComponent(`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}\n(תזכורת 60 דק׳ לפני)`);
+  const loc = encodeURIComponent(MAP_URL);
+  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${loc}`;
+  window.location.href = url;
 }
-/* ================================================================ */
 
 document.getElementById('navWaze').addEventListener('click', ()=>{
   const start = Date.now();
@@ -412,9 +441,11 @@ elSave.addEventListener('click',async ()=>{
 
     lastSavedPayload=payload;
     showOk('התור נשמר בהצלחה!');
-    icsText.textContent=`ניצור אירוע ליומן בתאריך ${fmtDateHeb(payload.date)} בשעה ${payload.time} כולל תזכורת שעה לפני.\nלקוחה יקרה, מזכירה לך להגיע חפופה ובזמן 💇‍♀️\nתודה - פן אקספרס`;
+    icsText.textContent=`ניצור אירוע ליומן בתאריך ${fmtDateHeb(payload.date)} בשעה ${payload.time} כולל תזכורת שעה לפני.
+לקוחה יקרה, מזכירה לך להגיע חפופה ובזמן 💇‍♀️
+תודה - פן אקספרס`;
 
-    /* פתיחת חלון "שמור תור ביומן" — שינוי מינימלי כדי שיופיע */
+    // מציגים את המודאל כמו אצלך
     icsModal.style.display='flex';
 
     await new Promise(r=>setTimeout(r,300));
@@ -428,8 +459,8 @@ btnCancel.addEventListener('click',()=>{ icsModal.style.display='none'; });
 btnOk.addEventListener('click',()=>{
   icsModal.style.display='none';
   if(!lastSavedPayload) return;
-  /* שמירה ביומן: תמיד ICS עם תזכורת 60 דק', עובד גם באייפון וגם באנדרואיד */
-  openCalendarICS(lastSavedPayload.date,lastSavedPayload.time);
+  // פתיחה ישירה של היומן:
+  openCalendarDirect(lastSavedPayload.date,lastSavedPayload.time);
 });
 </script>
 </body>
