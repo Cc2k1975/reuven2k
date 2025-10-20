@@ -9,21 +9,23 @@
     --gap:10px;
     --thumb-radius:12px;
     --open-dur:700ms;
-    --shadow:0 10px 28px rgba(0,0,0,.20);
+    --shadow:0 10px 28px rgba(255,215,0,.25);
   }
   html,body{
-    margin:0;background:#f7f8fa;color:#0f172a;
+    margin:0;
+    background:#000;
+    color:#d4af37;
     font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
   }
   .wrap{max-width:980px;margin:14px auto 28px;padding:0 12px}
   h1{
-    font-size:1.6rem;                /* גודל מוגדל */
+    font-size:1.6rem;
     font-weight:900;
     margin:14px 4px;
     text-align:center;
-    color:#0074ff;                   /* כחול */
+    color:#ffd700;
   }
-  .note{font-size:.9rem;color:#475569;margin:0 4px 10px;text-align:center}
+  .note{font-size:.9rem;color:#d4af37;margin:0 4px 10px;text-align:center}
 
   /* רשת – 2 עמודות במובייל */
   .gallery{
@@ -36,14 +38,14 @@
 
   .thumb{
     position:relative; overflow:hidden; border-radius:var(--thumb-radius);
-    background:#e9edf3; aspect-ratio:1/1; box-shadow:0 1px 0 rgba(0,0,0,.03) inset;
+    background:#222; aspect-ratio:1/1; box-shadow:0 1px 0 rgba(255,215,0,.1) inset;
   }
   .thumb img{
     width:100%; height:100%; object-fit:cover; display:block;
     transform:scale(0.975);
     transition:transform 200ms ease, filter 200ms ease;
   }
-  .thumb:hover img{ transform:scale(1.0); filter:contrast(1.03) saturate(1.03) }
+  .thumb:hover img{ transform:scale(1.0); filter:contrast(1.05) saturate(1.05) }
 
   /* לייטבוקס */
   .lightbox{
@@ -63,7 +65,6 @@
     border-radius:16px; box-shadow:var(--shadow); display:block;
   }
 
-  /* X אדום גדול */
   .lb-close{
     position:fixed; top:18px; inset-inline-end:18px;
     width:52px; height:52px; border-radius:50%;
@@ -76,31 +77,56 @@
   .lb-close:hover{ transform:scale(1.15) rotate(5deg); background:rgba(255,255,255,.18) }
 
   .empty{
-    background:#fff; border:1px dashed #cbd5e1; color:#475569;
-    padding:18px; border-radius:12px; text-align:center; margin-top:14px; word-wrap:break-word;
+    background:#111; border:1px dashed #bfa76f; color:#d4af37;
+    padding:18px; border-radius:12px; text-align:center; margin-top:14px;
   }
 
   footer{
-    text-align:center; font-size:.75rem; color:#64748b; margin:18px 0 6px;
+    text-align:center; font-size:.75rem; color:#bfa76f; margin:18px 0 6px;
   }
   .bottom-info{
-    text-align:center; font-size:.8rem; color:#475569; margin-bottom:20px;
+    text-align:center; font-size:.8rem; color:#bfa76f; margin-bottom:20px;
   }
 
-  /* טוסט קטן להתראה על עדכון */
   .toast{
     position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
-    background:#111827; color:#fff; font-size:.85rem; padding:10px 14px;
-    border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.25);
+    background:#111; color:#ffd700; font-size:.85rem; padding:10px 14px;
+    border-radius:10px; box-shadow:0 8px 24px rgba(255,215,0,.25);
     opacity:0; pointer-events:none; transition:opacity 300ms ease;
     z-index:10000;
   }
   .toast.show{ opacity:1 }
+
+  /* לחצן חזרה */
+  .back-btn {
+    display:block;
+    margin:0 auto 22px;
+    padding:12px 18px;
+    max-width:240px;
+    background:#000;
+    color:#ffd700;
+    border:1px solid #ffd700;
+    border-radius:10px;
+    font-size:1rem;
+    font-weight:700;
+    text-align:center;
+    text-decoration:none;
+    box-shadow:0 0 12px rgba(255,215,0,0.25);
+    transition:all .25s ease;
+  }
+  .back-btn:hover {
+    background:#ffd700;
+    color:#000;
+    transform:scale(1.05);
+  }
 </style>
 </head>
 <body>
   <div class="wrap">
     <h1>תיק עבודות - פן אקספרס</h1>
+
+    <a href="https://reuven2k.com/mayfen.html" class="back-btn">חזרה להזמנת תור</a>
+
     <div id="gallery" class="gallery" aria-live="polite"></div>
     <div id="empty" class="empty" style="display:none"></div>
   </div>
@@ -111,111 +137,70 @@
     <div class="lb-img-wrap"><img id="lbImg" alt=""></div>
   </div>
 
-  <!-- Footer -->
-  <footer id="versionFooter">גרסה: v1.04</footer>
+  <footer id="versionFooter">גרסה: v1.05</footer>
   <div class="bottom-info" id="dbg"></div>
   <div id="toast" class="toast">התמונות עודכנו</div>
 
 <script>
-/* ========= גרסה ========= */
-const VERSION = "v1.04";
+const VERSION = "v1.05";
 document.getElementById("versionFooter").textContent = "גרסה: " + VERSION;
 
-/* ========= קונפיג ========= */
-const CFG = {
-  user  : "Cc2k1975",
-  repo  : "reuven2k",
-  branch: "main",
-  path  : "images"
-};
-
-/* רענון אוטומטי */
-const REFRESH_MS = 30000; // 30 שניות
-
+const CFG = { user:"Cc2k1975", repo:"reuven2k", branch:"main", path:"images" };
+const REFRESH_MS = 30000;
 const IMG_EXTS = ["jpg","jpeg","png","gif","webp","avif"];
 const dbgEl = document.getElementById("dbg");
 const toastEl = document.getElementById("toast");
-
 let lastSignature = "";
 
-/* Utils */
 function setDebug(msg){ dbgEl.textContent = msg; console.log("[gallery]", msg); }
-function showEmpty(msg){
-  const el = document.getElementById("empty");
-  el.style.display = "block"; el.innerHTML = msg;
-}
-function showToast(text="התמונות עודכנו"){
-  toastEl.textContent = text;
-  toastEl.classList.add("show");
-  setTimeout(()=>toastEl.classList.remove("show"), 1800);
-}
+function showEmpty(msg){ const el=document.getElementById("empty"); el.style.display="block"; el.innerHTML=msg; }
+function showToast(text="התמונות עודכנו"){ toastEl.textContent=text; toastEl.classList.add("show"); setTimeout(()=>toastEl.classList.remove("show"),1800); }
 
-/* GitHub API */
 async function loadImagesFromGithub(){
-  const {user, repo, branch, path} = CFG;
-  const api = `https://api.github.com/repos/${user}/${repo}/contents/${path}?ref=${branch}`;
-  const res = await fetch(api);
-  if(!res.ok){
-    if(res.status===404) showEmpty("לא נמצא הנתיב. בדוק user/repo/branch/path.");
-    else showEmpty("שגיאה בטעינה (" + res.status + ")");
-    throw new Error("GitHub API error: " + res.status);
-  }
-  const items = await res.json();
-  return items
-    .filter(it => it.type === "file" && IMG_EXTS.includes(it.name.split(".").pop().toLowerCase()))
-    .map(it => it.download_url)
-    .sort((a,b)=>a.localeCompare(b));
+  const {user,repo,branch,path}=CFG;
+  const api=`https://api.github.com/repos/${user}/${repo}/contents/${path}?ref=${branch}`;
+  const res=await fetch(api);
+  if(!res.ok){ showEmpty("שגיאה בטעינה ("+res.status+")"); throw new Error("GitHub API error"); }
+  const items=await res.json();
+  return items.filter(it=>it.type==="file" && IMG_EXTS.includes(it.name.split(".").pop().toLowerCase())).map(it=>it.download_url).sort((a,b)=>a.localeCompare(b));
 }
 
-/* Render */
 function createThumb(src){
-  const div = document.createElement("div");
-  div.className = "thumb";
-  const img = document.createElement("img");
-  img.src = src; img.loading = "lazy"; img.decoding = "async"; img.alt = "עבודה";
-  div.appendChild(img);
-  div.addEventListener("click", ()=>openLightbox(src));
+  const div=document.createElement("div"); div.className="thumb";
+  const img=document.createElement("img");
+  img.src=src; img.loading="lazy"; img.decoding="async"; img.alt="עבודה";
+  div.appendChild(img); div.addEventListener("click",()=>openLightbox(src));
   return div;
 }
 function renderGallery(urls){
-  const gal = document.getElementById("gallery");
-  gal.innerHTML = "";
+  const gal=document.getElementById("gallery"); gal.innerHTML="";
   if(!urls.length){ showEmpty("אין קבצי תמונה בתיקייה"); return; }
-  document.getElementById("empty").style.display = "none";
-  urls.forEach(u => gal.appendChild(createThumb(u)));
+  document.getElementById("empty").style.display="none";
+  urls.forEach(u=>gal.appendChild(createThumb(u)));
   setDebug(`נטענו בהצלחה. סה״כ תמונות: ${urls.length}`);
 }
 
-/* Lightbox */
-const lb = document.getElementById("lightbox");
-const lbImg = document.getElementById("lbImg");
-const lbClose = document.getElementById("lbClose");
-function openLightbox(src){
-  lbImg.src = src; lb.classList.add("open");
-  lb.setAttribute("aria-hidden","false"); document.body.style.overflow = "hidden";
-}
-function closeLightbox(){
-  lb.classList.remove("open"); lb.setAttribute("aria-hidden","true");
-  setTimeout(()=>{ lbImg.src = ""; }, 300); document.body.style.overflow = "";
-}
-lb.addEventListener("click", (e)=>{ if(e.target === lb || e.target === lbClose) closeLightbox(); });
-document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeLightbox(); });
+const lb=document.getElementById("lightbox");
+const lbImg=document.getElementById("lbImg");
+const lbClose=document.getElementById("lbClose");
+function openLightbox(src){ lbImg.src=src; lb.classList.add("open"); lb.setAttribute("aria-hidden","false"); document.body.style.overflow="hidden"; }
+function closeLightbox(){ lb.classList.remove("open"); lb.setAttribute("aria-hidden","true"); setTimeout(()=>{lbImg.src="";},300); document.body.style.overflow=""; }
+lb.addEventListener("click",(e)=>{ if(e.target===lb||e.target===lbClose) closeLightbox(); });
+document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeLightbox(); });
 
-/* Auto-refresh */
 function signature(arr){ return arr.join("|"); }
 async function refreshGallery(silent=false){
   try{
-    const urls = await loadImagesFromGithub();
-    const sig = signature(urls);
-    if(sig !== lastSignature){
+    const urls=await loadImagesFromGithub();
+    const sig=signature(urls);
+    if(sig!==lastSignature){
       renderGallery(urls);
       if(lastSignature && !silent) showToast();
-      lastSignature = sig;
+      lastSignature=sig;
     }
   }catch(e){ console.error(e); }
 }
 
-/* Init */
 (async function init(){
   await refreshGallery(true);
   setInterval(refreshGallery, REFRESH_MS);
