@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>גלריה – 2 בעמודה + לייטבוקס חלק</title>
+<title>גלריית עבודות</title>
 <style>
   :root{
     --gap:10px;
     --thumb-radius:12px;
-    --open-dur:700ms;       /* ארוך יותר, מקצועי ונעים */
+    --open-dur:700ms;       /* אנימציה ארוכה ונעימה */
     --shadow:0 10px 28px rgba(0,0,0,.20);
   }
   html,body{margin:0;background:#f7f8fa;color:#0f172a;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
@@ -37,7 +37,7 @@
   }
   .thumb:hover img{ transform:scale(1.0); filter:contrast(1.03) saturate(1.03) }
 
-  /* לייטבוקס עם פתיחה/סגירה ארוכה יותר */
+  /* לייטבוקס */
   .lightbox{
     position:fixed; inset:0; background:rgba(0,0,0,.86);
     display:flex; align-items:center; justify-content:center;
@@ -70,11 +70,19 @@
     padding:18px; border-radius:12px; text-align:center; margin-top:14px; word-wrap:break-word;
   }
   code{background:#e2e8f0;border-radius:6px;padding:0 .35em}
+
+  /* פוטר גרסה קטן */
+  footer{
+    text-align:center;
+    font-size:.75rem;
+    color:#64748b;
+    margin:18px 0 24px;
+  }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>גלריה</h1>
+    <h1>גלריית עבודות</h1>
     <p class="note" id="dbg"></p>
     <div id="gallery" class="gallery" aria-live="polite"></div>
     <div id="empty" class="empty" style="display:none"></div>
@@ -86,7 +94,14 @@
     <div class="lb-img-wrap"><img id="lbImg" alt=""></div>
   </div>
 
+  <!-- Footer Version -->
+  <footer id="versionFooter">גרסה: v1.01</footer>
+
 <script>
+/* ========= גרסה ========= */
+const VERSION = "v1.01"; // בכל שינוי – עדכן כאן בלבד
+document.getElementById("versionFooter").textContent = "גרסה: " + VERSION;
+
 /* ========= קונפיג =========
    אפשר למלא כאן, או להעביר בפרמטרים לכתובת:
    ?user=reuven2k&repo=site&branch=main&path=images
@@ -134,14 +149,11 @@ async function loadImagesFromGithub(){
   }
   /** @type {{name:string, type:string, download_url?:string}[]} */
   const items = await res.json();
-  // רק קבצי תמונה ישירים (לא תת-תיקיות)
   const urls = items
     .filter(it => it.type==="file" && it.name && IMG_EXTS.includes(it.name.split(".").pop().toLowerCase()))
     .map(it => it.download_url)
-    .filter(Boolean);
-
-  // מיון אלפביתי יציב (אפשר לשנות לתאריך לפי צורך אם שומרים metadata)
-  urls.sort((a,b)=>a.localeCompare(b));
+    .filter(Boolean)
+    .sort((a,b)=>a.localeCompare(b));
   return urls;
 }
 
@@ -184,7 +196,6 @@ function openLightbox(src, alt){
 function closeLightbox(){
   lb.classList.remove("open");
   lb.setAttribute("aria-hidden","true");
-  // ננקה את ה-src אחרי שהאנימציה נגמרת כדי למנוע “קפיצה”
   setTimeout(()=>{ lbImg.src = ""; }, 30);
   document.body.style.overflow = "";
 }
