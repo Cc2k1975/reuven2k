@@ -85,17 +85,14 @@
     margin-top: 9px;
     font-size: 14.5px;
     padding: 10px;
-    font-weight: 700; /* BOLD */
-    text-align: center;
   }
 
-  /* אייקון – מוגדל ב-30% וממוקם בצד שמאל */
+  /* אייקון קטן בתוך כפתורי המשנה – מוגדל ב-30% ל-23.4px */
   .btn-secondary img.icon {
     width: 23.4px;
     height: 23.4px;
     vertical-align: middle;
-    margin-right: 8px;
-    margin-left: 0;
+    margin: 0 6px;
   }
 
   .error {
@@ -217,16 +214,16 @@
     <button id="save" class="btn">שמור</button>
 
     <button id="galleryBtn" type="button" class="btn-secondary">
-      <b>גלריית עבודות</b>
       <img class="icon" src="https://reuven2k.com/gallery.png" alt="" />
+      גלריית עבודות
     </button>
 
     <button id="navWaze" type="button" class="btn-secondary">
-      <b>נווט ל פן-אקספרס</b>
       <img class="icon" src="https://reuven2k.com/map.png" alt="" />
+      נווט ל פן-אקספרס
     </button>
 
-    <div class="ver">Version: 1.6.0</div>
+    <div class="ver">Version: 1.5.9</div>
   </div>
 
   <div id="icsModal" class="modal-backdrop" role="dialog" aria-modal="true">
@@ -287,6 +284,131 @@ function showErr(t){ msgErr.textContent=t; msgErr.style.display='block'; setTime
 function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout(()=>msgOk.style.display='none',4000); }
 
 setDateLimits();
+
+async function fetchRecord(){
+  const r=await fetch(BIN_URL+'?ts='+Date.now(),{headers:{'X-Master-Key':MASTER_KEY},cache:'no-store'});
+  if(!r.ok) throw new Error('fetch failed');
+  const j=await r.json();
+  return (j.record && Array.isArray(j.record.bookings))? j.record : {bookings:[]};
+}
+async function putRecord(rec){
+  const r=await fetch(BIN_URL+'?ts='+Date.now(),{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':MASTER_KEY},body:JSON.stringify(rec),cache:'no-store'});
+  if(!r.ok) throw new Error('put failed');
+  return r.json().catch(()=> ({}));
+}
+
+async function refreshTimes(){
+  elTime.innerHTML = `<option value="">טוען…</option>`;
+  try{
+    const {bookings}=await fetchRecord();
+    const date=elDate.value;
+    const taken=new Set(bookings.filter(b=>b.date===date).map(b=>b.time));
+    elTime.innerHTML = `<option value="">בחר שעה…</option>` + SLOTS.map(t=>{
+      const isTaken=taken.has(t);
+      return `<option value="${t}" ${isTaken?'disabled class="taken"':''}>${t}${isTaken?' – תפוס':''}</option>`;
+    }).join('');
+  }catch(e){ showErr('שגיאה בטעינת נתונים'); }
+}
+elDate.addEventListener('change',refreshTimes);
+refreshTimes();
+
+function validPhone(p){ return (p||'').replace(/\D/g,'').length>=8; }
+function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
+
+function toICSLocal(dateStr,timeStr){
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const [hh,mm]=timeStr.split(':').map(Number);
+  const dt=new Date(y,m-1,d,hh,mm,0);
+  return `${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${pad2(dt.getHours())}${pad2(dt.getMinutes())}00`;
+}
+function buildICS({title,location,startLocal,endLocal,tzid}){
+  const uid=`${Date.now()}-${Math.random().toString(36).slice(2)}@fenexpress`;
+  const dtstamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+  const details=`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}`;
+  return [
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FenExpress//Booking//HE','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
+    `UID:${uid}`,`DTSTAMP:${dtstamp}`,`DTSTART;TZID=${tzid}:${startLocal}`,`DTEND;TZID=${tzid}:${endLocal}`,
+    `SUMMARY:${title}`,`DESCRIPTION:${details.replace(/\n/g,'\\n')}`,`LOCATION:${location}`,
+    'BEGIN:VALARM',`TRIGGER:-PT${ALARM_MINUTES}M`,'ACTION:DISPLAY','DESCRIPTION:Reminder','END:VALARM','END:VEVENT','END:VCALENDAR'
+  ].join('\r\n');
+}
+function downloadICS(filename,content){
+  const blob=new Blob([content],{type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},1200);
+}
+
+function openCalendarForPlatform(dateStr,timeStr){
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const [hh,mm]=timeStr.split(':').map(Number);
+  const start=new Date(y,m-1,d,hh,mm,0);
+  const end=new Date(start.getTime()+SLOT_MINUTES*60000);
+  const ua = navigator.userAgent || '';
+  const isAndroid = /Android/i.test(ua);
+  if(isAndroid){
+    const fmt = (dt)=>`${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${dt.getHours().toString().padStart(2,'0')}${dt.getMinutes().toString().padStart(2,'0')}00`;
+    const dates = `${fmt(start)}/${fmt(end)}`;
+    const text = encodeURIComponent(EVENT_TITLE);
+    const details = encodeURIComponent(`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}`);
+    const loc = encodeURIComponent(MAP_URL);
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${loc}`;
+    window.location.href = url;
+  } else {
+    const startLocal=toICSLocal(dateStr,timeStr);
+    const endLocal=`${end.getFullYear()}${pad2(end.getMonth()+1)}${pad2(end.getDate())}T${pad2(end.getHours())}${pad2(end.getMinutes())}00`;
+    const ics = buildICS({title:EVENT_TITLE,location:MAP_URL,startLocal,endLocal,tzid:TIMEZONE});
+    downloadICS('fen-appointment.ics', ics);
+  }
+}
+
+btnWaze.addEventListener('click', ()=>{
+  const start = Date.now();
+  window.location.href = WAZE_DEEP;
+  setTimeout(()=>{
+    if (Date.now() - start < 1200) {
+      window.location.href = WAZE_WEB;
+    }
+  }, 900);
+});
+
+let lastSavedPayload=null;
+elSave.addEventListener('click',async ()=>{
+  const payload={date:elDate.value,time:elTime.value,name:elName.value.trim(),phone:elPhone.value.trim()};
+  if(!payload.date||!payload.time||!payload.name||!payload.phone){showErr('נא למלא את כל השדות');return;}
+  if(!validPhone(payload.phone)){showErr('מספר טלפון לא תקין');return;}
+
+  elSave.disabled=true;
+  try{
+    let rec=await fetchRecord();
+    const normPhone=normalizePhone(payload.phone);
+    const existsSameDayPhone=rec.bookings.some(b=>b.date===payload.date && normalizePhone(b.phone)===normPhone);
+    if(existsSameDayPhone){showErr('קיים כבר תור על שמך לאותו יום. נא לבחור תאריך אחר.'); elSave.disabled=false; await refreshTimes(); return;}
+    if(rec.bookings.some(b=>b.date===payload.date && b.time===payload.time)){showErr('השעה נתפסה הרגע. בחר שעה אחרת.'); elSave.disabled=false; await refreshTimes(); return;}
+
+    rec.bookings.push({date:payload.date,time:payload.time,name:payload.name,phone:payload.phone,ts:Date.now()});
+    await putRecord(rec);
+
+    lastSavedPayload=payload;
+    showOk('התור נשמר בהצלחה!');
+    icsText.textContent=`ניצור אירוע ליומן בתאריך ${fmtDateHeb(payload.date)} בשעה ${payload.time} כולל תזכורת שעה לפני.\nלקוחה יקרה, מזכירה לך להגיע חפופה ובזמן 💇‍♀️\nתודה - פן אקספרס`;
+    icsModal.style.display='flex';
+
+    await new Promise(r=>setTimeout(r,300));
+    await refreshTimes();
+    elTime.value=""; elName.value=""; elPhone.value="";
+  }catch(e){ showErr('שגיאת רשת'); }
+  finally{ elSave.disabled=false; }
+});
+
+btnCancel.addEventListener('click',()=>{ icsModal.style.display='none'; });
+btnOk.addEventListener('click',()=>{
+  icsModal.style.display='none';
+  if(!lastSavedPayload) return;
+  openCalendarForPlatform(lastSavedPayload.date,lastSavedPayload.time);
+});
 </script>
 </body>
 </html>
