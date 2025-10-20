@@ -222,7 +222,7 @@
       <img class="icon" src="https://reuven2k.com/map.png" alt="" />
     </button>
 
-    <div class="ver">Version: 1.6.0</div>
+    <div class="ver">Version: 1.6.1</div>
   </div>
 
   <div id="icsModal" class="modal-backdrop" role="dialog" aria-modal="true">
@@ -247,7 +247,7 @@ const WAZE_DEEP = 'waze://?ll=33.003292,35.108864&navigate=yes';
 const WAZE_WEB  = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
 const GALLERY_URL = 'https://reuven2k.com/images/index.html';
 const TIMEZONE = 'Asia/Jerusalem';
-const EVENT_TITLE = 'תור לפן – פן אקספרס';
+const EVENT_TITLE = 'תור ל פן אקספרס'; // עודכן לפי הבקשה
 const ALARM_MINUTES = 60;
 const SLOT_MINUTES = 20;
 
@@ -284,46 +284,38 @@ function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout
 
 setDateLimits();
 
-/* === חדש: סטטוס גלובלי לפתיחה/סגירה, נקרא מ-JSONBin === */
+/* === סטטוס פתיחה/סגירה כפי שהיה בשינויים הקודמים (כיבוד bookingOpen אם קיים) === */
 let BOOKING_OPEN = true;
 function setBookingEnabledState(isEnabled){
-  // משאיר את השדות פעילים; חוסם רק את "שמור" למניעת שליחה כשסגור
   elSave.disabled = !isEnabled;
 }
 
-/* שונה בעדינות: fetchRecord קורא גם bookingOpen ושומר ב-BOOKING_OPEN */
 async function fetchRecord(){
   const r=await fetch(BIN_URL+'?ts='+Date.now(),{headers:{'X-Master-Key':MASTER_KEY},cache:'no-store'});
   if(!r.ok) throw new Error('fetch failed');
   const j=await r.json();
   const rec = (j.record && Array.isArray(j.record.bookings))? j.record : {bookings:[]};
-  BOOKING_OPEN = (typeof rec.bookingOpen === 'boolean') ? rec.bookingOpen : true; // ברירת מחדל לשימור התנהגות
+  BOOKING_OPEN = (typeof rec.bookingOpen === 'boolean') ? rec.bookingOpen : true;
   setBookingEnabledState(BOOKING_OPEN);
   return rec;
 }
-
 async function putRecord(rec){
-  const r=await fetch(BIN_URL+'?ts='+Date.now(),{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':'$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO'},body:JSON.stringify(rec),cache:'no-store'});
+  const r=await fetch(BIN_URL+'?ts='+Date.now(),{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':MASTER_KEY},body:JSON.stringify(rec),cache:'no-store'});
   if(!r.ok) throw new Error('put failed');
   return r.json().catch(()=> ({}));
 }
 
-/* שונה בעדינות: כשסגור – כל השעות מוצגות כתפוסות */
 async function refreshTimes(){
   elTime.innerHTML = `<option value="">טוען…</option>`;
   try{
     const {bookings}=await fetchRecord();
     const date=elDate.value;
 
-    // מצב סגור: מציגים את כל השעות כתפוסות
     if(!BOOKING_OPEN){
-      elTime.innerHTML = `<option value="">בחר שעה…</option>` + SLOTS.map(t=>{
-        return `<option value="${t}" disabled class="taken">${t} – תפוס</option>`;
-      }).join('');
+      elTime.innerHTML = `<option value="">בחר שעה…</option>` + SLOTS.map(t=>`<option value="${t}" disabled class="taken">${t} – תפוס</option>`).join('');
       return;
     }
 
-    // מצב פתוח: עובד כרגיל
     const taken=new Set(bookings.filter(b=>b.date===date).map(b=>b.time));
     elTime.innerHTML = `<option value="">בחר שעה…</option>` + SLOTS.map(t=>{
       const isTaken=taken.has(t);
@@ -331,13 +323,13 @@ async function refreshTimes(){
     }).join('');
   }catch(e){ showErr('שגיאה בטעינת נתונים'); }
 }
-
 elDate.addEventListener('change',refreshTimes);
 refreshTimes();
 
 function validPhone(p){ return (p||'').replace(/\D/g,'').length>=8; }
 function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
 
+/* ==== ICS עם תזכורת 60 דק' — עובד גם באייפון וגם באנדרואיד ==== */
 function toICSLocal(dateStr,timeStr){
   const [y,m,d]=dateStr.split('-').map(Number);
   const [hh,mm]=timeStr.split(':').map(Number);
@@ -349,10 +341,26 @@ function buildICS({title,location,startLocal,endLocal,tzid}){
   const dtstamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
   const details=`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}`;
   return [
-    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FenExpress//Booking//HE','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
-    `UID:${uid}`,`DTSTAMP:${dtstamp}`,`DTSTART;TZID=${tzid}:${startLocal}`,`DTEND;TZID=${tzid}:${endLocal}`,
-    `SUMMARY:${title}`,`DESCRIPTION:${details.replace(/\n/g,'\\n')}`,`LOCATION:${location}`,
-    'BEGIN:VALARM',`TRIGGER:-PT${ALARM_MINUTES}M`,'ACTION:DISPLAY','DESCRIPTION:Reminder','END:VALARM','END:VEVENT','END:VCALENDAR'
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//FenExpress//Booking//HE',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${dtstamp}`,
+    `DTSTART;TZID=${tzid}:${startLocal}`,
+    `DTEND;TZID=${tzid}:${endLocal}`,
+    `SUMMARY:${title}`,
+    `DESCRIPTION:${details.replace(/\n/g,'\\n')}`,
+    `LOCATION:${location}`,
+    'BEGIN:VALARM',
+    `TRIGGER:-PT${ALARM_MINUTES}M`,
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Reminder',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR'
   ].join('\r\n');
 }
 function downloadICS(filename,content){
@@ -363,31 +371,19 @@ function downloadICS(filename,content){
   document.body.appendChild(a); a.click();
   setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},1200);
 }
-
-function openCalendarForPlatform(dateStr,timeStr){
+function openCalendarICS(dateStr,timeStr){
   const [y,m,d]=dateStr.split('-').map(Number);
   const [hh,mm]=timeStr.split(':').map(Number);
   const start=new Date(y,m-1,d,hh,mm,0);
   const end=new Date(start.getTime()+SLOT_MINUTES*60000);
-  const ua = navigator.userAgent || '';
-  const isAndroid = /Android/i.test(ua);
-  if(isAndroid){
-    const fmt = (dt)=>`${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${dt.getHours().toString().padStart(2,'0')}${dt.getMinutes().toString().padStart(2,'0')}00`;
-    const dates = `${fmt(start)}/${fmt(end)}`;
-    const text = encodeURIComponent(EVENT_TITLE);
-    const details = encodeURIComponent(`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}`);
-    const loc = encodeURIComponent(MAP_URL);
-    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${loc}`;
-    window.location.href = url;
-  } else {
-    const startLocal=toICSLocal(dateStr,timeStr);
-    const endLocal=`${end.getFullYear()}${pad2(end.getMonth()+1)}${pad2(end.getDate())}T${pad2(end.getHours())}${pad2(end.getMinutes())}00`;
-    const ics = buildICS({title:EVENT_TITLE,location:MAP_URL,startLocal,endLocal,tzid:TIMEZONE});
-    downloadICS('fen-appointment.ics', ics);
-  }
+  const startLocal=toICSLocal(dateStr,timeStr);
+  const endLocal=`${end.getFullYear()}${pad2(end.getMonth()+1)}${pad2(end.getDate())}T${pad2(end.getHours())}${pad2(end.getMinutes())}00`;
+  const ics = buildICS({title:EVENT_TITLE,location:MAP_URL,startLocal,endLocal,tzid:TIMEZONE});
+  downloadICS('fen-appointment.ics', ics);
 }
+/* ================================================================ */
 
-btnWaze.addEventListener('click', ()=>{
+document.getElementById('navWaze').addEventListener('click', ()=>{
   const start = Date.now();
   window.location.href = WAZE_DEEP;
   setTimeout(()=>{
@@ -417,7 +413,10 @@ elSave.addEventListener('click',async ()=>{
     lastSavedPayload=payload;
     showOk('התור נשמר בהצלחה!');
     icsText.textContent=`ניצור אירוע ליומן בתאריך ${fmtDateHeb(payload.date)} בשעה ${payload.time} כולל תזכורת שעה לפני.\nלקוחה יקרה, מזכירה לך להגיע חפופה ובזמן 💇‍♀️\nתודה - פן אקספרס`;
-    icsModal.style.display='פס'; /* שומר כפי שנתת */
+
+    /* פתיחת חלון "שמור תור ביומן" — שינוי מינימלי כדי שיופיע */
+    icsModal.style.display='flex';
+
     await new Promise(r=>setTimeout(r,300));
     await refreshTimes();
     elTime.value=""; elName.value=""; elPhone.value="";
@@ -429,7 +428,8 @@ btnCancel.addEventListener('click',()=>{ icsModal.style.display='none'; });
 btnOk.addEventListener('click',()=>{
   icsModal.style.display='none';
   if(!lastSavedPayload) return;
-  openCalendarForPlatform(lastSavedPayload.date,lastSavedPayload.time);
+  /* שמירה ביומן: תמיד ICS עם תזכורת 60 דק', עובד גם באייפון וגם באנדרואיד */
+  openCalendarICS(lastSavedPayload.date,lastSavedPayload.time);
 });
 </script>
 </body>
