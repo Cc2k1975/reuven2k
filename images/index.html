@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>גלריית תמונות</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #f3f3f3;
+    margin: 0;
+    padding: 20px;
+    text-align: center;
+  }
+  h2 {
+    color: #222;
+    margin-bottom: 25px;
+  }
+  .gallery {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .gallery img {
+    width: 160px;
+    height: auto;
+    margin: 10px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    cursor: pointer;
+    transition: transform 0.3s;
+  }
+  .gallery img:hover {
+    transform: scale(1.05);
+  }
+  #modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  #modal img {
+    max-width: 90%;
+    max-height: 85%;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(255,255,255,0.4);
+  }
+  #close {
+    position: absolute;
+    top: 25px;
+    right: 40px;
+    font-size: 36px;
+    color: #fff;
+    cursor: pointer;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+<h2>גלריית תמונות – Reuven2K</h2>
+<div id="gallery" class="gallery"></div>
+
+<div id="modal">
+  <span id="close">❌</span>
+  <img id="modal-img" src="">
+</div>
+
+<script>
+const owner = "Cc2k1975";
+const repo = "reuven2k";
+const path = "images";
+
+async function loadImages() {
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+  const res = await fetch(url);
+  const files = await res.json();
+  const gallery = document.getElementById('gallery');
+  gallery.innerHTML = '';
+
+  files.forEach(file => {
+    if (file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+      const img = document.createElement('img');
+      img.src = file.download_url;
+      img.alt = file.name;
+      img.onclick = () => openModal(file.download_url);
+      gallery.appendChild(img);
+    }
+  });
+}
+
+function openModal(src) {
+  document.getElementById('modal').style.display = 'flex';
+  document.getElementById('modal-img').src = src;
+}
+
+document.getElementById('close').onclick = () => {
+  document.getElementById('modal').style.display = 'none';
+}
+
+window.onclick = e => {
+  if (e.target.id === 'modal') {
+    document.getElementById('modal').style.display = 'none';
+  }
+}
+
+loadImages();
+</script>
+</body>
+</html>
