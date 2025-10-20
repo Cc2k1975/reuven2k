@@ -16,7 +16,13 @@
     font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
   }
   .wrap{max-width:980px;margin:14px auto 28px;padding:0 12px}
-  h1{font-size:1.2rem;font-weight:800;margin:14px 4px;text-align:center;color:#1e293b}
+  h1{
+    font-size:1.6rem;                /* גודל מוגדל */
+    font-weight:900;
+    margin:14px 4px;
+    text-align:center;
+    color:#0074ff;                   /* כחול */
+  }
   .note{font-size:.9rem;color:#475569;margin:0 4px 10px;text-align:center}
 
   /* רשת – 2 עמודות במובייל */
@@ -75,7 +81,10 @@
   }
 
   footer{
-    text-align:center; font-size:.75rem; color:#64748b; margin:18px 0 24px;
+    text-align:center; font-size:.75rem; color:#64748b; margin:18px 0 6px;
+  }
+  .bottom-info{
+    text-align:center; font-size:.8rem; color:#475569; margin-bottom:20px;
   }
 
   /* טוסט קטן להתראה על עדכון */
@@ -92,7 +101,6 @@
 <body>
   <div class="wrap">
     <h1>תיק עבודות - פן אקספרס</h1>
-    <p class="note" id="dbg"></p>
     <div id="gallery" class="gallery" aria-live="polite"></div>
     <div id="empty" class="empty" style="display:none"></div>
   </div>
@@ -103,13 +111,14 @@
     <div class="lb-img-wrap"><img id="lbImg" alt=""></div>
   </div>
 
-  <!-- Footer Version -->
-  <footer id="versionFooter">גרסה: v1.03</footer>
+  <!-- Footer -->
+  <footer id="versionFooter">גרסה: v1.04</footer>
+  <div class="bottom-info" id="dbg"></div>
   <div id="toast" class="toast">התמונות עודכנו</div>
 
 <script>
 /* ========= גרסה ========= */
-const VERSION = "v1.03";
+const VERSION = "v1.04";
 document.getElementById("versionFooter").textContent = "גרסה: " + VERSION;
 
 /* ========= קונפיג ========= */
@@ -145,7 +154,7 @@ function showToast(text="התמונות עודכנו"){
 async function loadImagesFromGithub(){
   const {user, repo, branch, path} = CFG;
   const api = `https://api.github.com/repos/${user}/${repo}/contents/${path}?ref=${branch}`;
-  const res = await fetch(api, { headers:{ 'Accept':'application/vnd.github+json' }});
+  const res = await fetch(api);
   if(!res.ok){
     if(res.status===404) showEmpty("לא נמצא הנתיב. בדוק user/repo/branch/path.");
     else showEmpty("שגיאה בטעינה (" + res.status + ")");
@@ -174,6 +183,7 @@ function renderGallery(urls){
   if(!urls.length){ showEmpty("אין קבצי תמונה בתיקייה"); return; }
   document.getElementById("empty").style.display = "none";
   urls.forEach(u => gal.appendChild(createThumb(u)));
+  setDebug(`נטענו בהצלחה. סה״כ תמונות: ${urls.length}`);
 }
 
 /* Lightbox */
@@ -191,28 +201,24 @@ function closeLightbox(){
 lb.addEventListener("click", (e)=>{ if(e.target === lb || e.target === lbClose) closeLightbox(); });
 document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeLightbox(); });
 
-/* Auto-refresh logic — משווה חתימה כדי להימנע מריצוד */
+/* Auto-refresh */
 function signature(arr){ return arr.join("|"); }
-
 async function refreshGallery(silent=false){
   try{
     const urls = await loadImagesFromGithub();
     const sig = signature(urls);
     if(sig !== lastSignature){
       renderGallery(urls);
-      if(lastSignature && !silent) showToast(); // רק אחרי הפעם הראשונה
+      if(lastSignature && !silent) showToast();
       lastSignature = sig;
     }
-    setDebug("תמונות נטענו. סה\"כ: " + urls.length);
-  }catch(e){
-    console.error(e);
-  }
+  }catch(e){ console.error(e); }
 }
 
 /* Init */
 (async function init(){
-  await refreshGallery(true);             // טעינה ראשונה (בלי טוסט)
-  setInterval(refreshGallery, REFRESH_MS); // רענון אוטומטי
+  await refreshGallery(true);
+  setInterval(refreshGallery, REFRESH_MS);
 })();
 </script>
 </body>
