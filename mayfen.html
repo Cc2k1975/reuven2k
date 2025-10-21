@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 
-<!-- PWA: קישור למניפסט + צבע כרום + אייקון לאייפון -->
+<!-- PWA: קישור למניפסט + צבע כרום + אייקון לאייפון (האייקון שלך) -->
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#d4af37">
 <link rel="apple-touch-icon" href="/Icon app.png" />
@@ -227,7 +227,7 @@
       <img class="icon" src="https://reuven2k.com/map.png" alt="" />
     </button>
 
-    <div class="ver">Version: 1.6.2</div>
+    <div class="ver">Version: 1.6.3</div>
   </div>
 
   <div id="icsModal" class="modal-backdrop" role="dialog" aria-modal="true">
@@ -244,57 +244,53 @@
   </div>
 
 <script>
-// --- כל הקוד שלך נשאר בדיוק כמו שהוא ---
-/* ... אין שינוי בכלום ... */
+/* כל הקוד שלך בדיוק כמו שהיה */
 
 /* PWA: רישום Service Worker */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(()=>{});
 }
 
-/* ✅ תוספת חדשה בלבד – הצעת התקנה כאפליקציה */
+/* ✅ תוספת נקייה – כפתור התקנה למסך הבית */
 let deferredPrompt;
+
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  // מציג פופאפ מותאם לאחר 2 שניות (רק פעם אחת)
-  setTimeout(() => {
-    if (!localStorage.getItem('pwaPromptShown')) {
-      const installDiv = document.createElement('div');
-      installDiv.style.position = 'fixed';
-      installDiv.style.bottom = '20px';
-      installDiv.style.left = '50%';
-      installDiv.style.transform = 'translateX(-50%)';
-      installDiv.style.background = '#111';
-      installDiv.style.border = '1px solid #d4af37';
-      installDiv.style.color = '#ffd700';
-      installDiv.style.padding = '14px 18px';
-      installDiv.style.borderRadius = '12px';
-      installDiv.style.boxShadow = '0 0 20px rgba(255,215,0,0.3)';
-      installDiv.style.zIndex = '9999';
-      installDiv.style.textAlign = 'center';
-      installDiv.style.fontSize = '15px';
-      installDiv.innerHTML = `
-        <div style="margin-bottom:8px;font-weight:600;">רוצה להוסיף את פן אקספרס למסך הבית?</div>
-        <div style="display:flex;gap:8px;justify-content:center;">
-          <button id="pwaYes" style="background:#ffd700;color:#000;border:0;padding:8px 14px;border-radius:8px;font-weight:700;">כן</button>
-          <button id="pwaNo" style="background:#222;color:#ffd700;border:1px solid #d4af37;padding:8px 14px;border-radius:8px;font-weight:700;">לא עכשיו</button>
-        </div>`;
-      document.body.appendChild(installDiv);
 
-      document.getElementById('pwaYes').onclick = async () => {
-        installDiv.remove();
-        localStorage.setItem('pwaPromptShown', '1');
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-      };
-      document.getElementById('pwaNo').onclick = () => {
-        installDiv.remove();
-        localStorage.setItem('pwaPromptShown', '1');
-      };
-    }
-  }, 2000);
+  if (localStorage.getItem('pwaPromptShown')) return;
+
+  const btn = document.createElement('button');
+  btn.textContent = '📲 הוסף את פן אקספרס למסך הבית';
+  Object.assign(btn.style, {
+    position: 'fixed',
+    bottom: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: '#ffd700',
+    color: '#000',
+    border: 'none',
+    padding: '12px 18px',
+    fontSize: '15px',
+    borderRadius: '12px',
+    boxShadow: '0 0 20px rgba(255,215,0,0.4)',
+    fontWeight: '700',
+    cursor: 'pointer',
+    zIndex: '9999',
+    opacity: '0',
+    transition: 'opacity 0.3s'
+  });
+
+  document.body.appendChild(btn);
+  setTimeout(()=> btn.style.opacity='1',200);
+
+  btn.addEventListener('click', async () => {
+    btn.remove();
+    localStorage.setItem('pwaPromptShown','1');
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  });
 });
 </script>
 </body>
