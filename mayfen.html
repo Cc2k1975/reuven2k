@@ -38,9 +38,33 @@
   .modal .row button{ flex:1; padding:10px; border-radius:10px; border:0; font-weight:700; font-size:15px; }
   .modal .cancel{ background:#222; color:#ffd700; border:1px solid #ffd700; }
   .modal .ok{ background:#ffd700; color:#000; }
+
+  /* === כפתור התקנה צף (מופיע רק כשכרום מאפשר התקנה) === */
+  #pwaInstallBtn{
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    background: #e53935;
+    color: #fff;
+    border: 3px solid #fff;
+    box-shadow: 0 10px 24px rgba(0,0,0,.45);
+    display: none;            /* נחשף דינמית */
+    align-items: center; justify-content: center;
+    font-weight: 800;
+    z-index: 9999;
+  }
+  #pwaInstallBtn span{ display:block; text-align:center; line-height:1.05; font-size:16px; }
 </style>
 </head>
 <body>
+
+  <!-- כפתור התקנה צף -->
+  <button id="pwaInstallBtn" type="button" aria-label="התקנת אפליקציה">
+    <span>התקנה<br>לאפליקציה</span>
+  </button>
 
   <img src="https://reuven2k.com/exe.gif" alt="פן אקספרס" class="hero-logo" />
 
@@ -288,41 +312,30 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(()=>{});
 }
 
-/* --- NEW #1: Auto-reload once when SW is ready so the page is controlled --- */
-(async ()=>{
-  if (!('serviceWorker' in navigator)) return;
-  try{
-    await navigator.serviceWorker.ready;
-    if (!localStorage.getItem('pwa_sw_ready_reload')) {
-      localStorage.setItem('pwa_sw_ready_reload','1');
-      location.reload(); // רענון חד-פעמי
-    }
-  }catch(_){}
-})();
-
-/* --- NEW #2: ANDROID auto install prompt, once per device --- */
+/* === התקנה באנדרואיד עם כפתור (נדרש ע"י כרום) === */
 (function(){
-  const isAndroid = /Android/i.test(navigator.userAgent);
-  if (!isAndroid) return;
-  if (localStorage.getItem('pwaPromptShown')) return;
-
+  const installBtn = document.getElementById('pwaInstallBtn');
   let deferredPrompt = null;
 
-  window.addEventListener('beforeinstallprompt', (e) => {
+  window.addEventListener('beforeinstallprompt', (e)=>{
     e.preventDefault();
     deferredPrompt = e;
-    setTimeout(async () => {
-      try{
-        await deferredPrompt.prompt();
-        await deferredPrompt.userChoice;
-      }catch(_){}
-      localStorage.setItem('pwaPromptShown','1');
-      deferredPrompt = null;
-    }, 300);
+    installBtn.style.display = 'flex'; // מציגים את העיגול האדום
   });
 
-  window.addEventListener('appinstalled', () => {
-    localStorage.setItem('pwaPromptShown','1');
+  installBtn.addEventListener('click', async ()=>{
+    if (!deferredPrompt) return;
+    installBtn.style.display = 'none';
+    try{
+      await deferredPrompt.prompt();       // כאן כרום מציג את חלון ההתקנה הרשמי
+      await deferredPrompt.userChoice;     // מחכים לבחירה
+    }catch(_){}
+    deferredPrompt = null;
+  });
+
+  window.addEventListener('appinstalled', ()=>{
+    installBtn.style.display = 'none';
+    deferredPrompt = null;
   });
 })();
 </script>
