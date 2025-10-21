@@ -227,7 +227,7 @@
       <img class="icon" src="https://reuven2k.com/map.png" alt="" />
     </button>
 
-    <div class="ver">Version: 1.6.6</div>
+    <div class="ver">Version: 1.6.2</div>
   </div>
 
   <div id="icsModal" class="modal-backdrop" role="dialog" aria-modal="true">
@@ -466,9 +466,34 @@ btnOk.addEventListener('click',()=>{
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(()=>{});
 }
-</script>
 
-<!-- טעינת סקריפט הכפתור (עיגול אדום במרכז) -->
-<script src="/pwa-install.js"></script>
+/* ANDROID: auto install prompt – מופעל אוטומטית פעם אחת בלבד */
+(function(){
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  if (!isAndroid) return;                         // רק באנדרואיד
+  if (localStorage.getItem('pwaPromptShown')) return; // כבר הוצג
+
+  let deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();            // לעצור את הבר העליון של כרום
+    deferredPrompt = e;
+    // נציג מיד את פרומפט ההתקנה של כרום
+    setTimeout(async () => {
+      try{
+        await deferredPrompt.prompt();
+        await deferredPrompt.userChoice;          // מחכים לבחירה
+      }catch(_){}
+      localStorage.setItem('pwaPromptShown','1'); // לא להציק שוב
+      deferredPrompt = null;
+    }, 400); // דילי קצר אחרי שהדף מוכן
+  });
+
+  // אם המשתמש התקין – נסמן שלא נבקש שוב
+  window.addEventListener('appinstalled', () => {
+    localStorage.setItem('pwaPromptShown','1');
+  });
+})();
+</script>
 </body>
 </html>
