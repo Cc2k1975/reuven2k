@@ -78,6 +78,7 @@
     display:none;
     font-size:15px;
     line-height:1.4;
+    white-space:pre-line;
   }
   .msg.ok{
     background:#052e17;
@@ -152,26 +153,27 @@
 
     <button id="sendBtn" class="btn" type="button">שלח</button>
 
-    <div class="ver">שמירה ישירה לענן (BIN ייעודי לסקר)</div>
+    <div class="ver">גרסה 1.0.3 — BIN: 68fe7872ae596e708f2e88aa</div>
     <footer>אין השפעה על מערכת פניקספרס.</footer>
   </div>
 
 <script>
 /*
   -------------------------------------------------
-  הגדרות חיבור
+  חיבור ל-JSONBin
   -------------------------------------------------
-  BIN_ID הזה הוא הבין הייעודי לסקר
-  KEY הוא ה-Access Key החדש עם CREATE / READ / UPDATE / DELETE
-  זה מבודד. זה לא נוגע במערכת הישנה.
+  הערכים כאן נבנו מהנתונים האחרונים שנתת לי:
+  BIN_ID = 68fe7872ae596e708f2e88aa
+  API_KEY = $2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe
+  (מפתח עם כל ההרשאות ל-BIN הזה)
 */
-const BIN_ID   = '68fe72b9d0ea881f40bdb95e';
+const BIN_ID   = '68fe7872ae596e708f2e88aa';
 const API_KEY  = '$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe';
 const BIN_URL  = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
 /*
   -------------------------------------------------
-  משתני ממשק
+  אלמנטים
   -------------------------------------------------
 */
 const elDept        = document.getElementById('dept');
@@ -188,33 +190,34 @@ const msgErr        = document.getElementById('msgErr');
 
 /*
   -------------------------------------------------
-  פונקציות עזר ל־UI
+  UI helpers
   -------------------------------------------------
 */
 function showOk(text){
   msgOk.textContent = text;
   msgOk.style.display = 'block';
-  setTimeout(()=>{ msgOk.style.display='none'; }, 4000);
+  setTimeout(()=>{ msgOk.style.display='none'; }, 6000);
 }
 function showErr(text){
   msgErr.textContent = text;
   msgErr.style.display = 'block';
-  setTimeout(()=>{ msgErr.style.display='none'; }, 6000);
+  setTimeout(()=>{ msgErr.style.display='none'; }, 8000);
 }
 function setSending(state){
   btnSend.disabled = state;
 }
 
 /*
-  ולידציה פשוטה לטלפון
+  ולידציה בסיסית
 */
 function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
 function validPhone(p){ return normalizePhone(p).length >= 8; }
 
 /*
   -------------------------------------------------
-  שלב 1: משיכת תוכן קיים מה-BIN (GET)
+  שליפת המצב הקיים מה-BIN (GET)
   -------------------------------------------------
+  אם זה נכשל – אני זורק שגיאה עם DEBUG שמסביר למה.
 */
 async function fetchRecord(){
   const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
@@ -226,12 +229,11 @@ async function fetchRecord(){
 
   if(!r.ok){
     const body = await r.text().catch(()=> '');
-    throw new Error('fetch failed ' + r.status + ' ' + body);
+    throw new Error('[FETCH] status=' + r.status + ' body=' + body);
   }
 
   const j = await r.json();
 
-  // מבטיחים מבנה { answers: [] }
   if(j.record && Array.isArray(j.record.answers)){
     return j.record;
   }
@@ -240,7 +242,7 @@ async function fetchRecord(){
 
 /*
   -------------------------------------------------
-  שלב 2: דחיפה של רשומה חדשה ושמירה (PUT)
+  כתיבה חזרה ל-BIN (PUT)
   -------------------------------------------------
 */
 async function putRecord(rec){
@@ -256,7 +258,7 @@ async function putRecord(rec){
 
   if(!r.ok){
     const body = await r.text().catch(()=> '');
-    throw new Error('put failed ' + r.status + ' ' + body);
+    throw new Error('[PUT] status=' + r.status + ' body=' + body);
   }
 
   return r.json().catch(()=> ({}));
@@ -264,7 +266,7 @@ async function putRecord(rec){
 
 /*
   -------------------------------------------------
-  לחיצה על "שלח"
+  שליחה
   -------------------------------------------------
 */
 btnSend.addEventListener('click', async ()=>{
@@ -280,7 +282,6 @@ btnSend.addEventListener('click', async ()=>{
     ts:          Date.now()
   };
 
-  // בדיקות חובה
   if(!answer.dept ||
      !answer.workerName ||
      !answer.phone ||
@@ -289,7 +290,7 @@ btnSend.addEventListener('click', async ()=>{
      !answer.room ||
      !answer.packs ||
      !answer.targetRoom){
-    showErr('נא למלא את כל השדות');
+    showErr('נא למלא את כל השדות החובה');
     return;
   }
 
@@ -301,19 +302,19 @@ btnSend.addEventListener('click', async ()=>{
   setSending(true);
 
   try {
-    // 1. מושך את המצב הנוכחי
-    const rec = await fetchRecord();
+    // שלב 1: קבלת המצב הקיים
+    const rec = await fetchRecord(); // אם זה יפול -> [FETCH] status=...
 
-    // 2. מוסיף את הרשומה החדשה
+    // שלב 2: מוסיפים תשובה חדשה
     rec.answers = Array.isArray(rec.answers) ? rec.answers : [];
     rec.answers.push(answer);
 
-    // 3. שומר חזרה
-    await putRecord(rec);
+    // שלב 3: שומרים חזרה
+    await putRecord(rec); // אם זה יפול -> [PUT] status=...
 
     showOk('הנתונים נשמרו בהצלחה!');
 
-    // איפוס הטופס אחרי שמירה
+    // איפוס השדות אחרי שמירה
     elDept.value       = '';
     elWorkerName.value = '';
     elPhone.value      = '';
@@ -326,18 +327,12 @@ btnSend.addEventListener('click', async ()=>{
   } catch(err){
     console.error(err);
 
-    if(err.message && (err.message.indexOf('401')>=0 || err.message.indexOf('403')>=0)){
-      // הרשאות
-      showErr('שגיאת הרשאה (401/403). בדוק שה-Access Key עדיין בתוקף ושיש לו Update/Read.');
-    } else if(err.message && err.message.indexOf('fetch failed') === 0){
-      // בעיית שלב GET
-      showErr('שגיאת רשת בשליפת נתונים. נסה שוב.');
-    } else if(err.message && err.message.indexOf('put failed') === 0){
-      // בעיית שלב PUT
-      showErr('שגיאת רשת בשמירה. נסה שוב.');
-    } else {
-      showErr('שגיאת רשת או שרת. נסה שוב מאוחר יותר.');
-    }
+    // מציג לך דיבוג ברור על המסך
+    const debugText =
+      'שגיאה בשמירה.\n' +
+      (err && err.message ? err.message : err);
+
+    showErr(debugText);
 
   } finally {
     setSending(false);
