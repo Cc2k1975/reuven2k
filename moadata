@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>MOA Data — דף צפייה וניהול</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<style>
+  body{font-family:Arial,Helvetica,sans-serif;background:#000;color:#d4af37;margin:0;padding:0}
+  .wrap{max-width:980px;margin:18px auto;padding:18px}
+  h1{color:#ffd700;text-align:center;margin:0 0 12px;font-size:24px}
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar input[type=text]{padding:8px;border-radius:8px;border:1px solid #d4af37;background:#111;color:#d4af37}
+  button{padding:8px 12px;border-radius:8px;border:0;background:#d4af37;color:#000;cursor:pointer;font-weight:700}
+  table{width:100%;border-collapse:collapse;background:#111;border-radius:8px;overflow:hidden;box-shadow:0 6px 18px rgba(255,215,0,0.08)}
+  th,td{padding:10px;border-bottom:1px solid #222;text-align:right;color:#d4af37}
+  th{background:#222;color:#ffd700;font-weight:700}
+  td.actions{width:150px;text-align:center}
+  .btn-edit{background:#0288d1;color:#fff;padding:6px 8px;border-radius:6px;border:0;margin-left:6px;cursor:pointer}
+  .btn-del{background:#ef5350;color:#fff;padding:6px 8px;border-radius:6px;border:0;cursor:pointer}
+  .modal{position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6)}
+  .modal .box{background:#111;border-radius:10px;padding:16px;max-width:720px;width:94%;color:#ffd700}
+  .modal label{display:block;margin-top:8px;font-weight:700}
+  .modal input, .modal select {width:100%;padding:10px;margin-top:6px;border-radius:8px;border:1px solid #d4af37;background:#222;color:#ffd700}
+  .row{display:flex;gap:8px}
+  .small{width:120px}
+  .ver{margin-top:12px;text-align:center;color:#bfa76f;font-size:13px}
+  .note{font-size:13px;color:#bfa76f}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>MOA — ניהול נתוני סקר / צפייה</h1>
+
+    <div class="toolbar">
+      <span class="note">גרסה 1.0.0 — תומך ב־bookings ו־answers</span>
+      <button id="refresh">רענן</button>
+      <input id="filterText" type="text" placeholder="חפש (שם/טלפון/מבנה)..." />
+      <button id="export">ייצא CSV</button>
+    </div>
+
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>מחלקה / סוג</th>
+          <th>שם</th>
+          <th>טלפון</th>
+          <th>מבנה</th>
+          <th>קומה</th>
+          <th>חדר</th>
+          <th>כמות</th>
+          <th>זמן יצירה</th>
+          <th class="actions">פעולות</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <div class="ver" id="status">טוען נתונים...</div>
+  </div>
+
+  <!-- modal עריכה -->
+  <div id="modal" class="modal" role="dialog" aria-modal="true">
+    <div class="box">
+      <h3>עריכת רשומה</h3>
+
+      <label>מחלקה</label>
+      <input id="m_dept" type="text" />
+
+      <label>שם העובד</label>
+      <input id="m_name" type="text" />
+
+      <label>מספר נייד</label>
+      <input id="m_phone" type="text" />
+
+      <div class="row">
+        <div style="flex:1">
+          <label>מבנה</label>
+          <input id="m_building" type="text" />
+        </div>
+        <div style="width:120px">
+          <label>קומה</label>
+          <input id="m_floor" type="text" />
+        </div>
+        <div style="width:120px">
+          <label>חדר</label>
+          <input id="m_room" type="text" />
+        </div>
+      </div>
+
+      <label>כמות אריזות</label>
+      <input id="m_packs" type="text" />
+
+      <label>חדר יעד</label>
+      <input id="m_target" type="text" />
+
+      <div style="margin-top:12px;text-align:left">
+        <button id="saveEdit" class="btn-edit">שמור</button>
+        <button id="cancelEdit" class="btn-del">ביטול</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+  MOADATA v1.0.0
+  תואם את המודל של הקובץ ששלחת (פן-אקספרס). ראו גם את הקובץ המקורי שלך כ-reference. 1
+
+  חשוב: אם ברצונך לשנות BIN / KEY — ערוך את הערכים למטה.
+*/
+const BIN_ID    = '68f0e7bed0ea881f40a63b29'; // ברירת מחדל מהקובץ ששלחת
+const MASTER_KEY= '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO'; // ברירת מחדל מהקובץ שלך
+const BIN_URL   = 'https://api.jsonbin.io/v3/b/' + BIN_ID + '?ts=' + Date.now();
+
+// אלמנטים
+const tbody = document.querySelector('#tbl tbody');
+const statusEl = document.getElementById('status');
+const refreshBtn = document.getElementById('refresh');
+const filterInput = document.getElementById('filterText');
+const exportBtn = document.getElementById('export');
+
+// modal elements
+const modal = document.getElementById('modal');
+const m_dept = document.getElementById('m_dept');
+const m_name = document.getElementById('m_name');
+const m_phone = document.getElementById('m_phone');
+const m_building = document.getElementById('m_building');
+const m_floor = document.getElementById('m_floor');
+const m_room = document.getElementById('m_room');
+const m_packs = document.getElementById('m_packs');
+const m_target = document.getElementById('m_target');
+const saveEditBtn = document.getElementById('saveEdit');
+const cancelEditBtn = document.getElementById('cancelEdit');
+
+let currentRecord = null; // כל המידע מה-BIN
+let entries = []; // מערך הרשומות (bookings או answers)
+let entriesType = null; // 'bookings' או 'answers'
+let editingIndex = -1;
+
+/* ----------------- פונקציות רשת ----------------- */
+async function fetchMaster(){
+  statusEl.textContent = 'טוען נתונים מהענן...';
+  const res = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '?ts=' + Date.now(), {
+    headers: { 'X-Master-Key': MASTER_KEY },
+    cache: 'no-store'
+  });
+  if(!res.ok){
+    const txt = await res.text().catch(()=>res.statusText);
+    throw new Error('fetch failed: ' + res.status + ' ' + txt);
+  }
+  const j = await res.json();
+  return j.record || {};
+}
+
+async function putMaster(payload){
+  const res = await fetch('https://api.jsonbin.io/v3/b/' + BIN_ID + '?ts=' + Date.now(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type':'application/json',
+      'X-Master-Key': MASTER_KEY
+    },
+    body: JSON.stringify(payload),
+    cache: 'no-store'
+  });
+  if(!res.ok){
+    const txt = await res.text().catch(()=>res.statusText);
+    throw new Error('put failed: ' + res.status + ' ' + txt);
+  }
+  return res.json();
+}
+
+/* ----------------- עיבוד נתונים ----------------- */
+function normalizeRecord(rec){
+  // אם זה פן-אקספרס (bookings) או הסקר (answers).
+  if(Array.isArray(rec.bookings)){
+    entriesType = 'bookings';
+    entries = rec.bookings.slice(); // clone
+  } else if(Array.isArray(rec.answers)){
+    entriesType = 'answers';
+    entries = rec.answers.slice();
+  } else {
+    // אם אף אחד לא קיים — נייצר answers ריק
+    entriesType = 'answers';
+    entries = [];
+  }
+}
+
+function fmtTs(ts){
+  try{
+    if(!ts) return '';
+    const d = new Date(Number(ts));
+    if(isNaN(d)) return ts;
+    return d.toLocaleString('he-IL');
+  }catch(e){ return ts; }
+}
+
+function renderTable(filterText=''){
+  const f = (filterText||'').trim().toLowerCase();
+  const rows = entries
+    .map((e, idx) => ({e, idx}))
+    .filter(({e}) => {
+      if(!f) return true;
+      // חפש לפי כמה שדות מרכזיים
+      const hay = [
+        e.dept, e.workerName, e.name,
+        e.phone, e.building, e.room
+      ].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(f);
+    });
+
+  if(rows.length===0){
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#d4af37;padding:12px">אין רשומות</td></tr>`;
+    statusEl.textContent = `סה"כ 0`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(({e, idx})=>{
+    // מיפוי שדות אופציונלי (bookings או answers)
+    const dept = e.dept || e.type || '';
+    const name = e.workerName || e.name || e.customer || '';
+    const phone = e.phone || '';
+    const building = e.building || e.location || '';
+    const floor = e.floor || '';
+    const room = e.room || e.slot || '';
+    const packs = e.packs || e.quantity || '';
+    const ts = e.ts || e.createdAt || '';
+    return `
+      <tr data-idx="${idx}">
+        <td>${escapeHtml(dept)}</td>
+        <td>${escapeHtml(name)}</td>
+        <td>${escapeHtml(phone)}</td>
+        <td>${escapeHtml(building)}</td>
+        <td>${escapeHtml(floor)}</td>
+        <td>${escapeHtml(room)}</td>
+        <td>${escapeHtml(packs)}</td>
+        <td>${fmtTs(ts)}</td>
+        <td class="actions">
+          <button class="btn-edit" data-idx="${idx}">✏️ ערוך</button>
+          <button class="btn-del" data-idx="${idx}">🗑️ מחק</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  statusEl.textContent = `סה"כ ${rows.length} רשומות (type: ${entriesType})`;
+  attachRowHandlers();
+}
+
+function escapeHtml(s){
+  if(s===null || s===undefined) return '';
+  return String(s).replace(/[&<>"']/g, function(m){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]); });
+}
+
+/* ----------------- פעולות על שורה ----------------- */
+function attachRowHandlers(){
+  Array.from(document.querySelectorAll('.btn-edit')).forEach(b=>{
+    b.onclick = ()=> openEdit( Number(b.getAttribute('data-idx')) );
+  });
+  Array.from(document.querySelectorAll('.btn-del')).forEach(b=>{
+    b.onclick = ()=> doDelete( Number(b.getAttribute('data-idx')) );
+  });
+}
+
+function openEdit(idx){
+  editingIndex = idx;
+  const rec = entries[idx];
+  // מלא את השדות במודל העריכה לפי מיפוי
+  m_dept.value = rec.dept || rec.type || '';
+  m_name.value = rec.workerName || rec.name || '';
+  m_phone.value = rec.phone || '';
+  m_building.value = rec.building || '';
+  m_floor.value = rec.floor || '';
+  m_room.value = rec.room || '';
+  m_packs.value = rec.packs || rec.quantity || '';
+  m_target.value = rec.targetRoom || rec.target || '';
+  modal.style.display = 'flex';
+}
+
+function closeModal(){ modal.style.display = 'none'; editingIndex = -1; }
+
+async function saveEdit(){
+  if(editingIndex<0) return;
+  const rec = entries[editingIndex];
+  // עדכן שדות במקור בהתאם למיפוי
+  rec.dept = m_dept.value.trim();
+  // אם המקור היה bookings שנוצרו על ידי פן-אקספרס, ייתכן ששם השדה הוא name
+  if(rec.hasOwnProperty('workerName') || entriesType==='answers') rec.workerName = m_name.value.trim();
+  else rec.name = m_name.value.trim();
+
+  rec.phone = m_phone.value.trim();
+  rec.building = m_building.value.trim();
+  rec.floor = m_floor.value.trim();
+  rec.room = m_room.value.trim();
+  rec.packs = m_packs.value.trim();
+  // שמור גם targetRoom אם קיים
+  rec.targetRoom = m_target.value.trim();
+  rec.ts = Date.now();
+
+  // שמירת master
+  try{
+    // קח עותק עדכני לפני שמירה
+    currentRecord = await fetchMaster();
+    // החלף את המערך המתאים בעותק עדכני
+    if(entriesType==='bookings') currentRecord.bookings = entries;
+    else currentRecord.answers = entries;
+    await putMaster(currentRecord);
+    closeModal();
+    renderAll();
+  }catch(err){
+    alert('שגיאה בשמירה: ' + err.message);
+    console.error(err);
+  }
+}
+
+async function doDelete(idx){
+  if(!confirm('למחוק רשומה זו?')) return;
+  try{
+    currentRecord = await fetchMaster();
+    // הסר את הרשומה מהמערך המקומי וגם מהעותק
+    entries.splice(idx, 1);
+    if(entriesType==='bookings') currentRecord.bookings = entries;
+    else currentRecord.answers = entries;
+    await putMaster(currentRecord);
+    renderAll();
+  }catch(err){
+    alert('שגיאה במחיקה: ' + err.message);
+    console.error(err);
+  }
+}
+
+/* ----------------- ייצוא CSV ----------------- */
+function toCSV(arr){
+  const hdr = ['dept','name','phone','building','floor','room','packs','ts'];
+  const rows = arr.map(e => {
+    const name = e.workerName || e.name || '';
+    return [
+      csvSafe(e.dept||''), csvSafe(name), csvSafe(e.phone||''), csvSafe(e.building||''),
+      csvSafe(e.floor||''), csvSafe(e.room||''), csvSafe(e.packs||''), csvSafe(e.ts||'')
+    ].join(',');
+  });
+  return hdr.join(',') + '\n' + rows.join('\n');
+}
+function csvSafe(v){ return '"'+String(v||'').replace(/"/g,'""')+'"'; }
+
+/* ----------------- זרימת עבודה ראשית ----------------- */
+async function renderAll(){
+  try{
+    const rec = await fetchMaster();
+    currentRecord = rec;
+    normalizeRecord(rec);
+    renderTable(filterInput.value);
+  }catch(err){
+    statusEl.textContent = 'שגיאה בטעינת נתונים: ' + err.message;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#d4af37;padding:12px">שגיאה בטעינה</td></tr>`;
+    console.error(err);
+  }
+}
+
+/* אירועים */
+refreshBtn.addEventListener('click', renderAll);
+filterInput.addEventListener('input', ()=> renderTable(filterInput.value));
+exportBtn.addEventListener('click', ()=>{
+  const csv = toCSV(entries);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'moadata_export.csv';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+
+cancelEditBtn.addEventListener('click', closeModal);
+saveEditBtn.addEventListener('click', saveEdit);
+
+// close modal on click outside
+modal.addEventListener('click', (e)=>{ if(e.target===modal) closeModal(); });
+
+// הפעלת הדף
+renderAll();
+</script>
+</body>
+</html>
