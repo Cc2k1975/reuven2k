@@ -153,28 +153,29 @@
 
     <button id="sendBtn" class="btn" type="button">שלח</button>
 
-    <div class="ver">גרסה 1.0.3 — BIN: 68fe7872ae596e708f2e88aa</div>
+    <div class="ver">גרסה 1.0.4 — מצב CREATE בלבד (בין חדש לכל שליחה)</div>
     <footer>אין השפעה על מערכת פניקספרס.</footer>
   </div>
 
 <script>
 /*
   -------------------------------------------------
-  חיבור ל-JSONBin
+  מצב "CREATE בלבד": כל שליחה = BIN חדש ב-JSONBin.
+  לא צריך Bin ID קבוע. לא עושים GET ולא PUT.
   -------------------------------------------------
-  הערכים כאן נבנו מהנתונים האחרונים שנתת לי:
-  BIN_ID = 68fe7872ae596e708f2e88aa
-  API_KEY = $2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe
-  (מפתח עם כל ההרשאות ל-BIN הזה)
+
+  המפתח (Access Key) האחרון ששלחת:
+  $2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe
+  יש לו CREATE, אז מותר לנו POST.
 */
-const BIN_ID   = '68fe7872ae596e708f2e88aa';
-const API_KEY  = '$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe';
-const BIN_URL  = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
+
+const API_KEY = '$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe';
+
+// זו הכתובת ליצירת BIN חדש
+const CREATE_URL = 'https://api.jsonbin.io/v3/b';
 
 /*
-  -------------------------------------------------
   אלמנטים
-  -------------------------------------------------
 */
 const elDept        = document.getElementById('dept');
 const elWorkerName  = document.getElementById('workerName');
@@ -189,9 +190,7 @@ const msgOk         = document.getElementById('msgOk');
 const msgErr        = document.getElementById('msgErr');
 
 /*
-  -------------------------------------------------
-  UI helpers
-  -------------------------------------------------
+  עזרי UI
 */
 function showOk(text){
   msgOk.textContent = text;
@@ -207,67 +206,38 @@ function setSending(state){
   btnSend.disabled = state;
 }
 
-/*
-  ולידציה בסיסית
-*/
+// נרמל מספר נייד בסיסי
 function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
 function validPhone(p){ return normalizePhone(p).length >= 8; }
 
 /*
-  -------------------------------------------------
-  שליפת המצב הקיים מה-BIN (GET)
-  -------------------------------------------------
-  אם זה נכשל – אני זורק שגיאה עם DEBUG שמסביר למה.
+  שולחים נתונים ע"י יצירת BIN חדש
 */
-async function fetchRecord(){
-  const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
-    headers: {
-      'X-Master-Key': API_KEY
-    },
-    cache: 'no-store'
-  });
-
-  if(!r.ok){
-    const body = await r.text().catch(()=> '');
-    throw new Error('[FETCH] status=' + r.status + ' body=' + body);
-  }
-
-  const j = await r.json();
-
-  if(j.record && Array.isArray(j.record.answers)){
-    return j.record;
-  }
-  return { answers: [] };
-}
-
-/*
-  -------------------------------------------------
-  כתיבה חזרה ל-BIN (PUT)
-  -------------------------------------------------
-*/
-async function putRecord(rec){
-  const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
-    method: 'PUT',
+async function createNewBin(payloadObj){
+  const r = await fetch(CREATE_URL + '?ts=' + Date.now(), {
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Master-Key': API_KEY
+      'X-Master-Key': API_KEY,
+      // חשוב: אנחנו מבקשים שהבין יהיה פרטי כמו בפנימה.
+      'X-Bin-Private': 'true',
+      // אפשר לשמור "שם" אם תרצה לזהות ב-UI. נקרא לו "Seker"
+      'X-Bin-Name': 'Seker'
     },
-    body: JSON.stringify(rec),
+    body: JSON.stringify(payloadObj),
     cache: 'no-store'
   });
 
   if(!r.ok){
     const body = await r.text().catch(()=> '');
-    throw new Error('[PUT] status=' + r.status + ' body=' + body);
+    throw new Error('[CREATE] status=' + r.status + ' body=' + body);
   }
 
   return r.json().catch(()=> ({}));
 }
 
 /*
-  -------------------------------------------------
-  שליחה
-  -------------------------------------------------
+  לחיצה על שלח
 */
 btnSend.addEventListener('click', async ()=>{
   const answer = {
@@ -282,6 +252,7 @@ btnSend.addEventListener('click', async ()=>{
     ts:          Date.now()
   };
 
+  // בדיקות שדות חובה
   if(!answer.dept ||
      !answer.workerName ||
      !answer.phone ||
@@ -302,19 +273,14 @@ btnSend.addEventListener('click', async ()=>{
   setSending(true);
 
   try {
-    // שלב 1: קבלת המצב הקיים
-    const rec = await fetchRecord(); // אם זה יפול -> [FETCH] status=...
+    // יוצרים BIN חדש בענן עם תשובה אחת
+    const payload = { answers: [ answer ] };
+    const result = await createNewBin(payload);
 
-    // שלב 2: מוסיפים תשובה חדשה
-    rec.answers = Array.isArray(rec.answers) ? rec.answers : [];
-    rec.answers.push(answer);
+    // אם הגענו לכאן - הצליח
+    showOk('הנתונים נשמרו בענן בהצלחה!');
 
-    // שלב 3: שומרים חזרה
-    await putRecord(rec); // אם זה יפול -> [PUT] status=...
-
-    showOk('הנתונים נשמרו בהצלחה!');
-
-    // איפוס השדות אחרי שמירה
+    // ניקוי הטופס
     elDept.value       = '';
     elWorkerName.value = '';
     elPhone.value      = '';
@@ -324,16 +290,14 @@ btnSend.addEventListener('click', async ()=>{
     elPacks.value      = '';
     elTargetRoom.value = '';
 
+    console.log('JSONBin create result:', result);
+
   } catch(err){
     console.error(err);
-
-    // מציג לך דיבוג ברור על המסך
-    const debugText =
+    showErr(
       'שגיאה בשמירה.\n' +
-      (err && err.message ? err.message : err);
-
-    showErr(debugText);
-
+      (err && err.message ? err.message : err)
+    );
   } finally {
     setSending(false);
   }
