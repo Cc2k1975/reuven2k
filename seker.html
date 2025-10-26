@@ -8,34 +8,23 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <style>
-  body{
-    font-family: Arial, Helvetica, sans-serif;
-    background:#000;
-    margin:0;
-    padding:0;
-    color:#d4af37;
-  }
-  .wrap{
-    max-width:520px;
-    margin:12px auto;
-    padding:20px 24px 24px;
-    background:#111;
-    border-radius:16px;
-    box-shadow:0 6px 18px rgba(255,215,0,0.25);
-  }
-  h1{ margin:0 0 16px; font-size:24px; color:#ffd700; text-align:center; }
-  label{ display:block; margin:12px 4px 5px; font-weight:600; color:#ffd700; font-size:16px; }
-  input, select, button{ width:100%; padding:12px 14px; border:1px solid #d4af37; border-radius:10px; font-size:16px; box-sizing:border-box; background:#222; color:#ffd700; }
-  input[type="tel"]{ text-align:right; }
-  .btn{ background:#d4af37; color:#000; border:0; cursor:pointer; margin-top:20px; font-weight:700; font-size:16px; padding:12px; border-radius:10px; }
-  .btn[disabled]{ opacity:.6; cursor:not-allowed; }
-  .info{ font-size:13px; color:#bfa76f; margin-top:6px; text-align:center; }
-  .error{ background:#330000; color:#ff6666; border:1px solid #ff9999; padding:9px; border-radius:10px; margin-top:9px; display:none; font-size:15px; }
-  .success{ background:#003300; color:#66ff99; border:1px solid #99ffcc; padding:9px; border-radius:10px; margin-top:9px; display:none; font-size:15px; }
-  .ver{ margin-top:16px; font-size:12px; color:#bfa76f; text-align:center; }
+  body{font-family:Arial,Helvetica,sans-serif;background:#000;margin:0;padding:0;color:#d4af37}
+  .wrap{max-width:520px;margin:12px auto;padding:20px 24px 24px;background:#111;border-radius:16px;box-shadow:0 6px 18px rgba(255,215,0,0.18)}
+  h1{margin:0 0 16px;font-size:24px;color:#ffd700;text-align:center}
+  label{display:block;margin:12px 4px 5px;font-weight:600;color:#ffd700;font-size:16px}
+  input,select,button{width:100%;padding:12px 14px;border:1px solid #d4af37;border-radius:10px;font-size:16px;box-sizing:border-box;background:#222;color:#ffd700}
+  input[type="tel"]{text-align:right}
+  .btn{background:#d4af37;color:#000;border:0;cursor:pointer;margin-top:20px;font-weight:700;font-size:16px;padding:12px;border-radius:10px}
+  .small{font-size:13px;color:#bfa76f;margin-top:8px;text-align:center}
+  .error{background:#330000;color:#ff6666;border:1px solid #ff9999;padding:9px;border-radius:10px;margin-top:9px;display:none;font-size:15px}
+  .success{background:#003300;color:#66ff99;border:1px solid #99ffcc;padding:9px;border-radius:10px;margin-top:9px;display:none;font-size:15px}
+  .key-row{display:flex;gap:8px;margin-top:10px}
+  .key-row input{flex:1}
+  .muted{color:#a88e32;font-size:12px;text-align:center;margin-top:10px}
 </style>
 </head>
 <body>
+
 <div class="wrap">
   <h1>טופס סקר</h1>
 
@@ -83,152 +72,162 @@
   <input type="text" id="targetRoom" placeholder="לאן לשלוח / איפה לקבל" required />
 
   <button id="sendBtn" class="btn">שלח</button>
-  <div id="savingIndicator" class="info" style="display:none;">שומר…</div>
+  <div id="savingIndicator" class="small" style="display:none;">שומר…</div>
 
-  <div class="ver">גרסה 0.1 – סקר</div>
+  <div class="muted">גרסה 0.2 – סקר | BIN מבודד (לא נוגע בפן-אקספרס)</div>
+
+  <!-- שורה לניהול מפתח: אפשרויות בטוחות ללא עריכת קוד -->
+  <div style="margin-top:14px;">
+    <div style="text-align:center;color:#bfa76f;font-size:13px;margin-bottom:8px">אפשרות בטוחה: להדביק Access Key (לא חובה). נשמר מקומית בדפדפן בלבד.</div>
+    <div class="key-row">
+      <input id="accessKeyInput" placeholder="הדבק כאן Access Key / Master Key (רק אם תרצה)" type="text" />
+      <button id="saveKeyBtn" class="btn" style="padding:8px 12px;font-size:13px">שמור מפתח</button>
+    </div>
+    <div style="text-align:center;margin-top:6px;color:#a88e32;font-size:12px">הערה: המפתח ישמר רק במכשיר הזה בדפדפן (sessionStorage). זה מאפשר שמירה מבלי לשנות את הקובץ.</div>
+    <div style="text-align:center;margin-top:8px">
+      <button id="clearKeyBtn" class="btn" style="background:#222;color:#ffd700;border:1px solid #d4af37;padding:8px 12px;font-size:13px">מחק/בטל מפתח שמור</button>
+    </div>
+  </div>
 </div>
 
 <script>
-/* -------------------------
-   JSONBin settings (הוכנס BIN_ID)
-   ה־MASTER_KEY יש להכניס פה לאחר שתהיה מוכן / לא לשתף בפומבי
-   ------------------------- */
-const BIN_ID = '68fe66a643b1c97be982ac03';
-const MASTER_KEY = '*** תכניס כאן את ה-MASTER_KEY ***';
+/*
+  הסבר קצר על הניהול של מפתח:
+  - BIN_ID מוכנס למטה (BIN שיצרת).
+  - במקום לשנות את הקובץ ידנית, יש שדה בקצה הדף שבו אפשר להדביק Access Key או Master Key.
+  - המפתח נשמר ב-sessionStorage בשם 'seker_access_key' (לא בענן, לא נשלח לשום מקום).
+  - בקשות GET/PUT ישתמשו במפתח זה אם הוא קיים; אחרת, בקשת השמירה תיכשל (ואז תראה הודעת שגיאה).
+  - אין שום שינוי בבין של פן-אקספרס וה־Master Key המקורי אינו נוגע.
+*/
+
+const BIN_ID = '68fe66a643b1c97be982ac03';    // BIN שהקמת
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
-/* אלמנטים */
-const elDept        = document.getElementById('dept');
-const elWorkerName  = document.getElementById('workerName');
-const elPhone       = document.getElementById('phone');
-const elBuilding    = document.getElementById('building');
-const elFloor       = document.getElementById('floor');
-const elRoom        = document.getElementById('room');
-const elPacks       = document.getElementById('packs');
-const elTargetRoom  = document.getElementById('targetRoom');
-const elSend        = document.getElementById('sendBtn');
+const elDept = document.getElementById('dept');
+const elWorkerName = document.getElementById('workerName');
+const elPhone = document.getElementById('phone');
+const elBuilding = document.getElementById('building');
+const elFloor = document.getElementById('floor');
+const elRoom = document.getElementById('room');
+const elPacks = document.getElementById('packs');
+const elTargetRoom = document.getElementById('targetRoom');
+const btnSend = document.getElementById('sendBtn');
 const savingIndicator = document.getElementById('savingIndicator');
-
 const msgErr = document.getElementById('msgError');
-const msgOk  = document.getElementById('msgOk');
+const msgOk = document.getElementById('msgOk');
 
-function showErr(t){
-  msgErr.textContent = t;
-  msgErr.style.display = 'block';
-  setTimeout(()=>{ msgErr.style.display='none'; }, 5000);
-}
-function showOk(t){
-  msgOk.textContent = t;
-  msgOk.style.display = 'block';
-  setTimeout(()=>{ msgOk.style.display='none'; }, 4000);
-}
-function setSavingState(isSaving){
-  elSend.disabled = isSaving;
-  savingIndicator.style.display = isSaving ? 'block' : 'none';
-}
+const accessKeyInput = document.getElementById('accessKeyInput');
+const saveKeyBtn = document.getElementById('saveKeyBtn');
+const clearKeyBtn = document.getElementById('clearKeyBtn');
 
-/* ניקוי לא-ספרות מהטלפון ובדיקה בסיסית */
+function showErr(t){ msgErr.textContent=t; msgErr.style.display='block'; setTimeout(()=>msgErr.style.display='none',6000); }
+function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout(()=>msgOk.style.display='none',4000); }
+function setSavingState(s){ btnSend.disabled=s; savingIndicator.style.display = s ? 'block' : 'none'; }
+
 function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
-function validPhone(p){
-  const digits = normalizePhone(p);
-  return digits.length >= 8;
+function validPhone(p){ return normalizePhone(p).length >= 8; }
+
+// מנגנון מפתח מקומי (sessionStorage) - נשמר רק בדפדפן זה והחיים שלו עד סגירת הטאב/חלון
+function getSavedKey(){ return sessionStorage.getItem('seker_access_key') || ''; }
+function saveKeyLocally(k){ if(!k) sessionStorage.removeItem('seker_access_key'); else sessionStorage.setItem('seker_access_key', k); }
+function applySavedKeyToInput(){ accessKeyInput.value = getSavedKey(); }
+
+applySavedKeyToInput();
+
+saveKeyBtn.addEventListener('click', ()=>{
+  const k = accessKeyInput.value.trim();
+  if(!k){ showErr('אין מפתח להכניס'); return; }
+  saveKeyLocally(k);
+  showOk('המפתח נשמר זמנית בדפדפן (session).');
+});
+
+clearKeyBtn.addEventListener('click', ()=>{
+  saveKeyLocally('');
+  accessKeyInput.value = '';
+  showOk('המפתח הוסר.');
+});
+
+/* ====== קריאה ל־BIN (GET) ====== */
+async function fetchRecord(){
+  const key = getSavedKey();
+  const headers = key ? { 'X-Master-Key': key } : {};
+  const res = await fetch(BIN_URL + '?ts=' + Date.now(), { headers, cache: 'no-store' });
+  if(!res.ok){
+    const txt = await res.text().catch(()=>'');
+    throw new Error('fetch failed ' + res.status + ' ' + txt);
+  }
+  const j = await res.json();
+  return (j.record && Array.isArray(j.record.answers)) ? j.record : { answers: [] };
 }
 
-/* קריאה מה-BIN */
-async function fetchRecord(){
-  const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
-    headers: { 'X-Master-Key': MASTER_KEY },
+/* ====== שמירה (PUT) ====== */
+async function putRecord(rec){
+  const key = getSavedKey();
+  // אם אין מפתח זמני שמור — נסה לשלוח בלי כותרת ואז זה ייכשל בצורה מבוקרת
+  const headers = { 'Content-Type': 'application/json' };
+  if(key) headers['X-Master-Key'] = key;
+  const res = await fetch(BIN_URL + '?ts=' + Date.now(), {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(rec),
     cache: 'no-store'
   });
-  if(!r.ok){
-    const txt = await r.text().catch(()=> '');
-    throw new Error('fetch failed '+r.status+' '+txt);
+  if(!res.ok){
+    const txt = await res.text().catch(()=>'');
+    throw new Error('put failed ' + res.status + ' ' + txt);
   }
-  const j = await r.json();
-  let rec = (j.record && Array.isArray(j.record.answers)) ? j.record : { answers: [] };
-  return rec;
+  return res.json().catch(()=> ({}));
 }
 
-/* שמירה ל-BIN */
-async function putRecord(rec){
-  const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
-    method:'PUT',
-    headers:{
-      'Content-Type':'application/json',
-      'X-Master-Key': MASTER_KEY
-    },
-    body: JSON.stringify(rec),
-    cache:'no-store'
-  });
-  if(!r.ok){
-    const txt = await r.text().catch(()=> '');
-    throw new Error('put failed '+r.status+' '+txt);
-  }
-  return r.json().catch(()=> ({}));
-}
-
-/* שליחה */
-elSend.addEventListener('click', async ()=>{
-  // בדיקות חובה
-  if(!elDept.value.trim()
-    || !elWorkerName.value.trim()
-    || !elPhone.value.trim()
-    || !elBuilding.value.trim()
-    || !elFloor.value.trim()
-    || !elRoom.value.trim()
-    || !elPacks.value.trim()
-    || !elTargetRoom.value.trim()
-  ){
+/* לחיצה על שלח */
+btnSend.addEventListener('click', async ()=>{
+  // ולידציה
+  if(!elDept.value.trim() || !elWorkerName.value.trim() || !elPhone.value.trim()
+    || !elBuilding.value.trim() || !elFloor.value.trim() || !elRoom.value.trim()
+    || !elPacks.value.trim() || !elTargetRoom.value.trim()){
     showErr('נא למלא את כל השדות');
     return;
   }
-
   if(!validPhone(elPhone.value)){
     showErr('מספר נייד לא תקין');
     return;
   }
 
-  const newAnswer = {
-    dept:        elDept.value.trim(),
-    workerName:  elWorkerName.value.trim(),
-    phone:       elPhone.value.trim(),
-    building:    elBuilding.value.trim(),
-    floor:       elFloor.value.trim(),
-    room:        elRoom.value.trim(),
-    packs:       elPacks.value.trim(),
-    targetRoom:  elTargetRoom.value.trim(),
-    ts:          Date.now()
+  const answer = {
+    dept: elDept.value.trim(),
+    workerName: elWorkerName.value.trim(),
+    phone: elPhone.value.trim(),
+    building: elBuilding.value.trim(),
+    floor: elFloor.value.trim(),
+    room: elRoom.value.trim(),
+    packs: elPacks.value.trim(),
+    targetRoom: elTargetRoom.value.trim(),
+    ts: Date.now()
   };
 
   setSavingState(true);
-  try {
-    // קח את המצב האחרון
-    let rec = await fetchRecord();
-
-    // דחוף את התשובה החדשה
-    rec.answers.push(newAnswer);
-
-    // שמור בחזרה
+  try{
+    // מושך מצב עדכני, דוחף ומעדכן
+    const rec = await fetchRecord();
+    rec.answers.push(answer);
     await putRecord(rec);
-
     showOk('הנתונים נשמרו בהצלחה!');
     // אפס טופס
-    elDept.value = "";
-    elWorkerName.value = "";
-    elPhone.value = "";
-    elBuilding.value = "";
-    elFloor.value = "";
-    elRoom.value = "";
-    elPacks.value = "";
-    elTargetRoom.value = "";
-
-  } catch(e){
+    elDept.value=''; elWorkerName.value=''; elPhone.value='';
+    elBuilding.value=''; elFloor.value=''; elRoom.value=''; elPacks.value=''; elTargetRoom.value='';
+  }catch(e){
     console.error('save error', e);
-    showErr('שגיאת רשת או שרת. נסה שוב.');
-  } finally {
+    // הודעה ידידותית עם רמז מה הבעיה
+    if(e.message && e.message.indexOf('401')>=0 || e.message.indexOf('403')>=0){
+      showErr('שגיאת הרשאה — אין מפתח תקף. משימה: הדבק Access Key דרך התיבה למטה (או השתמש ב־Create Access Key ב־JSONBin).');
+    }else{
+      showErr('שגיאת רשת או שרת. אם יש מפתח, ייתכן שהקישור או ה־Key לא נכונים.');
+    }
+  }finally{
     setSavingState(false);
   }
 });
+
 </script>
 </body>
 </html>
