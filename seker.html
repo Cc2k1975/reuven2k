@@ -8,20 +8,99 @@
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
 <style>
-  body{font-family:Arial,Helvetica,sans-serif;background:#000;margin:0;padding:0;color:#d4af37}
-  .wrap{max-width:600px;margin:18px auto;padding:22px;background:#111;border-radius:12px;box-shadow:0 6px 28px rgba(255,215,0,0.08)}
-  h1{margin:0 0 12px;font-size:22px;color:#ffd700;text-align:center}
-  label{display:block;margin:10px 4px 6px;font-weight:700;color:#ffd700;font-size:15px}
-  input,select,button{width:100%;padding:10px 12px;border:1px solid #d4af37;border-radius:10px;font-size:15px;box-sizing:border-box;background:#222;color:#ffd700}
-  input[type="tel"]{text-align:right}
-  select{appearance:none;-webkit-appearance:none}
-  .btn{background:#d4af37;color:#000;border:0;cursor:pointer;margin-top:14px;font-weight:800;font-size:15px;padding:11px;border-radius:10px}
-  .btn[disabled]{opacity:.6;cursor:not-allowed}
-  .msg{margin-top:12px;padding:10px;border-radius:10px;display:none}
-  .msg.ok{background:#052e17;color:#9ff0b3;border:1px solid #1f7a44}
-  .msg.err{background:#3a0a0a;color:#ffc7c7;border:1px solid #7a1b1b}
-  .ver{margin-top:14px;text-align:center;color:#bfa76f;font-size:13px}
-  footer{margin-top:10px;text-align:center;color:#a88e32;font-size:12px}
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#000;
+    margin:0;
+    padding:0;
+    color:#d4af37;
+  }
+  .wrap{
+    max-width:600px;
+    margin:18px auto;
+    padding:22px;
+    background:#111;
+    border-radius:16px;
+    box-shadow:0 10px 30px rgba(255,215,0,0.12);
+  }
+  h1{
+    margin:0 0 16px;
+    font-size:24px;
+    font-weight:700;
+    color:#ffd700;
+    text-align:center;
+  }
+  label{
+    display:block;
+    margin:12px 4px 6px;
+    font-weight:700;
+    color:#ffd700;
+    font-size:15px;
+  }
+  input,
+  select,
+  button{
+    width:100%;
+    padding:12px 14px;
+    border:1px solid #d4af37;
+    border-radius:10px;
+    font-size:16px;
+    box-sizing:border-box;
+    background:#222;
+    color:#ffd700;
+  }
+  input[type="tel"]{
+    text-align:right;
+  }
+  select{
+    appearance:none;
+    -webkit-appearance:none;
+  }
+  .btn{
+    background:#d4af37;
+    color:#000;
+    border:0;
+    cursor:pointer;
+    margin-top:18px;
+    font-weight:800;
+    font-size:16px;
+    padding:12px;
+    border-radius:10px;
+  }
+  .btn[disabled]{
+    opacity:.6;
+    cursor:not-allowed;
+  }
+  .msg{
+    margin-top:14px;
+    padding:12px;
+    border-radius:10px;
+    display:none;
+    font-size:15px;
+    line-height:1.4;
+  }
+  .msg.ok{
+    background:#052e17;
+    color:#9ff0b3;
+    border:1px solid #1f7a44;
+  }
+  .msg.err{
+    background:#3a0a0a;
+    color:#ffc7c7;
+    border:1px solid #7a1b1b;
+  }
+  .ver{
+    margin-top:20px;
+    text-align:center;
+    color:#bfa76f;
+    font-size:13px;
+  }
+  footer{
+    margin-top:6px;
+    text-align:center;
+    color:#8f7a2d;
+    font-size:12px;
+  }
 </style>
 </head>
 <body>
@@ -73,125 +152,194 @@
 
     <button id="sendBtn" class="btn" type="button">שלח</button>
 
-    <div class="ver">גרסה נקייה — שמירה ישירה ל-JSONBin</div>
-    <footer>המידע ישמר בענן ב-BIN ייעודי. אין שינוי בבין/מפתחות של מערכות קיימות.</footer>
+    <div class="ver">שמירה ישירה לענן (BIN ייעודי לסקר)</div>
+    <footer>אין השפעה על מערכת פניקספרס.</footer>
   </div>
 
 <script>
-/* ============================
-   קובץ מוכן להפעלה
-   BIN & ACCESS KEY מוטמעים כאן כפי שביקשת
-   ============================ */
+/*
+  -------------------------------------------------
+  הגדרות חיבור
+  -------------------------------------------------
+  BIN_ID הזה הוא הבין הייעודי לסקר
+  KEY הוא ה-Access Key החדש עם CREATE / READ / UPDATE / DELETE
+  זה מבודד. זה לא נוגע במערכת הישנה.
+*/
+const BIN_ID   = '68fe72b9d0ea881f40bdb95e';
+const API_KEY  = '$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe';
+const BIN_URL  = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 
-/* שימוש ב-Access Key ייעודי (הרשאת CREATE בלבד) וב-BIN ייעודי לסקר */
-const BIN_ID = '68fe72b9d0ea881f40bdb95e';
-const ACCESS_KEY = '$2a$10$3i/rJHyUA3s9SphXik.7huVmcOEGCHl6kPOy8VvEPGoTxl2R5larK';
-const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
+/*
+  -------------------------------------------------
+  משתני ממשק
+  -------------------------------------------------
+*/
+const elDept        = document.getElementById('dept');
+const elWorkerName  = document.getElementById('workerName');
+const elPhone       = document.getElementById('phone');
+const elBuilding    = document.getElementById('building');
+const elFloor       = document.getElementById('floor');
+const elRoom        = document.getElementById('room');
+const elPacks       = document.getElementById('packs');
+const elTargetRoom  = document.getElementById('targetRoom');
+const btnSend       = document.getElementById('sendBtn');
+const msgOk         = document.getElementById('msgOk');
+const msgErr        = document.getElementById('msgErr');
 
-/* אלמנטים */
-const elDept = document.getElementById('dept');
-const elWorkerName = document.getElementById('workerName');
-const elPhone = document.getElementById('phone');
-const elBuilding = document.getElementById('building');
-const elFloor = document.getElementById('floor');
-const elRoom = document.getElementById('room');
-const elPacks = document.getElementById('packs');
-const elTargetRoom = document.getElementById('targetRoom');
-const btnSend = document.getElementById('sendBtn');
-const msgOk = document.getElementById('msgOk');
-const msgErr = document.getElementById('msgErr');
+/*
+  -------------------------------------------------
+  פונקציות עזר ל־UI
+  -------------------------------------------------
+*/
+function showOk(text){
+  msgOk.textContent = text;
+  msgOk.style.display = 'block';
+  setTimeout(()=>{ msgOk.style.display='none'; }, 4000);
+}
+function showErr(text){
+  msgErr.textContent = text;
+  msgErr.style.display = 'block';
+  setTimeout(()=>{ msgErr.style.display='none'; }, 6000);
+}
+function setSending(state){
+  btnSend.disabled = state;
+}
 
-/* UI helpers */
-function showOk(text){ msgOk.textContent = text; msgOk.style.display = 'block'; setTimeout(()=> msgOk.style.display='none',4000); }
-function showErr(text){ msgErr.textContent = text; msgErr.style.display = 'block'; setTimeout(()=> msgErr.style.display='none',6000); }
-function setSending(state){ btnSend.disabled = state; }
-
-/* בסיס ולידציה */
+/*
+  ולידציה פשוטה לטלפון
+*/
 function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
 function validPhone(p){ return normalizePhone(p).length >= 8; }
 
-/* קבלת רשומה נוכחית מה-BIN.
-   משתמשים בכותרת X-Master-Key גם ל-Access Key (JSONBin תקבל את המפתח המוגבל).
+/*
+  -------------------------------------------------
+  שלב 1: משיכת תוכן קיים מה-BIN (GET)
+  -------------------------------------------------
 */
 async function fetchRecord(){
   const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
-    headers: { 'X-Master-Key': ACCESS_KEY },
+    headers: {
+      'X-Master-Key': API_KEY
+    },
     cache: 'no-store'
   });
+
   if(!r.ok){
-    const txt = await r.text().catch(()=> '');
-    throw new Error('fetch failed ' + r.status + ' ' + txt);
+    const body = await r.text().catch(()=> '');
+    throw new Error('fetch failed ' + r.status + ' ' + body);
   }
+
   const j = await r.json();
-  return (j.record && Array.isArray(j.record.answers)) ? j.record : { answers: [] };
+
+  // מבטיחים מבנה { answers: [] }
+  if(j.record && Array.isArray(j.record.answers)){
+    return j.record;
+  }
+  return { answers: [] };
 }
 
-/* שמירה ל-BIN (PUT) */
+/*
+  -------------------------------------------------
+  שלב 2: דחיפה של רשומה חדשה ושמירה (PUT)
+  -------------------------------------------------
+*/
 async function putRecord(rec){
   const r = await fetch(BIN_URL + '?ts=' + Date.now(), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      'X-Master-Key': ACCESS_KEY
+      'X-Master-Key': API_KEY
     },
     body: JSON.stringify(rec),
     cache: 'no-store'
   });
+
   if(!r.ok){
-    const txt = await r.text().catch(()=> '');
-    throw new Error('put failed ' + r.status + ' ' + txt);
+    const body = await r.text().catch(()=> '');
+    throw new Error('put failed ' + r.status + ' ' + body);
   }
+
   return r.json().catch(()=> ({}));
 }
 
-/* שליחה בעת לחיצה על הכפתור */
+/*
+  -------------------------------------------------
+  לחיצה על "שלח"
+  -------------------------------------------------
+*/
 btnSend.addEventListener('click', async ()=>{
   const answer = {
-    dept: elDept.value.trim(),
-    workerName: elWorkerName.value.trim(),
-    phone: elPhone.value.trim(),
-    building: elBuilding.value.trim(),
-    floor: elFloor.value.trim(),
-    room: elRoom.value.trim(),
-    packs: elPacks.value.trim(),
-    targetRoom: elTargetRoom.value.trim(),
-    ts: Date.now()
+    dept:        elDept.value.trim(),
+    workerName:  elWorkerName.value.trim(),
+    phone:       elPhone.value.trim(),
+    building:    elBuilding.value.trim(),
+    floor:       elFloor.value.trim(),
+    room:        elRoom.value.trim(),
+    packs:       elPacks.value.trim(),
+    targetRoom:  elTargetRoom.value.trim(),
+    ts:          Date.now()
   };
 
-  if(!answer.dept || !answer.workerName || !answer.phone || !answer.building
-     || !answer.floor || !answer.room || !answer.packs || !answer.targetRoom){
+  // בדיקות חובה
+  if(!answer.dept ||
+     !answer.workerName ||
+     !answer.phone ||
+     !answer.building ||
+     !answer.floor ||
+     !answer.room ||
+     !answer.packs ||
+     !answer.targetRoom){
     showErr('נא למלא את כל השדות');
     return;
   }
+
   if(!validPhone(answer.phone)){
     showErr('מספר נייד לא תקין');
     return;
   }
 
   setSending(true);
-  try{
+
+  try {
+    // 1. מושך את המצב הנוכחי
     const rec = await fetchRecord();
+
+    // 2. מוסיף את הרשומה החדשה
     rec.answers = Array.isArray(rec.answers) ? rec.answers : [];
     rec.answers.push(answer);
+
+    // 3. שומר חזרה
     await putRecord(rec);
-    showOk('הנתונים נשמרו בענן בהצלחה.');
-    // איפוס טופס
-    elDept.value = '';
+
+    showOk('הנתונים נשמרו בהצלחה!');
+
+    // איפוס הטופס אחרי שמירה
+    elDept.value       = '';
     elWorkerName.value = '';
-    elPhone.value = '';
-    elBuilding.value = '';
-    elFloor.value = '';
-    elRoom.value = '';
-    elPacks.value = '';
+    elPhone.value      = '';
+    elBuilding.value   = '';
+    elFloor.value      = '';
+    elRoom.value       = '';
+    elPacks.value      = '';
     elTargetRoom.value = '';
-  }catch(err){
+
+  } catch(err){
     console.error(err);
+
     if(err.message && (err.message.indexOf('401')>=0 || err.message.indexOf('403')>=0)){
-      showErr('שגיאת הרשאה — המפתח או ה-BIN לא תקינים.');
+      // הרשאות
+      showErr('שגיאת הרשאה (401/403). בדוק שה-Access Key עדיין בתוקף ושיש לו Update/Read.');
+    } else if(err.message && err.message.indexOf('fetch failed') === 0){
+      // בעיית שלב GET
+      showErr('שגיאת רשת בשליפת נתונים. נסה שוב.');
+    } else if(err.message && err.message.indexOf('put failed') === 0){
+      // בעיית שלב PUT
+      showErr('שגיאת רשת בשמירה. נסה שוב.');
     } else {
       showErr('שגיאת רשת או שרת. נסה שוב מאוחר יותר.');
     }
-  }finally{
+
+  } finally {
     setSending(false);
   }
 });
