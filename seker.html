@@ -46,6 +46,8 @@ h1{
   font-size:28px;
   font-weight:700;
 }
+
+/* הסטטוס הישן נשאר בדום אבל לא מוצג יותר */
 .status{
   min-height:44px;
   border-radius:var(--radius);
@@ -104,13 +106,65 @@ button.sendBtn{
   border:0;
   border-radius:var(--radius);
   padding:12px;
+  cursor:pointer;
 }
+button.sendBtn:active{
+  filter:brightness(0.9);
+}
+
 .ver{
   text-align:center;
   font-size:13px;
   color:#888;
   margin-top:16px;
   line-height:1.4;
+}
+
+/* =========== פופאפ מרכזי =========== */
+#modalOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.6);
+  display:none;            /* נפתח ב-JS */
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+}
+#modalBox{
+  width:90%;
+  max-width:320px;
+  background:#111;
+  border-radius:var(--radius);
+  border:2px solid var(--border);
+  box-shadow:0 20px 60px rgba(0,0,0,0.9);
+  padding:20px 16px 16px;
+  text-align:center;
+  color:#fff;
+  font-family:var(--font);
+}
+#modalMessage{
+  white-space:pre-line;
+  color:#fff;
+  font-size:18px;
+  font-weight:600;
+  line-height:1.4;
+  margin-bottom:16px;
+  padding:12px;
+  border-radius:var(--radius);
+}
+#modalOkBtn{
+  width:100%;
+  background:var(--btn-bg);
+  color:var(--btn-text);
+  font-size:18px;
+  font-weight:700;
+  border:0;
+  border-radius:var(--radius);
+  padding:12px;
+  cursor:pointer;
+}
+#modalOkBtn:active{
+  filter:brightness(0.9);
 }
 </style>
 </head>
@@ -170,10 +224,18 @@ button.sendBtn{
   </form>
 
   <div class="ver">
-    גרסה 1.0.2<br>
+    גרסה 1.0.3<br>
     charles
   </div>
 
+</div>
+
+<!-- פופאפ -->
+<div id="modalOverlay">
+  <div id="modalBox">
+    <div id="modalMessage"></div>
+    <button id="modalOkBtn">אישור</button>
+  </div>
 </div>
 
 <script>
@@ -181,13 +243,31 @@ const BIN_ID     = "68fefa3dd0ea881f40beb941";
 const ACCESS_KEY = "$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe";
 const API_BASE   = "https://api.jsonbin.io/v3/b";
 
-const statusBox  = document.getElementById('statusBox');
-const form       = document.getElementById('surveyForm');
+const statusBox   = document.getElementById('statusBox'); // נשאר קיים אבל לא משמש יותר להצגה
+const form        = document.getElementById('surveyForm');
 
+const modalOverlay  = document.getElementById('modalOverlay');
+const modalMessage  = document.getElementById('modalMessage');
+const modalOkBtn    = document.getElementById('modalOkBtn');
+
+// מציג פופאפ באמצע עם צבע הנכון
+function showPopup(msg,isOk){
+  // קובע את צבע הרקע של ההודעה בפופאפ לפי הצלחה/שגיאה
+  modalMessage.style.backgroundColor = isOk ? "var(--ok-bg)" : "var(--error-bg)";
+  modalMessage.textContent = msg;
+
+  modalOverlay.style.display = "flex";
+}
+
+// סוגר את הפופאפ
+function closePopup(){
+  modalOverlay.style.display = "none";
+}
+
+// השארנו את הפונקציה המקורית showStatus רק כדי לא לשבור כלום,
+// אבל עכשיו היא פשוט עוטפת ל-showPopup.
 function showStatus(msg,isOk){
-  statusBox.style.display='block';
-  statusBox.className='status '+(isOk?'ok':'err');
-  statusBox.textContent=msg;
+  showPopup(msg,isOk);
 }
 
 // טעינת כל התוכן הקיים (answers) מהשרת
@@ -271,6 +351,9 @@ form.addEventListener('submit', async (ev)=>{
     showStatus("שגיאה בשמירה: "+err.message,false);
   }
 });
+
+// כפתור אישור בפופאפ סוגר אותו
+modalOkBtn.addEventListener('click', closePopup);
 </script>
 </body>
 </html>
