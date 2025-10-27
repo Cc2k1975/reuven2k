@@ -174,7 +174,7 @@ button.actionBtn:active{background:var(--green-dark);}
   font-weight:700;
   min-width:24px;
   text-align:left;
-  transition:transform .25s ease;
+  transition:transform .4s ease-in-out;
 }
 
 /* גוף הבלוק - האזור שנפתח/נסגר */
@@ -183,7 +183,7 @@ button.actionBtn:active{background:var(--green-dark);}
   padding:0 16px 16px;
   max-height:0;
   overflow:hidden;
-  transition:max-height .25s ease;
+  transition:max-height .4s ease-in-out;
   border-top:2px solid transparent;
 }
 .blockBodyInner{
@@ -229,15 +229,15 @@ button.actionBtn:active{background:var(--green-dark);}
   border-top-color:var(--block-menu-border);
 }
 
-/* מצב פתוח של הבלוק */
+/* מצב פתוח */
 .blockCard.open .blockBodyOuter{
-  max-height:2000px; /* גדול מספיק */
+  max-height:2000px; /* גובה גדול מספיק */
 }
 .blockCard.open .blockHeaderBtn .arrow{
-  transform:rotate(180deg);
+  transform:rotate(90deg); /* מ▶ ל▼ (ביחד עם התו שנשים) */
 }
 
-/* טבלים / טפסים בפנים */
+/* טבלאות/טפסים פנימיים */
 .tableWrap{
   background:#fff;
   border:2px solid var(--border);
@@ -292,6 +292,7 @@ td.actionsCell button:active,
   filter:brightness(0.9);
 }
 
+/* טבלת הקודים */
 .codeMapTableWrap{
   overflow-x:auto;
 }
@@ -425,11 +426,11 @@ td.actionsCell button:active,
     </div>
   </div>
 
-  <!-- בלוק 1: בחירות שנשלחו -->
-  <div class="blockCard blockOrders open" data-block="orders">
+  <!-- בלוק 1: בחירות שנשלחו (עכשיו סגור כברירת מחדל, אין class 'open') -->
+  <div class="blockCard blockOrders" data-block="orders">
     <button class="blockHeaderBtn" type="button">
       <h2>בחירות שנשלחו</h2>
-      <div class="arrow">⌄</div>
+      <div class="arrow">▶</div>
     </button>
     <div class="blockBodyOuter">
       <div class="blockBodyInner">
@@ -464,7 +465,7 @@ td.actionsCell button:active,
   <div class="blockCard blockCodes" data-block="codes">
     <button class="blockHeaderBtn" type="button">
       <h2>ניהול קודים (קישור → שם משפחה)</h2>
-      <div class="arrow">⌄</div>
+      <div class="arrow">▶</div>
     </button>
     <div class="blockBodyOuter">
       <div class="blockBodyInner">
@@ -501,7 +502,7 @@ td.actionsCell button:active,
   <div class="blockCard blockMenu" data-block="menu">
     <button class="blockHeaderBtn" type="button">
       <h2>ניהול תפריט (מנות לבחירה)</h2>
-      <div class="arrow">⌄</div>
+      <div class="arrow">▶</div>
     </button>
     <div class="blockBodyOuter">
       <div class="blockBodyInner">
@@ -518,7 +519,7 @@ td.actionsCell button:active,
     </div>
   </div>
 
-  <div class="footerInfo">גרסה 2.3 · food_manager.html</div>
+  <div class="footerInfo">גרסה 2.4 · food_manager.html</div>
 </div>
 
 <script>
@@ -527,7 +528,7 @@ const BIN_ID     = "68ff447a43b1c97be9844c29";
 const MASTER_KEY = "$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO";
 const API        = "https://api.jsonbin.io/v3/b";
 
-// DOM כללי
+// DOM
 const statusBox      = document.getElementById("statusBox");
 const tableBody      = document.getElementById("tableBody");
 const searchInput    = document.getElementById("searchInput");
@@ -555,13 +556,11 @@ function setupAccordion(){
   document.querySelectorAll(".blockCard").forEach(block=>{
     const headerBtn = block.querySelector(".blockHeaderBtn");
     const bodyOuter = block.querySelector(".blockBodyOuter");
+    const arrowEl   = block.querySelector(".arrow");
 
-    // מצב פתיחה התחלתי:
-    // לבלוק שיש לו class "open" כבר נתנו ב-CSS max-height גדול,
-    // אבל כדי שהמעבר הראשון יהיה חלק גם אם סוגרים אותו מיד:
-    if(block.classList.contains("open")){
-      bodyOuter.style.maxHeight = bodyOuter.scrollHeight + "px";
-    }
+    // התחל סגור (אין class open כבר ב-HTML)
+    bodyOuter.style.maxHeight = "0px";
+    arrowEl.textContent = "▶";
 
     headerBtn.addEventListener("click", ()=>{
       const isOpen = block.classList.contains("open");
@@ -569,15 +568,16 @@ function setupAccordion(){
         // סגור
         block.classList.remove("open");
         bodyOuter.style.maxHeight = "0px";
+        arrowEl.textContent = "▶";
       }else{
         // פתח
         block.classList.add("open");
         bodyOuter.style.maxHeight = bodyOuter.scrollHeight + "px";
+        arrowEl.textContent = "▼";
       }
     });
 
-    // כשיש שינוי תוכן פנימי (למשל רענון טבלה),
-    // אם הבלוק פתוח צריך לעדכן את הגובה
+    // שמור פונקציה לעדכון גובה אחרי רינדור דינמי
     block._recalcHeight = ()=>{
       if(block.classList.contains("open")){
         bodyOuter.style.maxHeight = bodyOuter.scrollHeight + "px";
@@ -586,7 +586,6 @@ function setupAccordion(){
   });
 }
 
-// helper שיקרא אחרי render כדי לעדכן גובה
 function recalcAccordionHeights(){
   document.querySelectorAll(".blockCard").forEach(block=>{
     if(block._recalcHeight){
@@ -635,9 +634,7 @@ async function fetchAll(){
 
     showStatus(`נטענו ${allChoices.length} בחירות`, true);
 
-    // עדכן גובה אקורדיון אחרי הרינדור
     recalcAccordionHeights();
-
   } catch(err){
     console.error(err);
     showStatus("שגיאה בטעינה", false);
@@ -667,13 +664,13 @@ function renderChoicesTable(){
   }
 }
 
-// מחיקה של בחירה אחת (פותח למשפחה למלא מחדש)
+// מחיקת בחירה אחת
 tableBody.addEventListener("click", async (e)=>{
   if(e.target.tagName==="BUTTON"){
     const idx = e.target.dataset.i;
     allChoices.splice(idx,1);
     await saveAllToServer();
-    await fetchAll(); // ירנדר מחדש ואז נעדכן גובה
+    await fetchAll();
   }
 });
 
@@ -751,13 +748,11 @@ function renderCodeMapTable(){
   } else {
     codeMapBody.innerHTML = keys.map(code=>{
       const famName = codeMap[code];
-
       const msg =
 `שלום ${famName}
 מצורף קישור לבחירת תפריט שבועי
 נא למלא את הנתונים בהקדם:
 ${window.location.origin}/food.html?code=${encodeURIComponent(code)}`;
-
       const waUrl = "https://wa.me/?text="+encodeURIComponent(msg);
 
       return `
@@ -799,7 +794,7 @@ addCodeBtn.addEventListener("click", ()=>{
   showStatus("הקוד הוסף/עודכן ברשימה. עדיין לא נשמר בשרת.", true);
 });
 
-// וואטסאפ / מחיקה בקודים
+// ווצאפ / מחיקה
 codeMapBody.addEventListener("click",(e)=>{
   if(e.target.classList.contains("whatsappBtn")){
     const wa = e.target.getAttribute("data-wa");
@@ -808,7 +803,6 @@ codeMapBody.addEventListener("click",(e)=>{
     }
     return;
   }
-
   if(e.target.classList.contains("delCodeBtn")){
     const c = e.target.getAttribute("data-code");
     if(c && codeMap[c]!==undefined){
@@ -820,7 +814,7 @@ codeMapBody.addEventListener("click",(e)=>{
   }
 });
 
-// שמירת המפה לשרת
+// שמירת map לשרת
 saveMapBtn.addEventListener("click", async ()=>{
   showStatus("שומר מיפוי קודים...", true);
   await saveAllToServer();
@@ -842,8 +836,8 @@ function categoryLabel(key){
 
 function renderMenuOptionsEditor(){
   menuSections.innerHTML = "";
-
   const categories = ["meat","carb","salad1","salad2","drink","dessert"];
+
   categories.forEach(cat=>{
     if(!Array.isArray(menuOptions[cat])) menuOptions[cat]=[];
 
@@ -888,7 +882,7 @@ function renderMenuOptionsEditor(){
   recalcAccordionHeights();
 }
 
-// מחיקת פריט מקומי מהתפריט
+// מחיקת פריט מרשימה מקומית
 menuSections.addEventListener("click",(e)=>{
   if(e.target.tagName==="BUTTON"
      && e.target.dataset
@@ -904,7 +898,7 @@ menuSections.addEventListener("click",(e)=>{
   }
 });
 
-// הוספת פריט חדש לקטגוריה
+// הוספת פריט חדש
 menuSections.addEventListener("click",(e)=>{
   if(e.target.classList.contains("addItemBtn")){
     const cat = e.target.getAttribute("data-cat");
@@ -925,7 +919,7 @@ menuSections.addEventListener("click",(e)=>{
   }
 });
 
-// שמירת התפריט לשרת
+// שמירת תפריט לשרת
 saveMenuBtn.addEventListener("click", async ()=>{
   showStatus("שומר תפריט (menuOptions)...", true);
   await saveAllToServer();
@@ -959,7 +953,7 @@ async function saveAllToServer(){
   }
 }
 
-// ===== מאזינים קבועים =====
+// ===== מאזינים =====
 refreshBtn.onclick = async ()=>{
   await fetchAll();
 };
@@ -978,7 +972,7 @@ saveMenuBtn.onclick = async ()=>{
   showStatus("התפריט נשמר בהצלחה ✅", true);
 };
 
-// ===== התחלה =====
+// ===== הפעלה =====
 setupAccordion();
 fetchAll();
 </script>
