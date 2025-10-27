@@ -564,7 +564,7 @@ td.actionsCell button:active,
     </div>
   </div>
 
-  <div class="footerInfo">גרסה 2.6 · food_manager.html</div>
+  <div class="footerInfo">גרסה 2.7 · food_manager.html</div>
 </div>
 
 <script>
@@ -694,6 +694,26 @@ async function fetchAll(){
 }
 
 // ===== טבלת בחירות =====
+function buildWhatsAppMsg(rec){
+  // שם אמיתי לפי הקוד
+  const famName = codeMap[rec.code] || rec["שם"] || "";
+
+  const msg =
+`שלום ${famName}
+זה התפריט שאתם בחרתם למפגש הקרוב:
+🍗 מנה: ${rec["מנה"]||""}
+🍚 פחמימה: ${rec["פחמימה"]||""}
+🥗 סלט 1: ${rec["סלט1"]||""}
+🥗 סלט 2: ${rec["סלט2"]||""}
+🥤 שתייה: ${rec["שתייה"]||""}
+🍰 קינוח: ${rec["קינוח"]||""}
+
+מזכיר שנפגשים ב: ${eventLocation || ""}
+בתאריך: ${eventDate || ""}`;
+
+  return "https://wa.me/?text="+encodeURIComponent(msg);
+}
+
 function renderChoicesTable(){
   if(!filteredChoices.length){
     tableBody.innerHTML =
@@ -710,19 +730,39 @@ function renderChoicesTable(){
         <td>${rec["שתייה"]||""}</td>
         <td>${rec["קינוח"]||""}</td>
         <td>${prettyTS(rec.ts)}</td>
-        <td class="actionsCell"><button data-i="${i}">מחק</button></td>
+        <td class="actionsCell">
+          <button class="rowWA" data-i="${i}">ווצאפ</button>
+          <button class="rowDel" data-i="${i}">מחק</button>
+        </td>
       </tr>
     `).join("");
   }
 }
 
-// מחיקה של בחירה יחידה
+// לחיצות על "ווצאפ" / "מחק" בטבלת הבחירות
 tableBody.addEventListener("click", async (e)=>{
-  if(e.target.tagName==="BUTTON"){
-    const idx = e.target.dataset.i;
+  const waBtn = e.target.classList.contains("rowWA");
+  const delBtn = e.target.classList.contains("rowDel");
+
+  if(!waBtn && !delBtn) return;
+
+  const idx = e.target.getAttribute("data-i");
+  if(idx===null || idx===undefined) return;
+
+  if(waBtn){
+    // בונה הודעת ווצאפ מותאמת לרשומה הזאת
+    const rec = filteredChoices[idx];
+    const waUrl = buildWhatsAppMsg(rec);
+    window.open(waUrl, "_blank");
+    return;
+  }
+
+  if(delBtn){
+    // מוחק את הרשומה
     allChoices.splice(idx,1);
     await saveAllToServer();
     await fetchAll();
+    return;
   }
 });
 
@@ -842,7 +882,7 @@ addCodeBtn.addEventListener("click", ()=>{
   showStatus("הקוד הוסף/עודכן ברשימה. עדיין לא נשמר בשרת.", true);
 });
 
-// כפתור ווצאפ ומחיקה
+// כפתור ווצאפ ומחיקה (לטבלת הקודים)
 codeMapBody.addEventListener("click",(e)=>{
   if(e.target.classList.contains("whatsappBtn")){
     const wa = e.target.getAttribute("data-wa");
