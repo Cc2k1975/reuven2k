@@ -115,7 +115,7 @@ button.actionBtn:active{
 }
 table{
   border-collapse:collapse;
-  min-width:800px;
+  min-width:900px;
   width:100%;
   color:var(--text-body);
   font-size:14px;
@@ -177,7 +177,7 @@ td.actionsCell button:active{
     <button id="refreshBtn" class="actionBtn">רענן</button>
 
     <div class="searchBoxWrap">
-      <input id="searchInput" type="text" placeholder="חפש… מחלקה / שם / טלפון / מבנה / חדר יעד">
+      <input id="searchInput" type="text" placeholder="חפש… מחלקה / שם / טלפון / מבנה / חדר יעד / הערות">
     </div>
 
     <button id="csvBtn" class="actionBtn">ייצוא CSV</button>
@@ -195,43 +195,38 @@ td.actionsCell button:active{
           <th>חדר</th>
           <th>כמות אריזות</th>
           <th>חדר יעד</th>
+          <th>הערות</th>
           <th>תאריך/שעה</th>
           <th>פעולות</th>
         </tr>
       </thead>
       <tbody id="tableBody">
-        <tr><td colspan="10" style="text-align:center;color:#777;">טוען…</td></tr>
+        <tr><td colspan="11" style="text-align:center;color:#777;">טוען…</td></tr>
       </tbody>
     </table>
   </div>
 
   <div class="footerInfo">
-    גרסה 1.0.1 · moadata.html<br>
+    גרסה 1.0.2 · moadata.html<br>
     BIN: 68fefa3dd0ea881f40beb941
   </div>
 
 </div>
 
 <script>
-// =======================================
-// קונפיגורציה (BIN + KEY) — אל תיגע בזה
-// =======================================
 const BIN_ID     = "68fefa3dd0ea881f40beb941";
 const ACCESS_KEY = "$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe";
 const API_BASE   = "https://api.jsonbin.io/v3/b";
 
-// DOM
 const statusBox   = document.getElementById("statusBox");
 const tableBody   = document.getElementById("tableBody");
 const searchInput = document.getElementById("searchInput");
 const refreshBtn  = document.getElementById("refreshBtn");
 const csvBtn      = document.getElementById("csvBtn");
 
-// מצב בזיכרון
 let fullAnswers = [];     // כל הנתונים שקיימים בענן
-let filteredAnswers = []; // מה שמוצג כרגע אחרי חיפוש
+let filteredAnswers = []; // אחרי חיפוש
 
-// הודעת סטטוס למעלה (ירוק/אדום)
 function showStatus(msg,isOk){
   statusBox.style.display="block";
   statusBox.className="status "+(isOk?"ok":"err");
@@ -252,15 +247,13 @@ async function fetchAllAnswers(){
     throw new Error("שגיאה בטעינה מהשרת. status="+res.status);
   }
   const data = await res.json();
-  // מצפה ל:
-  // { record: { answers: [...] } }
   if(!data.record || !Array.isArray(data.record.answers)){
     return [];
   }
   return data.record.answers;
 }
 
-// שומר את כל המערך חזרה לשרת (PUT) — משתמשים בזה כשמוחקים רשומה
+// שומר את כל המערך חזרה לשרת (PUT) — אחרי מחיקה
 async function saveAllAnswers(updatedArray){
   const url = API_BASE + "/" + BIN_ID;
   const bodyObj = { answers: updatedArray };
@@ -278,7 +271,7 @@ async function saveAllAnswers(updatedArray){
   return res.json();
 }
 
-// הופך ISO-STRING (ts) לתאריך/שעה קריא
+// תאריך יפה להצגה
 function prettyTS(tsStr){
   const d = new Date(tsStr);
   if(isNaN(d.getTime())) return tsStr||"";
@@ -290,7 +283,7 @@ function prettyTS(tsStr){
   return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
 }
 
-// מנקה טקסט ל-HTML (הגנה קטנה)
+// הגנה קטנה לתצוגת HTML
 function escapeHtml(str){
   return String(str||"")
     .replace(/&/g,"&amp;")
@@ -299,11 +292,11 @@ function escapeHtml(str){
     .replace(/"/g,"&quot;");
 }
 
-// מצייר את הטבלה מחדש לפי filteredAnswers
+// מצייר את הטבלה לפי filteredAnswers
 function renderTable(list){
   if(list.length===0){
     tableBody.innerHTML =
-      '<tr><td colspan="10" style="text-align:center;color:#777;">אין נתונים להצגה</td></tr>';
+      '<tr><td colspan="11" style="text-align:center;color:#777;">אין נתונים להצגה</td></tr>';
     return;
   }
 
@@ -319,6 +312,7 @@ function renderTable(list){
         <td>${escapeHtml(ans.room||"")}</td>
         <td>${escapeHtml(ans.packs||"")}</td>
         <td>${escapeHtml(ans.targetRoom||"")}</td>
+        <td style="white-space:normal;max-width:200px;">${escapeHtml(ans.notes||"")}</td>
         <td>${tsText}</td>
         <td class="actionsCell">
           <button data-action="del" data-idx="${idx}">מחק</button>
@@ -330,7 +324,7 @@ function renderTable(list){
   tableBody.innerHTML = rowsHtml;
 }
 
-// מחיקה של שורה ספציפית
+// מוחק שורה
 async function deleteRow(idxInFiltered){
   const rowToDelete = filteredAnswers[idxInFiltered];
   if(!rowToDelete){
@@ -338,7 +332,7 @@ async function deleteRow(idxInFiltered){
     return;
   }
 
-  // מסננים מהרשימה המלאה
+  // עדכון המערך המלא
   fullAnswers = fullAnswers.filter(a => a !== rowToDelete);
 
   try{
@@ -352,7 +346,7 @@ async function deleteRow(idxInFiltered){
   }
 }
 
-// פונקציית חיפוש לייב
+// חיפוש לייב (כולל הערות)
 function applySearch(){
   const q = searchInput.value.trim().toLowerCase();
   if(!q){
@@ -368,6 +362,7 @@ function applySearch(){
         ans.room,
         ans.packs,
         ans.targetRoom,
+        ans.notes,
         ans.ts
       ].join(" ").toLowerCase();
       return hay.includes(q);
@@ -377,7 +372,7 @@ function applySearch(){
   showStatus("מסונן: "+filteredAnswers.length+" רשומות",true);
 }
 
-// בריחה לערכי CSV (סוגריים כפולים וכו')
+// בריחה ל-CSV
 function csvEscape(val){
   const s = String(val ?? "");
   if(s.includes(",") || s.includes("\"") || s.includes("\n")){
@@ -386,7 +381,7 @@ function csvEscape(val){
   return s;
 }
 
-// >>>>>> פונקציית CSV המעודכנת עם BOM UTF-8 <<<<<<
+// יצוא CSV (כולל הערות) עם BOM ל-UTF-8
 function exportCSV(){
   if(!filteredAnswers.length){
     showStatus("אין נתונים ל-CSV.", false);
@@ -395,7 +390,7 @@ function exportCSV(){
 
   const header = [
     "מחלקה","שם העובד","טלפון","מבנה","קומה","חדר",
-    "כמות אריזות","חדר יעד","תאריך/שעה"
+    "כמות אריזות","חדר יעד","הערות","תאריך/שעה"
   ];
 
   const rows = filteredAnswers.map(ans=>[
@@ -407,16 +402,16 @@ function exportCSV(){
     ans.room || "",
     ans.packs || "",
     ans.targetRoom || "",
+    ans.notes || "",
     ans.ts ? prettyTS(ans.ts) : ""
   ]);
 
-  // בונה את תוכן ה-CSV
   const csvLines = [
     header.join(","),
     ...rows.map(r => r.map(csvEscape).join(","))
   ];
 
-  // הוספת BOM בתחילת הקובץ => שגוגל שיטס יבין שזה UTF-8 (עברית תקינה)
+  // BOM בשביל עברית ב-Google Sheets
   const BOM = "\uFEFF";
 
   const blob = new Blob(
@@ -436,12 +431,12 @@ function exportCSV(){
   showStatus("קובץ CSV נוצר בהצלחה ✅", true);
 }
 
-// טעינה ראשונית של הדף (קריאה ראשונה לשרת)
+// טעינה ראשונית
 async function initPage(){
   showStatus("טוען נתונים…",true);
   try{
-    fullAnswers = await fetchAllAnswers(); // מושך את כל המערך answers
-    filteredAnswers = [...fullAnswers];    // מתחילים בלי סינון
+    fullAnswers = await fetchAllAnswers(); // מביא הכל
+    filteredAnswers = [...fullAnswers];    // להתחלה בלי סינון
     renderTable(filteredAnswers);
     showStatus("נטענו "+filteredAnswers.length+" רשומות ✔",true);
   }catch(err){
@@ -450,12 +445,12 @@ async function initPage(){
   }
 }
 
-// --- חיבור אירועים ---
+// האזנות
 refreshBtn.addEventListener("click", initPage);
 searchInput.addEventListener("input", applySearch);
 csvBtn.addEventListener("click", exportCSV);
 
-// האזנה לכפתור מחיקה בתוך ה-Table
+// כפתור מחיקה בכל שורה
 tableBody.addEventListener("click",(ev)=>{
   const btn = ev.target;
   if(btn.tagName==="BUTTON" && btn.dataset.action==="del"){
@@ -466,7 +461,7 @@ tableBody.addEventListener("click",(ev)=>{
   }
 });
 
-// הרצה מיידית כשנכנסים לדף
+// הרצה בהעלאה
 initPage();
 </script>
 </body>
