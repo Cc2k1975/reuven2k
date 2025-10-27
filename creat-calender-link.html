@@ -56,6 +56,16 @@
     #qrCode {
       margin-top: 10px;
     }
+    #statusMsg {
+      color: #00695c;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    footer {
+      margin-top: 30px;
+      font-size: 0.8em;
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -82,8 +92,11 @@
     <button onclick="copyLink()">העתק קישור</button>
     <button onclick="sendWhatsAppLink()">שלח קישור בוואטסאפ</button>
 
+    <div id="statusMsg"></div>
     <canvas id="qrCode"></canvas>
   </div>
+
+  <footer>Version: 1.1 – כולל קיצור קישור אוטומטי והודעת הצלחה</footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script>
@@ -106,10 +119,10 @@
           const shortURL = await response.text();
           return shortURL;
         } else {
-          return longURL; // fallback במקרה של תקלה
+          return longURL;
         }
       } catch (error) {
-        return longURL; // fallback אם אין אינטרנט או תקלה
+        return longURL;
       }
     }
 
@@ -124,7 +137,10 @@
 
       const longURL = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startDateTime}/${endDateTime}&location=${encodeURIComponent(location)}`;
 
-      const shortURL = await shortenURL(longURL); // ניצור קישור מקוצר
+      const statusMsg = document.getElementById('statusMsg');
+      statusMsg.textContent = "יוצר קישור מקוצר... אנא המתן רגע 😎";
+
+      const shortURL = await shortenURL(longURL);
       lastURL = shortURL;
 
       const linkContainer = document.getElementById('linkContainer');
@@ -140,6 +156,14 @@
         });
       } else {
         qr.value = shortURL;
+      }
+
+      if (shortURL !== longURL) {
+        statusMsg.textContent = "✅ הקישור קוצר בהצלחה!";
+        statusMsg.style.color = "#00796b";
+      } else {
+        statusMsg.textContent = "⚠️ לא ניתן היה לקצר את הקישור (הוצג המקורי)";
+        statusMsg.style.color = "#d32f2f";
       }
     }
 
