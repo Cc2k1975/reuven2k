@@ -99,7 +99,21 @@
       return `${year}${month}${day}T${hours}${minutes}00`;
     }
 
-    function createEventLink() {
+    async function shortenURL(longURL) {
+      try {
+        const response = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longURL)}`);
+        if (response.ok) {
+          const shortURL = await response.text();
+          return shortURL;
+        } else {
+          return longURL; // fallback במקרה של תקלה
+        }
+      } catch (error) {
+        return longURL; // fallback אם אין אינטרנט או תקלה
+      }
+    }
+
+    async function createEventLink() {
       const title = document.getElementById('title').value;
       const time = document.getElementById('time').value;
       const location = document.getElementById('location').value;
@@ -108,23 +122,24 @@
       const startDateTime = formatDateTime(dateTime);
       const endDateTime = formatDateTime(new Date(dateTime.getTime() + 60 * 60 * 1000));
 
-      const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startDateTime}/${endDateTime}&location=${encodeURIComponent(location)}`;
+      const longURL = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startDateTime}/${endDateTime}&location=${encodeURIComponent(location)}`;
 
-      lastURL = url;
+      const shortURL = await shortenURL(longURL); // ניצור קישור מקוצר
+      lastURL = shortURL;
 
       const linkContainer = document.getElementById('linkContainer');
       const eventLinkInput = document.getElementById('eventLink');
       linkContainer.style.display = 'flex';
-      eventLinkInput.value = url;
+      eventLinkInput.value = shortURL;
 
       if (!qr) {
         qr = new QRious({
           element: document.getElementById('qrCode'),
-          value: url,
+          value: shortURL,
           size: 200
         });
       } else {
-        qr.value = url;
+        qr.value = shortURL;
       }
     }
 
