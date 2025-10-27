@@ -34,7 +34,7 @@ body {
 
 .wrap {
   width:100%;
-  max-width:480px; /* חזרה לפרופורציה מובייל */
+  max-width:480px;
   background:var(--card-bg);
   border-radius:var(--radius);
   box-shadow:var(--shadow);
@@ -46,7 +46,7 @@ body {
 /* כותרת עליונה */
 h1 {
   margin:0;
-  font-size:24px; /* יותר קטן כדי לא לשבור שורות במסכים קטנים */
+  font-size:24px;
   color:var(--green);
   font-weight:700;
   line-height:1.3;
@@ -61,14 +61,14 @@ h1 {
   line-height:1.4;
   font-size:15px;
   font-weight:600;
-  color:var(--green); /* ביקשת ירוק יפה */
+  color:var(--green);
   word-break:keep-all;
 }
 #welcomeExtra div {
   white-space:nowrap;
 }
 
-/* פס סטטוס (רק שגיאה/הצלחה טכנית, בלי "מלאו את הבחירה") */
+/* פס סטטוס */
 #statusBox {
   display:none;
   margin-top:12px;
@@ -213,10 +213,10 @@ button#sendBtn:disabled {
     <div id="eventDateLine"></div>
   </div>
 
-  <!-- סטטוס טכני (שגיאה/כבר מילאת/ננעל) -->
+  <!-- סטטוס טכני -->
   <div id="statusBox"></div>
 
-  <!-- הטופס (ללא "בחר מה אתה מביא") -->
+  <!-- הטופס -->
   <form id="foodForm" style="margin-top:16px;">
 
     <div class="sectionHead">מנה בשרית</div>
@@ -252,7 +252,7 @@ button#sendBtn:disabled {
     <button id="sendBtn" type="submit">שלח תפריט</button>
   </form>
 
-  <div class="footerInfo">גרסה: v2.7 · food.html</div>
+  <div class="footerInfo">גרסה: v2.8 · food.html</div>
 </div>
 
 <!-- פופאפ סיכום -->
@@ -338,7 +338,7 @@ function disableUsedOptions(usedList){
   });
 }
 
-// עדכון כותרת משפחה + שורת מפגש (בירוק)
+// עדכון כותרת משפחה + שורת מפגש
 function renderHeaderInfo(){
   welcomeTitle.textContent = "ברוכים הבאים " + familyName;
 
@@ -354,6 +354,42 @@ function renderHeaderInfo(){
     eventDateLine.textContent = "";
   }
 }
+
+// בדיקה: סלט 1 וסלט 2 לא אותו דבר
+function validateSaladsDifferent(showMsg=true){
+  const v1 = salad1.value.trim();
+  const v2 = salad2.value.trim();
+
+  // אם אחד מהם ריק עדיין, אל תצרח שגיאה
+  if(!v1 || !v2) return true;
+
+  if(v1 === v2){
+    if(showMsg){
+      showStatus("סלט 1 וסלט 2 חייבים להיות שונים.", false);
+    }
+    return false;
+  }
+  return true;
+}
+
+// מאזינים הדדיים כדי לנקות בחירה כפולה
+salad1.addEventListener("change", ()=>{
+  const v1 = salad1.value.trim();
+  const v2 = salad2.value.trim();
+  if(v1 && v2 && v1 === v2){
+    // ננקה את סלט2 אם בחרו אותו דבר
+    salad2.value = "";
+  }
+  // לא מציג פה שגיאה אדומה כל פעם, זה חונק. נשאיר לשלב השליחה
+});
+salad2.addEventListener("change", ()=>{
+  const v1 = salad1.value.trim();
+  const v2 = salad2.value.trim();
+  if(v1 && v2 && v1 === v2){
+    // ננקה את סלט2 (או אפשר לנקות את סלט1, בחרתי בסלט2 כדי לא לשגע)
+    salad2.value = "";
+  }
+});
 
 // ===== טעינה ראשונית =====
 async function initData(){
@@ -387,10 +423,10 @@ async function initData(){
       return;
     }
 
-    // כותרת + מיקום + תאריך
+    // מציג כותרת + מיקום + תאריך
     renderHeaderInfo();
 
-    // בונה רשימות
+    // בונה את הרשימות
     fillSelectOptions(meat,   menuOptions.meat   || []);
     fillSelectOptions(carb,   menuOptions.carb   || []);
     fillSelectOptions(salad1, menuOptions.salad1 || []);
@@ -398,7 +434,7 @@ async function initData(){
     fillSelectOptions(drink,  menuOptions.drink  || []);
     fillSelectOptions(dessert,menuOptions.dessert|| []);
 
-    // מסמן תפוס
+    // מסמן פריטים שכבר נלקחו ע"י משפחות אחרות
     const usedItems=[];
     allCh.forEach(rec=>{
       if(rec.מנה)    usedItems.push(rec.מנה);
@@ -426,7 +462,7 @@ async function initData(){
       return;
     }
 
-    // אחרת: לא להגיד "מלאו את הבחירה" כי ביקשת למחוק את זה
+    // פתוח, מותר למלא
     lockAllSelects(false);
 
   } catch(err){
@@ -459,6 +495,12 @@ formEl.addEventListener("submit", async (e)=>{
     return;
   }
 
+  // בדיקה חדשה: סלט1 וסלט2 שונים
+  if(!validateSaladsDifferent(true)){
+    // לא שולחים לשרת אם בחרו את אותו סלט פעמיים
+    return;
+  }
+
   const oneChoice = {
     "code": currentCode,
     "שם": familyName,
@@ -488,31 +530,31 @@ formEl.addEventListener("submit", async (e)=>{
     const latestLoc    = data1.record?.eventLocation || "";
     const latestDate   = data1.record?.eventDate || "";
 
-    // הקוד עדיין קיים?
+    // וידוא שהקוד עדיין קיים
     if(!latestMap[currentCode]){
       showStatus("הקוד הזה כבר לא פעיל.", false);
       lockAllSelects(true);
       return;
     }
 
-    // לא שלחתם כבר בינתיים?
+    // וידוא שלא שלחו בינתיים
     if(existingChoices.find(rec => rec.code === currentCode)){
       showStatus("כבר שלחתם.", true);
       lockAllSelects(true);
       return;
     }
 
-    // עדיין פתוח?
+    // וידוא שהטופס עדיין פתוח
     if(!stillOpen){
       showStatus("הרישום נסגר כרגע.", false);
       lockAllSelects(true);
       return;
     }
 
-    // דוחף את הבחירה שלי
+    // מוסיף את הבחירה שלי
     existingChoices.push(oneChoice);
 
-    // שומר הכול חזרה (כולל מיקום+תאריך שלא נאבד אותם)
+    // שמירה מלאה כולל מיקום+תאריך שלא ילכו לאיבוד
     const putRes = await fetch(`${API}/${BIN_ID}`, {
       method:"PUT",
       headers:{
