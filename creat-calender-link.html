@@ -81,12 +81,16 @@
 
     <button onclick="copyLink()">העתק קישור</button>
 
+    <!-- *** כפתור חדש לוואטסאפ -->
+    <button onclick="sendWhatsAppLink()">שלח קישור בוואטסאפ</button>
+
     <canvas id="qrCode"></canvas>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script>
     let qr = null; // נגדיר מופע קבוע
+    let lastURL = ""; // *** נשמור פה את הקישור שנוצר כדי להשתמש בו לוואטסאפ
 
     function formatDateTime(date) {
       const year = date.getFullYear();
@@ -107,6 +111,8 @@
       const endDateTime = formatDateTime(new Date(dateTime.getTime() + 60 * 60 * 1000));
 
       const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startDateTime}/${endDateTime}&location=${encodeURIComponent(location)}`;
+
+      lastURL = url; // *** שומר כדי שנוכל לשלוח לוואטסאפ
 
       const linkContainer = document.getElementById('linkContainer');
       const eventLinkInput = document.getElementById('eventLink');
@@ -136,6 +142,22 @@
       } catch (err) {
         alert("הייתה שגיאה בהעתקה.");
       }
+    }
+
+    // *** פונקציה חדשה לפתיחת וואטסאפ עם הודעה מוכנה
+    function sendWhatsAppLink() {
+      if (!lastURL) {
+        alert("קודם צור קישור.");
+        return;
+      }
+
+      // כאן אתה קובע את הטקסט שייפתח בוואטסאפ
+      const message = `היי, שמתי לך תזכורת ביומן:\n${lastURL}`;
+
+      // פותח וואטסאפ עם הודעה מוכנה לשליחה (בלי מספר יעד קבוע)
+      const waUrl = "https://wa.me/?text=" + encodeURIComponent(message);
+
+      window.open(waUrl, "_blank");
     }
   </script>
 </body>
