@@ -180,18 +180,22 @@ tbody tr:nth-child(even){
 tbody tr:nth-child(odd){
   background:#ffffff;
 }
-td.actionsCell button{
+td.actionsCell button,
+.smallTable td button,
+.whatsappBtn{
   background:#c59d2f;
   color:#000;
   border:0;
   border-radius:var(--radius);
   box-shadow:var(--shadow);
-  font-size:14px;
+  font-size:13px;
   font-weight:700;
   padding:6px 10px;
   cursor:pointer;
 }
-td.actionsCell button:active{
+td.actionsCell button:active,
+.smallTable td button:active,
+.whatsappBtn:active{
   filter:brightness(0.9);
 }
 
@@ -201,7 +205,7 @@ td.actionsCell button:active{
 }
 .smallTable{
   width:100%;
-  min-width:400px;
+  min-width:480px;
   border-collapse:collapse;
   font-size:14px;
 }
@@ -217,17 +221,6 @@ td.actionsCell button:active{
   text-align:center;
   border-bottom:1px solid var(--border);
   padding:8px;
-}
-.smallTable td button{
-  background:#c59d2f;
-  color:#000;
-  border:0;
-  border-radius:var(--radius);
-  box-shadow:var(--shadow);
-  font-size:13px;
-  font-weight:700;
-  padding:6px 10px;
-  cursor:pointer;
 }
 
 /* ניהול תפריט */
@@ -375,7 +368,8 @@ td.actionsCell button:active{
           <tr>
             <th>קוד</th>
             <th>שם משפחה להצגה</th>
-            <th>מחיקה</th>
+            <th>ווצאפ</th>
+            <th>מחק</th>
           </tr>
         </thead>
         <tbody id="codeMapBody">
@@ -406,7 +400,7 @@ td.actionsCell button:active{
     </div>
   </div>
 
-  <div class="footerInfo">גרסה 2.0 · food_manager.html</div>
+  <div class="footerInfo">גרסה 2.1 · food_manager.html</div>
 </div>
 
 <script>
@@ -432,14 +426,13 @@ const saveMapBtn     = document.getElementById("saveMapBtn");
 const menuSections   = document.getElementById("menuSections");
 const saveMenuBtn    = document.getElementById("saveMenuBtn");
 
-// מצב בזיכרון
 let formOpen        = true;
 let allChoices      = [];
 let filteredChoices = [];
 let codeMap         = {};
 let menuOptions     = {};
 
-// UI helpers
+// ===== עוזרי UI =====
 function showStatus(msg, ok){
   statusBox.style.display="block";
   statusBox.className = ok ? "ok" : "err";
@@ -457,7 +450,7 @@ function prettyTS(s){
   return `${dd}.${mm}.${yy} ${hh}:${min}`;
 }
 
-// ===== משיכת מידע =====
+// ===== משיכה מהשרת =====
 async function fetchAll(){
   try {
     const res = await fetch(`${API}/${BIN_ID}/latest`, {
@@ -484,7 +477,7 @@ async function fetchAll(){
   }
 }
 
-// ===== טבלת בחירות =====
+// ===== טבלת הבחירות =====
 function renderChoicesTable(){
   if(!filteredChoices.length){
     tableBody.innerHTML =
@@ -508,7 +501,7 @@ function renderChoicesTable(){
   `).join("");
 }
 
-// מחיקה של בחירה (פותח מחדש את הקוד לבחור)
+// מחיקת בחירה אחת (פותח למשפחה למלא מחדש)
 tableBody.addEventListener("click", async (e)=>{
   if(e.target.tagName==="BUTTON"){
     const idx = e.target.dataset.i;
@@ -577,7 +570,7 @@ async function toggleForm(){
   showStatus(`הטופס עכשיו ${formOpen ? "פתוח" : "סגור"}`, true);
 }
 
-// ===== מיפוי קודים =====
+// ===== טבלת הקודים (map) =====
 function renderCodeMapTable(){
   const keys = Object.keys(codeMap).sort((a,b)=> {
     const na = Number(a), nb=Number(b);
@@ -587,20 +580,44 @@ function renderCodeMapTable(){
 
   if(!keys.length){
     codeMapBody.innerHTML =
-      '<tr><td colspan="3" style="text-align:center;color:#777;">אין קודים מוגדרים</td></tr>';
+      '<tr><td colspan="4" style="text-align:center;color:#777;">אין קודים מוגדרים</td></tr>';
     return;
   }
 
-  codeMapBody.innerHTML = keys.map(code=>`
-    <tr>
-      <td>${code}</td>
-      <td>${codeMap[code]}</td>
-      <td><button data-code="${code}">מחק</button></td>
-    </tr>
-  `).join("");
+  codeMapBody.innerHTML = keys.map(code=>{
+    const famName = codeMap[code];
+    // ההודעה שאנחנו רוצים לשלוח בוואטסאפ:
+    // שים לב: היא בעברית עם שורות חדשות
+    const msg =
+`שלום ${famName}
+מצורף קישור לבחירת תפריט שבועי
+נא למלא את הנתונים בהקדם:
+${window.location.origin}/food.html?code=${encodeURIComponent(code)}`;
+
+    const waUrl = "https://wa.me/?text="+encodeURIComponent(msg);
+
+    return `
+      <tr>
+        <td>${code}</td>
+        <td>${famName}</td>
+        <td>
+          <button class="whatsappBtn"
+                  data-wa="${waUrl}">
+            ווצאפ
+          </button>
+        </td>
+        <td>
+          <button class="delCodeBtn"
+                  data-code="${code}">
+            מחק
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join("");
 }
 
-// הוספה/עדכון קוד
+// כפתור "הוסף / עדכן קוד"
 addCodeBtn.addEventListener("click", ()=>{
   const c = newCodeInput.value.trim();
   const f = newFamilyInput.value.trim();
@@ -615,19 +632,31 @@ addCodeBtn.addEventListener("click", ()=>{
   showStatus("הקוד הוסף/עודכן ברשימה. עדיין לא נשמר בשרת.", true);
 });
 
-// מחיקת קוד קיים
-codeMapBody.addEventListener("click", (e)=>{
-  if(e.target.tagName==="BUTTON"){
+// לחיצה על ווצאפ / מחיקה בטבלת הקודים
+codeMapBody.addEventListener("click",(e)=>{
+  // כפתור וואטסאפ
+  if(e.target.classList.contains("whatsappBtn")){
+    const wa = e.target.getAttribute("data-wa");
+    if(wa){
+      // פותח לשונית חדשה עם טקסט מוכן לשליחה בוואטסאפ
+      window.open(wa, "_blank");
+    }
+    return;
+  }
+
+  // כפתור מחיקה של קוד
+  if(e.target.classList.contains("delCodeBtn")){
     const c = e.target.getAttribute("data-code");
     if(c && codeMap[c]!==undefined){
       delete codeMap[c];
       renderCodeMapTable();
       showStatus("הקוד הוסר מהרשימה. עדיין לא נשמר בשרת.", true);
     }
+    return;
   }
 });
 
-// לחצן שמירה בפועל של המיפוי (שולח PUT)
+// שמירה בפועל של המפה לשרת
 saveMapBtn.addEventListener("click", async ()=>{
   showStatus("שומר מיפוי קודים...", true);
   await saveAllToServer();
@@ -693,7 +722,7 @@ function renderMenuOptionsEditor(){
   });
 }
 
-// מחיקת פריט קיים מקטגוריה
+// מחיקה של פריט מהתפריט המקומי
 menuSections.addEventListener("click",(e)=>{
   if(e.target.tagName==="BUTTON"
      && e.target.dataset
@@ -730,14 +759,14 @@ menuSections.addEventListener("click",(e)=>{
   }
 });
 
-// שמירת כל התפריט (menuOptions) לשרת
+// שמירת התפריט לשרת
 saveMenuBtn.addEventListener("click", async ()=>{
   showStatus("שומר תפריט (menuOptions)...", true);
   await saveAllToServer();
   showStatus("התפריט נשמר בהצלחה ✅", true);
 });
 
-// ===== שמירה כוללת לשרת =====
+// ===== שמירה כוללת לשרת (PUT) =====
 async function saveAllToServer(){
   const body = {
     "formOpen": formOpen,
@@ -770,8 +799,6 @@ toggleBtn.onclick  = toggleForm;
 csvBtn.onclick     = exportCSV;
 searchInput.oninput= applySearch;
 
-// חשוב: אלה שניים כבר מחוברים גם למעלה,
-// אבל נשאיר כאן למקרה שתלחץ שוב:
 saveMapBtn.onclick = async ()=>{
   showStatus("שומר מיפוי קודים...", true);
   await saveAllToServer();
