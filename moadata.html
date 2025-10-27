@@ -83,6 +83,10 @@ button.actionBtn{
   font-size:16px;
   font-weight:700;
   padding:10px 14px;
+  cursor:pointer;
+}
+button.actionBtn:active{
+  filter:brightness(0.9);
 }
 .searchBoxWrap{
   flex:1 1 180px;
@@ -107,6 +111,7 @@ button.actionBtn{
   border:1px solid var(--border);
   border-radius:var(--radius);
   box-shadow:0 0 10px #000 inset;
+  margin-top:16px;
 }
 table{
   border-collapse:collapse;
@@ -145,6 +150,10 @@ td.actionsCell button{
   font-weight:700;
   padding:6px 10px;
   margin:0 2px;
+  cursor:pointer;
+}
+td.actionsCell button:active{
+  filter:brightness(0.9);
 }
 
 .footerInfo{
@@ -174,7 +183,7 @@ td.actionsCell button{
     <button id="csvBtn" class="actionBtn">ייצוא CSV</button>
   </div>
 
-  <div class="tableWrap" style="margin-top:16px;">
+  <div class="tableWrap">
     <table id="answersTable">
       <thead>
         <tr>
@@ -197,33 +206,39 @@ td.actionsCell button{
   </div>
 
   <div class="footerInfo">
-    גרסה 1.0.0 · moadata.html<br>
+    גרסה 1.0.1 · moadata.html<br>
     BIN: 68fefa3dd0ea881f40beb941
   </div>
 
 </div>
 
 <script>
+// =======================================
+// קונפיגורציה (BIN + KEY) — אל תיגע בזה
+// =======================================
 const BIN_ID     = "68fefa3dd0ea881f40beb941";
 const ACCESS_KEY = "$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe";
 const API_BASE   = "https://api.jsonbin.io/v3/b";
 
+// DOM
 const statusBox   = document.getElementById("statusBox");
 const tableBody   = document.getElementById("tableBody");
 const searchInput = document.getElementById("searchInput");
 const refreshBtn  = document.getElementById("refreshBtn");
 const csvBtn      = document.getElementById("csvBtn");
 
-let fullAnswers = []; // כל הנתונים מהשרת
-let filteredAnswers = []; // אחרי חיפוש
+// מצב בזיכרון
+let fullAnswers = [];     // כל הנתונים שקיימים בענן
+let filteredAnswers = []; // מה שמוצג כרגע אחרי חיפוש
 
+// הודעת סטטוס למעלה (ירוק/אדום)
 function showStatus(msg,isOk){
   statusBox.style.display="block";
   statusBox.className="status "+(isOk?"ok":"err");
   statusBox.textContent=msg;
 }
 
-// הבאת answers מהשרת
+// מביא את כל ה-answers מהשרת (GET)
 async function fetchAllAnswers(){
   const url = API_BASE + "/" + BIN_ID;
   const res = await fetch(url,{
@@ -237,14 +252,15 @@ async function fetchAllAnswers(){
     throw new Error("שגיאה בטעינה מהשרת. status="+res.status);
   }
   const data = await res.json();
-  // מצפה למבנה { record: { answers: [...] } }
+  // מצפה ל:
+  // { record: { answers: [...] } }
   if(!data.record || !Array.isArray(data.record.answers)){
     return [];
   }
   return data.record.answers;
 }
 
-// שמירת answers חזרה לאחר מחיקה
+// שומר את כל המערך חזרה לשרת (PUT) — משתמשים בזה כשמוחקים רשומה
 async function saveAllAnswers(updatedArray){
   const url = API_BASE + "/" + BIN_ID;
   const bodyObj = { answers: updatedArray };
@@ -262,7 +278,28 @@ async function saveAllAnswers(updatedArray){
   return res.json();
 }
 
-// פריסה בטבלה
+// הופך ISO-STRING (ts) לתאריך/שעה קריא
+function prettyTS(tsStr){
+  const d = new Date(tsStr);
+  if(isNaN(d.getTime())) return tsStr||"";
+  const dd   = String(d.getDate()).padStart(2,"0");
+  const mm   = String(d.getMonth()+1).padStart(2,"0");
+  const yyyy = d.getFullYear();
+  const hh   = String(d.getHours()).padStart(2,"0");
+  const min  = String(d.getMinutes()).padStart(2,"0");
+  return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+}
+
+// מנקה טקסט ל-HTML (הגנה קטנה)
+function escapeHtml(str){
+  return String(str||"")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
+// מצייר את הטבלה מחדש לפי filteredAnswers
 function renderTable(list){
   if(list.length===0){
     tableBody.innerHTML =
@@ -271,7 +308,7 @@ function renderTable(list){
   }
 
   const rowsHtml = list.map((ans,idx)=>{
-    const ts = ans.ts ? prettyTS(ans.ts) : "";
+    const tsText = ans.ts ? prettyTS(ans.ts) : "";
     return `
       <tr data-idx="${idx}">
         <td>${escapeHtml(ans.dept||"")}</td>
@@ -282,7 +319,7 @@ function renderTable(list){
         <td>${escapeHtml(ans.room||"")}</td>
         <td>${escapeHtml(ans.packs||"")}</td>
         <td>${escapeHtml(ans.targetRoom||"")}</td>
-        <td>${ts}</td>
+        <td>${tsText}</td>
         <td class="actionsCell">
           <button data-action="del" data-idx="${idx}">מחק</button>
         </td>
@@ -293,7 +330,29 @@ function renderTable(list){
   tableBody.innerHTML = rowsHtml;
 }
 
-// פונקציית חיפוש
+// מחיקה של שורה ספציפית
+async function deleteRow(idxInFiltered){
+  const rowToDelete = filteredAnswers[idxInFiltered];
+  if(!rowToDelete){
+    showStatus("לא מצאתי רשומה למחיקה.",false);
+    return;
+  }
+
+  // מסננים מהרשימה המלאה
+  fullAnswers = fullAnswers.filter(a => a !== rowToDelete);
+
+  try{
+    await saveAllAnswers(fullAnswers);
+    showStatus("נמחק בהצלחה.",true);
+
+    // מרענן את התצוגה אחרי מחיקה
+    applySearch();
+  }catch(err){
+    showStatus("שגיאה במחיקה: "+err.message,false);
+  }
+}
+
+// פונקציית חיפוש לייב
 function applySearch(){
   const q = searchInput.value.trim().toLowerCase();
   if(!q){
@@ -315,69 +374,57 @@ function applySearch(){
     });
   }
   renderTable(filteredAnswers);
+  showStatus("מסונן: "+filteredAnswers.length+" רשומות",true);
 }
 
-// המרת ISO תאריך להצגה נעימה
-function prettyTS(tsStr){
-  // tsStr כמו "2025-10-27T04:51:08.257Z"
-  const d = new Date(tsStr);
-  if(isNaN(d.getTime())) return tsStr||"";
-  const dd   = String(d.getDate()).padStart(2,"0");
-  const mm   = String(d.getMonth()+1).padStart(2,"0");
-  const yyyy = d.getFullYear();
-  const hh   = String(d.getHours()).padStart(2,"0");
-  const min  = String(d.getMinutes()).padStart(2,"0");
-  return `${dd}.${mm}.${yyyy} ${hh}:${min}`;
-}
-
-// מחיקה של שורה לפי אינדקס
-async function deleteRow(idxInFiltered){
-  // צריך למחוק מהרשימה המלאה (fullAnswers)
-  // קודם נמצא מה האינדקס האמיתי ברשימה המלאה
-  const rowToDelete = filteredAnswers[idxInFiltered];
-  if(!rowToDelete){
-    showStatus("לא מצאתי רשומה למחיקה.",false);
-    return;
+// בריחה לערכי CSV (סוגריים כפולים וכו')
+function csvEscape(val){
+  const s = String(val ?? "");
+  if(s.includes(",") || s.includes("\"") || s.includes("\n")){
+    return "\""+s.replace(/"/g,'""')+"\"";
   }
-
-  // מסננים החוצה מהרשימה המלאה
-  fullAnswers = fullAnswers.filter(a => a !== rowToDelete);
-
-  try{
-    await saveAllAnswers(fullAnswers);
-    showStatus("נמחק בהצלחה.",true);
-    applySearch(); // תרענן טבלה אחרי מחיקה
-  }catch(err){
-    showStatus("שגיאה במחיקה: "+err.message,false);
-  }
+  return s;
 }
 
-// ייצוא ל-CSV
+// >>>>>> פונקציית CSV המעודכנת עם BOM UTF-8 <<<<<<
 function exportCSV(){
   if(!filteredAnswers.length){
-    showStatus("אין נתונים ל-CSV.",false);
+    showStatus("אין נתונים ל-CSV.", false);
     return;
   }
+
   const header = [
     "מחלקה","שם העובד","טלפון","מבנה","קומה","חדר",
     "כמות אריזות","חדר יעד","תאריך/שעה"
   ];
+
   const rows = filteredAnswers.map(ans=>[
-    ans.dept||"",
-    ans.workerName||"",
-    ans.phone||"",
-    ans.building||"",
-    ans.floor||"",
-    ans.room||"",
-    ans.packs||"",
-    ans.targetRoom||"",
-    ans.ts?prettyTS(ans.ts):""
+    ans.dept || "",
+    ans.workerName || "",
+    ans.phone || "",
+    ans.building || "",
+    ans.floor || "",
+    ans.room || "",
+    ans.packs || "",
+    ans.targetRoom || "",
+    ans.ts ? prettyTS(ans.ts) : ""
   ]);
 
-  const csvLines = [header.join(","), ...rows.map(r=>r.map(csvEscape).join(","))];
-  const blob = new Blob([csvLines.join("\n")],{type:"text/csv;charset=utf-8;"});
-  const url = URL.createObjectURL(blob);
+  // בונה את תוכן ה-CSV
+  const csvLines = [
+    header.join(","),
+    ...rows.map(r => r.map(csvEscape).join(","))
+  ];
 
+  // הוספת BOM בתחילת הקובץ => שגוגל שיטס יבין שזה UTF-8 (עברית תקינה)
+  const BOM = "\uFEFF";
+
+  const blob = new Blob(
+    [BOM + csvLines.join("\n")],
+    { type:"text/csv;charset=utf-8;" }
+  );
+
+  const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = "moadata_export.csv";
@@ -386,33 +433,15 @@ function exportCSV(){
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  showStatus("קובץ CSV נוצר.",true);
+  showStatus("קובץ CSV נוצר בהצלחה ✅", true);
 }
 
-// הגנה מינימלית לטקסט ב-HTML
-function escapeHtml(str){
-  return String(str||"")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;");
-}
-
-// בריחה עבור CSV
-function csvEscape(val){
-  const s = String(val??"");
-  if(s.includes(",") || s.includes("\"") || s.includes("\n")){
-    return "\""+s.replace(/"/g,'""')+"\"";
-  }
-  return s;
-}
-
-// האתחול הראשוני
+// טעינה ראשונית של הדף (קריאה ראשונה לשרת)
 async function initPage(){
   showStatus("טוען נתונים…",true);
   try{
-    fullAnswers = await fetchAllAnswers();   // מביא מהשרת
-    filteredAnswers = [...fullAnswers];
+    fullAnswers = await fetchAllAnswers(); // מושך את כל המערך answers
+    filteredAnswers = [...fullAnswers];    // מתחילים בלי סינון
     renderTable(filteredAnswers);
     showStatus("נטענו "+filteredAnswers.length+" רשומות ✔",true);
   }catch(err){
@@ -421,13 +450,13 @@ async function initPage(){
   }
 }
 
-// חיבור אירועים
+// --- חיבור אירועים ---
 refreshBtn.addEventListener("click", initPage);
 searchInput.addEventListener("input", applySearch);
 csvBtn.addEventListener("click", exportCSV);
 
-// מחיקה (האזנה על הטבלה)
-tableBody.addEventListener("click", (ev)=>{
+// האזנה לכפתור מחיקה בתוך ה-Table
+tableBody.addEventListener("click",(ev)=>{
   const btn = ev.target;
   if(btn.tagName==="BUTTON" && btn.dataset.action==="del"){
     const idx = parseInt(btn.dataset.idx,10);
@@ -437,7 +466,7 @@ tableBody.addEventListener("click", (ev)=>{
   }
 });
 
-// טען מיד בכניסה
+// הרצה מיידית כשנכנסים לדף
 initPage();
 </script>
 </body>
