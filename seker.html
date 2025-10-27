@@ -86,6 +86,10 @@ input::placeholder,
 textarea::placeholder{
   color:#777;
 }
+textarea{
+  resize:vertical;
+  min-height:80px;
+}
 select{
   appearance:none;
   background-image:linear-gradient(#222,#222),linear-gradient(to top,#222,#222);
@@ -217,6 +221,10 @@ button.sendBtn:active{
     <label for="targetRoom">חדר יעד:</label>
     <input id="targetRoom" type="text" placeholder="חדר קולט בחדרה" required>
 
+    <!-- הערות (לא חובה) -->
+    <label for="notes">הערות (לא חובה):</label>
+    <textarea id="notes" placeholder="כתוב כאן אם יש הערות מיוחדות..."></textarea>
+
     <div class="actions">
       <button type="submit" class="sendBtn">שלח</button>
     </div>
@@ -224,7 +232,7 @@ button.sendBtn:active{
   </form>
 
   <div class="ver">
-    גרסה 1.0.3<br>
+    גרסה 1.0.4<br>
     charles
   </div>
 
@@ -243,29 +251,26 @@ const BIN_ID     = "68fefa3dd0ea881f40beb941";
 const ACCESS_KEY = "$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe";
 const API_BASE   = "https://api.jsonbin.io/v3/b";
 
-const statusBox   = document.getElementById('statusBox'); // נשאר קיים אבל לא משמש יותר להצגה
+const statusBox   = document.getElementById('statusBox'); // נשאר בדום אבל לא בשימוש להצגה
 const form        = document.getElementById('surveyForm');
 
 const modalOverlay  = document.getElementById('modalOverlay');
 const modalMessage  = document.getElementById('modalMessage');
 const modalOkBtn    = document.getElementById('modalOkBtn');
 
-// מציג פופאפ באמצע עם צבע הנכון
+// פופאפ מרכזי
 function showPopup(msg,isOk){
-  // קובע את צבע הרקע של ההודעה בפופאפ לפי הצלחה/שגיאה
   modalMessage.style.backgroundColor = isOk ? "var(--ok-bg)" : "var(--error-bg)";
   modalMessage.textContent = msg;
-
   modalOverlay.style.display = "flex";
 }
 
-// סוגר את הפופאפ
+// סגירת פופאפ
 function closePopup(){
   modalOverlay.style.display = "none";
 }
 
-// השארנו את הפונקציה המקורית showStatus רק כדי לא לשבור כלום,
-// אבל עכשיו היא פשוט עוטפת ל-showPopup.
+// שמרנו את השם showStatus כדי לא לשבור כלום בקוד הקיים
 function showStatus(msg,isOk){
   showPopup(msg,isOk);
 }
@@ -322,10 +327,11 @@ form.addEventListener('submit', async (ev)=>{
     room:        document.getElementById('room').value.trim(),
     packs:       document.getElementById('packs').value.trim(),
     targetRoom:  document.getElementById('targetRoom').value.trim(),
+    notes:       document.getElementById('notes').value.trim(), // חדש
     ts:          new Date().toISOString()
   };
 
-  // ולידציה בסיסית
+  // ולידציה בסיסית (הערות לא חובה)
   if(!answer.dept||!answer.workerName||!answer.phone||!answer.building||
      !answer.floor||!answer.room||!answer.packs||!answer.targetRoom){
     showStatus("נא למלא את כל השדות.",false);
@@ -338,7 +344,7 @@ form.addEventListener('submit', async (ev)=>{
     // בדיקה אם המספר כבר קיים
     const exists = arr.some(x => x.phone === answer.phone);
     if(exists){
-      showStatus("נרשמת כבר, אנא פנה לצ׳רלס שיין 0523719856", false);
+      showStatus("נרשמת כבר, אנא פנה לצ׳רלס 0523719856", false);
       return;
     }
 
