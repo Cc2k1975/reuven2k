@@ -21,6 +21,19 @@
   --shadow-inner:0 0 10px rgba(0,0,0,0.08) inset;
   --btn-bg:#3c7a4c;
   --btn-text:#fff;
+
+  --block-orders-bg:#eef9f1;   /* ירקרק בהיר */
+  --block-orders-border:#b8dfc2;
+  --block-orders-head:#2e7d32;
+
+  --block-codes-bg:#fff8e6;    /* זהבי בהיר */
+  --block-codes-border:#e9d39a;
+  --block-codes-head:#b58900;
+
+  --block-menu-bg:#fff0ef;     /* אדמדם/סלמון עדין */
+  --block-menu-border:#e3b3ad;
+  --block-menu-head:#a34a3a;
+
   --light-bg:#fffef8;
 }
 
@@ -127,19 +140,46 @@ button.actionBtn:active{background:var(--green-dark);}
   font-family:inherit;
 }
 
-/* בלוקים */
+/* בלוקים מופרדים לפי סוג */
 .blockCard{
-  background:var(--light-bg);
-  border:2px solid var(--border);
   border-radius:var(--radius);
   box-shadow:var(--shadow-inner);
   padding:16px;
   margin-top:20px;
+  border-width:2px;
+  border-style:solid;
 }
+
+/* בחירות שנשלחו */
+.blockOrders{
+  background:var(--block-orders-bg);
+  border-color:var(--block-orders-border);
+}
+.blockOrders h2{
+  color:var(--block-orders-head);
+}
+
+/* ניהול קודים */
+.blockCodes{
+  background:var(--block-codes-bg);
+  border-color:var(--block-codes-border);
+}
+.blockCodes h2{
+  color:var(--block-codes-head);
+}
+
+/* ניהול תפריט */
+.blockMenu{
+  background:var(--block-menu-bg);
+  border-color:var(--block-menu-border);
+}
+.blockMenu h2{
+  color:var(--block-menu-head);
+}
+
 .blockCard h2{
   margin:0 0 12px 0;
   font-size:20px;
-  color:var(--gold);
   font-weight:700;
   text-align:right;
   line-height:1.4;
@@ -180,6 +220,7 @@ tbody tr:nth-child(even){
 tbody tr:nth-child(odd){
   background:#ffffff;
 }
+
 td.actionsCell button,
 .smallTable td button,
 .whatsappBtn{
@@ -199,7 +240,7 @@ td.actionsCell button:active,
   filter:brightness(0.9);
 }
 
-/* מיפוי קודים */
+/* טבלת הקודים */
 .codeMapTableWrap{
   overflow-x:auto;
 }
@@ -333,8 +374,8 @@ td.actionsCell button:active,
     </div>
   </div>
 
-  <!-- בחירות שנשלחו -->
-  <div class="blockCard">
+  <!-- בלוק 1: בחירות -->
+  <div class="blockCard blockOrders">
     <h2>בחירות שנשלחו</h2>
     <div class="tableWrap">
       <table id="answersTable">
@@ -359,8 +400,8 @@ td.actionsCell button:active,
     </div>
   </div>
 
-  <!-- קודים -->
-  <div class="blockCard">
+  <!-- בלוק 2: קודים -->
+  <div class="blockCard blockCodes">
     <h2>ניהול קודים (קישור → שם משפחה)</h2>
     <div class="codeMapTableWrap">
       <table class="smallTable">
@@ -387,8 +428,8 @@ td.actionsCell button:active,
     </div>
   </div>
 
-  <!-- תפריט -->
-  <div class="blockCard">
+  <!-- בלוק 3: תפריט -->
+  <div class="blockCard blockMenu">
     <h2>ניהול תפריט (מנות לבחירה)</h2>
 
     <div id="menuSections">
@@ -400,7 +441,7 @@ td.actionsCell button:active,
     </div>
   </div>
 
-  <div class="footerInfo">גרסה 2.1 · food_manager.html</div>
+  <div class="footerInfo">גרסה 2.2 · food_manager.html</div>
 </div>
 
 <script>
@@ -570,7 +611,7 @@ async function toggleForm(){
   showStatus(`הטופס עכשיו ${formOpen ? "פתוח" : "סגור"}`, true);
 }
 
-// ===== טבלת הקודים (map) =====
+// ===== טבלת הקודים =====
 function renderCodeMapTable(){
   const keys = Object.keys(codeMap).sort((a,b)=> {
     const na = Number(a), nb=Number(b);
@@ -586,8 +627,7 @@ function renderCodeMapTable(){
 
   codeMapBody.innerHTML = keys.map(code=>{
     const famName = codeMap[code];
-    // ההודעה שאנחנו רוצים לשלוח בוואטסאפ:
-    // שים לב: היא בעברית עם שורות חדשות
+
     const msg =
 `שלום ${famName}
 מצורף קישור לבחירת תפריט שבועי
@@ -617,7 +657,7 @@ ${window.location.origin}/food.html?code=${encodeURIComponent(code)}`;
   }).join("");
 }
 
-// כפתור "הוסף / עדכן קוד"
+// כפתור הוסף / עדכן קוד
 addCodeBtn.addEventListener("click", ()=>{
   const c = newCodeInput.value.trim();
   const f = newFamilyInput.value.trim();
@@ -632,19 +672,18 @@ addCodeBtn.addEventListener("click", ()=>{
   showStatus("הקוד הוסף/עודכן ברשימה. עדיין לא נשמר בשרת.", true);
 });
 
-// לחיצה על ווצאפ / מחיקה בטבלת הקודים
+// לחיצה על ווצאפ / מחיקה
 codeMapBody.addEventListener("click",(e)=>{
-  // כפתור וואטסאפ
+  // ווצאפ
   if(e.target.classList.contains("whatsappBtn")){
     const wa = e.target.getAttribute("data-wa");
     if(wa){
-      // פותח לשונית חדשה עם טקסט מוכן לשליחה בוואטסאפ
       window.open(wa, "_blank");
     }
     return;
   }
 
-  // כפתור מחיקה של קוד
+  // מחיקה
   if(e.target.classList.contains("delCodeBtn")){
     const c = e.target.getAttribute("data-code");
     if(c && codeMap[c]!==undefined){
@@ -656,14 +695,14 @@ codeMapBody.addEventListener("click",(e)=>{
   }
 });
 
-// שמירה בפועל של המפה לשרת
+// שמירת המפה לשרת
 saveMapBtn.addEventListener("click", async ()=>{
   showStatus("שומר מיפוי קודים...", true);
   await saveAllToServer();
   showStatus("המיפוי נשמר בהצלחה ✅", true);
 });
 
-// ===== ניהול תפריט (menuOptions) =====
+// ===== ניהול תפריט =====
 function categoryLabel(key){
   switch(key){
     case "meat": return "מנה בשרית";
@@ -722,7 +761,7 @@ function renderMenuOptionsEditor(){
   });
 }
 
-// מחיקה של פריט מהתפריט המקומי
+// מחיקה מקומית של פריט בתפריט
 menuSections.addEventListener("click",(e)=>{
   if(e.target.tagName==="BUTTON"
      && e.target.dataset
@@ -759,14 +798,14 @@ menuSections.addEventListener("click",(e)=>{
   }
 });
 
-// שמירת התפריט לשרת
+// שמירת התפריט המעודכן לשרת
 saveMenuBtn.addEventListener("click", async ()=>{
   showStatus("שומר תפריט (menuOptions)...", true);
   await saveAllToServer();
   showStatus("התפריט נשמר בהצלחה ✅", true);
 });
 
-// ===== שמירה כוללת לשרת (PUT) =====
+// ===== שמירה כוללת לשרת =====
 async function saveAllToServer(){
   const body = {
     "formOpen": formOpen,
