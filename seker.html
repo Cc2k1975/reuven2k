@@ -170,7 +170,7 @@ button.sendBtn{
   </form>
 
   <div class="ver">
-    גרסה 1.0.1<br>
+    גרסה 1.0.2<br>
     charles
   </div>
 
@@ -204,9 +204,7 @@ async function fetchAllAnswers(){
     throw new Error("שגיאת רשת בקריאה BIN. status="+res.status);
   }
   const data = await res.json();
-  // data.record אמור להיות מבנה { answers: [...] }
   if(!data.record || !Array.isArray(data.record.answers)){
-    // אם אין עדיין answers, נתחיל חדש
     return [];
   }
   return data.record.answers;
@@ -233,7 +231,7 @@ async function saveAllAnswers(updatedArray){
 // שליחת הטופס
 form.addEventListener('submit', async (ev)=>{
   ev.preventDefault();
-  showStatus("שומר…", true);
+  showStatus("בודק נתונים...", true);
 
   const answer = {
     dept:        document.getElementById('dept').value.trim(),
@@ -255,11 +253,20 @@ form.addEventListener('submit', async (ev)=>{
   }
 
   try{
-    const arr = await fetchAllAnswers(); // מושך מערך קיים
-    arr.push(answer);                    // מוסיף את הרשומה החדשה
-    await saveAllAnswers(arr);           // כותב הכל חזרה
-    showStatus("נשמר בהצלחה ✔",true);
+    const arr = await fetchAllAnswers();
+
+    // בדיקה אם המספר כבר קיים
+    const exists = arr.some(x => x.phone === answer.phone);
+    if(exists){
+      showStatus("נרשמת כבר, אנא פנה לצ׳רלס 0523719856", false);
+      return;
+    }
+
+    arr.push(answer); // מוסיף חדש
+    await saveAllAnswers(arr);
+    showStatus("נשמר בהצלחה ✔", true);
     form.reset();
+
   }catch(err){
     showStatus("שגיאה בשמירה: "+err.message,false);
   }
