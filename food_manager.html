@@ -1,1 +1,414 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Food Manager – ניהול תפריט משפחתי</title>
+<style>
+:root{
+  --bg-page:#fffaf0;
+  --panel-bg:#ffffff;
+  --border:#e2d7b8;
+  --text-main:#333;
+  --text-dim:#666;
+  --green:#3c7a4c;
+  --green-dark:#2e5f3b;
+  --gold:#c59d2f;
+  --err-bg:#a01919;
+  --ok-bg:#2e7d32;
+  --radius:16px;
+  --shadow:0 8px 24px rgba(0,0,0,0.12);
+  --shadow-inner:0 0 10px rgba(0,0,0,0.08) inset;
+  --btn-bg:#3c7a4c;
+  --btn-text:#fff;
+}
+
+body{
+  margin:0;
+  background:var(--bg-page);
+  font-family:"Heebo",Arial,sans-serif;
+  color:var(--text-main);
+  display:flex;
+  justify-content:center;
+  padding:16px;
+  text-align:center;
+}
+.wrap{
+  width:100%;
+  max-width:1000px;
+  background:var(--panel-bg);
+  border-radius:var(--radius);
+  border:2px solid var(--border);
+  box-shadow:var(--shadow);
+  padding:20px 16px 32px;
+  text-align:initial;
+}
+h1{
+  margin:0;
+  font-size:26px;
+  font-weight:700;
+  color:var(--green);
+  text-align:center;
+  line-height:1.3;
+}
+#statusBox{
+  display:none;
+  border-radius:var(--radius);
+  padding:10px 14px;
+  margin-top:12px;
+  font-size:16px;
+  font-weight:600;
+  color:#fff;
+  line-height:1.4;
+  text-align:center;
+}
+#statusBox.ok{background:var(--ok-bg);}
+#statusBox.err{background:var(--err-bg);}
+
+.controlsBar{
+  margin-top:16px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:flex-start;
+  justify-content:space-between;
+  text-align:right;
+}
+
+.leftControls,
+.rightControls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+}
+
+button.actionBtn{
+  background:var(--btn-bg);
+  color:var(--btn-text);
+  border:0;
+  border-radius:var(--radius);
+  font-size:16px;
+  font-weight:700;
+  padding:10px 14px;
+  box-shadow:var(--shadow);
+  cursor:pointer;
+}
+button.actionBtn:active{background:var(--green-dark);}
+
+#formToggle.online{
+  background:var(--green);
+  color:#fff;
+}
+#formToggle.offline{
+  background:#a01919;
+  color:#fff;
+}
+
+.searchWrap{
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:center;
+  gap:8px;
+}
+.searchWrap input{
+  background:#fff;
+  border:2px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-inner);
+  padding:10px 12px;
+  font-size:16px;
+  color:var(--text-main);
+  min-width:200px;
+  font-family:inherit;
+}
+
+.tableWrap{
+  background:#fff;
+  border:2px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-inner);
+  margin-top:16px;
+  overflow-x:auto;
+}
+table{
+  border-collapse:collapse;
+  width:100%;
+  min-width:900px;
+  font-size:14px;
+  color:var(--text-main);
+}
+thead{
+  background:var(--bg-page);
+  color:var(--green);
+  font-weight:700;
+}
+th,td{
+  text-align:center;
+  padding:10px 6px;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+  font-family:inherit;
+}
+tbody tr:nth-child(even){
+  background:#faf8f0;
+}
+tbody tr:nth-child(odd){
+  background:#ffffff;
+}
+td.actionsCell button{
+  background:#c59d2f;
+  color:#000;
+  border:0;
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  font-size:14px;
+  font-weight:700;
+  padding:6px 10px;
+  cursor:pointer;
+}
+td.actionsCell button:active{
+  filter:brightness(0.9);
+}
+
+.footerInfo{
+  text-align:center;
+  font-size:13px;
+  color:var(--text-dim);
+  margin-top:24px;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ניהול תפריט – Food Manager</h1>
+  <div id="statusBox"></div>
+
+  <div class="controlsBar">
+    <div class="leftControls">
+      <button id="formToggle" class="actionBtn online">ONLINE</button>
+      <button id="refreshBtn" class="actionBtn">רענן</button>
+      <button id="csvBtn" class="actionBtn">ייצוא CSV</button>
+    </div>
+
+    <div class="rightControls">
+      <div class="searchWrap">
+        <input id="searchInput" type="text" placeholder="חפש… שם / מנה / שתייה / קינוח">
+      </div>
+    </div>
+  </div>
+
+  <div class="tableWrap">
+    <table id="answersTable">
+      <thead>
+        <tr>
+          <th>שם הילד</th>
+          <th>מנה</th>
+          <th>פחמימה</th>
+          <th>סלט 1</th>
+          <th>סלט 2</th>
+          <th>שתייה</th>
+          <th>קינוח</th>
+          <th>תאריך/שעה</th>
+          <th>פעולות</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="9" style="text-align:center;color:#777;">טוען…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footerInfo">גרסה 1.0.0 · food_manager.html</div>
+</div>
+
+<script>
+const BIN_ID   = "68ff447a43b1c97be9844c29";
+const ACCESS_KEY = "$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO";
+const API      = "https://api.jsonbin.io/v3/b";
+
+const statusBox    = document.getElementById("statusBox");
+const tableBody    = document.getElementById("tableBody");
+const searchInput  = document.getElementById("searchInput");
+const refreshBtn   = document.getElementById("refreshBtn");
+const csvBtn       = document.getElementById("csvBtn");
+const toggleBtn    = document.getElementById("formToggle");
+
+let allChoices=[], filteredChoices=[];
+let formOpen=true;
+
+// הצגת הודעת סטטוס
+function showStatus(msg, ok){
+  statusBox.style.display="block";
+  statusBox.className = ok ? "ok" : "err";
+  statusBox.textContent=msg;
+}
+
+// עיצוב תאריך יפה dd.mm.yyyy hh:mm
+function prettyTS(s){
+  const d=new Date(s);
+  if(isNaN(d)) return "";
+  const dd  = String(d.getDate()).padStart(2,"0");
+  const mm  = String(d.getMonth()+1).padStart(2,"0");
+  const yy  = d.getFullYear();
+  const hh  = String(d.getHours()).padStart(2,"0");
+  const min = String(d.getMinutes()).padStart(2,"0");
+  return `${dd}.${mm}.${yy} ${hh}:${min}`;
+}
+
+// טוען את המידע מה-BIN
+async function fetchAll(){
+  try {
+    const res = await fetch(`${API}/${BIN_ID}/latest`, {
+      headers:{"X-Access-Key":ACCESS_KEY}
+    });
+    const j = await res.json();
+
+    formOpen = j.record?.formOpen !== false;
+    allChoices = Array.isArray(j.record?.בחירות) ? j.record.בחירות : [];
+    filteredChoices = [...allChoices];
+
+    render();
+    updateToggle();
+    showStatus(`נטענו ${allChoices.length} בחירות`, true);
+  } catch(err){
+    console.error(err);
+    showStatus("שגיאה בטעינה", false);
+  }
+}
+
+// מציג בטבלה
+function render(){
+  if(!filteredChoices.length){
+    tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#777;">אין נתונים</td></tr>';
+    return;
+  }
+
+  tableBody.innerHTML = filteredChoices.map((rec,i)=>`
+    <tr>
+      <td>${rec["שם"]||""}</td>
+      <td>${rec["מנה"]||""}</td>
+      <td>${rec["פחמימה"]||""}</td>
+      <td>${rec["סלט1"]||""}</td>
+      <td>${rec["סלט2"]||""}</td>
+      <td>${rec["שתייה"]||""}</td>
+      <td>${rec["קינוח"]||""}</td>
+      <td>${prettyTS(rec.ts)}</td>
+      <td class="actionsCell"><button data-i="${i}">מחק</button></td>
+    </tr>
+  `).join("");
+}
+
+// חיפוש
+function applySearch(){
+  const q = searchInput.value.trim().toLowerCase();
+  if(!q){
+    filteredChoices=[...allChoices];
+  } else {
+    filteredChoices = allChoices.filter(rec=>{
+      return JSON.stringify(rec).toLowerCase().includes(q);
+    });
+  }
+  render();
+}
+
+// מחיקה של רשומה אחת
+tableBody.addEventListener("click", async (e)=>{
+  if(e.target.tagName==="BUTTON"){
+    const idx = e.target.dataset.i;
+    allChoices.splice(idx,1);
+    const body = {
+      "formOpen": formOpen,
+      "בחירות": allChoices
+    };
+    try{
+      await fetch(`${API}/${BIN_ID}`,{
+        method:"PUT",
+        headers:{
+          "Content-Type":"application/json",
+          "X-Access-Key":ACCESS_KEY
+        },
+        body:JSON.stringify(body)
+      });
+      fetchAll();
+    }catch(err){
+      console.error(err);
+      showStatus("מחיקה נכשלה", false);
+    }
+  }
+});
+
+// CSV ייצוא
+csvBtn.addEventListener("click", ()=>{
+  if(!filteredChoices.length) return;
+  const BOM="\uFEFF"; // כדי שיפתח יפה באקסל בעברית
+
+  const rows=[["שם","מנה","פחמימה","סלט1","סלט2","שתייה","קינוח","תאריך"]];
+  filteredChoices.forEach(rec=>{
+    rows.push([
+      rec["שם"]||"",
+      rec["מנה"]||"",
+      rec["פחמימה"]||"",
+      rec["סלט1"]||"",
+      rec["סלט2"]||"",
+      rec["שתייה"]||"",
+      rec["קינוח"]||"",
+      prettyTS(rec.ts)
+    ]);
+  });
+
+  const blob=new Blob(
+    [BOM+rows.map(r=>r.join(",")).join("\n")],
+    {type:"text/csv;charset=utf-8;"}
+  );
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="food_manager.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// מצב טופס ONLINE / OFFLINE
+function updateToggle(){
+  toggleBtn.className = formOpen ? "actionBtn online" : "actionBtn offline";
+  toggleBtn.textContent = formOpen ? "ONLINE" : "OFFLINE";
+}
+
+async function toggleForm(){
+  formOpen = !formOpen;
+  updateToggle();
+  showStatus("שומר מצב טופס...", true);
+
+  const body = {
+    "formOpen": formOpen,
+    "בחירות": allChoices
+  };
+
+  try{
+    await fetch(`${API}/${BIN_ID}`,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Access-Key":ACCESS_KEY
+      },
+      body:JSON.stringify(body)
+    });
+    showStatus(`הטופס עכשיו ${formOpen ? "פתוח" : "סגור"}`, true);
+  }catch(err){
+    console.error(err);
+    showStatus("עדכון מצב נכשל", false);
+  }
+}
+
+// מאזינים
+refreshBtn.onclick = fetchAll;
+toggleBtn.onclick  = toggleForm;
+searchInput.oninput= applySearch;
+
+// טוען בהתחלה
+fetchAll();
+</script>
+</body>
+</html>
 
