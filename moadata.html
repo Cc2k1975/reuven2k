@@ -3,203 +3,295 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>MOA Data — צפייה וניהול</title>
+<title>MOA ניהול סקר</title>
 <style>
   :root{
-    --bg:#0f0f0f;
-    --card:#121212;
+    --bg:#000;
+    --panel:#0f0f0f;
+    --panel-inner:#121212;
     --accent:#d4af37;
-    --muted:#2b2b2b;
-    --danger:#6b1b1b;
-    --success:#145a2b;
+    --txt-main:#f8e9a8;
+    --border-col:rgba(212,175,55,0.18);
+    --row-sep:rgba(255,255,255,0.04);
+    --good:#145a2b;
+    --bad:#6b1b1b;
   }
+
   html,body{
-    height:100%;
     margin:0;
     background:var(--bg);
-    font-family: Arial, Helvetica, sans-serif;
     color:var(--accent);
+    font-family:Arial, Helvetica, sans-serif;
   }
+
   .wrap{
-    max-width:920px;
-    margin:18px auto;
-    padding:20px;
-    border-radius:18px;
-    background:linear-gradient(180deg,#0c0c0c,#0e0e0e);
-    box-shadow:0 6px 30px rgba(0,0,0,0.6);
+    max-width:1100px;
+    margin:24px auto 80px;
+    background:var(--panel);
+    border-radius:20px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.8);
+    border:2px solid rgba(212,175,55,0.08);
+    padding:20px clamp(16px,2vw,28px) 24px;
   }
-  h1{
-    margin:8px 0 20px;
-    font-size:28px;
-    text-align:center;
+
+  header h1{
+    margin:0 0 16px;
     color:var(--accent);
-  }
-  .status{
-    padding:12px;
-    border-radius:10px;
-    margin:12px 0;
+    font-size:26px;
     font-weight:700;
-    font-size:14px;
+    text-align:center;
   }
-  .status.ok{
-    background:rgba(20,90,43,0.9);
-    color:#fff;
-  }
-  .status.err{
-    background:rgba(107,27,27,0.9);
-    color:#fff;
-  }
-  .controls{
+
+  /* שורת בקרה למעלה */
+  .top-bar{
     display:flex;
-    gap:10px;
     flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
     justify-content:center;
-    margin-bottom:14px;
+    margin-bottom:16px;
   }
-  .controls input[type=text]{
-    padding:10px;
+  .statusBox{
+    background:var(--good);
+    color:#fff;
+    font-size:14px;
+    font-weight:700;
     border-radius:10px;
-    border:2px solid rgba(212,175,55,0.15);
-    background:#111;
-    color:var(--accent);
-    min-width:240px
+    padding:10px 12px;
+    min-width:180px;
+    text-align:center;
   }
+  .statusBox.err{
+    background:var(--bad);
+  }
+
   .btn{
     background:var(--accent);
     color:#000;
-    padding:10px 14px;
-    border-radius:10px;
     font-weight:700;
     border:none;
-    cursor:pointer;
+    border-radius:10px;
+    padding:10px 14px;
     font-size:14px;
   }
   .btn.ghost{
     background:transparent;
     color:var(--accent);
-    border:1px solid rgba(212,175,55,0.15);
+    border:1px solid var(--border-col);
   }
-  .table{
-    width:100%;
-    border-collapse:collapse;
-    margin-top:8px;
+
+  .searchWrap{
+    display:flex;
+    align-items:center;
+    background:var(--panel-inner);
+    border-radius:10px;
+    border:2px solid var(--border-col);
+    overflow:hidden;
+  }
+  .searchWrap input{
+    background:transparent;
+    border:none;
+    outline:none;
+    color:var(--accent);
+    padding:10px 12px;
+    min-width:180px;
     font-size:14px;
   }
-  .table thead th{
+
+  /* אזור הטבלה */
+  .table-shell{
+    background:var(--panel-inner);
+    border-radius:16px;
+    border:1px solid var(--border-col);
+    padding:0;
+    overflow-x:auto;
+    box-shadow:0 10px 40px rgba(0,0,0,0.6);
+  }
+
+  table{
+    border-collapse:collapse;
+    min-width:900px; /* מאפשר סלייד ימינה במסך צר */
+    width:100%;
+    color:var(--txt-main);
+    font-size:14px;
+  }
+
+  thead th{
     position:sticky;
     top:0;
     background:#0b0b0b;
-    padding:12px;
-    border-bottom:1px solid rgba(212,175,55,0.08);
-    text-align:right;
     color:var(--accent);
     font-weight:700;
-  }
-  .table tbody tr{
-    background:var(--card);
-  }
-  .table td{
-    padding:10px 12px;
-    vertical-align:middle;
-    border-bottom:1px solid rgba(255,255,255,0.02);
-    color:#f3d78a;
-  }
-  .actions{
-    display:flex;
-    gap:6px;
-    justify-content:flex-start;
-    flex-wrap:wrap;
-  }
-  .small{
-    font-size:13px;
-    color:#cdbb8d;
-  }
-  .debug{
-    font-size:13px;
-    color:#bbb;
-    margin-top:12px;
-    white-space:pre-wrap;
-    background:#0b0b0b;
-    padding:10px;
-    border-radius:8px;
-    border:1px solid rgba(255,255,255,0.02);
-  }
-  footer{
-    margin-top:16px;
-    text-align:center;
-    color:#b8a16a;
+    text-align:right;
+    white-space:nowrap;
+    border-bottom:1px solid var(--border-col);
+    padding:12px 10px;
     font-size:13px;
   }
 
-  /* modal */
-  .modal{
+  tbody tr{
+    background:var(--panel-inner);
+  }
+  tbody tr:nth-child(even){
+    background:#1a1a1a;
+  }
+
+  td{
+    border-bottom:1px solid var(--row-sep);
+    padding:10px 10px;
+    vertical-align:middle;
+    color:var(--txt-main);
+    white-space:nowrap;
+  }
+
+  td .actions{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .miniBtn{
+    font-size:12px;
+    line-height:1.2;
+    border-radius:8px;
+    cursor:pointer;
+    padding:8px 10px;
+    font-weight:700;
+  }
+  .miniBtn.edit{
+    background:transparent;
+    border:1px solid var(--accent);
+    color:var(--accent);
+  }
+  .miniBtn.del{
+    background:var(--accent);
+    color:#000;
+    border:none;
+  }
+
+  .smallNote{
+    font-size:12px;
+    color:#c8bb8a;
+    margin-top:16px;
+    text-align:center;
+    line-height:1.4;
+  }
+
+  /* modal עריכה */
+  #modalEdit{
     position:fixed;
     inset:0;
-    display:flex;
+    display:none;
     align-items:center;
     justify-content:center;
     background:rgba(0,0,0,0.6);
-    z-index:50;
+    z-index:2000;
   }
-  .modal .box{
+  .modalBox{
     background:#0f0f0f;
-    padding:18px;
-    border-radius:10px;
-    min-width:300px;
-    max-width:720px;
-    border:2px solid rgba(212,175,55,0.06);
+    border-radius:14px;
+    border:2px solid rgba(212,175,55,0.15);
+    max-width:360px;
+    width:calc(100% - 32px);
+    padding:16px 16px 20px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.9);
   }
+  .modalBox h2{
+    margin:0 0 12px;
+    color:var(--accent);
+    font-size:18px;
+    font-weight:700;
+    text-align:right;
+  }
+
   .field{
     display:flex;
     flex-direction:column;
-    margin-bottom:10px
+    margin-bottom:10px;
   }
   .field label{
-    font-weight:800;
-    margin-bottom:6px;
-    color:var(--accent)
+    color:var(--accent);
+    font-size:13px;
+    font-weight:700;
+    margin-bottom:4px;
   }
   .field input,
-  .field select,
-  .field textarea{
-    padding:10px;
-    border-radius:10px;
-    border:1px solid rgba(212,175,55,0.12);
-    background:#121212;
+  .field select{
+    background:#1a1a1a;
     color:var(--accent);
-    min-width:180px;
+    border-radius:10px;
+    border:1px solid var(--border-col);
+    padding:10px;
+    font-size:14px;
+  }
+
+  .modalActions{
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+    margin-top:14px;
+  }
+
+  footer{
+    margin-top:24px;
+    text-align:center;
+    font-size:12px;
+    color:#9a8e61;
+  }
+
+  /* debug */
+  #debugArea{
+    font-size:11px;
+    line-height:1.5;
+    color:#bbb;
+    background:#000;
+    border-top:1px solid rgba(255,255,255,0.07);
+    margin-top:40px;
+    padding:12px 16px 60px;
+    white-space:pre-wrap;
+    direction:ltr;
+    text-align:left;
+    overflow-x:auto;
   }
 
   @media(max-width:600px){
-    .table thead{
-      display:none
+    header h1{
+      font-size:22px;
     }
-    .table tbody td{
-      display:block;
-      padding:12px;
+    thead th{
+      font-size:12px;
+      padding:10px;
     }
-    .actions{
-      justify-content:flex-end
+    td{
+      font-size:12px;
+      padding:8px;
     }
   }
 </style>
 </head>
 <body>
-  <div class="wrap" role="main">
+
+<div class="wrap">
+
+  <header>
     <h1>טופס סקר — ניהול MOA</h1>
+  </header>
 
-    <!-- הודעת סטטוס למעלה -->
-    <div id="statusTop" class="status" style="display:none"></div>
+  <!-- סטטוס למעלה -->
+  <div class="top-bar">
+    <div id="statusTop" class="statusBox" style="display:none"></div>
 
-    <!-- שליטה -->
-    <div class="controls" aria-hidden="false">
-      <input id="filter" type="text" placeholder="חפש – שם/טלפון/מבנה..." />
-      <button id="refreshBtn" class="btn">רענן</button>
-      <button id="exportCsv" class="btn ghost">ייצא CSV</button>
+    <button id="refreshBtn" class="btn">רענן</button>
+
+    <div class="searchWrap">
+      <input id="filter" type="text" placeholder="חפש – שם / טלפון / מבנה…" />
     </div>
 
-    <!-- טבלה -->
-    <table class="table" aria-describedby="debug">
+    <button id="exportCsv" class="btn ghost">CSV ייצוא</button>
+  </div>
+
+  <!-- טבלה -->
+  <div class="table-shell">
+    <table>
       <thead>
         <tr>
           <th>מחלקה</th>
@@ -210,247 +302,224 @@
           <th>חדר</th>
           <th>כמות אריזות</th>
           <th>חדר יעד</th>
-          <th>נוצר</th>
+          <th>נוצר בתאריך</th>
           <th>פעולות</th>
         </tr>
       </thead>
       <tbody id="listBody">
-        <tr><td colspan="10" class="small">טוען...</td></tr>
+        <tr><td colspan="10" style="text-align:center;color:#888;padding:20px">טוען…</td></tr>
       </tbody>
     </table>
-
-    <!-- דיבאג -->
-    <div id="debug" class="debug" aria-live="polite"></div>
-
-    <footer>
-      גרסה: <span id="ver">1.0.0</span> — קובץ: moadata.html
-    </footer>
   </div>
 
-  <!-- חלון עריכה -->
-  <div id="modalEdit" class="modal" style="display:none">
-    <div class="box" role="dialog" aria-modal="true">
-      <h3 style="margin-top:0;color:var(--accent)">ערוך רשומה</h3>
+  <div class="smallNote">
+    גרסה <span id="ver">1.1.0</span> • קובץ: moadata.html  
+  </div>
 
-      <div class="field">
-        <label>מחלקה</label>
-        <select id="m_dept">
-          <option>אווירודינמיקה</option>
-          <option>מחמ</option>
-          <option>מטה</option>
-          <option>ניווט</option>
-          <option>בקמ</option>
-          <option>טילאות</option>
-          <option>סימולציות</option>
-        </select>
-      </div>
+  <footer>
+    אם אתה רואה פה נתונים – זה הגיע מהענן (jsonbin).  
+    אם לא – תבדוק מפתח / BIN.
+  </footer>
 
-      <div class="field">
-        <label>שם העובד</label>
-        <input id="m_name" />
-      </div>
+  <!-- DEBUG -->
+  <div id="debugArea"></div>
 
-      <div class="field">
-        <label>מספר נייד</label>
-        <input id="m_phone" />
-      </div>
+</div>
 
-      <div class="field">
-        <label>מבנה</label>
-        <input id="m_building" />
-      </div>
+<!-- חלון עריכה -->
+<div id="modalEdit">
+  <div class="modalBox" role="dialog" aria-modal="true">
+    <h2>עריכת רשומה</h2>
 
-      <div class="field">
-        <label>קומה</label>
-        <input id="m_floor" />
-      </div>
+    <div class="field">
+      <label>מחלקה</label>
+      <select id="m_dept">
+        <option>אווירודינמיקה</option>
+        <option>מחמ</option>
+        <option>מטה</option>
+        <option>ניווט</option>
+        <option>בקמ</option>
+        <option>טילאות</option>
+        <option>סימולציות</option>
+      </select>
+    </div>
 
-      <div class="field">
-        <label>מספר חדר</label>
-        <input id="m_room" />
-      </div>
+    <div class="field">
+      <label>שם העובד</label>
+      <input id="m_name" />
+    </div>
 
-      <div class="field">
-        <label>כמות אריזות</label>
-        <select id="m_packs">
-          <option>1</option>
-          <option>2</option>
-          <option>3</option>
-          <option>4</option>
-          <option>5</option>
-        </select>
-      </div>
+    <div class="field">
+      <label>מספר נייד</label>
+      <input id="m_phone" />
+    </div>
 
-      <div class="field">
-        <label>חדר יעד</label>
-        <input id="m_target" />
-      </div>
+    <div class="field">
+      <label>מבנה</label>
+      <input id="m_building" />
+    </div>
 
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-        <button id="saveEdit" class="btn">שמור</button>
-        <button id="closeModal" class="btn ghost">ביטול</button>
-      </div>
+    <div class="field">
+      <label>קומה</label>
+      <input id="m_floor" />
+    </div>
+
+    <div class="field">
+      <label>מספר חדר</label>
+      <input id="m_room" />
+    </div>
+
+    <div class="field">
+      <label>כמות אריזות</label>
+      <select id="m_packs">
+        <option>1</option>
+        <option>2</option>
+        <option>3</option>
+        <option>4</option>
+        <option>5</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>חדר יעד</label>
+      <input id="m_target" />
+    </div>
+
+    <div class="modalActions">
+      <button id="saveEdit" class="btn">שמור</button>
+      <button id="closeModal" class="btn ghost">ביטול</button>
     </div>
   </div>
+</div>
 
 <script>
 /*
-  גרסה 1.0.0
+  גרסה 1.1.0
   קובץ: moadata.html
-  מובנה עם הערכים שסיפקת:
+
+  אנחנו עובדים מול:
   BIN_ID = 68fe7e2bae596e708f2e965e
   ACCESS_KEY = $2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe
 */
 
 const BIN_ID = "68fe7e2bae596e708f2e965e";
 const ACCESS_KEY = "$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEoMNeyxeUQ726QdlvNMD0iTe";
-
 const API_BASE = "https://api.jsonbin.io/v3/b";
 
-const STATUS_TOP = document.getElementById("statusTop");
-const DEBUG = document.getElementById("debug");
-const LIST_BODY = document.getElementById("listBody");
-const VER = document.getElementById("ver");
+const statusTop   = document.getElementById("statusTop");
+const debugArea   = document.getElementById("debugArea");
+const listBody    = document.getElementById("listBody");
+const verSpan     = document.getElementById("ver");
 
-const BTN_REFRESH = document.getElementById("refreshBtn");
-const BTN_EXPORT = document.getElementById("exportCsv");
-const FILTER = document.getElementById("filter");
+const refreshBtn  = document.getElementById("refreshBtn");
+const exportBtn   = document.getElementById("exportCsv");
+const filterInput = document.getElementById("filter");
 
-const MODAL = document.getElementById("modalEdit");
-const CLOSE_MODAL = document.getElementById("closeModal");
-const SAVE_EDIT = document.getElementById("saveEdit");
+const modal       = document.getElementById("modalEdit");
+const closeModalB = document.getElementById("closeModal");
+const saveEditB   = document.getElementById("saveEdit");
 
-const F_dept = document.getElementById("m_dept");
-const F_name = document.getElementById("m_name");
-const F_phone = document.getElementById("m_phone");
-const F_building = document.getElementById("m_building");
-const F_floor = document.getElementById("m_floor");
-const F_room = document.getElementById("m_room");
-const F_packs = document.getElementById("m_packs");
-const F_target = document.getElementById("m_target");
+const F_dept      = document.getElementById("m_dept");
+const F_name      = document.getElementById("m_name");
+const F_phone     = document.getElementById("m_phone");
+const F_building  = document.getElementById("m_building");
+const F_floor     = document.getElementById("m_floor");
+const F_room      = document.getElementById("m_room");
+const F_packs     = document.getElementById("m_packs");
+const F_target    = document.getElementById("m_target");
 
 let currentRecords = [];
-let editingIndex = null;
+let editingIndex   = null;
 
-/* כלי דיבוג למסך */
-function debugLog(...args){
-  const time = new Date().toLocaleTimeString();
-  DEBUG.textContent =
-    `[${time}] ` +
-    args.map(a => (typeof a === 'object' ? JSON.stringify(a) : a)).join(" | ") +
-    "\n" +
-    DEBUG.textContent;
+/* עזרי UI */
+function logDebug(...args){
+  const t = new Date().toLocaleTimeString();
+  const line = `[${t}] ` + args.map(x =>
+    (typeof x === "object" ? JSON.stringify(x) : x)
+  ).join(" | ");
+  debugArea.textContent = line + "\n" + debugArea.textContent;
 }
 
-/* סטטוס למעלה */
-function setStatus(msg, type){
-  STATUS_TOP.style.display = "block";
-  STATUS_TOP.className = "status " + (type === "err" ? "err" : "ok");
-  STATUS_TOP.textContent = msg;
+function setStatus(msg, ok=true){
+  statusTop.style.display = "block";
+  statusTop.className = "statusBox" + (ok ? "" : " err");
+  statusTop.textContent = msg;
 }
+
 function clearStatus(){
-  STATUS_TOP.style.display = "none";
+  statusTop.style.display = "none";
 }
 
-/* קריאת תוכן ה-BIN */
-async function fetchBinLatest(){
+/* טוען מהענן */
+async function loadFromBin(){
   clearStatus();
-  debugLog("מנסה לקרוא BIN:", BIN_ID);
+  listBody.innerHTML =
+    `<tr><td colspan="10" style="text-align:center;color:#888;padding:20px">טוען…</td></tr>`;
 
   const url = `${API_BASE}/${BIN_ID}/latest`;
   try{
-    const res = await fetch(url, {
-      method: "GET",
-      headers: {
+    const res = await fetch(url,{
+      method:"GET",
+      headers:{
         "Content-Type":"application/json",
-        "X-Access-Key": ACCESS_KEY
+        "X-Access-Key":ACCESS_KEY
       }
     });
-    const txt = await res.text();
-    debugLog("GET", url, "status="+res.status, "body=", txt);
+    const raw = await res.text();
+    logDebug("GET", url, "status="+res.status, "body=", raw);
 
     if(!res.ok){
-      setStatus(`שגיאה בטעינה: status=${res.status} body=${txt}`, "err");
-      LIST_BODY.innerHTML = `<tr><td colspan="10" class="small" style="color:#ffb8b8">שגיאה בטעינה</td></tr>`;
+      setStatus("שגיאה בטעינה: "+res.status,false);
+      listBody.innerHTML =
+        `<tr><td colspan="10" style="text-align:center;color:#ffb8b8;padding:20px">שגיאה בטעינה</td></tr>`;
       return;
     }
 
-    // parse
-    const j = JSON.parse(txt);
-    // בפורמט של jsonbin v3: לרוב j.record הוא הנתון
-    let data = j.record || j.data || j;
-    // אם data.answers הוא מערך - זה המידע
-    // אם data עצמו מערך - זה המידע
-    // אם זה אובייקט יחיד - נהפוך למערך של רשומה אחת
-    let records = [];
-    if(Array.isArray(data)){
-      records = data;
-    } else if (Array.isArray(data.answers)){
-      records = data.answers;
-    } else {
-      records = [data];
+    const data = JSON.parse(raw);
+    // jsonbin v3 מחזיר {record:{...}, metadata:{...}}
+    let record = data.record ?? data.data ?? data ?? {};
+    // שתי ורסיות מבנה: או {answers:[...]} או אובייקט יחיד
+    let arr = [];
+    if(Array.isArray(record)){
+      arr = record;
+    }else if(Array.isArray(record.answers)){
+      arr = record.answers;
+    }else{
+      arr = [record];
     }
 
-    currentRecords = records;
-    renderList(records);
-    setStatus(`✅ נטען ${records.length} רשומות`, "ok");
-  }catch(err){
-    debugLog("fetch error:", err);
-    setStatus("שגיאת רשת בטעינה: "+(err.message||err),"err");
-    LIST_BODY.innerHTML = `<tr><td colspan="10" class="small" style="color:#ffb8b8">שגיאת רשת</td></tr>`;
-  }
-}
-
-/* שליחת כל המערך חזרה לשרת ב-PUT כדי לשמור שינויים */
-async function putBin(dataArr){
-  const url = `${API_BASE}/${BIN_ID}`;
-  const payload = { answers: dataArr };
-
-  try{
-    debugLog("PUT", url, "len="+dataArr.length, payload);
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: {
-        "Content-Type":"application/json",
-        "X-Access-Key": ACCESS_KEY
-      },
-      body: JSON.stringify(payload)
-    });
-    const txt = await res.text();
-    debugLog("PUT result status="+res.status, "body=", txt);
-
-    if(!res.ok){
-      setStatus(`שגיאה בשמירה: status=${res.status} body=${txt}`, "err");
-      return false;
-    }
-
-    setStatus("✅ נשמר בהצלחה בענן","ok");
-    return true;
+    currentRecords = arr;
+    drawTable(currentRecords);
+    setStatus(`נטען ${arr.length} רשומות ✅`, true);
   }catch(e){
-    debugLog("PUT error:", e);
-    setStatus("שגיאת רשת בשמירה: "+(e.message||e),"err");
-    return false;
+    logDebug("ERR load:", e);
+    setStatus("שגיאת רשת בטעינה",false);
+    listBody.innerHTML =
+      `<tr><td colspan="10" style="text-align:center;color:#ffb8b8;padding:20px">שגיאת רשת</td></tr>`;
   }
 }
 
-/* ציור הטבלה */
-function renderList(records){
-  LIST_BODY.innerHTML = "";
-  if(!records || records.length===0){
-    LIST_BODY.innerHTML = `<tr><td colspan="10" class="small">אין רשומות להצגה</td></tr>`;
+/* שרטוט טבלה - כל עובד שורה אחת */
+function drawTable(rows){
+  if(!rows || rows.length===0){
+    listBody.innerHTML =
+      `<tr><td colspan="10" style="text-align:center;color:#888;padding:20px">אין רשומות להצגה</td></tr>`;
     return;
   }
 
-  records.forEach((r, idx)=>{
-    const dept = r.dept || r.department || r.מחלקה || "";
-    const name = r.workerName || r.name || r.שם || "";
-    const phone = r.phone || r.phoneNumber || r.מספר || "";
-    const building = r.building || r.מבנה || "";
-    const floor = r.floor || r.קומה || "";
-    const room = r.room || r.roomNumber || r.מספר_חדר || "";
-    const packs = r.packs || r.packsCount || r.אריזות || "";
-    const target = r.targetRoom || r.target || r.יעד || "";
-    const ts = r.ts || r.created || r.timestamp || "";
+  listBody.innerHTML = "";
+  rows.forEach((r, idx)=>{
+    // מיפוי שדות כמו אצלך בסקר
+    const dept       = r.dept        || r.department   || r.מחלקה      || "";
+    const name       = r.workerName  || r.name         || r.שם          || "";
+    const phone      = r.phone       || r.phoneNumber  || r.טלפון       || "";
+    const building   = r.building    || r.מבנה         || "";
+    const floor      = r.floor       || r.קומה         || "";
+    const room       = r.room        || r.roomNumber   || r.חדר         || "";
+    const packs      = r.packs       || r.packsCount   || r.כמות        || "";
+    const targetRoom = r.targetRoom  || r.target       || r.חדריעד      || "";
+    const tsRaw      = r.ts          || r.timestamp    || r.created     || "";
+    const tsNice     = formatTs(tsRaw);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -461,26 +530,29 @@ function renderList(records){
       <td>${escapeHtml(floor)}</td>
       <td>${escapeHtml(room)}</td>
       <td>${escapeHtml(packs)}</td>
-      <td>${escapeHtml(target)}</td>
-      <td class="small">${ts ? escapeHtml(formatTs(ts)) : ""}</td>
-      <td class="actions">
-        <button class="btn ghost" data-idx="${idx}" data-act="edit">ערוך</button>
-        <button class="btn" data-idx="${idx}" data-act="del">מחק</button>
+      <td>${escapeHtml(targetRoom)}</td>
+      <td style="white-space:normal">${escapeHtml(tsNice)}</td>
+      <td>
+        <div class="actions">
+          <button class="miniBtn edit" data-idx="${idx}" data-act="edit">ערוך</button>
+          <button class="miniBtn del"  data-idx="${idx}" data-act="del">מחק</button>
+        </div>
       </td>
     `;
-    LIST_BODY.appendChild(tr);
+    listBody.appendChild(tr);
   });
 
-  // חבר מאזינים ללחצנים בכל שורה
-  LIST_BODY.querySelectorAll("button").forEach(btn=>{
-    btn.addEventListener("click", async (e)=>{
+  // לחצני פעולה
+  listBody.querySelectorAll("button").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
       const idx = parseInt(btn.dataset.idx,10);
       const act = btn.dataset.act;
       if(act==="edit"){
         openEdit(idx);
       }else if(act==="del"){
-        if(!confirm("אתה בטוח שאתה רוצה למחוק את הרשומה הזאת?")) return;
-        await deleteRecord(idx);
+        if(confirm("בטוח למחוק את הרשומה?")){
+          await deleteRow(idx);
+        }
       }
     });
   });
@@ -488,54 +560,145 @@ function renderList(records){
 
 /* פונקציות עזר */
 function escapeHtml(s){
-  if(s===null||s===undefined) return "";
-  return String(s).replace(/[&<>"']/g, m => (
-    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]
-  ));
+  if(s===undefined || s===null) return "";
+  return String(s).replace(/[&<>"']/g, ch=>{
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;'}[ch]);
+  });
 }
 function formatTs(ts){
-  // אם זה ISO -> תרגום
+  if(!ts) return "";
   const d = new Date(ts);
-  if(!isNaN(d)) return d.toLocaleString("he-IL");
-  return ts;
+  if(isNaN(d)) return ts;
+  // פורמט ישראלי קצר וברור
+  return d.toLocaleString("he-IL", {hour12:false});
 }
 
-/* חיפוש (פילטר) */
-FILTER.addEventListener("input", ()=>{
-  const q = FILTER.value.trim().toLowerCase();
+/* חיפוש */
+filterInput.addEventListener("input", ()=>{
+  const q = filterInput.value.trim().toLowerCase();
   if(!q){
-    renderList(currentRecords);
+    drawTable(currentRecords);
     return;
   }
   const filtered = currentRecords.filter(r=>{
     const blob = JSON.stringify(r).toLowerCase();
     return blob.includes(q);
   });
-  renderList(filtered);
+  drawTable(filtered);
 });
 
-/* רענון ידני */
-BTN_REFRESH.addEventListener("click", ()=>fetchBinLatest());
+/* PUT שמירה מלאה אחרי עריכה/מחיקה */
+async function saveAllToBin(){
+  // נשלח אובייקט בצורה {answers:[...]}
+  const bodyObj = { answers: currentRecords.map(x=>({...x})) };
+  const url = `${API_BASE}/${BIN_ID}`;
+
+  try{
+    const res = await fetch(url,{
+      method:"PUT",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Access-Key":ACCESS_KEY
+      },
+      body:JSON.stringify(bodyObj)
+    });
+    const raw = await res.text();
+    logDebug("PUT", url, "status="+res.status, "body=", raw);
+
+    if(!res.ok){
+      setStatus("שגיאה בשמירה "+res.status,false);
+      return false;
+    }
+    setStatus("נשמר בהצלחה בענן ✅",true);
+    return true;
+  }catch(e){
+    logDebug("ERR PUT:", e);
+    setStatus("שגיאת רשת בשמירה",false);
+    return false;
+  }
+}
+
+/* מחיקה של רשומה אחת */
+async function deleteRow(idx){
+  currentRecords.splice(idx,1);
+  const ok = await saveAllToBin();
+  if(ok){
+    loadFromBin();
+  }
+}
+
+/* עריכה */
+function openEdit(idx){
+  editingIndex = idx;
+  const r = currentRecords[idx] || {};
+
+  F_dept.value     = r.dept        || r.department   || r.מחלקה      || F_dept.value;
+  F_name.value     = r.workerName  || r.name         || r.שם          || "";
+  F_phone.value    = r.phone       || r.phoneNumber  || r.טלפון       || "";
+  F_building.value = r.building    || r.מבנה         || "";
+  F_floor.value    = r.floor       || r.קומה         || "";
+  F_room.value     = r.room        || r.roomNumber   || r.חדר         || "";
+  F_packs.value    = r.packs       || r.packsCount   || r.כמות        || "1";
+  F_target.value   = r.targetRoom  || r.target       || r.חדריעד      || "";
+
+  modal.style.display = "flex";
+}
+
+/* שמירת העריכה בתוך הזיכרון ואז PUT */
+saveEditB.addEventListener("click", async ()=>{
+  if(editingIndex===null) return;
+  const r = currentRecords[editingIndex] || {};
+
+  r.dept        = F_dept.value.trim();
+  r.workerName  = F_name.value.trim();
+  r.phone       = F_phone.value.trim();
+  r.building    = F_building.value.trim();
+  r.floor       = F_floor.value.trim();
+  r.room        = F_room.value.trim();
+  r.packs       = F_packs.value.trim();
+  r.targetRoom  = F_target.value.trim();
+  r.ts          = new Date().toISOString(); // נעדכן חותמת זמן
+
+  currentRecords[editingIndex] = r;
+
+  const ok = await saveAllToBin();
+  if(ok){
+    modal.style.display="none";
+    editingIndex=null;
+    loadFromBin();
+  }
+});
+
+/* סגירת מודאל */
+closeModalB.addEventListener("click", ()=>{
+  editingIndex=null;
+  modal.style.display="none";
+});
 
 /* ייצוא CSV */
-BTN_EXPORT.addEventListener("click", ()=>{
-  if(!currentRecords || currentRecords.length===0){
-    alert("אין נתונים לייצוא"); 
+exportBtn.addEventListener("click", ()=>{
+  if(!currentRecords.length){
+    alert("אין נתונים לייצוא");
     return;
   }
-  const keys = ["dept","workerName","phone","building","floor","room","packs","targetRoom","ts"];
-  const rows = [keys.join(",")];
-  currentRecords.forEach(rec=>{
-    const line = keys.map(k=>{
-      const v = rec[k] || "";
+  const headers = [
+    "dept","workerName","phone","building","floor",
+    "room","packs","targetRoom","ts"
+  ];
+  const lines = [headers.join(",")];
+
+  currentRecords.forEach(r=>{
+    const row = headers.map(h=>{
+      const v = r[h] || "";
       return `"${String(v).replace(/"/g,'""')}"`;
     }).join(",");
-    rows.push(line);
+    lines.push(row);
   });
-  const csv = rows.join("\n");
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
+
+  const csv = lines.join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
   a.href = url;
   a.download = "moa_data.csv";
   document.body.appendChild(a);
@@ -544,67 +707,14 @@ BTN_EXPORT.addEventListener("click", ()=>{
   URL.revokeObjectURL(url);
 });
 
-/* --- עריכה --- */
-function openEdit(idx){
-  editingIndex = idx;
-  const r = currentRecords[idx] || {};
+/* רענון */
+refreshBtn.addEventListener("click", loadFromBin);
 
-  F_dept.value = r.dept || r.department || r.מחלקה || F_dept.value || "מחמ";
-  F_name.value = r.workerName || r.name || r.שם || "";
-  F_phone.value = r.phone || r.phoneNumber || r.מספר || "";
-  F_building.value = r.building || r.מבנה || "";
-  F_floor.value = r.floor || r.קומה || "";
-  F_room.value = r.room || r.roomNumber || r.מספר_חדר || "";
-  F_packs.value = r.packs || r.packsCount || r.אריזות || "1";
-  F_target.value = r.targetRoom || r.target || r.יעד || "";
-
-  MODAL.style.display = "flex";
-}
-
-// סגירת מודאל
-CLOSE_MODAL.addEventListener("click", ()=>{
-  editingIndex = null;
-  MODAL.style.display = "none";
-});
-
-// שמירת עריכה
-SAVE_EDIT.addEventListener("click", async ()=>{
-  if(editingIndex === null) return;
-  const r = currentRecords[editingIndex] || {};
-  r.dept = F_dept.value;
-  r.workerName = F_name.value;
-  r.phone = F_phone.value;
-  r.building = F_building.value;
-  r.floor = F_floor.value;
-  r.room = F_room.value;
-  r.packs = F_packs.value;
-  r.targetRoom = F_target.value;
-  r.ts = new Date().toISOString();
-
-  currentRecords[editingIndex] = r;
-
-  const ok = await putBin(currentRecords);
-  if(ok){
-    MODAL.style.display = "none";
-    editingIndex = null;
-    await fetchBinLatest();
-  }
-});
-
-/* מחיקה */
-async function deleteRecord(idx){
-  currentRecords.splice(idx,1);
-  const ok = await putBin(currentRecords);
-  if(ok){
-    await fetchBinLatest();
-  }
-}
-
-/* הפעלה ראשונית */
-(async function init(){
-  VER.textContent = "1.0.0";
-  debugLog("מאתחל moadata.html גרסה 1.0.0 עם BIN", BIN_ID);
-  await fetchBinLatest();
+/* התחלה */
+(function init(){
+  verSpan.textContent = "1.1.0";
+  logDebug(`start moadata.html v1.1.0 BIN ${BIN_ID}`);
+  loadFromBin();
 })();
 </script>
 </body>
