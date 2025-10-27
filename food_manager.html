@@ -51,6 +51,8 @@ h1{
   text-align:center;
   line-height:1.3;
 }
+
+/* פס הודעות סטטוס (הצלחה/שגיאה) */
 #statusBox{
   display:none;
   border-radius:var(--radius);
@@ -65,6 +67,7 @@ h1{
 #statusBox.ok{background:var(--ok-bg);}
 #statusBox.err{background:var(--err-bg);}
 
+/* שורת הכפתורים העליונה */
 .controlsBar{
   margin-top:16px;
   display:flex;
@@ -83,6 +86,7 @@ h1{
   align-items:center;
 }
 
+/* כפתורים */
 button.actionBtn{
   background:var(--btn-bg);
   color:var(--btn-text);
@@ -96,6 +100,7 @@ button.actionBtn{
 }
 button.actionBtn:active{background:var(--green-dark);}
 
+/* כפתור מצב טופס */
 #formToggle.online{
   background:var(--green);
   color:#fff;
@@ -105,6 +110,7 @@ button.actionBtn:active{background:var(--green-dark);}
   color:#fff;
 }
 
+/* חיפוש */
 .searchWrap{
   display:flex;
   flex-wrap:nowrap;
@@ -123,6 +129,7 @@ button.actionBtn:active{background:var(--green-dark);}
   font-family:inherit;
 }
 
+/* טבלה */
 .tableWrap{
   background:#fff;
   border:2px solid var(--border);
@@ -156,6 +163,8 @@ tbody tr:nth-child(even){
 tbody tr:nth-child(odd){
   background:#ffffff;
 }
+
+/* כפתור מחיקה בכל שורה */
 td.actionsCell button{
   background:#c59d2f;
   color:#000;
@@ -171,6 +180,7 @@ td.actionsCell button:active{
   filter:brightness(0.9);
 }
 
+/* פוטר גרסה */
 .footerInfo{
   text-align:center;
   font-size:13px;
@@ -182,6 +192,7 @@ td.actionsCell button:active{
 <body>
 <div class="wrap">
   <h1>ניהול תפריט – Food Manager</h1>
+
   <div id="statusBox"></div>
 
   <div class="controlsBar">
@@ -219,14 +230,16 @@ td.actionsCell button:active{
     </table>
   </div>
 
-  <div class="footerInfo">גרסה 1.0.0 · food_manager.html</div>
+  <div class="footerInfo">גרסה 1.2-fix · food_manager.html</div>
 </div>
 
 <script>
-const BIN_ID   = "68ff447a43b1c97be9844c29";
-const ACCESS_KEY = "$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO";
-const API      = "https://api.jsonbin.io/v3/b";
+// ===== הגדרות חיבור ל-JSONBin =====
+const BIN_ID     = "68ff447a43b1c97be9844c29";
+const MASTER_KEY = "$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO";
+const API        = "https://api.jsonbin.io/v3/b";
 
+// ===== רפרנסים ל-DOM =====
 const statusBox    = document.getElementById("statusBox");
 const tableBody    = document.getElementById("tableBody");
 const searchInput  = document.getElementById("searchInput");
@@ -234,17 +247,18 @@ const refreshBtn   = document.getElementById("refreshBtn");
 const csvBtn       = document.getElementById("csvBtn");
 const toggleBtn    = document.getElementById("formToggle");
 
-let allChoices=[], filteredChoices=[];
-let formOpen=true;
+let allChoices = [];
+let filteredChoices = [];
+let formOpen = true;
 
-// הצגת הודעת סטטוס
+// ===== עזרי UI =====
 function showStatus(msg, ok){
   statusBox.style.display="block";
   statusBox.className = ok ? "ok" : "err";
   statusBox.textContent=msg;
 }
 
-// עיצוב תאריך יפה dd.mm.yyyy hh:mm
+// פורמט יפה ל־timestamp: dd.mm.yyyy hh:mm
 function prettyTS(s){
   const d=new Date(s);
   if(isNaN(d)) return "";
@@ -256,11 +270,11 @@ function prettyTS(s){
   return `${dd}.${mm}.${yy} ${hh}:${min}`;
 }
 
-// טוען את המידע מה-BIN
+// ===== שלב 1: טעינת כל הנתונים מה-BIN =====
 async function fetchAll(){
   try {
     const res = await fetch(`${API}/${BIN_ID}/latest`, {
-      headers:{"X-Access-Key":ACCESS_KEY}
+      headers: { "X-Master-Key": MASTER_KEY }
     });
     const j = await res.json();
 
@@ -277,10 +291,11 @@ async function fetchAll(){
   }
 }
 
-// מציג בטבלה
+// ===== שלב 2: רנדר לטבלה =====
 function render(){
   if(!filteredChoices.length){
-    tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#777;">אין נתונים</td></tr>';
+    tableBody.innerHTML =
+      '<tr><td colspan="9" style="text-align:center;color:#777;">אין נתונים</td></tr>';
     return;
   }
 
@@ -299,7 +314,7 @@ function render(){
   `).join("");
 }
 
-// חיפוש
+// ===== חיפוש מקומי =====
 function applySearch(){
   const q = searchInput.value.trim().toLowerCase();
   if(!q){
@@ -312,21 +327,23 @@ function applySearch(){
   render();
 }
 
-// מחיקה של רשומה אחת
+// ===== מחיקת רשומה בודדת =====
 tableBody.addEventListener("click", async (e)=>{
   if(e.target.tagName==="BUTTON"){
     const idx = e.target.dataset.i;
     allChoices.splice(idx,1);
+
     const body = {
       "formOpen": formOpen,
       "בחירות": allChoices
     };
+
     try{
       await fetch(`${API}/${BIN_ID}`,{
         method:"PUT",
         headers:{
           "Content-Type":"application/json",
-          "X-Access-Key":ACCESS_KEY
+          "X-Master-Key": MASTER_KEY
         },
         body:JSON.stringify(body)
       });
@@ -338,10 +355,10 @@ tableBody.addEventListener("click", async (e)=>{
   }
 });
 
-// CSV ייצוא
+// ===== ייצוא CSV =====
 csvBtn.addEventListener("click", ()=>{
   if(!filteredChoices.length) return;
-  const BOM="\uFEFF"; // כדי שיפתח יפה באקסל בעברית
+  const BOM="\uFEFF"; // כדי שיפתח טוב באקסל בעברית
 
   const rows=[["שם","מנה","פחמימה","סלט1","סלט2","שתייה","קינוח","תאריך"]];
   filteredChoices.forEach(rec=>{
@@ -369,7 +386,7 @@ csvBtn.addEventListener("click", ()=>{
   URL.revokeObjectURL(url);
 });
 
-// מצב טופס ONLINE / OFFLINE
+// ===== כפתור ONLINE / OFFLINE =====
 function updateToggle(){
   toggleBtn.className = formOpen ? "actionBtn online" : "actionBtn offline";
   toggleBtn.textContent = formOpen ? "ONLINE" : "OFFLINE";
@@ -390,7 +407,7 @@ async function toggleForm(){
       method:"PUT",
       headers:{
         "Content-Type":"application/json",
-        "X-Access-Key":ACCESS_KEY
+        "X-Master-Key": MASTER_KEY
       },
       body:JSON.stringify(body)
     });
@@ -401,14 +418,13 @@ async function toggleForm(){
   }
 }
 
-// מאזינים
+// ===== מאזינים =====
 refreshBtn.onclick = fetchAll;
 toggleBtn.onclick  = toggleForm;
 searchInput.oninput= applySearch;
 
-// טוען בהתחלה
+// ===== טוען בהתחלה =====
 fetchAll();
 </script>
 </body>
 </html>
-
