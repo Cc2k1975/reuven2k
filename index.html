@@ -4,503 +4,300 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>מועדפים</title>
-  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root{
-      /* צבעים עדכניים יותר – אווירת SOC / cybersecurity */
-      --bg:#05060a;
-      --bg-grad-1:#0a0f1d;
-      --bg-grad-2:#000000;
-      --card:#0f1625;
-      --card-2:#0a0f1a;
-      --card-glow:#1b2e5a;
-      --text:#eef3ff;
-      --muted:#6f7b96;
-      --accent:#6ea5ff;
-      --accent-2:#4dd6c1;
-      --accent-glow:rgba(110,165,255,.22);
-      --ring:rgba(110,165,255,.4);
-      --danger:#ff6b6b;
-      --radius:18px;
-      --radius-sm:12px;
-      --shadow:0 30px 80px rgba(0,0,0,.9);
-      --border-card:rgba(255,255,255,.07);
-      --border-card-hover:rgba(122,162,255,.35);
-      --glass-bg:rgba(10,15,25,.55);
-      --glass-border:rgba(255,255,255,.08);
-      --glass-inner-border:rgba(255,255,255,.18);
+      --bg-top:#e9f6eb;
+      --bg-bottom:#ffffff;
+      --card-bg:#ffffff;
+      --card-border:#dbe5d9;
+      --card-shadow:0 8px 20px rgba(0,0,0,0.08);
+      --card-radius:16px;
+      --icon-bg:#34c759;         /* ירוק iOS style */
+      --icon-color:#fff;
+      --text-main:#0f1a12;
+      --text-muted:#4d5a4b;
+      --danger:#ff3b30;
+      --panel-bg:#ffffff;
+      --panel-border:#dcdcdc;
+      --panel-radius:16px;
+      --panel-shadow:0 12px 30px rgba(0,0,0,0.1);
+      --input-bg:#ffffff;
+      --input-border:#cfd3ce;
+      --input-radius:10px;
+      --btn-bg:#0f1a12;
+      --btn-color:#ffffff;
+      --btn-radius:10px;
+      --btn-shadow:0 10px 20px rgba(0,0,0,0.15);
+      --btn-sec-bg:#ffffff;
+      --btn-sec-color:#0f1a12;
+      --btn-sec-border:#0f1a12;
     }
 
-    *{box-sizing:border-box}
-    html,body{height:100%}
+    *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    html,body{height:100%;}
     body{
       margin:0;
-      color:var(--text);
-      font-family:"Heebo",sans-serif;
-      font-size:12px;
-      background:
-        radial-gradient(circle at 20% -10%, rgba(77,214,193,.12) 0%, rgba(0,0,0,0) 60%),
-        radial-gradient(circle at 80% 0%, rgba(110,165,255,.18) 0%, rgba(0,0,0,0) 70%),
-        radial-gradient(1000px 700px at 50% 10%, var(--bg-grad-1) 0%, var(--bg-grad-2) 60%);
-      background-color:var(--bg);
-      background-attachment:fixed;
+      font-family:"Heebo",system-ui,sans-serif;
+      color:var(--text-main);
+      background:linear-gradient(to bottom,var(--bg-top) 0%,var(--bg-bottom) 60%);
       min-height:100vh;
-      position:relative;
+      display:flex;
+      flex-direction:column;
+      padding-bottom:140px; /* מקום לפאנל התחתון */
     }
 
-    /* הילת רשת עדינה מאחורה - בלי לשבור כלום */
-    body::before{
-      content:"";
-      position:fixed;
-      inset:0;
-      background-image:
-        radial-gradient(circle at 50% 0%, rgba(110,165,255,.12) 0%, transparent 60%),
-        repeating-linear-gradient(
-          115deg,
-          rgba(255,255,255,.03) 0px,
-          rgba(255,255,255,.00) 2px,
-          rgba(0,0,0,0) 2px,
-          rgba(0,0,0,0) 6px
-        );
-      mix-blend-mode:screen;
-      pointer-events:none;
-      filter:blur(60px) saturate(140%);
-      opacity:.4;
-    }
-
-    /* הילה רכה מסביב לכל הכרטיסים - נותן תחושה של cluster */
+    /* עטיפה עליונה של התוכן */
     .wrap{
+      width:100%;
       max-width:1000px;
-      margin:auto;
-      padding:12px 10px 140px;
-      position:relative;
-      z-index:2;
-    }
-    .wrap::before{
-      content:"";
-      position:absolute;
-      inset:-40px -10px auto -10px;
-      height:220px;
-      background: radial-gradient(ellipse at 50% 0%,
-        rgba(15,25,45,.8) 0%,
-        rgba(0,0,0,0) 70%);
-      border-radius:40px;
-      filter:blur(40px);
-      opacity:.6;
-      pointer-events:none;
+      margin:0 auto;
+      padding:16px 16px 24px;
     }
 
-    /* === כותרת עליונה משודרגת === */
     header{
-      text-align:center;
+      display:flex;
+      align-items:center;
+      gap:10px;
       margin-bottom:20px;
-      position:relative;
-      z-index:3;
     }
 
-    /* טבעת לוגו עם אפקט זכוכית+זוהר */
-    .logo{
-      width:54px;
-      height:54px;
-      border-radius:16px;
-      background:
-        radial-gradient(circle at 30% 20%, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 40%),
-        radial-gradient(circle at 80% 60%, rgba(77,214,193,.45) 0%, rgba(0,0,0,0) 60%),
-        radial-gradient(circle at 20% 80%, rgba(110,165,255,.45) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(140deg, rgba(15,25,45,.8) 0%, rgba(10,15,25,.4) 60%);
-      box-shadow:
-        0 12px 30px rgba(0,0,0,.8),
-        0 0 30px rgba(110,165,255,.4),
-        0 0 80px rgba(77,214,193,.2);
-      border:1px solid rgba(255,255,255,.22);
-      display:grid;
-      place-items:center;
-      margin:12px auto 10px;
-      position:relative;
-      isolation:isolate;
+    .header-icon{
+      width:36px;
+      height:36px;
+      background:var(--icon-bg);
+      color:var(--icon-color);
+      border-radius:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 8px 16px rgba(52,199,89,0.4);
     }
-
-    /* הילה פנימית עדינה */
-    .logo::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      border-radius:16px;
-      background:radial-gradient(circle at 50% 0%,rgba(255,255,255,.4)0%,rgba(255,255,255,0)70%);
-      mix-blend-mode:soft-light;
-      opacity:.4;
-    }
-
-    .logo svg{
-      width:22px;
-      height:22px;
-      position:relative;
-      z-index:2;
-      filter:drop-shadow(0 0 4px rgba(255,255,255,.8));
+    .header-icon svg{
+      width:20px;
+      height:20px;
+      stroke:var(--icon-color);
+      stroke-width:2;
+      fill:none;
     }
 
     h1{
-      margin:0;
-      font-size:32px; /* אפילו יותר "מותג" */
+      font-size:24px;
+      line-height:1.2;
       font-weight:800;
-      letter-spacing:.2px;
-      color:var(--text);
-      text-shadow:
-        0 0 6px rgba(110,165,255,.6),
-        0 0 20px rgba(77,214,193,.4),
-        0 20px 40px rgba(0,0,0,.8);
+      color:var(--text-main);
+      margin:0;
     }
 
-    /* פס דק מתחת לכותרת כדי לתת תחושה של מוצר */
-    header::after{
-      content:"";
-      display:block;
-      width:110px;
-      height:1px;
-      background:linear-gradient(
-        90deg,
-        rgba(0,0,0,0) 0%,
-        rgba(110,165,255,.8) 50%,
-        rgba(0,0,0,0) 100%
-      );
-      margin:14px auto 0;
-      box-shadow:0 0 14px rgba(110,165,255,.7);
-      border-radius:999px;
-    }
-
-    /* === GRID: נשאר 4 טורים בדיוק כמו אצלך === */
+    /* רשת כרטיסים - 3 בעמודה */
     .grid{
       display:grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap:12px;
-      margin:16px 0 24px;
-      position:relative;
-      z-index:3;
+      grid-template-columns:repeat(auto-fit,minmax(min(180px,30%),1fr));
+      gap:16px;
     }
 
-    /* אנימציית כניסה - נשארה אבל יותר "מרחפת" */
-    @keyframes fadeUp {
-      from { opacity:0; transform: translateY(10px) scale(.98); filter:blur(4px); }
-      to   { opacity:1; transform: translateY(0) scale(1); filter:blur(0); }
-    }
-
-    /* === כרטיס משודרג === */
+    /* כרטיס בודד */
     .card{
-      background:
-        radial-gradient(circle at 0% 0%, rgba(122,162,255,.18) 0%, rgba(0,0,0,0) 60%),
-        radial-gradient(circle at 100% 100%, rgba(77,214,193,.14) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(160deg, var(--card) 0%, var(--card-2) 70%);
-      border-radius: var(--radius);
-      padding:12px 10px 14px;
+      background:var(--card-bg);
+      border:1px solid var(--card-border);
+      border-radius:var(--card-radius);
+      box-shadow:var(--card-shadow);
+      padding:16px 12px 12px;
       text-align:center;
-      border:1px solid var(--border-card);
-      box-shadow:
-        0 20px 40px rgba(0,0,0,.9),
-        0 0 50px rgba(110,165,255,.18),
-        0 0 120px rgba(77,214,193,.1);
-      transition: transform .18s, border-color .18s, box-shadow .18s;
-      position: relative;
-      opacity:0; transform: translateY(8px);
-    }
-
-    /* שמרתי את המחלקה appear שלך בדיוק */
-    .card.appear{
-      animation: fadeUp .45s cubic-bezier(.16,.84,.44,1) forwards;
-    }
-
-    .card:hover{
-      transform: translateY(-3px) scale(1.02);
-      border-color: var(--border-card-hover);
-      box-shadow:
-        0 30px 60px rgba(0,0,0,.9),
-        0 0 60px rgba(110,165,255,.4),
-        0 0 160px rgba(77,214,193,.28);
-    }
-
-    /* טבעת אייקון */
-    .fav{
-      width:48px;
-      height:48px;
-      border-radius:var(--radius-sm);
-      margin:0 auto 10px;
-      background:
-        radial-gradient(circle at 30% 20%, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 40%),
-        radial-gradient(circle at 80% 60%, rgba(77,214,193,.4) 0%, rgba(0,0,0,0) 60%),
-        radial-gradient(circle at 20% 80%, rgba(110,165,255,.4) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(150deg, rgba(20,30,50,.8) 0%, rgba(10,15,25,.4) 60%);
-      display:grid;
-      place-items:center;
-      border:1px solid rgba(255,255,255,.14);
-      box-shadow:
-        0 10px 24px rgba(0,0,0,.9),
-        0 0 20px rgba(110,165,255,.5),
-        0 0 60px rgba(77,214,193,.3);
       position:relative;
-      isolation:isolate;
-    }
-    .fav::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      border-radius:var(--radius-sm);
-      background:radial-gradient(circle at 50% 0%,rgba(255,255,255,.5)0%,rgba(255,255,255,0)70%);
-      mix-blend-mode:soft-light;
-      opacity:.5;
-    }
-    .fav img{
-      width:22px;
-      height:22px;
-      position:relative;
-      z-index:2;
-      filter:drop-shadow(0 0 4px rgba(255,255,255,.9));
-    }
-
-    /* כפתור "פתח קישור" */
-    .card a.open{
-      display:inline-block;
-      width:100%;
-      font-size:11px;
-      font-weight:800;
-      line-height:1.3;
-      padding:8px 10px;
-      border-radius:var(--radius-sm);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      cursor:pointer;
       text-decoration:none;
-      color:var(--text);
-      background:
-        radial-gradient(circle at 0% 0%, rgba(122,162,255,.28) 0%, rgba(0,0,0,0) 60%),
-        radial-gradient(circle at 100% 100%, rgba(77,214,193,.22) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(135deg, rgba(20,30,50,.9) 0%, rgba(10,15,25,.4) 70%);
-      border:1px solid rgba(255,255,255,.18);
-      box-shadow:
-        0 12px 30px rgba(0,0,0,.9),
-        0 0 20px rgba(110,165,255,.45),
-        0 0 60px rgba(77,214,193,.25);
-      transition:transform .15s, border-color .15s, background .15s, box-shadow .15s;
-      position:relative;
-      overflow:hidden;
+      color:var(--text-main);
+      transition:transform .12s ease, box-shadow .12s ease;
+    }
+    .card:hover{
+      transform:translateY(-2px);
+      box-shadow:0 10px 24px rgba(0,0,0,0.12);
     }
 
-    .card a.open:hover{
-      transform:translateY(-2px) scale(1.03);
-      border-color: rgba(255,255,255,.6);
-      box-shadow:
-        0 20px 40px rgba(0,0,0,1),
-        0 0 30px rgba(110,165,255,.8),
-        0 0 100px rgba(77,214,193,.6);
-    }
-
-    /* פס היי-לייט דינמי בתוך הכפתור */
-    .card a.open::after{
-      content:"";
-      position:absolute;
-      top:0;
-      left:0;
-      right:0;
-      height:40%;
-      background:radial-gradient(circle at 50% 0%,
-        rgba(255,255,255,.35) 0%,
-        rgba(255,255,255,0) 70%);
-      mix-blend-mode:soft-light;
-      opacity:.4;
-    }
-
-    /* פעולות (ערוך/מחק) */
+    /* כפתורי עריכה/מחיקה למעלה בפינה */
     .actions{
       position:absolute;
-      top:4px;
-      inset-inline-start:4px;
+      top:8px;
+      inset-inline-start:8px;
       display:flex;
-      gap:4px;
-      z-index:3;
-      opacity:0;
-      transition: opacity .15s ease;
+      gap:6px;
     }
-    .card:hover .actions{ opacity:.95; }
 
     .iconbtn{
-      width:16px;
-      height:16px;
+      width:22px;
+      height:22px;
       border-radius:6px;
-      border:1px solid rgba(255,255,255,.24);
-      background:rgba(5,8,14,.6);
-      color:var(--text);
-      display:grid;
-      place-items:center;
+      border:1px solid #cfd3ce;
+      background:#fff;
+      box-shadow:0 4px 8px rgba(0,0,0,0.08);
+      display:flex;
+      align-items:center;
+      justify-content:center;
       cursor:pointer;
-      transition:transform .12s, border-color .12s, background .12s, opacity .12s, box-shadow .12s;
       padding:0;
-      opacity:.7;
-      box-shadow:0 8px 16px rgba(0,0,0,.8),0 0 16px rgba(110,165,255,.4);
-      backdrop-filter:blur(6px);
-    }
-    .iconbtn:hover{
-      transform:translateY(-2px) scale(1.05);
-      border-color: rgba(110,165,255,.8);
-      background:rgba(15,25,45,.9);
-      opacity:1;
-      box-shadow:0 12px 24px rgba(0,0,0,1),0 0 24px rgba(110,165,255,.8);
     }
     .iconbtn svg{
-      width:9px;
-      height:9px;
-      opacity:.9;
-      filter:drop-shadow(0 0 3px rgba(255,255,255,.9));
+      width:14px;
+      height:14px;
+      stroke:#0f1a12;
+      stroke-width:1.6;
+      fill:none;
     }
 
-    /* טקסט ריק */
-    .empty{
-      margin:20px 0 24px;
-      color:var(--muted);
-      text-align:center;
+    /* מעגל אייקון ירוק למעלה בכרטיס */
+    .fav{
+      width:64px;
+      height:64px;
+      border-radius:16px;
+      background:var(--icon-bg);
+      color:var(--icon-color);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 10px 16px rgba(52,199,89,0.4);
+      margin-bottom:12px;
+      flex-shrink:0;
+    }
+    .fav svg{
+      width:28px;
+      height:28px;
+      stroke:var(--icon-color);
+      stroke-width:2;
+      fill:none;
+    }
+
+    /* שם הקישור */
+    .card-title{
+      font-size:16px;
+      font-weight:600;
+      line-height:1.3;
+      color:var(--text-main);
+      margin-bottom:4px;
+      max-width:100%;
+      word-break:break-word;
+    }
+
+    /* ה-URL קטן באפור (לא חובה לך להציג, אבל נשאיר) */
+    .card-url{
       font-size:12px;
-      text-shadow:0 20px 40px rgba(0,0,0,.9);
+      line-height:1.3;
+      color:var(--text-muted);
+      direction:ltr;
+      unicode-bidi:plaintext;
+      word-break:break-all;
+      max-width:100%;
     }
 
-    /* === בר תחתון משודרג (glassmorphism) === */
+    /* טקסט "אין נתונים" */
+    .empty{
+      margin:24px 0;
+      text-align:center;
+      color:var(--text-muted);
+      font-size:14px;
+    }
+
+    /* פאנל התחתון */
     .bar{
       position:fixed;
-      bottom:0;
       left:0;
       right:0;
-      background:var(--glass-bg);
-      backdrop-filter: blur(14px) saturate(160%);
-      border-top:1px solid var(--glass-border);
-      box-shadow:
-        0 -20px 40px rgba(0,0,0,.9),
-        0 0 60px rgba(110,165,255,.25),
-        0 0 140px rgba(77,214,193,.18);
-      padding:12px 12px 16px;
-      z-index:999;
+      bottom:0;
+      padding:16px;
+      background:transparent;
+      display:flex;
+      justify-content:center;
+      pointer-events:none;
     }
 
     .bar-inner{
+      width:100%;
       max-width:1000px;
-      margin:auto;
+      background:var(--panel-bg);
+      border:1px solid var(--panel-border);
+      border-radius:var(--panel-radius);
+      box-shadow:var(--panel-shadow);
+      padding:16px;
       display:grid;
-      gap:12px;
-      grid-template-columns: 1fr 1fr auto auto;
+      grid-template-columns:1fr 1fr auto auto;
+      gap:12px 16px;
       align-items:end;
-      position:relative;
-    }
-
-    /* מסגרת פנימית עדינה בתוך הבר */
-    .bar-inner::before{
-      content:"";
-      position:absolute;
-      inset:-12px -12px -16px -12px;
-      border-radius:24px 24px 0 0;
-      pointer-events:none;
-      background:radial-gradient(circle at 50% 0%,
-        rgba(110,165,255,.18) 0%,
-        rgba(0,0,0,0) 70%);
-      box-shadow:0 0 60px rgba(110,165,255,.4),0 0 160px rgba(77,214,193,.25);
-      opacity:.4;
-      filter:blur(40px);
+      pointer-events:auto;
     }
 
     label{
-      font-size:10px;
-      color:var(--muted);
-      margin-bottom:4px;
-      display:block;
+      font-size:12px;
       font-weight:600;
-      letter-spacing:.1px;
-      text-shadow:0 20px 40px rgba(0,0,0,.9);
+      color:var(--text-main);
+      margin-bottom:6px;
+      display:block;
     }
 
     input{
       width:100%;
       padding:10px 12px;
-      border-radius:var(--radius-sm);
-      background:rgba(5,8,14,.6);
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.14);
+      background:var(--input-bg);
+      border:1px solid var(--input-border);
+      border-radius:var(--input-radius);
+      font-size:14px;
+      line-height:1.3;
+      color:var(--text-main);
       outline:none;
       direction:rtl;
-      font-size:12px;
-      font-weight:400;
-      box-shadow:
-        0 12px 24px rgba(0,0,0,.9),
-        0 0 24px rgba(110,165,255,.3);
-      backdrop-filter:blur(6px);
-      transition:border-color .15s, box-shadow .15s, background .15s;
     }
-
     input:focus{
-      border-color:var(--accent);
-      box-shadow:
-        0 0 0 4px var(--ring),
-        0 20px 40px rgba(0,0,0,1),
-        0 0 40px rgba(110,165,255,.7),
-        0 0 120px rgba(77,214,193,.4);
-      background:rgba(10,15,25,.8);
+      border-color:#34c759;
+      box-shadow:0 0 0 3px rgba(52,199,89,0.3);
     }
 
     .btn{
-      padding:10px 12px;
+      appearance:none;
       border:none;
-      border-radius:var(--radius-sm);
-      font-weight:800;
-      font-size:12px;
-      line-height:1.2;
-      background:
-        radial-gradient(circle at 0% 0%, rgba(122,162,255,.4) 0%, rgba(0,0,0,0) 60%),
-        radial-gradient(circle at 100% 100%, rgba(77,214,193,.35) 0%, rgba(0,0,0,0) 60%),
-        linear-gradient(135deg,#6ea5ff 0%,#4dd6c1 70%);
-      color:#0b0d12;
+      border-radius:var(--btn-radius);
+      font-size:14px;
+      font-weight:600;
+      line-height:1.3;
+      padding:10px 14px;
       cursor:pointer;
-      box-shadow:
-        0 14px 32px rgba(0,0,0,1),
-        0 0 30px rgba(110,165,255,.8),
-        0 0 100px rgba(77,214,193,.6);
       white-space:nowrap;
-      text-shadow:0 0 8px rgba(255,255,255,.6);
-      transition:transform .15s, filter .15s, box-shadow .15s;
-      position:relative;
-      z-index:2;
+      box-shadow:var(--btn-shadow);
     }
-
-    .btn:hover{
-      transform:translateY(-2px) scale(1.03);
-      filter:saturate(120%);
-      box-shadow:
-        0 20px 40px rgba(0,0,0,1),
-        0 0 40px rgba(110,165,255,1),
-        0 0 140px rgba(77,214,193,.8);
+    .btn-main{
+      background:var(--btn-bg);
+      color:var(--btn-color);
     }
-
     .btn-sec{
-      background:
-        linear-gradient(160deg,rgba(10,15,25,.9)0%,rgba(5,8,14,.4)70%);
-      color:var(--text);
-      border:1px solid rgba(255,255,255,.22);
-      text-shadow:0 0 8px rgba(255,255,255,.8);
-    }
-
-    .btn-sec:hover{
-      box-shadow:
-        0 20px 40px rgba(0,0,0,1),
-        0 0 40px rgba(110,165,255,.8),
-        0 0 140px rgba(77,214,193,.6);
-      border-color:rgba(110,165,255,.8);
+      background:var(--btn-sec-bg);
+      color:var(--btn-sec-color);
+      border:1px solid var(--btn-sec-border);
+      box-shadow:0 6px 12px rgba(0,0,0,0.08);
     }
 
     .err{
       color:var(--danger);
-      font-size:10px;
-      margin-top:4px;
+      font-size:12px;
       font-weight:600;
-      text-shadow:0 20px 40px rgba(0,0,0,.9);
+      margin-top:4px;
+    }
+
+    @media(max-width:600px){
+      .bar-inner{
+        grid-template-columns:1fr 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <div class="logo">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M4 12a8 8 0 1 0 16 0" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
-          <circle cx="12" cy="12" r="3" fill="white"/>
+      <div class="header-icon" aria-hidden="true">
+        <!-- אייקון שיחה סטייל FaceTime כסתם דוגמה -->
+        <svg viewBox="0 0 24 24">
+          <path d="M3 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+          <path d="M15 10.5 21 7v10l-6-3.5v-3Z"/>
         </svg>
       </div>
       <h1>מועדפים</h1>
@@ -521,82 +318,158 @@
         <input id="url" type="text" autocomplete="off" inputmode="url">
         <div id="err" class="err" hidden></div>
       </div>
-      <button id="saveAll" class="btn" type="button">שמור לכולם</button>
+      <button id="saveAll" class="btn btn-main" type="button">שמור לכולם</button>
       <button id="refreshBtn" class="btn btn-sec" type="button">רענן נתונים</button>
     </div>
   </div>
 
   <script>
-    const $ = s=>document.querySelector(s);
-    const cards=$("#cards"), empty=$("#empty"),
-          inpName=$("#name"), inpUrl=$("#url"),
-          btnSave=$("#saveAll"), err=$("#err"),
-          refreshBtn=$("#refreshBtn");
-    const JSON_PATH="data/links.json"; let list=[];
-    const GH_EDIT_URL="https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
-    const faviconFor=u=>`https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(u).hostname)}&sz=64`;
+    const $ = s => document.querySelector(s);
+    const cards = $("#cards"),
+          empty = $("#empty"),
+          inpName = $("#name"),
+          inpUrl = $("#url"),
+          btnSave = $("#saveAll"),
+          err = $("#err"),
+          refreshBtn = $("#refreshBtn");
+
+    const JSON_PATH = "data/links.json";
+    let list = [];
+    const GH_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
+
+    // אייקון ברירת מחדל לכרטיס (במקום favicon)
+    function cardIconSVG(){
+      return `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="8" r="4"></circle>
+          <path d="M4 20c0-4 3-6 8-6s8 2 8 6"></path>
+        </svg>`;
+    }
 
     async function loadJson(){
       try{
-        const r=await fetch(`${JSON_PATH}?v=${Date.now()}`,{cache:"no-store"});
+        const r = await fetch(\`\${JSON_PATH}?v=\${Date.now()}\`, {cache:"no-store"});
         if(!r.ok) throw 0;
-        list=await r.json();
-        if(!Array.isArray(list)) list=[];
-      }catch{ list=[]; }
-      render(true);
+        list = await r.json();
+        if(!Array.isArray(list)) list = [];
+      }catch{
+        list = [];
+      }
+      render();
     }
 
     function normalizeUrl(raw){
-      let s=(raw||"").trim();
+      let s = (raw||"").trim();
       if(!s) throw new Error("נא למלא קישור");
-      if(!/^https?:\/\//i.test(s)) s="https://"+s;
-      try{ return new URL(s).toString(); }
-      catch{ throw new Error("כתובת לא תקינה"); }
+      if(!/^https?:\\/\\//i.test(s)) s = "https://" + s;
+      try{
+        return new URL(s).toString();
+      }catch{
+        throw new Error("כתובת לא תקינה");
+      }
     }
 
-    function render(withAnimation=false){
-      cards.innerHTML="";
-      if(!list.length){ empty.hidden=false; return; }
-      empty.hidden=true;
+    function render(){
+      cards.innerHTML = "";
+      if(!list.length){
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
 
       list.forEach((item, i)=>{
-        const c=document.createElement("div"); c.className="card";
-        if(withAnimation){ c.classList.add("appear"); c.style.animationDelay = (i*0.05)+"s"; }
+        // עוטף את כל הכרטיס בלינק
+        const cardLink = document.createElement("a");
+        cardLink.className = "card";
+        cardLink.href = item.url;
+        cardLink.target = "_blank";
+        cardLink.rel = "noopener";
 
-        const fav = `<div class="fav"><img src="${faviconFor(item.url)}" alt=""></div>`;
-        const open = `<a class="open" href="${item.url}" target="_blank" rel="noopener">${item.name}</a>`;
+        // פעולות עריכה/מחיקה בפינה
+        const actions = document.createElement("div");
+        actions.className = "actions";
 
-        const actions = `
-          <div class="actions">
-            <button class="iconbtn" title="ערוך" data-action="edit" data-index="${i}">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M4 16.5V20h3.3L19 8.3l-3.3-3.3L4 16.5z" stroke="white" stroke-width="1.2"/></svg>
-            </button>
-            <button class="iconbtn" title="מחק" data-action="delete" data-index="${i}">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5h6v2m-8 3 1 9h8l1-9" stroke="white" stroke-width="1.2"/></svg>
-            </button>
-          </div>
+        const btnEdit = document.createElement("button");
+        btnEdit.className = "iconbtn";
+        btnEdit.title = "ערוך";
+        btnEdit.setAttribute("data-action","edit");
+        btnEdit.setAttribute("data-index",i);
+        btnEdit.innerHTML = `
+          <svg viewBox="0 0 24 24">
+            <path d="M4 16.5V20h3.3L19 8.3l-3.3-3.3L4 16.5z"/>
+          </svg>
         `;
-        c.innerHTML = actions + fav + open;
-        cards.appendChild(c);
+
+        const btnDel = document.createElement("button");
+        btnDel.className = "iconbtn";
+        btnDel.title = "מחק";
+        btnDel.setAttribute("data-action","delete");
+        btnDel.setAttribute("data-index",i);
+        btnDel.innerHTML = `
+          <svg viewBox="0 0 24 24">
+            <path d="M6 7h12M9 7V5h6v2m-8 3 1 9h8l1-9"/>
+          </svg>
+        `;
+
+        actions.appendChild(btnEdit);
+        actions.appendChild(btnDel);
+
+        // אזור האייקון
+        const fav = document.createElement("div");
+        fav.className = "fav";
+        fav.innerHTML = cardIconSVG();
+
+        // שם + URL
+        const titleEl = document.createElement("div");
+        titleEl.className = "card-title";
+        titleEl.textContent = item.name || "";
+
+        const urlEl = document.createElement("div");
+        urlEl.className = "card-url";
+        urlEl.textContent = item.url || "";
+
+        // בונה את הכרטיס בפועל
+        cardLink.appendChild(actions);
+        cardLink.appendChild(fav);
+        cardLink.appendChild(titleEl);
+        cardLink.appendChild(urlEl);
+
+        cards.appendChild(cardLink);
       });
 
+      // מאזינים לעריכה/מחיקה
       cards.querySelectorAll(".iconbtn").forEach(btn=>{
-        btn.addEventListener("click", onAction);
+        btn.addEventListener("click", onActionClick);
       });
     }
 
     function addAndSave(){
-      err.hidden=true; err.textContent="";
-      const name=(inpName.value||"").trim();
-      const raw=(inpUrl.value||"").trim();
-      if(!name || !raw){ err.textContent="נא למלא את שני השדות"; err.hidden=false; return; }
-      let url;
-      try{ url = normalizeUrl(raw); } catch(e){ err.textContent=e.message; err.hidden=false; return; }
+      err.hidden = true;
+      err.textContent = "";
+      const name = (inpName.value||"").trim();
+      const raw  = (inpUrl.value||"").trim();
+      if(!name || !raw){
+        err.textContent = "נא למלא את שני השדות";
+        err.hidden = false;
+        return;
+      }
 
-      const i = list.findIndex(x=>x.url?.toLowerCase()===url.toLowerCase());
+      let url;
+      try{
+        url = normalizeUrl(raw);
+      }catch(e){
+        err.textContent = e.message;
+        err.hidden = false;
+        return;
+      }
+
+      // אם קיים כבר אותו URL - נעדכן אותו למעלה
+      const i = list.findIndex(x=>x.url?.toLowerCase() === url.toLowerCase());
       if(i>-1) list.splice(i,1);
+
       list.unshift({name, url, ts: Date.now()});
-      inpName.value=""; inpUrl.value="";
+      inpName.value = "";
+      inpUrl.value = "";
       render();
 
       copyAndOpen();
@@ -605,23 +478,32 @@
     function copyAndOpen(){
       const txt = JSON.stringify(list, null, 2);
       const openEdit = () => window.open(GH_EDIT_URL,"_blank");
+
       if(navigator.clipboard?.writeText){
         navigator.clipboard.writeText(txt).then(openEdit, openEdit);
       }else{
-        const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select();
+        const ta=document.createElement("textarea");
+        ta.value=txt;
+        document.body.appendChild(ta);
+        ta.select();
         try{ document.execCommand("copy"); }catch{}
-        ta.remove(); openEdit();
+        ta.remove();
+        openEdit();
       }
     }
 
-    function onAction(e){
+    function onActionClick(e){
+      // חשוב: לא לתת לקליק על עריכה/מחיקה לפתוח את הלינק
+      e.stopPropagation();
+      e.preventDefault();
+
       const btn = e.currentTarget;
       const idx = Number(btn.getAttribute("data-index"));
       const action = btn.getAttribute("data-action");
       if(Number.isNaN(idx) || !list[idx]) return;
 
       if(action==="delete"){
-        if(confirm(`למחוק את "${list[idx].name}"?`)){
+        if(confirm(\`למחוק את "\${list[idx].name}"?\`)){
           list.splice(idx,1);
           render();
           copyAndOpen();
@@ -634,7 +516,12 @@
         if(newUrlRaw===null) return;
         try{
           const newUrl = normalizeUrl(newUrlRaw);
-          list[idx] = { ...curr, name: (newName||"").trim() || curr.name, url: newUrl, ts: Date.now() };
+          list[idx] = {
+            ...curr,
+            name:(newName||"").trim()||curr.name,
+            url:newUrl,
+            ts:Date.now()
+          };
           render();
           copyAndOpen();
         }catch(errMsg){
@@ -650,7 +537,11 @@
     }
 
     btnSave.addEventListener("click", addAndSave);
-    [inpName, inpUrl].forEach(el=>el.addEventListener("keydown", e=>{ if(e.key==="Enter") addAndSave(); }));
+    [inpName, inpUrl].forEach(el=>{
+      el.addEventListener("keydown", e=>{
+        if(e.key==="Enter") addAndSave();
+      });
+    });
     refreshBtn.addEventListener("click", refreshData);
 
     loadJson();
