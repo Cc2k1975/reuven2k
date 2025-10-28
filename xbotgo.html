@@ -87,6 +87,7 @@ body {
   direction:ltr;
 }
 
+/* שם קבוצה */
 .team-label {
   color:#fff;
   padding:4px 8px;
@@ -98,6 +99,7 @@ body {
   background:#1a1446;
 }
 
+/* תוצאה */
 .team-score-block {
   background:#f4dd3a;
   color:#000;
@@ -111,6 +113,7 @@ body {
   border-right:1px solid rgba(0,0,0,0.4);
 }
 
+/* שעון */
 .timer-block {
   background:#ffffff;
   color:#000000;
@@ -124,28 +127,50 @@ body {
   border-right:1px solid rgba(0,0,0,0.4);
 }
 
-/* אייקון הערוץ (לחצן פתיחת שליטה) – ימין למעלה */
-.channel-logo {
+/* אזור ימין למעלה: לוגו + רענון + גרסה */
+.top-right-cluster {
   position:absolute;
   top:8px;
   right:8px;
+  z-index:200;
+  display:flex;
+  flex-direction:row;
+  align-items:flex-start;
+  gap:8px;
+  pointer-events:auto;
+  font-family:"Heebo",Arial,sans-serif;
+  color:#fff;
+}
+
+/* לוגו לחיץ */
+.channel-logo-wrap {
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.channel-logo {
   width:52px;
   height:52px;
   border-radius:50%;
   border:2px solid rgba(255,255,255,0.4);
   box-shadow:0 0 10px rgba(0,0,0,0.7);
   cursor:pointer;
-  z-index:150;
   object-fit:cover;
-  pointer-events:auto;
   background:#000;
 }
+.version-tag {
+  margin-top:4px;
+  font-size:0.65rem;
+  font-weight:600;
+  color:#00ffa9;
+  text-shadow:0 0 6px rgba(0,255,169,0.6);
+  font-family:"Heebo",Arial,sans-serif;
+  line-height:1.1;
+}
 
-/* כפתור רענון קטן ליד האייקון */
+/* כפתור רענון קטן */
 .refresh-btn-circle {
-  position:absolute;
-  top:18px;
-  right:68px;
   width:28px;
   height:28px;
   border-radius:50%;
@@ -160,8 +185,6 @@ body {
   justify-content:center;
   line-height:1;
   cursor:pointer;
-  z-index:155;
-  pointer-events:auto;
   user-select:none;
   font-family:"Heebo",Arial,sans-serif;
 }
@@ -169,7 +192,7 @@ body {
   transform:scale(0.95);
 }
 
-/* כפתור מסך מלא במרכז (לפני שנכנסנו למסך מלא) */
+/* כפתור מסך מלא (במרכז לפני כניסה למסך מלא) */
 .fullscreen-btn {
   position:absolute;
   top:50%;
@@ -188,7 +211,7 @@ body {
   pointer-events:auto;
 }
 
-/* פופאפ שליטה (אדמין) */
+/* פופאפ שליטה (איפה שמשנים קבוצות, תוצאה, שעון) */
 .edit-popup {
   position:absolute;
   top:70px;
@@ -334,7 +357,7 @@ body {
   <!-- שכבת ה-UI -->
   <div class="ui-layer">
 
-    <!-- סקורבורד -->
+    <!-- סקורבורד (שמאל למעלה) -->
     <div class="score-overlay-wrapper">
       <div class="score-box">
         <div class="team-label" id="teamHome_name">הפועל חיפה</div>
@@ -347,18 +370,22 @@ body {
       </div>
     </div>
 
-    <!-- כפתור מסך מלא -->
+    <!-- מסך מלא -->
     <button class="fullscreen-btn" id="fullscreenBtn">⛶ מסך מלא</button>
 
-    <!-- לוגו סודי (פותח שליטה / שואל סיסמה פעם ראשונה) -->
-    <img class="channel-logo" id="channelLogo"
-      src="https://yt3.ggpht.com/XEIE69D8DP1huYwLhSrHbEPhU9nfLjqSX7P8mZ8NLceUeDX68BoH1ORcxWy-NufREOy9xo1Dkw=s600-c-k-c0x00ffffff-no-rj-rp-mo"
-      alt="ערוץ">
+    <!-- אזור ימין למעלה: לוגו, גירסה, רענון -->
+    <div class="top-right-cluster">
+      <div class="channel-logo-wrap">
+        <img class="channel-logo" id="channelLogo"
+          src="https://yt3.ggpht.com/XEIE69D8DP1huYwLhSrHbEPhU9nfLjqSX7P8mZ8NLceUeDX68BoH1ORcxWy-NufREOy9xo1Dkw=s600-c-k-c0x00ffffff-no-rj-rp-mo"
+          alt="ערוץ">
+        <div class="version-tag" id="versionTag">v1.4</div>
+      </div>
 
-    <!-- כפתור רענון לשידור (↻) -->
-    <div class="refresh-btn-circle" id="refreshBtnCircle">↻</div>
+      <div class="refresh-btn-circle" id="refreshBtnCircle">↻</div>
+    </div>
 
-    <!-- חלון סיסמה (פעם ראשונה) -->
+    <!-- חלון סיסמה -->
     <div class="passgate" id="passGate">
       <div style="font-weight:600; margin-bottom:8px;">כניסה לניהול</div>
       <input id="adminPassInput" type="password" placeholder="הכנס קוד">
@@ -401,23 +428,14 @@ body {
 </div><!-- /player-shell -->
 
 <script>
-// ----------- הגדרות JSONBin -----------
-// ID של ה-BIN:
+// ========== הגדרות JSONBin ==========
 const BIN_ID = "69009c64d0ea881f40c1ebdb";
-
-// URL לקריאה (לכל הצופים)
-const READ_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}?meta=false`;
-
-// URL לעדכון (רק האדמין ישתמש)
+const READ_URL  = `https://api.jsonbin.io/v3/b/${BIN_ID}?meta=false`;
 const WRITE_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
-
-// המפתח הסודי שלך ל-UPDATE
-// שים לב: זה כרגע גלוי בקובץ. אם מישהו חופר בקוד הוא יכול לכתוב.
-// אתה אמרת שזה בסדר ואין הפרדה בין דפים, אז אני שם פה את הערך שנתת.
 const MASTER_KEY = "$2a$10$rHMLGk7wrx0ukvA.pNejbOgN14ZKGhcOJTfaXJzQV1D.QECG0yI5O";
 
-// ----------- סטייט לוקאלי -----------
-let isAdmin = false; // אחרי הזנת סיסמה 4451 = true
+// ========== סטייט לוקאלי ==========
+let isAdmin = false;
 let currentData = {
   leagueName: "שידורי חי הפועל חיפה נערים א' 2009",
   homeName: "הפועל חיפה",
@@ -429,53 +447,49 @@ let currentData = {
   pausedTotalMs: 0
 };
 
-// שעון לוקאלי מחושב
+// עידכון מהשרת -> למסך
+function applyFromServer(data) {
+  // אם אני אדמין באמצע עדכון חי, אל תמחוק לי ערכים שאני עוד לא שמרתי?
+  // החלטה: האדמין הוא בעל הבית. אם האדמין פתח את ה-popup, נשאיר את הטופס שלו כמו שהוא.
+  // אבל את התצוגה על המסך (סקורבורד) תמיד נרנדר מהשרת.
+  currentData = data;
+  renderScoreboard();
+}
+
+// עידכון למסך (טיימר, קבוצות, תוצאה)
 function fmt(sec){
   const m = Math.floor(sec/60);
   const s = sec % 60;
   return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
 }
-
-// מחשב מה להציג בשעון לפי currentData
 function getDisplaySeconds() {
   const d = currentData;
   if (!d) return 0;
   if (!d.clockRunning || !d.startTime) {
-    // עצור: רק הזמן שנצבר עד עכשיו
     return Math.floor((d.pausedTotalMs||0)/1000);
   }
-  // רץ: pausedTotalMs + (עכשיו - startTime)
   const now = Date.now();
   const totalMs = (d.pausedTotalMs||0) + (now - d.startTime);
   return Math.floor(totalMs/1000);
 }
-
-// מציג על המסך את הנתונים
 function renderScoreboard() {
   document.getElementById("teamHome_name").textContent  = currentData.homeName;
   document.getElementById("teamHome_score").textContent = currentData.homeScore;
   document.getElementById("teamAway_name").textContent  = currentData.awayName;
   document.getElementById("teamAway_score").textContent = currentData.awayScore;
+  document.getElementById("liveTimer").textContent      = fmt(getDisplaySeconds());
 
-  const sec = getDisplaySeconds();
-  document.getElementById("liveTimer").textContent = fmt(sec);
-
-  // אם אני אדמין ופתחתי את הפופאפ – אעדכן גם את השדות כדי שאראה מה יש כרגע
-  if (isAdmin) {
-    const li = document.getElementById("league_input");
-    const ha = document.getElementById("teamHome_input");
-    const hs = document.getElementById("scoreHome_input");
-    const aa = document.getElementById("teamAway_input");
-    const as = document.getElementById("scoreAway_input");
-    if (li) li.value = currentData.leagueName || "";
-    if (ha) ha.value = currentData.homeName || "";
-    if (hs) hs.value = currentData.homeScore;
-    if (aa) aa.value = currentData.awayName || "";
-    if (as) as.value = currentData.awayScore;
+  // אם אדמין ופתוח הפופאפ, תעדכן שדות הטופס מהמצב האחרון (שאני רואה/שומר)
+  if (isAdmin && popup.style.display === "block") {
+    document.getElementById("league_input").value      = currentData.leagueName || "";
+    document.getElementById("teamHome_input").value    = currentData.homeName || "";
+    document.getElementById("scoreHome_input").value   = currentData.homeScore;
+    document.getElementById("teamAway_input").value    = currentData.awayName || "";
+    document.getElementById("scoreAway_input").value   = currentData.awayScore;
   }
 }
 
-// מושך מצב עדכני מה-JSONBin
+// משיכת מצב מהשרת
 async function fetchState() {
   try {
     const res = await fetch(READ_URL, {
@@ -486,19 +500,17 @@ async function fetchState() {
     });
     if (!res.ok) return;
     const data = await res.json();
-    // מעדכן local
-    currentData = data;
-    renderScoreboard();
-  } catch(e) {
-    // שקט
-  }
+    // לוודא שיש כל השדות
+    normalizeData(data);
+    applyFromServer(data);
+  } catch(e) { /* שקט */ }
 }
 
-// כותב מצב חדש ל-JSONBin
+// דוחף מצב לשרת (PUT)
 async function pushState() {
-  if (!isAdmin) return; // ביטחון בסיסי
+  if (!isAdmin) return;
   try {
-    await fetch(WRITE_URL, {
+    const res = await fetch(WRITE_URL, {
       method: "PUT",
       headers: {
         "Content-Type":"application/json",
@@ -506,26 +518,43 @@ async function pushState() {
       },
       body: JSON.stringify(currentData)
     });
+    // לא חייבים לטפל בתשובה, אבל אפשר למשוך שוב לוודא שכולם באותו מצב
+    if (res.ok) {
+      // רענון עצמי אחרי כתיבה: לוודא שזיהינו שהשרת קיבל
+      fetchState();
+    }
   } catch(e){
-    // אם נפל העדכון לא נעשה כלום כרגע
+    // שקט
   }
 }
 
-// מריץ שעון על המסך לכולם (כל חצי שניה)
+// וידוא שכל המפתחות קיימים
+function normalizeData(obj){
+  if (typeof obj.leagueName    === "undefined") obj.leagueName    = "";
+  if (typeof obj.homeName      === "undefined") obj.homeName      = "";
+  if (typeof obj.homeScore     === "undefined") obj.homeScore     = 0;
+  if (typeof obj.awayName      === "undefined") obj.awayName      = "";
+  if (typeof obj.awayScore     === "undefined") obj.awayScore     = 0;
+  if (typeof obj.clockRunning  === "undefined") obj.clockRunning  = false;
+  if (typeof obj.startTime     === "undefined") obj.startTime     = 0;
+  if (typeof obj.pausedTotalMs === "undefined") obj.pausedTotalMs = 0;
+}
+
+// טיימר מקומי לרענון התצוגה של השעון
 setInterval(()=>{
-  renderScoreboard(); // מחשב את השעון לפי startTime/pausedTotalMs
+  renderScoreboard();
 },500);
 
-// מושך מהשרת כל 1.5 שניות (ככה קהל רואה עדכונים כמעט לייב)
+// פולינג מהשרת לכל הצופים (1.5 שניות)
 setInterval(()=>{
   fetchState();
 },1500);
 
-// ישר בהתחלה נטען מצב
+// קריאה ראשונה כשנטען הדף
 fetchState();
 
 
-// ======= שליטה במסך מלא =======
+// ========== מסך מלא ==========
 const videoContainer = document.getElementById('videoContainer');
 const fsBtn = document.getElementById('fullscreenBtn');
 fsBtn.addEventListener('click', () => {
@@ -542,7 +571,7 @@ document.addEventListener('fullscreenchange', () => {
 });
 
 
-// ======= רענון שידור (↻) =======
+// ========== רענון שידור מהיוטיוב ==========
 const iframeEl = document.getElementById('livePlayer');
 const refreshCircle = document.getElementById('refreshBtnCircle');
 
@@ -570,7 +599,7 @@ refreshCircle.addEventListener('click', () => {
 });
 
 
-// ======= כניסה לאיזור סודי (סיסמה פעם אחת לשידור) =======
+// ========== כניסה לאיזור הסודי עם קוד פעם אחת ==========
 const passGate = document.getElementById('passGate');
 const adminPassInput = document.getElementById('adminPassInput');
 const adminPassBtn = document.getElementById('adminPassBtn');
@@ -579,47 +608,56 @@ const popup = document.getElementById('editPopup');
 const logoBtn = document.getElementById('channelLogo');
 const closeBtn = document.getElementById('closePopupBtn');
 
-let askedPasswordThisSession = false;
-
-// לחיצה על האיקון למעלה:
+// כשלוחצים על הלוגו:
 logoBtn.addEventListener('click', () => {
   if (!isAdmin) {
-    // אם עדיין לא אישרנו סיסמה הפעם
+    // אם עוד לא אישרנו סיסמה לשידור הזה - תבקש
     passGate.style.display = "block";
-    askedPasswordThisSession = true;
+    adminPassInput.value = "";
+    adminPassErr.textContent = "";
   } else {
-    // כבר אדמין - פשוט פותח/סוגר שליטה
-    popup.style.display = (popup.style.display === "block") ? "none" : "block";
-    renderScoreboard(); // לוודא שהשדות מתמלאים
+    // כבר אדמין -> פתח/סגור פופאפ שליטה
+    togglePopup();
   }
 });
 
-// בדיקת סיסמה
+// בדיקת סיסמה 4451
 adminPassBtn.addEventListener('click', () => {
   const val = adminPassInput.value.trim();
   if (val === "4451") {
     isAdmin = true;
     passGate.style.display = "none";
-    adminPassInput.value = "";
-    adminPassErr.textContent = "";
     popup.style.display = "block";
-    renderScoreboard();
+    // כשנכנסתי לאדמין - תמשוך מצב עדכני ותמלא שדות
+    fetchState().then(()=>{ renderScoreboard(); });
   } else {
     adminPassErr.textContent = "סיסמה לא נכונה";
   }
 });
 
-// כפתור יציאה (סוגר חלון שליטה, לא מאפס אדמין)
+// יציאה מהפופאפ (לא מאפסת isAdmin)
 closeBtn.addEventListener('click', () => {
   popup.style.display = "none";
 });
 
+// פתח/סגור פופאפ ידנית
+function togglePopup(){
+  if (popup.style.display === "block") {
+    popup.style.display = "none";
+  } else {
+    popup.style.display = "block";
+    // עדכן שדות לפי מצב עדכני
+    renderScoreboard();
+  }
+}
 
-// ======= כפתורי שליטה בשידור =======
 
-// עדכון שדות טקסט/תוצאה בלייב ולשרת
+// ========== כפתורי שליטה בפועל ==========
+
+// עדכון שמות ותוצאות -> שולח לשרת
 function syncFromInputsAndPush() {
   if (!isAdmin) return;
+
   const li = document.getElementById("league_input");
   const ha = document.getElementById("teamHome_input");
   const hs = document.getElementById("scoreHome_input");
@@ -632,12 +670,11 @@ function syncFromInputsAndPush() {
   currentData.awayName     = aa.value;
   currentData.awayScore    = parseInt(as.value||"0",10);
 
-  // לא נגענו בשעון פה. רק שמות ותוצאות.
   renderScoreboard();
   pushState();
 }
 
-// התחלת שעון (מחדש)
+// התחלת שעון (מאפס ומתחיל לרוץ)
 document.getElementById('startBtn').addEventListener('click', () => {
   if (!isAdmin) return;
   currentData.pausedTotalMs = 0;
@@ -650,18 +687,20 @@ document.getElementById('startBtn').addEventListener('click', () => {
 // הפסקת מחצית / המשך
 document.getElementById('pauseBtn').addEventListener('click', () => {
   if (!isAdmin) return;
+
   if (currentData.clockRunning) {
-    // לעצור: לצבור את הזמן עד עכשיו
+    // עכשיו עוצרים את השעון:
     const now = Date.now();
     const runMs = now - (currentData.startTime || now);
     currentData.pausedTotalMs = (currentData.pausedTotalMs||0) + runMs;
     currentData.clockRunning = false;
     currentData.startTime = 0;
   } else {
-    // להמשיך
+    // עכשיו ממשיכים את השעון:
     currentData.startTime = Date.now();
     currentData.clockRunning = true;
   }
+
   renderScoreboard();
   pushState();
 });
@@ -676,13 +715,12 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   pushState();
 });
 
-// כשהאדמין משנה טקסטים/תוצאות בשדות - נעדכן בשרת
+// כל שינוי בטקסטים/תוצאות -> שלח מיד
 document.getElementById("league_input").addEventListener("change", syncFromInputsAndPush);
 document.getElementById("teamHome_input").addEventListener("change", syncFromInputsAndPush);
 document.getElementById("scoreHome_input").addEventListener("change", syncFromInputsAndPush);
 document.getElementById("teamAway_input").addEventListener("change", syncFromInputsAndPush);
 document.getElementById("scoreAway_input").addEventListener("change", syncFromInputsAndPush);
-
 </script>
 </body>
 </html>
