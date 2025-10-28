@@ -35,7 +35,7 @@
       --btn-sec-color:#0f1a12;
       --btn-sec-border:#0f1a12;
 
-      --accent-green:#34c759; /* העיגול */
+      --accent-green:#34c759; /* העיגול הירוק */
     }
 
     *{
@@ -159,7 +159,7 @@
       fill:none;
     }
 
-    /* העיגול הירוק של האייקון */
+    /* העיגול הירוק */
     .fav{
       width:64px;
       height:64px;
@@ -173,13 +173,8 @@
       flex-shrink:0;
       box-shadow:0 8px 16px rgba(52,199,89,0.4);
     }
-    .fav svg{
-      width:28px;
-      height:28px;
-      pointer-events:none; /* שלא יתפוס את הקליק */
-    }
 
-    /* שם הקישור בלבד (בלי ה-URL) */
+    /* שם הקישור בלבד */
     .card-title{
       font-size:16px;
       font-weight:600;
@@ -290,8 +285,12 @@
     <header>
       <div class="header-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-          <path d="M3 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill="none" stroke="#fff" stroke-width="2"/>
-          <path d="M15 10.5 21 7v10l-6-3.5v-3Z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M3 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
+                fill="none" stroke="#fff" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 10.5 21 7v10l-6-3.5v-3Z"
+                fill="none" stroke="#fff" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
       <h1>מועדפים</h1>
@@ -318,7 +317,7 @@
   </div>
 
   <script>
-    // הנתונים הקיימים שלך
+    // הנתונים שלך
     const initialData = [
       {"name":"ארוחה משותפת","url":"https://reuven2k.com/food_manager.html","ts":1761567352943},
       {"name":"jsonbin","url":"https://jsonbin.io/app/dashboard","ts":1761542095209},
@@ -348,29 +347,8 @@
     let list = [];
     const GH_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
 
-    // שומר מצב האם כפתורי עריכה/מחיקה מוצגים לכל כרטיס
-    const editVisibleState = new Map(); // key: index -> boolean
-
-    function cardIconSVG(){
-      // הוספתי xmlns כאן כדי שה-SVG יופיע גם כשהוא מוזרק ב-innerHTML
-      return `
-        <svg xmlns="http://www.w3.org/2000/svg"
-             viewBox="0 0 24 24"
-             width="28" height="28">
-          <circle cx="12" cy="8" r="4"
-                  stroke="#fff"
-                  stroke-width="2"
-                  fill="none"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"/>
-          <path d="M4 20c0-4 3-6 8-6s8 2 8 6"
-                stroke="#fff"
-                stroke-width="2"
-                fill="none"
-                stroke-linecap="round"
-                stroke-linejoin="round"/>
-        </svg>`;
-    }
+    // מצב כפתורי עריכה/מחיקה פר כרטיס
+    const editVisibleState = new Map();
 
     async function loadJson(){
       let usedFallback=false;
@@ -403,6 +381,41 @@
       }
     }
 
+    // בונה SVG באופן בטוח (בלי innerHTML)
+    function buildAvatarSvg(){
+      const svgNS = "http://www.w3.org/2000/svg";
+
+      const svg = document.createElementNS(svgNS,"svg");
+      svg.setAttribute("viewBox","0 0 24 24");
+      svg.setAttribute("width","28");
+      svg.setAttribute("height","28");
+      svg.setAttribute("aria-hidden","true");
+      svg.style.pointerEvents = "none";
+
+      const head = document.createElementNS(svgNS,"circle");
+      head.setAttribute("cx","12");
+      head.setAttribute("cy","8");
+      head.setAttribute("r","4");
+      head.setAttribute("fill","none");
+      head.setAttribute("stroke","#ffffff");
+      head.setAttribute("stroke-width","2");
+      head.setAttribute("stroke-linecap","round");
+      head.setAttribute("stroke-linejoin","round");
+
+      const body = document.createElementNS(svgNS,"path");
+      body.setAttribute("d","M4 20c0-4 3-6 8-6s8 2 8 6");
+      body.setAttribute("fill","none");
+      body.setAttribute("stroke","#ffffff");
+      body.setAttribute("stroke-width","2");
+      body.setAttribute("stroke-linecap","round");
+      body.setAttribute("stroke-linejoin","round");
+
+      svg.appendChild(head);
+      svg.appendChild(body);
+
+      return svg;
+    }
+
     function render(){
       cards.innerHTML = "";
       if(!list.length){
@@ -412,14 +425,14 @@
       empty.hidden = true;
 
       list.forEach((item, i)=>{
-        // כל הכרטיס הוא לינק
+        // כרטיס = לינק
         const card = document.createElement("a");
         card.className = "card";
         card.href = item.url;
         card.target = "_blank";
         card.rel = "noopener";
 
-        // פעולות עריכה/מחיקה (מוסתר כברירת מחדל)
+        // פעולות עריכה/מחיקה
         const actions = document.createElement("div");
         actions.className = "actions";
         if (editVisibleState.get(i) === true){
@@ -431,44 +444,51 @@
         btnEdit.title = "ערוך";
         btnEdit.setAttribute("data-action","edit");
         btnEdit.setAttribute("data-index",i);
-        btnEdit.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg"
-               viewBox="0 0 24 24"
-               width="14" height="14">
-            <path d="M4 16.5V20h3.3L19 8.3l-3.3-3.3L4 16.5z"
-                  fill="none"
-                  stroke="#0f1a12"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"/>
-          </svg>
-        `;
+
+        // אייקון עיפרון
+        const editSvg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+        editSvg.setAttribute("viewBox","0 0 24 24");
+        editSvg.setAttribute("width","14");
+        editSvg.setAttribute("height","14");
+        const editPath = document.createElementNS("http://www.w3.org/2000/svg","path");
+        editPath.setAttribute("d","M4 16.5V20h3.3L19 8.3l-3.3-3.3L4 16.5z");
+        editPath.setAttribute("fill","none");
+        editPath.setAttribute("stroke","#0f1a12");
+        editPath.setAttribute("stroke-width","1.6");
+        editPath.setAttribute("stroke-linecap","round");
+        editPath.setAttribute("stroke-linejoin","round");
+        editSvg.appendChild(editPath);
+        btnEdit.appendChild(editSvg);
 
         const btnDel = document.createElement("button");
         btnDel.className = "iconbtn";
         btnDel.title = "מחק";
         btnDel.setAttribute("data-action","delete");
         btnDel.setAttribute("data-index",i);
-        btnDel.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg"
-               viewBox="0 0 24 24"
-               width="14" height="14">
-            <path d="M6 7h12M9 7V5h6v2m-8 3 1 9h8l1-9"
-                  fill="none"
-                  stroke="#0f1a12"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"/>
-          </svg>
-        `;
+
+        // אייקון פח
+        const delSvg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+        delSvg.setAttribute("viewBox","0 0 24 24");
+        delSvg.setAttribute("width","14");
+        delSvg.setAttribute("height","14");
+        const delPath = document.createElementNS("http://www.w3.org/2000/svg","path");
+        delPath.setAttribute("d","M6 7h12M9 7V5h6v2m-8 3 1 9h8l1-9");
+        delPath.setAttribute("fill","none");
+        delPath.setAttribute("stroke","#0f1a12");
+        delPath.setAttribute("stroke-width","1.6");
+        delPath.setAttribute("stroke-linecap","round");
+        delPath.setAttribute("stroke-linejoin","round");
+        delSvg.appendChild(delPath);
+        btnDel.appendChild(delSvg);
 
         actions.appendChild(btnEdit);
         actions.appendChild(btnDel);
 
-        // העיגול הירוק (האייקון של הכרטיס)
+        // האייקון העגול הירוק
         const fav = document.createElement("div");
         fav.className = "fav";
-        fav.innerHTML = cardIconSVG();
+        const avatarSvg = buildAvatarSvg();
+        fav.appendChild(avatarSvg);
 
         // לחיצה על העיגול הירוק -> הצג/הסתר כפתורי עריכה/מחיקה
         fav.addEventListener("click",(ev)=>{
@@ -479,7 +499,7 @@
           render();
         });
 
-        // שם הקישור בלבד
+        // שם הקישור
         const titleEl = document.createElement("div");
         titleEl.className = "card-title";
         titleEl.textContent = item.name || "";
@@ -488,11 +508,10 @@
         card.appendChild(actions);
         card.appendChild(fav);
         card.appendChild(titleEl);
-
         cards.appendChild(card);
       });
 
-      // האזנה לערוך/מחק
+      // מאזינים לכפתורי עריכה/מחיקה
       cards.querySelectorAll(".iconbtn").forEach(btn=>{
         btn.addEventListener("click", onActionClick);
       });
@@ -519,7 +538,7 @@
         return;
       }
 
-      // אם כבר קיים URL זהה -> מחליף אותו במקום כפילות
+      // אם כבר יש אותו URL -> מסירים הישן ושמים חדש למעלה
       const i = list.findIndex(x => x.url?.toLowerCase() === url.toLowerCase());
       if(i>-1) list.splice(i,1);
 
