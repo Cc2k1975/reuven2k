@@ -35,7 +35,7 @@
       --btn-sec-color:#0f1a12;
       --btn-sec-border:#0f1a12;
 
-      --accent-green:#34c759; /* ירוק של האייקון */
+      --accent-green:#34c759; /* הצבע של העיגול */
     }
 
     *{
@@ -51,7 +51,7 @@
       min-height:100vh;
       display:flex;
       flex-direction:column;
-      padding-bottom:140px; /* מקום לפאנל התחתון */
+      padding-bottom:140px;
     }
 
     .wrap{
@@ -122,7 +122,7 @@
       box-shadow:0 10px 24px rgba(0,0,0,0.12);
     }
 
-    /* כפתורי עריכה/מחק - מוסתרים בהתחלה */
+    /* כפתורי עריכה/מחיקה - מוסתר כברירת מחדל */
     .actions{
       position:absolute;
       top:8px;
@@ -159,7 +159,7 @@
       fill:none;
     }
 
-    /* אייקון ירוק עגול (אין מסגרת, אין ריבוע) */
+    /* אייקון ירוק עגול */
     .fav{
       width:64px;
       height:64px;
@@ -179,9 +179,10 @@
       stroke:#fff;
       stroke-width:2;
       fill:none;
+      pointer-events:none; /* שלא יתפוס את הקליק במקום ה-div */
     }
 
-    /* שם הקישור בלבד (לא מציגים יותר URL) */
+    /* שם הקישור בלבד */
     .card-title{
       font-size:16px;
       font-weight:600;
@@ -198,7 +199,6 @@
       font-size:14px;
     }
 
-    /* פאנל התחתון */
     .bar{
       position:fixed;
       left:0;
@@ -351,14 +351,15 @@
     let list = [];
     const GH_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
 
-    // מצב הצגת כפתורי עריכה/מחיקה לכל כרטיס לפי אינדקס
-    const editVisibleState = new Map(); // key: index, value: true/false
+    // מצב אם כפתורי עריכה/מחיקה גלויים לכל כרטיס
+    const editVisibleState = new Map(); // key: index -> boolean
 
     function cardIconSVG(){
+      // זה האייקון הלבן שמופיע בתוך העיגול הירוק
       return `
         <svg viewBox="0 0 24 24">
-          <circle cx="12" cy="8" r="4" />
-          <path d="M4 20c0-4 3-6 8-6s8 2 8 6" />
+          <circle cx="12" cy="8" r="4" stroke="#fff" stroke-width="2" fill="none"/>
+          <path d="M4 20c0-4 3-6 8-6s8 2 8 6" stroke="#fff" stroke-width="2" fill="none"/>
         </svg>`;
     }
 
@@ -402,14 +403,14 @@
       empty.hidden = true;
 
       list.forEach((item, i)=>{
-        // כל הכרטיס זה לינק
+        // כל הכרטיס הוא לינק לפתיחה
         const card = document.createElement("a");
         card.className = "card";
         card.href = item.url;
         card.target = "_blank";
         card.rel = "noopener";
 
-        // פעולות עריכה/מחיקה (מוסתר כברירת מחדל)
+        // פעולות עריכה/מחיקה
         const actions = document.createElement("div");
         actions.className = "actions";
         if (editVisibleState.get(i) === true){
@@ -441,24 +442,26 @@
         actions.appendChild(btnEdit);
         actions.appendChild(btnDel);
 
-        // האייקון הירוק (עיגול) - עליו לוחצים כדי לחשוף/להסתיר עריכה
+        // העיגול הירוק (האייקון של הכרטיס)
         const fav = document.createElement("div");
         fav.className = "fav";
         fav.innerHTML = cardIconSVG();
+
+        // לחיצה על העיגול הירוק -> הצג/הסתר action buttons
         fav.addEventListener("click",(ev)=>{
-          ev.preventDefault(); // שלא יפתח את הלינק בטעות
+          ev.preventDefault();
           ev.stopPropagation();
           const now = editVisibleState.get(i) === true;
           editVisibleState.set(i, !now);
-          render(); // נרנדר מחדש כדי לעדכן show/hidden
+          render();
         });
 
-        // שם הקישור (בלי ה-URL)
+        // שם הקישור בלבד
         const titleEl = document.createElement("div");
         titleEl.className = "card-title";
         titleEl.textContent = item.name || "";
 
-        // בונה את הכרטיס
+        // בנה את הכרטיס למסך
         card.appendChild(actions);
         card.appendChild(fav);
         card.appendChild(titleEl);
@@ -466,7 +469,7 @@
         cards.appendChild(card);
       });
 
-      // מאזינים לעריכה/מחיקה (לחיצות על העיפרון / פח)
+      // הוספת האזנה לכפתורי עריכה/מחיקה
       cards.querySelectorAll(".iconbtn").forEach(btn=>{
         btn.addEventListener("click", onActionClick);
       });
@@ -493,7 +496,7 @@
         return;
       }
 
-      // אם יש כבר אותו URL - מורידים הישן ושמים את העדכני למעלה
+      // אם יש כבר את אותו URL, נעדכן אותו במקום ליצור כפול
       const i = list.findIndex(x => x.url?.toLowerCase() === url.toLowerCase());
       if(i>-1) list.splice(i,1);
 
@@ -523,7 +526,7 @@
     }
 
     function onActionClick(e){
-      // שלא יפתח לינק
+      // למנוע פתיחת הלינק
       e.stopPropagation();
       e.preventDefault();
 
