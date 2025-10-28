@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
   <title>שידור חי</title>
 
   <style>
@@ -23,74 +23,33 @@
     * {
       box-sizing:border-box;
       -webkit-font-smoothing:antialiased;
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
     }
 
     body {
       margin:0;
-      background:radial-gradient(circle at 20% 20%,var(--bg2) 0%,var(--bg1) 70%);
-      color:#fff;
-      font-family:"Heebo",Arial,sans-serif;
-      min-height:100vh;
-      display:flex;
-      align-items:flex-start;
-      justify-content:center;
-      padding:20px 16px 60px;
-    }
-
-    .wrap {
-      width:100%;
-      max-width:1200px;
-      text-align:center;
-      position:relative;
-    }
-
-    /* למעלה: שם הליגה (עורך מהחלון) + אייקון */
-    .header-row {
-      display:flex;
-      flex-wrap:wrap;
-      justify-content:center;
-      align-items:center;
-      gap:10px;
-      margin-bottom:12px;
-    }
-
-    .league-title {
-      margin:0;
-      font-size:1.2rem;
-      font-weight:700;
-      color:#fff;
-      line-height:1.3;
-    }
-
-    .channel-logo {
-      width:44px;
-      height:44px;
-      border-radius:50%;
-      border:2px solid rgba(255,255,255,0.4);
-      box-shadow:0 0 12px rgba(0,0,0,0.8);
-      cursor:pointer;
-      flex-shrink:0;
-      object-fit:cover;
-    }
-
-    /* הווידאו */
-    .player-shell {
-      position:relative;
       background:#000;
-      border-radius:16px;
-      box-shadow:0 20px 40px rgba(0,0,0,0.85);
-      border:1px solid rgba(255,255,255,0.08);
-      width:100%;
-      aspect-ratio:16/9;
-      overflow:hidden;
-      margin:0 auto;
+      color:#fff;
+      font-family:"Heebo", Arial, sans-serif;
+      overflow:hidden; /* שלא יזוז מסך */
     }
 
+    /* כל הוידאו על כל המסך */
+    .player-shell {
+      position:fixed;
+      inset:0;
+      background:#000;
+      width:100vw;
+      height:100vh;
+      overflow:hidden;
+    }
+
+    /* מסובב את הסטרים לרוחב. נגביר scale קצת כדי למלא מסך טוב */
     .rotator {
       position:absolute;
       top:50%;
       left:50%;
-      transform:translate(-50%,-50%) rotate(-90deg) scale(1.8);
+      transform:translate(-50%, -50%) rotate(-90deg) scale(1.7);
       transform-origin:center center;
       background:#000;
       min-width:100vh;
@@ -109,17 +68,59 @@
       max-height:none;
     }
 
-    /* לוח התוצאות בשמאל למעלה */
-    .score-overlay-wrapper {
-      position:absolute;
+    /* כותרת ליגה למעלה במרכז (overlay), עם האייקון */
+    .top-league-bar {
+      position:fixed;
       top:8px;
+      left:50%;
+      transform:translateX(-50%);
+      display:flex;
+      align-items:center;
+      gap:8px;
+      background:rgba(0,0,0,0.4);
+      border:1px solid rgba(255,255,255,0.25);
+      border-radius:40px;
+      padding:6px 12px;
+      font-size:0.9rem;
+      font-weight:600;
+      color:#fff;
+      line-height:1.2;
+      box-shadow:0 10px 20px rgba(0,0,0,0.8);
+      z-index:10000;
+    }
+
+    .channel-logo {
+      width:36px;
+      height:36px;
+      border-radius:50%;
+      border:2px solid rgba(255,255,255,0.4);
+      box-shadow:0 0 12px rgba(0,0,0,0.8);
+      cursor:pointer;
+      flex-shrink:0;
+      object-fit:cover;
+    }
+
+    .league-title {
+      color:#fff;
+      font-size:0.9rem;
+      font-weight:700;
+      max-width:60vw;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    /* הלוח תוצאות - שמאל למעלה על המסך */
+    .score-overlay-wrapper {
+      position:fixed;
+      top:60px;          /* קצת מתחת לכותרת */
       left:8px;
-      z-index:5;
+      z-index:10001;
       display:flex;
       flex-direction:column;
       align-items:flex-start;
-      pointer-events:none;
       font-family:Heebo,Arial,sans-serif;
+      pointer-events:none;
     }
 
     .overlay-topline {
@@ -145,12 +146,11 @@
       border-top:none;
     }
 
-    /* כל צד = שם קבוצה + תוצאה שלה, באותה שורה */
     .team-side {
       display:flex;
       align-items:center;
       white-space:nowrap;
-      max-width:170px;
+      max-width:45vw;
       min-width:0;
     }
 
@@ -159,7 +159,8 @@
       color:var(--board-text);
       text-overflow:ellipsis;
       overflow:hidden;
-      max-width:130px;
+      max-width:32vw;
+      font-size:0.8rem;
     }
 
     .team-score {
@@ -172,6 +173,7 @@
       font-family:"Roboto Mono","Courier New",monospace;
       border-left:1px solid rgba(0,0,0,0.4);
       border-right:1px solid rgba(0,0,0,0.4);
+      font-size:0.8rem;
     }
 
     .timer-block {
@@ -184,12 +186,16 @@
       text-align:center;
       border-left:1px solid rgba(0,0,0,0.4);
       border-right:1px solid rgba(0,0,0,0.4);
+      font-size:0.8rem;
     }
 
-    /* כפתור רענון למטה */
+    /* כפתור רענון - נשים אותו בתחתית באמצע כ-floating */
     .refresh-zone {
-      text-align:center;
-      margin-top:18px;
+      position:fixed;
+      bottom:16px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:10000;
     }
 
     .refresh-btn {
@@ -207,17 +213,17 @@
       border:1px solid rgba(0,255,169,0.4);
       min-width:140px;
     }
-    .refresh-btn.ok{
+    .refresh-btn.ok {
       background:radial-gradient(circle at 20% 20%,#2f4730 0%,#1f2f20 70%);
       color:#8dff8d;
       border:1px solid rgba(0,255,0,0.5);
       box-shadow:0 10px 24px rgba(0,0,0,0.8),0 0 10px rgba(0,255,0,0.25);
     }
 
-    /* החלון הסודי (מוגדל) */
+    /* חלון השליטה (Overlay) */
     .edit-popup {
-      position:absolute;
-      top:60px;
+      position:fixed;
+      top:80px;
       right:50%;
       transform:translateX(50%);
       background:#1a1f2b;
@@ -227,11 +233,11 @@
       border:1px solid rgba(255,255,255,0.15);
       padding:20px;
       width:320px;
-      max-width:calc(100% - 40px);
+      max-width:90vw;
       font-size:0.9rem;
       line-height:1.5;
       display:none;
-      z-index:9999;
+      z-index:20000; /* מעל הכול */
       text-align:right;
     }
 
@@ -244,18 +250,37 @@
     }
 
     .edit-field {
+      margin-bottom:14px;
       display:flex;
       flex-direction:column;
-      margin-bottom:14px;
+      gap:8px;
     }
 
     .edit-field label {
       font-size:0.8rem;
-      margin-bottom:4px;
       color:#9aa3b2;
     }
 
-    .edit-field input {
+    /* שורה משולבת: שם קבוצה + תוצאה */
+    .team-line {
+      display:flex;
+      flex-direction:row;
+      gap:8px;
+      width:100%;
+    }
+
+    .team-line input {
+      flex:1;
+    }
+
+    .score-input {
+      flex:0 0 60px;
+      max-width:60px;
+      text-align:center;
+    }
+
+    .edit-input,
+    .team-line input {
       border-radius:8px;
       border:1px solid rgba(255,255,255,0.2);
       background:#0f1115;
@@ -281,112 +306,102 @@
       text-align:center;
       margin-bottom:8px;
     }
-
-    @media(max-width:480px){
-      .league-title{font-size:1rem;}
-      .timer-block{min-width:44px;font-size:0.7rem;}
-      .team-name{max-width:100px;font-size:0.7rem;padding:4px 6px;}
-      .team-score{min-width:22px;font-size:0.7rem;padding:4px 5px;}
-    }
   </style>
 </head>
 <body>
 
-  <div class="wrap">
+  <!-- מסך הווידאו (תופס הכל) -->
+  <div class="player-shell">
+    <div class="rotator">
+      <iframe
+        id="livePlayer"
+        src="https://www.youtube.com/embed/live_stream?channel=UCu2doG-TFmd4b2paosdg1xg&autoplay=1&mute=1&playsinline=1"
+        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+        allowfullscreen>
+      </iframe>
+    </div>
+  </div>
 
-    <!-- כותרת הליגה למעלה (אתה שולט עליה) -->
-    <div class="header-row">
-      <img
-        class="channel-logo"
-        id="channelLogo"
-        src="https://yt3.ggpht.com/XEIE69D8DP1huYwLhSrHbEPhU9nfLjqSX7P8mZ8NLceUeDX68BoH1ORcxWy-NufREOy9xo1Dkw=s600-c-k-c0x00ffffff-no-rj-rp-mo"
-        alt="ערוץ" />
-      <div class="league-title" id="leagueTitle">שידורי חי הפועל חיפה נערים א' 2009</div>
+  <!-- פס ליגה למעלה במרכז -->
+  <div class="top-league-bar">
+    <img
+      class="channel-logo"
+      id="channelLogo"
+      src="https://yt3.ggpht.com/XEIE69D8DP1huYwLhSrHbEPhU9nfLjqSX7P8mZ8NLceUeDX68BoH1ORcxWy-NufREOy9xo1Dkw=s600-c-k-c0x00ffffff-no-rj-rp-mo"
+      alt="ערוץ" />
+    <div class="league-title" id="leagueTitle">שידורי חי הפועל חיפה נערים א' 2009</div>
+  </div>
+
+  <!-- לוח תוצאות ושעון בפינה שמאל למעלה -->
+  <div class="score-overlay-wrapper">
+    <div class="overlay-topline"></div>
+    <div class="overlay-body" id="overlayBody">
+
+      <!-- קבוצה ביתית -->
+      <div class="team-side" id="homeSide">
+        <div class="team-name" id="teamHome_name">הפועל חיפה</div>
+        <div class="team-score" id="teamHome_score">0</div>
+      </div>
+
+      <!-- שעון -->
+      <div class="timer-block" id="liveTimer">00:00</div>
+
+      <!-- קבוצה אורחת -->
+      <div class="team-side" id="awaySide">
+        <div class="team-score" id="teamAway_score">0</div>
+        <div class="team-name" id="teamAway_name">מכבי חיפה</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- כפתור רענון תחתון -->
+  <div class="refresh-zone">
+    <button class="refresh-btn" id="refreshBtn">רענן שידור</button>
+  </div>
+
+  <!-- חלון שליטה (נפתח בלחיצה על האייקון למעלה) -->
+  <div class="edit-popup" id="editPopup">
+    <h2>שליטה בשידור</h2>
+
+    <!-- שם ליגה / טייטל למעלה -->
+    <div class="edit-field">
+      <label>שם הליגה / שם המשחק למעלה</label>
+      <input class="edit-input" id="league_input" type="text" value="שידורי חי הפועל חיפה נערים א' 2009">
     </div>
 
-    <!-- הווידאו הגדול -->
-    <div class="player-shell">
-
-      <!-- לוח תוצאה בשמאל למעלה -->
-      <div class="score-overlay-wrapper">
-        <div class="overlay-topline"></div>
-        <div class="overlay-body" id="overlayBody">
-
-          <!-- קבוצה ביתית + תוצאה -->
-          <div class="team-side" id="homeSide">
-            <div class="team-name" id="teamHome_name">הפועל חיפה</div>
-            <div class="team-score" id="teamHome_score">0</div>
-          </div>
-
-          <!-- שעון -->
-          <div class="timer-block" id="liveTimer">00:00</div>
-
-          <!-- קבוצה אורחת + תוצאה -->
-          <div class="team-side" id="awaySide">
-            <div class="team-score" id="teamAway_score">0</div>
-            <div class="team-name" id="teamAway_name">מכבי חיפה</div>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- הזרם מיוטיוב -->
-      <div class="rotator">
-        <iframe
-          id="livePlayer"
-          src="https://www.youtube.com/embed/live_stream?channel=UCu2doG-TFmd4b2paosdg1xg&autoplay=1&mute=1&playsinline=1"
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowfullscreen>
-        </iframe>
+    <!-- קבוצה ביתית (שם+תוצאה בשורה אחת) -->
+    <div class="edit-field">
+      <label>קבוצה ביתית + תוצאה</label>
+      <div class="team-line">
+        <input id="teamHome_input" type="text" value="הפועל חיפה" class="edit-input">
+        <input id="scoreHome_input" type="number" min="0" value="0" class="edit-input score-input">
       </div>
     </div>
 
-    <!-- כפתור רענון שידור -->
-    <div class="refresh-zone">
-      <button class="refresh-btn" id="refreshBtn">רענן שידור</button>
+    <!-- קבוצה אורחת (שם+תוצאה בשורה אחת) -->
+    <div class="edit-field">
+      <label>קבוצה אורחת + תוצאה</label>
+      <div class="team-line">
+        <input id="teamAway_input" type="text" value="מכבי חיפה" class="edit-input">
+        <input id="scoreAway_input" type="number" min="0" value="0" class="edit-input score-input">
+      </div>
     </div>
 
-    <!-- החלון הסודי -->
-    <div class="edit-popup" id="editPopup">
-      <h2>שליטה בשידור</h2>
+    <!-- שליטה בשעון -->
+    <button class="ctl-btn" id="startBtn">הפעל שעון (התחלה מדקה 00:00)</button>
+    <button class="ctl-btn" id="togglePauseBtn">הפסקת מחצית (עצור)</button>
+    <button class="ctl-btn" id="resetBtn">איפוס שעון</button>
 
-      <div class="edit-field">
-        <label>שם הליגה / שם המשחק למעלה</label>
-        <input id="league_input" type="text" value="שידורי חי הפועל חיפה נערים א' 2009">
-      </div>
-
-      <div class="edit-field">
-        <label>קבוצה ביתית</label>
-        <input id="teamHome_input" type="text" value="הפועל חיפה">
-        <label>תוצאה ביתית</label>
-        <input id="scoreHome_input" type="number" min="0" value="0">
-      </div>
-
-      <div class="edit-field">
-        <label>קבוצה אורחת</label>
-        <input id="teamAway_input" type="text" value="מכבי חיפה">
-        <label>תוצאה אורחת</label>
-        <input id="scoreAway_input" type="number" min="0" value="0">
-      </div>
-
-      <!-- שליטה בשעון -->
-      <button class="ctl-btn" id="startBtn">הפעל שעון (התחלה מדקה 00:00)</button>
-
-      <button class="ctl-btn" id="togglePauseBtn">הפסקת מחצית (עצור)</button>
-
-      <button class="ctl-btn" id="resetBtn">איפוס שעון</button>
-
-      <!-- יציאה -->
-      <button class="ctl-btn" id="closePopupBtn">יציאה</button>
-    </div>
-
+    <!-- יציאה (סוגר את החלון) -->
+    <button class="ctl-btn" id="closePopupBtn">יציאה</button>
   </div>
 
   <script>
     /******************
      * שעון משחק
      ******************/
-    let elapsedMs = 0;  // זמן שנצבר
+    let elapsedMs = 0;
     let running   = false;
     let startTs   = null;
 
@@ -409,11 +424,10 @@
       box.textContent = fmtTime(shown);
     }
 
-    // עדכון תצוגה קבוע
     setInterval(updateTimerDisplay, 500);
 
     function startClock() {
-      // הפעלה התחלתית (אם שכחת קודם)
+      // התחלה ידנית אם עדיין לא רץ
       if (!running) {
         running = true;
         startTs = Date.now();
@@ -421,10 +435,10 @@
     }
 
     function togglePauseResume() {
-      // אם רץ -> עצור. אם עצור -> המשך.
+      // טוגל מחצית: עצור ↔ המשך
       const btn = document.getElementById("togglePauseBtn");
       if (running && startTs !== null) {
-        // לעצור (מחצית)
+        // לעצור
         elapsedMs += Date.now() - startTs;
         running = false;
         startTs = null;
@@ -448,24 +462,24 @@
     }
 
     /******************
-     * שדות לייב - ליגה/קבוצות/תוצאות
+     * חיבור בין שדות השליטה לבין התצוגה החיה
      ******************/
     function bindLiveField(inputId, cb) {
       const el = document.getElementById(inputId);
       if (!el) return;
       const handler = () => cb(el.value);
       el.addEventListener("input", handler);
-      handler(); // פעם ראשונה
+      handler(); // מריץ פעם ראשונה כדי לדרוס את ברירת המחדל על המסך
     }
 
     function setupLiveBindings() {
-      // כותרת למעלה
+      // שם הליגה למעלה (הבועה העליונה)
       bindLiveField("league_input", (val)=>{
         const t = document.getElementById("leagueTitle");
         if (t) t.textContent = val.trim() || "";
       });
 
-      // קבוצה ביתית (שמאל)
+      // קבוצה ביתית
       bindLiveField("teamHome_input", (val)=>{
         const t = document.getElementById("teamHome_name");
         if (t) t.textContent = val.trim() || "";
@@ -475,7 +489,7 @@
         if (t) t.textContent = val.trim()==="" ? "0" : val;
       });
 
-      // קבוצה אורחת (ימין)
+      // קבוצה אורחת
       bindLiveField("teamAway_input", (val)=>{
         const t = document.getElementById("teamAway_name");
         if (t) t.textContent = val.trim() || "";
@@ -487,7 +501,7 @@
     }
 
     /******************
-     * יוטיוב + רענון
+     * שליטה בנגן יוטיוב
      ******************/
     function forcePlay() {
       const player = document.getElementById("livePlayer");
@@ -514,11 +528,12 @@
         btn.classList.remove("ok");
       },2000);
 
+      // נסה שוב אוטופליי
       setTimeout(forcePlay,1200);
     }
 
     /******************
-     * פתיחת/סגירת חלון שליטה
+     * לפתוח / לסגור את חלון השליטה
      ******************/
     function togglePopup(showForce) {
       const popup = document.getElementById("editPopup");
@@ -546,36 +561,38 @@
       const closePopupBtn  = document.getElementById("closePopupBtn");
       const player         = document.getElementById("livePlayer");
 
-      // ודא אוטופליי
+      // ודא autoplay/mute/inline
       if (player && !player.src.includes("autoplay=1")) {
         player.src += "&autoplay=1&mute=1&playsinline=1";
       }
 
-      // נסה להתחיל ניגון
+      // נסה להתחיל לנגן אוטומטית
       setTimeout(forcePlay,1500);
 
-      // רענון
-      if (refreshBtn) refreshBtn.addEventListener("click", refreshLivePlayer);
+      // כפתור רענון תחתון
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", refreshLivePlayer);
+      }
 
-      // פתח/סגור חלון בלחיצה על התמונה
+      // פתיחת/סגירת חלון שליטה ע"י לחיצה על התמונה למעלה
       if (logoBtn) {
         logoBtn.addEventListener("click", ()=>togglePopup());
       }
 
-      // כפתורי השעון
+      // שליטת שעון
       if (startBtn)       startBtn.addEventListener("click", startClock);
       if (togglePauseBtn) togglePauseBtn.addEventListener("click", togglePauseResume);
       if (resetBtn)       resetBtn.addEventListener("click", resetClock);
 
-      // יציאה (סגור)
+      // יציאה מהחלון
       if (closePopupBtn) {
         closePopupBtn.addEventListener("click", ()=>togglePopup(false));
       }
 
-      // חיבור בין השדות ללייב על המסך
+      // חיבור שדות שליטה ללייב
       setupLiveBindings();
 
-      // אתחול טיימר בתצוגה
+      // תצוגת 00:00 בהתחלה
       updateTimerDisplay();
     });
   </script>
