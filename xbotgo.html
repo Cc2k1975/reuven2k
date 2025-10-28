@@ -12,7 +12,7 @@ body {
   font-family:"Heebo",Arial,sans-serif;
 }
 
-/* כל הזירה - גם הווידאו וגם האוברליים - חיה בתוך זה */
+/* כל הזירה (וידאו + שכבות) */
 .player-shell {
   position:fixed;
   inset:0;
@@ -20,12 +20,9 @@ body {
   width:100vw;
   height:100vh;
   overflow:hidden;
-
-  /* חשוב! כדי שנוכל למקם דברים יחסית אליו במסך מלא */
-  position:fixed;
 }
 
-/* הווידאו עצמו */
+/* הווידאו המסובב לרוחב */
 .rotator {
   position:absolute;
   top:50%;
@@ -46,7 +43,7 @@ body {
   background:#000;
 }
 
-/* לוח תוצאות + שעון */
+/* הלוח: תוצאות + שעון */
 .score-overlay-wrapper {
   position:absolute;
   top:12px;
@@ -56,7 +53,7 @@ body {
   flex-direction:column;
   align-items:flex-start;
   font-family:Heebo,Arial,sans-serif;
-  pointer-events:none; /* שלא יפריע ללחיצות */
+  pointer-events:none; /* שלא יחסום לחיצות */
 }
 .overlay-body {
   display:flex;
@@ -92,7 +89,7 @@ body {
   font-family:"Roboto Mono",monospace;
 }
 
-/* כפתור המסך המלא */
+/* כפתור מסך מלא – במרכז לפני הכניסה למסך מלא */
 .fullscreen-btn {
   position:absolute;
   top:50%;
@@ -114,7 +111,7 @@ body {
   transform:translate(-50%,-50%) scale(0.97);
 }
 
-/* האייקון הסודי שלך */
+/* האייקון הסודי שפותח את בקרת השידור */
 .channel-logo {
   position:absolute;
   top:8px;
@@ -129,7 +126,7 @@ body {
   object-fit:cover;
 }
 
-/* חלון השליטה */
+/* פופאפ הבקרה */
 .edit-popup {
   position:absolute;
   top:60px;
@@ -146,7 +143,7 @@ body {
   font-size:0.9rem;
   line-height:1.5;
   display:none;
-  z-index:300; /* גבוה כדי שיראו גם במסך מלא */
+  z-index:300;
   text-align:right;
 }
 .edit-popup h2 {
@@ -208,18 +205,19 @@ body {
 </head>
 <body>
 
-<!-- כל מה שצריך להופיע גם במסך מלא נמצא כאן בפנים -->
+<!-- שים לב: עכשיו כל מה שחשוב (וידאו, תוצאה, אייקון, פופאפ) חי בתוך אותו container -->
 <div class="player-shell" id="videoContainer">
 
-  <!-- הווידאו בסיבוב -->
+  <!-- הווידאו עצמו (ביוטיוב לייב) -->
   <div class="rotator">
     <iframe id="livePlayer"
       src="https://www.youtube.com/embed/live_stream?channel=UCu2doG-TFmd4b2paosdg1xg&autoplay=1&mute=1&playsinline=1"
-      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-      allowfullscreen></iframe>
+      allow="autoplay; encrypted-media; picture-in-picture"
+      /* הוסר allowfullscreen כדי שהטלפון לא יחטוף לנו את כל המסך רק לוידאו */
+    ></iframe>
   </div>
 
-  <!-- לוח תוצאה + שעון -->
+  <!-- לוח התוצאה + שעון על המסך -->
   <div class="score-overlay-wrapper">
     <div class="overlay-body">
       <div class="team-side">
@@ -234,15 +232,15 @@ body {
     </div>
   </div>
 
-  <!-- הכפתור למסך מלא -->
+  <!-- כפתור מסך מלא (נעלם אחרי שנכנסים למסך מלא) -->
   <button class="fullscreen-btn" id="fullscreenBtn">⛶ מסך מלא</button>
 
-  <!-- האייקון הסודי שלך לפתיחת לוח הבקרה -->
+  <!-- לוגו סודי לפתיחת בקרות -->
   <img class="channel-logo" id="channelLogo"
     src="https://yt3.ggpht.com/XEIE69D8DP1huYwLhSrHbEPhU9nfLjqSX7P8mZ8NLceUeDX68BoH1ORcxWy-NufREOy9xo1Dkw=s600-c-k-c0x00ffffff-no-rj-rp-mo"
     alt="ערוץ">
 
-  <!-- חלון הבקרה (עדכון שמות/תוצאות/שעון) -->
+  <!-- חלון בקרה חי -->
   <div class="edit-popup" id="editPopup">
     <h2>שליטה בשידור</h2>
 
@@ -273,16 +271,15 @@ body {
     <button class="ctl-btn" id="closePopupBtn">יציאה</button>
   </div>
 
-</div> <!-- סוף videoContainer -->
+</div> <!-- /videoContainer -->
 
 <script>
-/* =========================
-   FULLSCREEN (עם כל ה־overlay)
-   ========================= */
+/* ============ FULLSCREEN ============ */
 const videoContainer = document.getElementById('videoContainer');
 const fsBtn = document.getElementById('fullscreenBtn');
 
 fsBtn.addEventListener('click', () => {
+  // חשוב: עכשיו נבקש מסך מלא על ה-container שכולל את כל השכבות
   if (!document.fullscreenElement) {
     videoContainer.requestFullscreen().catch(err => {
       alert('לא ניתן לעבור למסך מלא: ' + err.message);
@@ -292,36 +289,35 @@ fsBtn.addEventListener('click', () => {
   }
 });
 
-// כשנכנסים למסך מלא אני מעלים את הכפתור, אבל שומר את האייקון ואת התוצאות.
 document.addEventListener('fullscreenchange', () => {
   if (document.fullscreenElement) {
+    // במסך מלא – אל תסתיר את התוצאה ולא את האייקון
     fsBtn.style.display = "none";
   } else {
+    // חזרה ממצב מסך מלא – תחזיר את הכפתור
     fsBtn.style.display = "block";
   }
 });
 
-/* =========================
-   POPUP סודי (פתיחה/סגירה)
-   ========================= */
+
+/* ============ חלון הבקרה ============ */
 const logoBtn   = document.getElementById('channelLogo');
 const popup     = document.getElementById('editPopup');
 const closeBtn  = document.getElementById('closePopupBtn');
 
 logoBtn.addEventListener('click', () => {
-  // בלחיצה על האייקון נפתח/נסגר החלון
   popup.style.display = (popup.style.display === "block") ? "none" : "block";
 });
+
 closeBtn.addEventListener('click', () => {
   popup.style.display = "none";
 });
 
-/* =========================
-   שעון משחק (טוגל מחצית)
-   ========================= */
-let startTime = null;
-let running = false;
-let pausedTotal = 0; // כמה זמן כבר ספרנו לפני עצירה
+
+/* ============ שעון משחק ============ */
+let startTime   = null; // מתי התחלנו את הריצה הנוכחית
+let running     = false;
+let pausedTotal = 0;    // סך הכול זמן שנצבר לפני עצירות (במילישניות)
 
 function fmt(sec){
   const m = Math.floor(sec/60);
@@ -333,40 +329,39 @@ function tickClock(){
   const box = document.getElementById('liveTimer');
   if(!box) return;
   if(!running || startTime===null){
-    // אם לא רץ – מציג את הערך האחרון
-    const elapsedStopped = Math.floor(pausedTotal/1000);
-    box.textContent = fmt(elapsedStopped);
+    const stoppedSec = Math.floor(pausedTotal/1000);
+    box.textContent = fmt(stoppedSec);
     return;
   }
   const now = Date.now();
-  const elapsed = pausedTotal + (now - startTime);
-  const sec = Math.floor(elapsed/1000);
-  box.textContent = fmt(sec);
+  const totalMs = pausedTotal + (now - startTime);
+  const totalSec = Math.floor(totalMs/1000);
+  box.textContent = fmt(totalSec);
 }
+
+// עדכון התצוגה חצי שניה
 setInterval(tickClock, 500);
 
-// הפעל שעון (מתחיל מהתחלה)
+// התחל שעון מהתחלה
 document.getElementById('startBtn').addEventListener('click', ()=>{
   pausedTotal = 0;
   startTime = Date.now();
   running = true;
 });
 
-// הפסקת מחצית / המשך (טוגל)
+// עצור / המשך (מחצית)
 document.getElementById('pauseBtn').addEventListener('click', ()=>{
   if(running){
-    // לעצור
     pausedTotal += Date.now() - startTime;
     running = false;
     startTime = null;
   } else {
-    // להמשיך
     startTime = Date.now();
     running = true;
   }
 });
 
-// איפוס
+// איפוס לגמרי
 document.getElementById('resetBtn').addEventListener('click', ()=>{
   running = false;
   startTime = null;
@@ -374,39 +369,30 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
   tickClock();
 });
 
-/* =========================
-   עדכון טקסטים (קבוצות/תוצאות/כותרת)
-   ========================= */
-function bindLiveField(inputId, cb){
-  const el = document.getElementById(inputId);
-  if(!el) return;
-  const handler = () => cb(el.value);
-  el.addEventListener('input', handler);
-  handler(); // להריץ פעם ראשונה
+
+/* ============ עדכון קבוצות ותוצאות בלייב ============ */
+function bindLiveField(inputId, outputId, fallbackToZero=false){
+  const inp = document.getElementById(inputId);
+  const out = document.getElementById(outputId);
+  if(!inp || !out) return;
+  const apply = ()=>{
+    let v = inp.value;
+    if (fallbackToZero && v.trim()==="") v="0";
+    out.textContent = v;
+  };
+  inp.addEventListener('input', apply);
+  apply(); // סט ערך ראשוני
 }
 
-// כותרת הליגה – כרגע לא מוצגת על המסך בלייב, אבל משאירים כי ביקשת לשלוט בה
-// אם תרצה אראה אותה על המסך גם בלייב במקום כלשהו.
+// שם קבוצה ביתית / תוצאה ביתית
+bindLiveField("teamHome_input","teamHome_name",false);
+bindLiveField("scoreHome_input","teamHome_score",true);
 
-bindLiveField("teamHome_input", (val)=>{
-  const out=document.getElementById("teamHome_name");
-  if(out) out.textContent = val || "";
-});
+// שם קבוצה אורחת / תוצאה אורחת
+bindLiveField("teamAway_input","teamAway_name",false);
+bindLiveField("scoreAway_input","teamAway_score",true);
 
-bindLiveField("scoreHome_input", (val)=>{
-  const out=document.getElementById("teamHome_score");
-  if(out) out.textContent = (val===""?"0":val);
-});
-
-bindLiveField("teamAway_input", (val)=>{
-  const out=document.getElementById("teamAway_name");
-  if(out) out.textContent = val || "";
-});
-
-bindLiveField("scoreAway_input", (val)=>{
-  const out=document.getElementById("teamAway_score");
-  if(out) out.textContent = (val===""?"0":val);
-});
+// שם הליגה כרגע לא מוצג על המסך בלייב (רק בחלון), אבל אפשר להוסיף overlay לטקסט הזה אם תרצה בהמשך.
 </script>
 </body>
 </html>
