@@ -102,6 +102,78 @@ body {
   background:rgba(0,0,0,0.8);
   transform:translate(-50%,-50%) scale(1.05);
 }
+
+/* אייקון הערוץ למעלה */
+.channel-logo {
+  position:fixed;
+  top:8px;
+  right:8px;
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,0.4);
+  box-shadow:0 0 10px rgba(0,0,0,0.7);
+  cursor:pointer;
+  z-index:120;
+}
+
+/* חלון שליטה */
+.edit-popup {
+  position:fixed;
+  top:60px;
+  right:50%;
+  transform:translateX(50%);
+  background:#1a1f2b;
+  color:#fff;
+  border-radius:12px;
+  box-shadow:0 30px 60px rgba(0,0,0,0.9);
+  border:1px solid rgba(255,255,255,0.15);
+  padding:20px;
+  width:320px;
+  max-width:90vw;
+  font-size:0.9rem;
+  display:none;
+  z-index:200;
+}
+.edit-popup h2 {
+  font-size:1rem;
+  text-align:center;
+  margin-top:0;
+  margin-bottom:14px;
+}
+.edit-field {margin-bottom:14px;}
+.team-line {
+  display:flex;
+  gap:8px;
+}
+.team-line input {
+  flex:1;
+}
+.score-input {
+  flex:0 0 60px;
+  text-align:center;
+}
+.edit-input {
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.2);
+  background:#0f1115;
+  color:#fff;
+  padding:10px;
+  font-size:0.9rem;
+  width:100%;
+}
+.ctl-btn {
+  width:100%;
+  padding:10px;
+  border:1px solid rgba(255,255,255,0.2);
+  background:#0f1115;
+  color:#fff;
+  border-radius:8px;
+  cursor:pointer;
+  margin-bottom:8px;
+  font-size:0.9rem;
+  font-weight:600;
+}
 </style>
 </head>
 <body>
@@ -133,41 +205,118 @@ body {
 <!-- כפתור מסך מלא במרכז -->
 <button class="fullscreen-btn" id="fullscreenBtn">⛶ מסך מלא</button>
 
+<!-- תמונה עגולה (כניסה לחלון הסודי) -->
+<img class="channel-logo" id="channelLogo"
+  src="https://yt3.ggpht.com/XEIE69D8DP1huYwLhSrHbEPhU9nfLjqSX7P8mZ8NLceUeDX68BoH1ORcxWy-NufREOy9xo1Dkw=s600-c-k-c0x00ffffff-no-rj-rp-mo" 
+  alt="ערוץ">
+
+<!-- חלון שליטה -->
+<div class="edit-popup" id="editPopup">
+  <h2>שליטה בשידור</h2>
+
+  <div class="edit-field">
+    <label>שם הליגה</label>
+    <input class="edit-input" id="league_input" value="שידורי חי הפועל חיפה נערים א' 2009">
+  </div>
+
+  <div class="edit-field">
+    <label>קבוצה ביתית + תוצאה</label>
+    <div class="team-line">
+      <input id="teamHome_input" class="edit-input" value="הפועל חיפה">
+      <input id="scoreHome_input" class="edit-input score-input" type="number" min="0" value="0">
+    </div>
+  </div>
+
+  <div class="edit-field">
+    <label>קבוצה אורחת + תוצאה</label>
+    <div class="team-line">
+      <input id="teamAway_input" class="edit-input" value="מכבי חיפה">
+      <input id="scoreAway_input" class="edit-input score-input" type="number" min="0" value="0">
+    </div>
+  </div>
+
+  <button class="ctl-btn" id="startBtn">הפעל שעון</button>
+  <button class="ctl-btn" id="pauseBtn">הפסקת מחצית / המשך</button>
+  <button class="ctl-btn" id="resetBtn">איפוס שעון</button>
+  <button class="ctl-btn" id="closePopupBtn">יציאה</button>
+</div>
+
 <script>
+// ===== מסך מלא =====
 const videoContainer = document.getElementById('videoContainer');
 const fsBtn = document.getElementById('fullscreenBtn');
-
 fsBtn.addEventListener('click', () => {
   if (!document.fullscreenElement) {
-    videoContainer.requestFullscreen().catch(err => {
-      alert('לא ניתן לעבור למסך מלא: ' + err.message);
-    });
+    videoContainer.requestFullscreen().catch(err => alert('לא ניתן לעבור למסך מלא: '+err.message));
   } else {
     document.exitFullscreen();
   }
 });
-
 document.addEventListener('fullscreenchange', () => {
   if (document.fullscreenElement) {
-    fsBtn.textContent = '⛶ יציאה ממסך מלא';
-    fsBtn.style.opacity = "0.3"; // מוסתר בעדינות כשנכנסים למסך מלא
-    setTimeout(()=>fsBtn.style.display="none",700);
+    fsBtn.style.display="none";
   } else {
-    fsBtn.textContent = '⛶ מסך מלא';
     fsBtn.style.display="block";
-    fsBtn.style.opacity="1";
   }
 });
 
-// שעון פשוט
-let startTime = Date.now();
-function updateTimer(){
-  const diff = Math.floor((Date.now()-startTime)/1000);
-  const min = String(Math.floor(diff/60)).padStart(2,'0');
-  const sec = String(diff%60).padStart(2,'0');
-  document.getElementById('liveTimer').textContent=`${min}:${sec}`;
+// ===== לוגו + חלון שליטה =====
+const logo = document.getElementById('channelLogo');
+const popup = document.getElementById('editPopup');
+logo.addEventListener('click', ()=>{
+  popup.style.display = popup.style.display==="block" ? "none" : "block";
+});
+document.getElementById('closePopupBtn').addEventListener('click',()=>{
+  popup.style.display="none";
+});
+
+// ===== שעון =====
+let startTime=null;
+let running=false;
+let pausedTime=0;
+function formatTime(sec){
+  const m = Math.floor(sec/60);
+  const s = sec%60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
-setInterval(updateTimer,1000);
+setInterval(()=>{
+  if(running && startTime){
+    const elapsed = Math.floor((Date.now()-startTime+pausedTime)/1000);
+    document.getElementById('liveTimer').textContent=formatTime(elapsed);
+  }
+},1000);
+document.getElementById('startBtn').onclick=()=>{
+  startTime=Date.now();
+  running=true;
+  pausedTime=0;
+};
+document.getElementById('pauseBtn').onclick=()=>{
+  if(running){
+    pausedTime += Date.now()-startTime;
+    running=false;
+  }else{
+    startTime=Date.now();
+    running=true;
+  }
+};
+document.getElementById('resetBtn').onclick=()=>{
+  running=false;
+  startTime=null;
+  pausedTime=0;
+  document.getElementById('liveTimer').textContent="00:00";
+};
+
+// ===== עדכון תוצאות =====
+function bind(idInput,idOutput){
+  const inp=document.getElementById(idInput);
+  const out=document.getElementById(idOutput);
+  inp.addEventListener('input',()=>{out.textContent=inp.value});
+  out.textContent=inp.value;
+}
+bind("teamHome_input","teamHome_name");
+bind("teamAway_input","teamAway_name");
+bind("scoreHome_input","teamHome_score");
+bind("scoreAway_input","teamAway_score");
 </script>
 </body>
 </html>
