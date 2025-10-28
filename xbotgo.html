@@ -399,7 +399,7 @@ body {
         <img class="channel-logo" id="channelLogo"
           src="https://yt3.ggpht.com/XEIE69D8DP1huYwLhSrHbEPhU9nfLjqSX7P8mZ8NLceUeDX68BoH1ORcxWy-NufREOy9xo1Dkw=s600-c-k-c0x00ffffff-no-rj-rp-mo"
           alt="ערוץ">
-        <div class="version-tag" id="versionTag">v1.7</div>
+        <div class="version-tag" id="versionTag">v1.8</div>
         <div class="debug-info" id="debugBox">
           init...
         </div>
@@ -452,17 +452,16 @@ body {
 
 <script>
 // ===== הגדרות JSONBin PUBLIC/PRIVATE =====
-// bin ציבורי חדש ל-GET
 const BIN_ID_PUBLIC  = "6900b89cae596e708f32e6a5";
-// כתובת לקריאה (לכולם, בלי מפתח)
 const READ_URL       = `https://api.jsonbin.io/v3/b/${BIN_ID_PUBLIC}?meta=false`;
-
-// אותה כתובת גם לעדכון (PUT), אבל פה רק האדמין ישלח עם מפתח
 const WRITE_URL      = `https://api.jsonbin.io/v3/b/${BIN_ID_PUBLIC}`;
 const MASTER_KEY     = "$2a$10$hqpd8DlBhDKDlR35sf3JF.Xa9YLAZ5milWTy84TC1qHpEWZpuil3e";
 
-// ===== מצב לוקאלי =====
+// מצב לוקאלי
 let isAdmin = false;
+let justPushed = false;
+let lastPushTime = 0;
+
 let currentData = {
   leagueName: "שידורי חי הפועל חיפה נערים א' 2009",
   homeName: "הפועל חיפה",
@@ -474,7 +473,7 @@ let currentData = {
   pausedTotalMs: 0
 };
 
-// ===== אלמנטים =====
+// אלמנטים
 const debugBox          = document.getElementById("debugBox");
 const popup             = document.getElementById('editPopup');
 const passGate          = document.getElementById('passGate');
@@ -488,7 +487,6 @@ const refreshCircle     = document.getElementById('refreshBtnCircle');
 const videoContainer    = document.getElementById('videoContainer');
 const fsBtn             = document.getElementById('fullscreenBtn');
 
-// ===== פונקציות עזר =====
 function dlog(msg,isError=false){
   const t = new Date();
   const hh = String(t.getHours()).padStart(2,"0");
@@ -504,7 +502,7 @@ function dlog(msg,isError=false){
   }
 }
 
-// ודא שכל המפתחות קיימים
+// לוודא שכל השדות קיימים
 function normalizeData(obj){
   if (typeof obj.leagueName    === "undefined") obj.leagueName    = "";
   if (typeof obj.homeName      === "undefined") obj.homeName      = "";
@@ -516,7 +514,7 @@ function normalizeData(obj){
   if (typeof obj.pausedTotalMs === "undefined") obj.pausedTotalMs = 0;
 }
 
-// שעון
+// חישוב שעון
 function fmt(sec){
   const m = Math.floor(sec/60);
   const s = sec % 60;
@@ -550,14 +548,23 @@ function renderScoreboard() {
   }
 }
 
-// שליפת מצב (לכולם, בלי מפתח)
+// שליפת מצב מהשרת (לכולם)
 async function fetchState() {
+  // אם כרגע שמרנו לפני פחות מ-2 שניות, אל תדרוס אותי עדיין
+  const now = Date.now();
+  if (justPushed && now - lastPushTime < 2000) {
+    // עדיין תעדכן שעון מסך מקומי
+    dlog("skipFetch (recent push)");
+    renderScoreboard();
+    return;
+  } else {
+    justPushed = false;
+  }
+
   try {
     const res = await fetch(READ_URL, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json"
-      }
+      headers: { "Content-Type": "application/json" }
     });
     if (!res.ok) {
       dlog("fetchState HTTP "+res.status,true);
@@ -566,6 +573,7 @@ async function fetchState() {
     const data = await res.json();
     console.log("[DBG] fetchState data:", data);
     normalizeData(data);
+
     currentData = data;
     renderScoreboard();
     dlog("lastFetch OK");
@@ -574,7 +582,7 @@ async function fetchState() {
   }
 }
 
-// דחיפת עדכון (רק אדמין, עם מפתח)
+// שליחה לשרת (רק אדמין)
 async function pushState() {
   if (!isAdmin) return;
   try {
@@ -586,34 +594,41 @@ async function pushState() {
       },
       body: JSON.stringify(currentData)
     });
+
     if (!res.ok) {
       dlog("pushState HTTP "+res.status,true);
       return;
     }
+
+    // הצלחה
+    lastPushTime = Date.now();
+    justPushed = true;
     dlog("lastPushOK");
-    // מושך מחדש לאימות
-    fetchState();
+
+    // מצייר מקומי מיידי
+    renderScoreboard();
+    // לא נקרא fetchState() מייד, כדי לאדרוס
   } catch(e){
     dlog("pushState err "+e,true);
   }
 }
 
-// רענון שעון מקומי כל 0.5ש
+// עדכון מסך כל חצי שנייה (שעון רץ חלק)
 setInterval(()=>{
   renderScoreboard();
 },500);
 
-// פולינג מהשרת כל 1.5ש (זה מה שמסנכרן את כולם)
+// פולינג מהשרת לכל המכשירים כל 1.5ש
 setInterval(()=>{
   fetchState();
 },1500);
 
-// טעינה ראשונה
+// INIT
 fetchState();
 renderScoreboard();
-dlog("init v1.7 ready");
+dlog("init v1.8 ready");
 
-// מסך מלא
+// --------- מסך מלא ---------
 fsBtn.addEventListener('click', () => {
   if (!document.fullscreenElement) {
     videoContainer.requestFullscreen().catch(err => {
@@ -627,7 +642,7 @@ document.addEventListener('fullscreenchange', () => {
   fsBtn.style.display = document.fullscreenElement ? "none" : "block";
 });
 
-// רענון יוטיוב
+// --------- רענון יוטיוב ---------
 function forcePlay() {
   if (iframeEl && iframeEl.contentWindow) {
     iframeEl.contentWindow.postMessage(
@@ -650,7 +665,7 @@ refreshCircle.addEventListener('click', () => {
   },300);
 });
 
-// כניסה לאדמין
+// --------- כניסה לאדמין ---------
 logoBtn.addEventListener('click', () => {
   if (!isAdmin) {
     passGate.style.display = "block";
@@ -666,6 +681,7 @@ adminPassBtn.addEventListener('click', () => {
     isAdmin = true;
     passGate.style.display = "none";
     popup.style.display = "block";
+    // משוך מצב עדכני מהשרת ותצייר
     fetchState().then(()=>{ renderScoreboard(); });
   } else {
     adminPassErr.textContent = "סיסמה לא נכונה";
@@ -683,7 +699,7 @@ function togglePopup(){
   }
 }
 
-// עדכון טקסטים/תוצאות → שלח
+// --------- עדכון טקסטים/תוצאות ---------
 function syncFromInputsAndPush() {
   if (!isAdmin) return;
   const li = document.getElementById("league_input");
@@ -702,7 +718,7 @@ function syncFromInputsAndPush() {
   pushState();
 }
 
-// שליטת שעון
+// --------- שליטת שעון ---------
 document.getElementById('startBtn').addEventListener('click', () => {
   if (!isAdmin) return;
   currentData.pausedTotalMs = 0;
@@ -739,7 +755,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   pushState();
 });
 
-// אירועים על שינוי טקסט/תוצאה
+// שינויי לייב משדות
 document.getElementById("league_input").addEventListener("change", syncFromInputsAndPush);
 document.getElementById("teamHome_input").addEventListener("change", syncFromInputsAndPush);
 document.getElementById("scoreHome_input").addEventListener("change", syncFromInputsAndPush);
