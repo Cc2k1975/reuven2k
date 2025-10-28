@@ -78,13 +78,29 @@
       align-items:center;
       justify-content:center;
       box-shadow:0 8px 16px rgba(52,199,89,0.4);
+      position:relative;
     }
-    .header-icon svg{
+
+    /* גם לאייקון בכותרת אעבור ל-css טהור */
+    .header-icon-shape-head{
+      position:absolute;
+      top:7px;
+      left:50%;
+      width:12px;
+      height:12px;
+      background:#fff;
+      border-radius:50%;
+      transform:translateX(-50%);
+    }
+    .header-icon-shape-body{
+      position:absolute;
+      bottom:6px;
+      left:50%;
       width:20px;
-      height:20px;
-      stroke:#fff;
-      stroke-width:2;
-      fill:none;
+      height:10px;
+      background:#fff;
+      border-radius:10px 10px 4px 4px;
+      transform:translateX(-50%);
     }
 
     h1{
@@ -172,6 +188,29 @@
       margin-bottom:12px;
       flex-shrink:0;
       box-shadow:0 8px 16px rgba(52,199,89,0.4);
+      position:relative;
+    }
+
+    /* אייקון פרצוף לבן בעזרת CSS בלבד, לא SVG */
+    .fav-icon-head{
+      position:absolute;
+      top:14px;
+      left:50%;
+      width:20px;
+      height:20px;
+      background:#fff;
+      border-radius:50%;
+      transform:translateX(-50%);
+    }
+    .fav-icon-body{
+      position:absolute;
+      bottom:14px;
+      left:50%;
+      width:32px;
+      height:16px;
+      background:#fff;
+      border-radius:16px 16px 6px 6px;
+      transform:translateX(-50%);
     }
 
     /* שם הקישור בלבד */
@@ -284,14 +323,8 @@
   <div class="wrap">
     <header>
       <div class="header-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-          <path d="M3 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
-                fill="none" stroke="#fff" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M15 10.5 21 7v10l-6-3.5v-3Z"
-                fill="none" stroke="#fff" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <div class="header-icon-shape-head"></div>
+        <div class="header-icon-shape-body"></div>
       </div>
       <h1>מועדפים</h1>
     </header>
@@ -347,7 +380,7 @@
     let list = [];
     const GH_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
 
-    // מצב כפתורי עריכה/מחיקה פר כרטיס
+    // מצב תצוגת הכפתורים לכל כרטיס
     const editVisibleState = new Map();
 
     async function loadJson(){
@@ -381,41 +414,6 @@
       }
     }
 
-    // בונה SVG באופן בטוח (בלי innerHTML)
-    function buildAvatarSvg(){
-      const svgNS = "http://www.w3.org/2000/svg";
-
-      const svg = document.createElementNS(svgNS,"svg");
-      svg.setAttribute("viewBox","0 0 24 24");
-      svg.setAttribute("width","28");
-      svg.setAttribute("height","28");
-      svg.setAttribute("aria-hidden","true");
-      svg.style.pointerEvents = "none";
-
-      const head = document.createElementNS(svgNS,"circle");
-      head.setAttribute("cx","12");
-      head.setAttribute("cy","8");
-      head.setAttribute("r","4");
-      head.setAttribute("fill","none");
-      head.setAttribute("stroke","#ffffff");
-      head.setAttribute("stroke-width","2");
-      head.setAttribute("stroke-linecap","round");
-      head.setAttribute("stroke-linejoin","round");
-
-      const body = document.createElementNS(svgNS,"path");
-      body.setAttribute("d","M4 20c0-4 3-6 8-6s8 2 8 6");
-      body.setAttribute("fill","none");
-      body.setAttribute("stroke","#ffffff");
-      body.setAttribute("stroke-width","2");
-      body.setAttribute("stroke-linecap","round");
-      body.setAttribute("stroke-linejoin","round");
-
-      svg.appendChild(head);
-      svg.appendChild(body);
-
-      return svg;
-    }
-
     function render(){
       cards.innerHTML = "";
       if(!list.length){
@@ -432,65 +430,72 @@
         card.target = "_blank";
         card.rel = "noopener";
 
-        // פעולות עריכה/מחיקה
+        // כפתורי עריכה/מחיקה
         const actions = document.createElement("div");
         actions.className = "actions";
         if (editVisibleState.get(i) === true){
           actions.classList.add("show");
         }
 
+        // כפתור עריכה
         const btnEdit = document.createElement("button");
         btnEdit.className = "iconbtn";
         btnEdit.title = "ערוך";
         btnEdit.setAttribute("data-action","edit");
         btnEdit.setAttribute("data-index",i);
+        // אייקון עיפרון (svg inline via createElementNS)
+        {
+          const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+          svg.setAttribute("viewBox","0 0 24 24");
+          svg.setAttribute("width","14");
+          svg.setAttribute("height","14");
+          const p = document.createElementNS("http://www.w3.org/2000/svg","path");
+          p.setAttribute("d","M4 16.5V20h3.3L19 8.3l-3.3-3.3L4 16.5z");
+          p.setAttribute("fill","none");
+          p.setAttribute("stroke","#0f1a12");
+          p.setAttribute("stroke-width","1.6");
+          p.setAttribute("stroke-linecap","round");
+          p.setAttribute("stroke-linejoin","round");
+          svg.appendChild(p);
+          btnEdit.appendChild(svg);
+        }
 
-        // אייקון עיפרון
-        const editSvg = document.createElementNS("http://www.w3.org/2000/svg","svg");
-        editSvg.setAttribute("viewBox","0 0 24 24");
-        editSvg.setAttribute("width","14");
-        editSvg.setAttribute("height","14");
-        const editPath = document.createElementNS("http://www.w3.org/2000/svg","path");
-        editPath.setAttribute("d","M4 16.5V20h3.3L19 8.3l-3.3-3.3L4 16.5z");
-        editPath.setAttribute("fill","none");
-        editPath.setAttribute("stroke","#0f1a12");
-        editPath.setAttribute("stroke-width","1.6");
-        editPath.setAttribute("stroke-linecap","round");
-        editPath.setAttribute("stroke-linejoin","round");
-        editSvg.appendChild(editPath);
-        btnEdit.appendChild(editSvg);
-
+        // כפתור מחיקה
         const btnDel = document.createElement("button");
         btnDel.className = "iconbtn";
         btnDel.title = "מחק";
         btnDel.setAttribute("data-action","delete");
         btnDel.setAttribute("data-index",i);
-
-        // אייקון פח
-        const delSvg = document.createElementNS("http://www.w3.org/2000/svg","svg");
-        delSvg.setAttribute("viewBox","0 0 24 24");
-        delSvg.setAttribute("width","14");
-        delSvg.setAttribute("height","14");
-        const delPath = document.createElementNS("http://www.w3.org/2000/svg","path");
-        delPath.setAttribute("d","M6 7h12M9 7V5h6v2m-8 3 1 9h8l1-9");
-        delPath.setAttribute("fill","none");
-        delPath.setAttribute("stroke","#0f1a12");
-        delPath.setAttribute("stroke-width","1.6");
-        delPath.setAttribute("stroke-linecap","round");
-        delPath.setAttribute("stroke-linejoin","round");
-        delSvg.appendChild(delPath);
-        btnDel.appendChild(delSvg);
+        {
+          const svg = document.createElementNS("http://www.w3.org/2000/svg","svg");
+          svg.setAttribute("viewBox","0 0 24 24");
+          svg.setAttribute("width","14");
+          svg.setAttribute("height","14");
+          const p = document.createElementNS("http://www.w3.org/2000/svg","path");
+          p.setAttribute("d","M6 7h12M9 7V5h6v2m-8 3 1 9h8l1-9");
+          p.setAttribute("fill","none");
+          p.setAttribute("stroke","#0f1a12");
+          p.setAttribute("stroke-width","1.6");
+          p.setAttribute("stroke-linecap","round");
+          p.setAttribute("stroke-linejoin","round");
+          svg.appendChild(p);
+          btnDel.appendChild(svg);
+        }
 
         actions.appendChild(btnEdit);
         actions.appendChild(btnDel);
 
-        // האייקון העגול הירוק
+        // העיגול הירוק עם האייקון מלבני-לבנבן (ראש+כתפיים ב-CSS)
         const fav = document.createElement("div");
         fav.className = "fav";
-        const avatarSvg = buildAvatarSvg();
-        fav.appendChild(avatarSvg);
+        const head = document.createElement("div");
+        head.className = "fav-icon-head";
+        const body = document.createElement("div");
+        body.className = "fav-icon-body";
+        fav.appendChild(head);
+        fav.appendChild(body);
 
-        // לחיצה על העיגול הירוק -> הצג/הסתר כפתורי עריכה/מחיקה
+        // לחיצה על העיגול הירוק -> מראה/מסתיר כפתורים
         fav.addEventListener("click",(ev)=>{
           ev.preventDefault();
           ev.stopPropagation();
@@ -511,7 +516,7 @@
         cards.appendChild(card);
       });
 
-      // מאזינים לכפתורי עריכה/מחיקה
+      // מאזינים לערוך/מחק
       cards.querySelectorAll(".iconbtn").forEach(btn=>{
         btn.addEventListener("click", onActionClick);
       });
@@ -538,7 +543,7 @@
         return;
       }
 
-      // אם כבר יש אותו URL -> מסירים הישן ושמים חדש למעלה
+      // אם כבר יש את אותו URL -> תחליף ולא תיצור כפול
       const i = list.findIndex(x => x.url?.toLowerCase() === url.toLowerCase());
       if(i>-1) list.splice(i,1);
 
@@ -587,7 +592,7 @@
         const newName = prompt("שם חדש לקישור:", curr.name ?? "");
         if(newName===null) return;
         const newUrlRaw = prompt("קישור חדש (URL):", curr.url ?? "");
-        if(newUrlRaw===null) return;
+        if(newUrlRaw === null) return;
         try{
           const newUrl = normalizeUrl(newUrlRaw);
           list[idx] = {
