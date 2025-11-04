@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>סקר</title>
+<style>
+:root{
+  --bg:#000;
+  --panel:#111;
+  --text-main:#ffd700;
+  --text-body:#ddd;
+  --border:#ccaa22;
+  --error-bg:#500;
+  --ok-bg:#063;
+  --btn-bg:#d2b11c;
+  --btn-text:#000;
+  --radius:8px;
+}
+body{
+  margin:0;
+  background:var(--bg);
+  font-family:Arial,Helvetica,sans-serif;
+  color:var(--text-body);
+  display:flex;
+  justify-content:center;
+  padding:16px;
+}
+.wrap{
+  max-width:520px;
+  width:100%;
+  background:var(--panel);
+  border-radius:var(--radius);
+  padding:16px 16px 32px; /* פחות רווח למעלה כדי להביא את הכותרת גבוה */
+  border:1px solid #222;
+  box-shadow:0 0 20px #000;
+}
+h1{
+  text-align:center;
+  color:var(--text-main);
+  font-size:28px;
+  font-weight:700;
+  margin:0 0 16px 0; /* בלי רווח עליון בכלל */
+}
+
+label{
+  display:block;
+  color:var(--text-main);
+  margin:20px 4px 8px;
+  font-size:20px;
+  font-weight:600;
+}
+input,select,textarea{
+  width:100%;
+  background:#222;
+  color:var(--text-body);
+  border:2px solid var(--border);
+  border-radius:var(--radius);
+  font-size:18px;
+  padding:12px;
+  box-sizing:border-box;
+  font-family:inherit;
+}
+textarea{
+  resize:vertical;
+  min-height:80px;
+}
+input::placeholder,
+textarea::placeholder{
+  color:#777;
+}
+select{
+  appearance:none;
+  background-image:linear-gradient(#222,#222),linear-gradient(to top,#222,#222);
+  background-color:#222;
+  color:var(--text-body);
+}
+
+button.sendBtn{
+  width:100%;
+  background:var(--btn-bg);
+  color:var(--btn-text);
+  font-size:22px;
+  font-weight:700;
+  border:0;
+  border-radius:var(--radius);
+  padding:12px;
+  cursor:pointer;
+  margin-top:28px;
+}
+button.sendBtn:active{
+  filter:brightness(0.9);
+}
+
+.ver{
+  text-align:center;
+  margin-top:10px;
+  color:#888;
+  font-size:13px;
+  line-height:1.4;
+}
+
+/* =========== פופאפ מרכזי =========== */
+#modalOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:99;
+}
+#modalBox{
+  max-width:320px;
+  width:90%;
+  background:#111;
+  border:2px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px 16px;
+  text-align:center;
+  color:#fff;
+  box-shadow:0 20px 60px rgba(0,0,0,0.9);
+}
+#modalMessage{
+  margin-bottom:16px;
+  color:#fff;
+  font-size:18px;
+  font-weight:600;
+  line-height:1.4;
+  padding:12px;
+  border-radius:var(--radius);
+  white-space:pre-line;
+}
+#modalOkBtn{
+  width:100%;
+  background:var(--btn-bg);
+  color:var(--btn-text);
+  border:0;
+  border-radius:var(--radius);
+  padding:10px;
+  font-size:18px;
+  font-weight:700;
+  cursor:pointer;
+}
+#modalOkBtn:active{
+  filter:brightness(0.9);
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>עוברים לחדרה</h1>
+
+  <form id="surveyForm">
+
+    <!-- הוסתר בלי למחוק, ובוטל required -->
+    <label for="dept" style="display:none;">מחלקה:</label>
+    <select id="dept" style="display:none;">
+      <option value="">בחר מחלקה…</option>
+      <option>אווירו</option>
+      <option>מחמ</option>
+      <option>מטה</option>
+      <option>ניווט</option>
+      <option>בקמ</option>
+      <option>טילאות</option>
+      <option>סימולציות</option>
+    </select>
+
+    <label for="workerName">שם מלא:</label>
+    <input id="workerName" type="text" placeholder="שם מלא" required>
+
+    <label for="phone">מספר נייד:</label>
+    <input id="phone" type="tel" placeholder="05X-XXXXXXX" required>
+
+    <label for="building">מבנה איסוף:</label>
+    <input id="building" type="text" placeholder="לדוגמה: 666" required>
+
+    <label for="floor">קומה איסוף:</label>
+    <input id="floor" type="text" placeholder="לדוגמה: 3" required>
+
+    <label for="room">חדר איסוף:</label>
+    <input id="room" type="text" placeholder="לדוגמה: 305" required>
+
+    <label for="packs">כמות אריזות:</label>
+    <select id="packs" required>
+      <option value="">בחר כמות…</option>
+      <option>1</option>
+      <option>2</option>
+      <option>3</option>
+    </select>
+
+    <label for="targetRoom">חדר יעד:</label>
+    <input id="targetRoom" type="text" placeholder="חדר קולט " required>
+
+    <label for="notes">הערות (לא חובה):</label>
+    <textarea id="notes" placeholder="כתוב כאן אם יש הערות מיוחדות..."></textarea>
+
+    <button type="submit" class="sendBtn">שלח</button>
+
+  </form>
+
+  <div class="ver">
+    גרסה 1.2.1<br>
+    charles
+  </div>
+
+</div>
+
+<!-- פופאפ -->
+<div id="modalOverlay">
+  <div id="modalBox">
+    <div id="modalMessage"></div>
+    <button id="modalOkBtn">אישור</button>
+  </div>
+</div>
+
+<script>
+const BIN_ID     = "68fefa3dd0ea881f40beb941";
+const ACCESS_KEY = "$2a$10$cSsqpLyw9Jl/8q0El4JzqOuwLRUINEוMNeyxeUQ726QdlvNMD0iTe";
+const API_BASE   = "https://api.jsonbin.io/v3/b";
+
+const form        = document.getElementById("surveyForm");
+const modalOverlay= document.getElementById("modalOverlay");
+const modalMessage= document.getElementById("modalMessage");
+const modalOkBtn  = document.getElementById("modalOkBtn");
+
+// פופאפ
+function showPopup(msg,isOk){
+  modalMessage.style.backgroundColor = isOk ? "var(--ok-bg)" : "var(--error-bg)";
+  modalMessage.textContent = msg;
+  modalOverlay.style.display = "flex";
+}
+modalOkBtn.addEventListener("click", ()=>{ modalOverlay.style.display="none"; });
+
+// מביא את כל ה-data הקיים מה-BIN (answers + formOpen)
+async function fetchRecord(){
+  const res = await fetch(`${API_BASE}/${BIN_ID}`,{
+    method:"GET",
+    headers:{
+      "Content-Type":"application/json",
+      "X-Access-Key": ACCESS_KEY
+    }
+  });
+  if(!res.ok){
+    throw new Error("שגיאת רשת בקריאה BIN. status="+res.status);
+  }
+  const data = await res.json();
+  return data.record || {};
+}
+
+// כותב עדכון חזרה ל-BIN (answers + formOpen)
+async function saveRecord(recordObj){
+  const res = await fetch(`${API_BASE}/${BIN_ID}`,{
+    method:"PUT",
+    headers:{
+      "Content-Type":"application/json",
+      "X-Access-Key": ACCESS_KEY
+    },
+    body: JSON.stringify(recordObj)
+  });
+  if(!res.ok){
+    throw new Error("שגיאה בשמירה ל-BIN. status="+res.status);
+  }
+  return res.json();
+}
+
+// ולידציית טלפון: חייב להתחיל ב-05 ולהיות 10 ספרות בדיוק
+function validPhone(raw){
+  const clean = raw.trim();
+  const phoneRegex = /^05\d{8}$/; // 0 5 ואז עוד 8 ספרות = סה"כ 10
+  return phoneRegex.test(clean);
+}
+
+// שליחת הטופס
+form.addEventListener("submit", async (ev)=>{
+  ev.preventDefault();
+  showPopup("בודק...", true);
+
+  try{
+    // שלב 1: אוסף נתונים מהטופס
+    const answer = {
+      dept:        document.getElementById("dept").value.trim(),
+      workerName:  document.getElementById("workerName").value.trim(),
+      phone:       document.getElementById("phone").value.trim(),
+      building:    document.getElementById("building").value.trim(),
+      floor:       document.getElementById("floor").value.trim(),
+      room:        document.getElementById("room").value.trim(),
+      packs:       document.getElementById("packs").value.trim(),
+      targetRoom:  document.getElementById("targetRoom").value.trim(),
+      notes:       document.getElementById("notes").value.trim(), // לא חובה
+      ts:          new Date().toISOString()
+    };
+
+    // שלב 2: בדיקה שכל החובה מלאים (הערות לא חובה)
+    if(
+      /* הוסרה בדיקת dept כדי שלא יהיה שדה חובה */
+      !answer.workerName ||
+      !answer.phone ||
+      !answer.building ||
+      !answer.floor ||
+      !answer.room ||
+      !answer.packs ||
+      !answer.targetRoom
+    ){
+      showPopup("נא למלא את כל השדות.", false);
+      return;
+    }
+
+    // שלב 3: בדיקת טלפון תקין
+    if(!validPhone(answer.phone)){
+      showPopup("מספר נייד לא חוקי.\nיש להזין מספר בן 10 ספרות שמתחיל ב-05", false);
+      return;
+    }
+
+    // שלב 4: קורא את ה-DB מהענן
+    const record = await fetchRecord();
+    const formOpen = record.formOpen !== false; // ברירת מחדל true
+    const arr = Array.isArray(record.answers) ? record.answers : [];
+
+    // שלב 5: טופס פתוח או נעול?
+    if(!formOpen){
+      showPopup("לא ניתן יותר להירשם", false);
+      return;
+    }
+
+    // שלב 6: בדיקת כפילות טלפון
+    const exists = arr.some(x => x.phone === answer.phone);
+    if(exists){
+      showPopup("נרשמת כבר, אנא פנה לצ׳רלס 0523719856", false);
+      return;
+    }
+
+    // שלב 7: הוספה ושמירה
+    arr.push(answer);
+    await saveRecord({
+      answers: arr,
+      formOpen: formOpen
+    });
+
+    showPopup("נשמר בהצלחה ✔", true);
+    form.reset();
+
+  }catch(err){
+    showPopup("שגיאה: "+err.message, false);
+  }
+});
+</script>
+</body>
+</html>
