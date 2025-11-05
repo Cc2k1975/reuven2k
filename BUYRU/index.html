@@ -23,12 +23,12 @@
   .imgbox img{max-width:100%;border-radius:10px}
   .meta{font-size:14px;color:#555;margin-top:8px}
   .links a{display:inline-block;margin:6px 8px 0 0;color:var(--pri);text-decoration:none}
-  .small{font-size:12px;color:var(--muted);margin-top:6px}
+  .small{font-size:12px;color:#777;margin-top:6px}
   .banner{background:#fff3cd;border:1px solid #ffe08a;color:#6b5800;border-radius:10px;padding:10px;margin:10px 0}
   .foot{margin-top:20px;text-align:center;color:#888;font-size:12px}
   .ctrl{display:flex;gap:8px;align-items:center}
   .ctrl label{font-size:12px;color:#555}
-  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; color:#555; word-break:break-all}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; color:#555; word-break:break-all; white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -73,7 +73,7 @@
     <div class="mono" id="diag"></div>
   </div>
 
-  <div class="foot">v1.3.0 – BUYRU</div>
+  <div class="foot">v1.3.1 – BUYRU</div>
 </div>
 
 <!-- ZXing (גרסת browser המודרנית) -->
@@ -98,13 +98,11 @@
   const httpsLink = document.getElementById('httpsLink');
 
   let reader = null;
-  let currentStream = null;
   let currentTrack = null;
-  let imageCapture = null;
   let lastCode = '';
   let torchOn = false;
 
-  // --- עזרי HTTPS ---
+  // --- HTTPS banner ---
   (function ensureHttpsBanner(){
     const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
     if (location.protocol !== 'https:' && !isLocalhost){
@@ -116,15 +114,13 @@
   function setStatus(msg){ statusEl.textContent = msg; }
   function log(msg){ diagEl.textContent += (diagEl.textContent ? '\n' : '') + msg; }
 
-  // מחלק את ה-GTIN לבלוקים של 3 ספרות – פורמט הנתיב של Open*Facts
+  // ---- תמונות לפי ברקוד ----
   function gtinToPath(code){
     const clean = (code || '').replace(/\D/g,'');
     const parts = [];
     for(let i=0;i<clean.length;i+=3) parts.push(clean.slice(i,i+3));
     return parts.join('/');
   }
-
-  // מועמדים – Open*Facts
   function openFactsCandidates(code){
     const base = [
       'https://images.openfoodfacts.org/images/products/',
@@ -141,8 +137,6 @@
       `${base[2]}${path}/front.jpg`,
     ];
   }
-
-  // מועמדים – רמי לוי
   function ramiLevyCandidates(code){
     const base = `https://img.rami-levy.co.il/product/${code}`;
     return [
@@ -152,8 +146,6 @@
       `https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`,
     ];
   }
-
-  // נסה לטעון תמונה מהמועמדים, מחזיר URL ראשון שעובד
   function firstWorkingImage(urls){
     return new Promise((resolve) => {
       let i = 0;
@@ -163,12 +155,11 @@
         const img = new Image();
         img.onload = ()=> resolve(url);
         img.onerror= ()=> tryNext();
-        img.src = url + `?t=${Date.now()}`; // עקיפת קאש
+        img.src = url + `?t=${Date.now()}`;
       }
       tryNext();
     });
   }
-
   async function tryLoadImageFor(code){
     const candidates = [
       ...openFactsCandidates(code),
@@ -176,7 +167,6 @@
     ];
     return await firstWorkingImage(candidates);
   }
-
   async function showByCode(code){
     if(!code){ setStatus('לא הוזן ברקוד.'); return; }
     lastCode = code.replace(/\s/g,'');
@@ -185,7 +175,6 @@
     imgEl.src=''; linksEl.innerHTML='';
 
     const url = await tryLoadImageFor(lastCode);
-
     if(url){
       codeMeta.textContent = `ברקוד: ${lastCode}`;
       imgEl.src = url;
@@ -197,17 +186,15 @@
       imgBox.style.display='block';
       setStatus('לא נמצאה תמונה במקורות הנ״ל.');
     }
-
     linksEl.innerHTML = [
       link('חיפוש בגוגל תמונות', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(lastCode)}`),
       link('שופרסל – חיפוש', `https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(lastCode)}`),
       link('רמי לוי – חיפוש', `https://www.rami-levy.co.il/he/Search?search=${encodeURIComponent(lastCode)}`)
     ].join(' ');
   }
-
   function link(txt, href){ return `<a target="_blank" rel="noopener" href="${href}">${txt}</a>`; }
 
-  // --- מצלמות זמינות + מילוי select ---
+  // ---- מצלמות ----
   async function listVideoInputsSafe(){
     let devices = [];
     try {
@@ -225,13 +212,10 @@
     }
     return devices;
   }
-
   function preferBackCamera(devices){
-    // נותן עדיפות לשמות שמכילים back/rear/environment, ואם יש כמה – קח את האחרון (בד״כ האיכותי).
     const backs = devices.filter(d => /back|rear|environment/i.test(d.label || ''));
     return backs.length ? backs[backs.length - 1] : devices[0];
   }
-
   async function populateCameraSelect(){
     const devices = await listVideoInputsSafe();
     cameraSel.innerHTML = '';
@@ -257,7 +241,6 @@
       }
     }catch(e){ /* ignore */ }
   }
-
   async function toggleTorch(){
     if(!currentTrack) return;
     try{
@@ -271,61 +254,70 @@
 
   async function startScan(){
     try{
-      await stopScan();
+      await stopScan(); // ודא שאין סטרים פתוח
 
-      // 1) בחירת מצלמה מתוך ה-select
+      // 1) בונים constraints למצלמה הנבחרת
       const deviceId = cameraSel.value || undefined;
+      const constraints = {
+        audio: false,
+        video: deviceId
+          ? { deviceId: { exact: deviceId }, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }
+          : { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }
+      };
 
-      // 2) פתיחת stream עם עדיפות לרזולוציה טובה
-      const constraints = deviceId
-        ? { video: { deviceId: { exact: deviceId }, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }, audio: false }
-        : { video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }, audio: false };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      currentStream = stream;
-      preview.srcObject = stream;
-
-      // החזק רפרנס ל-VideoTrack עבור torch/zoom
-      currentTrack = stream.getVideoTracks()[0] || null;
-
-      // הכנות ל-torch/zoom
-      btnTorch.disabled = true;
-      zoomRange.disabled = true;
-      torchOn = false;
-      try{
-        const caps = currentTrack?.getCapabilities?.();
-        if(caps?.torch){ btnTorch.disabled = false; btnTorch.textContent = 'פנס כבוי'; }
-        if(caps?.zoom){
-          zoomRange.min = caps.zoom.min || 1;
-          zoomRange.max = caps.zoom.max || 5;
-          zoomRange.step= caps.zoom.step || 0.1;
-          zoomRange.value = caps.zoom.min || 1;
-          zoomRange.disabled = false;
-        }
-      }catch(e){ /* ignore */ }
-
-      // 3) Reader והאזנה
+      // 2) מפעילים ZXing עם decodeFromConstraints (סטרים יחיד, בלי getUserMedia נוסף)
       reader = new ZXing.BrowserMultiFormatReader();
       setStatus('סורק... כוון את הברקוד אל המצלמה.');
       btnStart.disabled = true; btnStop.disabled = false;
 
-      reader.decodeFromVideoDevice(deviceId || null, preview, (result) => {
+      await reader.decodeFromConstraints(constraints, preview, (result, err, controls) => {
+        // נשמור ref ל-controls אם אי פעם נרצה לעצור דרכם (לא חובה)
         if(result){
           const code = (result.text || '').trim();
           if(code && code !== lastCode) showByCode(code);
         }
       });
 
+      // 3) אחרי שהסטרים התחבר לוידאו – נאתחל פנס/זום
+      const initTrack = () => {
+        const stream = preview.srcObject;
+        currentTrack = stream && stream.getVideoTracks ? stream.getVideoTracks()[0] : null;
+
+        btnTorch.disabled = true;
+        zoomRange.disabled = true;
+        torchOn = false;
+
+        try{
+          const caps = currentTrack?.getCapabilities?.();
+          if(caps?.torch){ btnTorch.disabled = false; btnTorch.textContent = 'פנס כבוי'; }
+          if(caps?.zoom){
+            zoomRange.min = caps.zoom.min || 1;
+            zoomRange.max = caps.zoom.max || 5;
+            zoomRange.step= caps.zoom.step || 0.1;
+            zoomRange.value = caps.zoom.min || 1;
+            zoomRange.disabled = false;
+          }
+        }catch(e){ /* ignore */ }
+      };
+
+      // ייתכן שייקח רגע עד שהסטרים יופיע על הוידאו
+      if (preview.srcObject) initTrack(); else setTimeout(initTrack, 150);
+
     }catch(e){
-      setStatus('כשל בהפעלת הסריקה: ' + e.message);
+      setStatus('כשל בהפעלת הסריקה: ' + (e.name ? `${e.name} – ` : '') + e.message);
       btnStart.disabled = false; btnStop.disabled = true;
+      log('Start error: ' + (e.stack || e.message || e));
     }
   }
 
   async function stopScan(){
     try{
       if(reader){ reader.reset(); reader = null; }
-      if(currentStream){ currentStream.getTracks().forEach(t => t.stop()); currentStream = null; }
+      const stream = preview.srcObject;
+      if(stream && stream.getTracks){
+        stream.getTracks().forEach(t => t.stop());
+      }
+      preview.srcObject = null;
       currentTrack = null;
       torchOn = false;
     }finally{
@@ -342,23 +334,18 @@
   manual.addEventListener('keydown', (e)=>{ if(e.key==='Enter') showByCode(manual.value); });
   btnTorch.addEventListener('click', toggleTorch);
   zoomRange.addEventListener('input', (e)=> applyZoom(e.target.value));
-  cameraSel.addEventListener('change', startScan); // החלפת מצלמה מיידית
+  cameraSel.addEventListener('change', startScan); // החלפה מיידית של מצלמה
 
-  // הרשאות + מילוי רשימת מצלמות
+  // הרשאות + רשימת מצלמות
   (async ()=> {
     try{
       const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
       if (location.protocol === 'https:' || isLocalhost){
-        await navigator.mediaDevices.getUserMedia({video:true});
-        await populateCameraSelect();
-        setStatus('מוכן – בחר מצלמה ולחץ "הפעל סריקה".');
-      } else {
-        setStatus('פתח את הדף ב-HTTPS כדי להפעיל מצלמה.');
+        await navigator.mediaDevices.getUserMedia({video:true}); // רק כדי לקבל labels
       }
-    }catch{
-      await populateCameraSelect(); // עדיין נמלא את הרשימה ככל שאפשר
-      setStatus('אשר גישה למצלמה ואז לחץ "הפעל סריקה".');
-    }
+    }catch{}
+    await populateCameraSelect();
+    setStatus('מוכן – בחר מצלמה ולחץ "הפעל סריקה".');
   })();
 </script>
 </body>
