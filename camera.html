@@ -1,99 +1,212 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>סריקת מוצר – אב טיפוס</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>סורק מוצר – תמונה אוטומטית</title>
 <style>
-  body {
-    font-family: 'Heebo', sans-serif;
-    background: #f7f7f7;
-    text-align: center;
-    direction: rtl;
-    margin: 0;
-    padding: 20px;
-  }
-  video {
-    width: 90%;
-    max-width: 400px;
-    border-radius: 12px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.3);
-  }
-  #productImg {
-    margin-top: 20px;
-    max-width: 300px;
-    border-radius: 12px;
-  }
-  input {
-    margin-top: 20px;
-    padding: 10px;
-    width: 80%;
-    font-size: 18px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-  }
-  button {
-    padding: 10px 20px;
-    margin-top: 10px;
-    font-size: 18px;
-    border: none;
-    border-radius: 8px;
-    background: #008CBA;
-    color: white;
-    cursor: pointer;
-  }
+  body{font-family:Heebo,Arial,sans-serif;background:#f7f7f7;margin:0;padding:16px;color:#222}
+  h1{font-size:20px;margin:0 0 12px}
+  .wrap{max-width:680px;margin:0 auto}
+  video{width:100%;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.12);background:#000}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  input[type="text"]{flex:1;min-width:200px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px}
+  button{padding:10px 14px;border:0;border-radius:10px;cursor:pointer;font-weight:600}
+  .primary{background:#1f7aeb;color:#fff}
+  .ghost{background:#eee}
+  .card{margin-top:14px;background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.08);padding:14px}
+  .imgbox img{max-width:100%;border-radius:10px}
+  .meta{font-size:14px;color:#555;margin-top:8px}
+  .links a{display:inline-block;margin:6px 8px 0 0;color:#1f7aeb;text-decoration:none}
+  .small{font-size:12px;color:#777}
 </style>
 </head>
 <body>
-  <h2>סריקת מוצר בזמן אמת</h2>
-  <video id="camera" autoplay playsinline></video>
-  <br>
-  <input type="text" id="barcode" placeholder="הכנס או סרוק ברקוד...">
-  <button onclick="lookupProduct()">חפש מוצר</button>
-  <div id="result"></div>
+<div class="wrap">
+  <h1>סורק מוצר – שליפת תמונה אוטומטית</h1>
 
-  <script>
-    // הפעלת מצלמה
-    async function initCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        document.getElementById('camera').srcObject = stream;
-      } catch (err) {
-        alert('לא ניתן להפעיל מצלמה: ' + err.message);
-      }
-    }
+  <video id="preview" playsinline></video>
 
-    // חיפוש תמונת מוצר
-    async function lookupProduct() {
-      const code = document.getElementById("barcode").value.trim();
-      if (!code) {
-        alert("אנא הזן ברקוד או קוד מוצר");
-        return;
-      }
+  <div class="row">
+    <button class="primary" id="btnStart">הפעל סריקה</button>
+    <button class="ghost" id="btnStop" disabled>עצור</button>
+  </div>
 
-      const apiUrl = `https://api.barcodelookup.com/v3/products?barcode=${code}&formatted=y&key=YOUR_API_KEY`;
-      const resultDiv = document.getElementById("result");
-      resultDiv.innerHTML = "<p>מחפש נתונים...</p>";
+  <div class="row">
+    <input id="manual" type="text" placeholder="או הזן ידנית ברקוד (GTIN/UPC/EAN)..." />
+    <button class="ghost" id="btnLookup">חפש תמונה</button>
+  </div>
 
-      try {
-        const res = await fetch(apiUrl);
-        const data = await res.json();
+  <div class="card" id="status">מוכן לסריקה.</div>
 
-        if (data.products && data.products.length > 0) {
-          const product = data.products[0];
-          resultDiv.innerHTML = `
-            <h3>${product.product_name}</h3>
-            <img id="productImg" src="${product.images[0]}" alt="תמונת מוצר">
-          `;
-        } else {
-          resultDiv.innerHTML = "<p>לא נמצאה תמונה למוצר זה.</p>";
+  <div class="card imgbox" id="imgBox" style="display:none">
+    <div class="meta" id="codeMeta"></div>
+    <img id="imgProduct" alt="תמונת מוצר" />
+    <div class="links" id="links"></div>
+    <div class="small">מקורות תמונה: Open Food/Beauty/Products Facts (ציבוריים). אם אין תמונה—מופיעים קישורי חיפוש.</div>
+  </div>
+</div>
+
+<!-- ZXing: סריקת ברקודים בדפדפן -->
+<script src="https://unpkg.com/@zxing/library@0.19.2"></script>
+<script>
+  const statusEl = document.getElementById('status');
+  const imgBox = document.getElementById('imgBox');
+  const imgEl = document.getElementById('imgProduct');
+  const codeMeta = document.getElementById('codeMeta');
+  const linksEl = document.getElementById('links');
+  const preview = document.getElementById('preview');
+  const btnStart = document.getElementById('btnStart');
+  const btnStop  = document.getElementById('btnStop');
+  const btnLookup= document.getElementById('btnLookup');
+  const manual   = document.getElementById('manual');
+
+  let reader = null;
+  let currentStream = null;
+  let lastCode = '';
+
+  // בונה נתיב תמונה לפי הכלל של Open*Facts: חלוקה לבלוקים של 3 ספרות
+  function gtinToPath(code){
+    const clean = (code || '').replace(/\D/g,'');
+    const parts = [];
+    for(let i=0;i<clean.length;i+=3) parts.push(clean.slice(i,i+3));
+    return parts.join('/');
+  }
+
+  // ניסיון טעינת תמונה ממספר מאגרים ציבוריים (ללא API)
+  function tryLoadImageFor(code){
+    return new Promise((resolve) => {
+      const basePaths = [
+        'https://images.openfoodfacts.org/images/products/',
+        'https://images.openbeautyfacts.org/images/products/',
+        'https://images.openproductsfacts.org/images/products/'
+      ];
+      const path = gtinToPath(code);
+      const candidates = [
+        `${basePaths[0]}${path}/front.400.jpg`,
+        `${basePaths[0]}${path}/front.jpg`,
+        `${basePaths[1]}${path}/front.400.jpg`,
+        `${basePaths[1]}${path}/front.jpg`,
+        `${basePaths[2]}${path}/front.400.jpg`,
+        `${basePaths[2]}${path}/front.jpg`,
+      ];
+
+      let idx = 0;
+      function tryNext(){
+        if(idx >= candidates.length){
+          resolve(null);
+          return;
         }
-      } catch (err) {
-        resultDiv.innerHTML = "<p>שגיאה בשליפת הנתונים.</p>";
+        const url = candidates[idx++];
+        const testImg = new Image();
+        testImg.onload = ()=> resolve(url);
+        testImg.onerror= ()=> tryNext();
+        testImg.src = url + `?t=${Date.now()}`; // עוקף קאש
       }
+      tryNext();
+    });
+  }
+
+  function setStatus(msg){ statusEl.textContent = msg; }
+
+  async function showByCode(code){
+    if(!code){ setStatus('לא הוזן ברקוד.'); return; }
+    lastCode = code.replace(/\s/g,'');
+    setStatus(`מחפש תמונה לברקוד: ${lastCode} ...`);
+    imgBox.style.display='none';
+    imgEl.src=''; linksEl.innerHTML='';
+
+    const url = await tryLoadImageFor(lastCode);
+
+    if(url){
+      codeMeta.textContent = `ברקוד: ${lastCode}`;
+      imgEl.src = url;
+      imgBox.style.display='block';
+      setStatus('נמצאה תמונה (Open Facts).');
+    }else{
+      codeMeta.textContent = `ברקוד: ${lastCode}`;
+      imgEl.removeAttribute('src');
+      imgBox.style.display='block';
+      setStatus('לא נמצאה תמונה במאגרים הציבוריים.');
     }
 
-    initCamera();
-  </script>
+    // קישורי חיפוש/חנויות (תמונה בד״כ בתוך הדף)
+    linksEl.innerHTML = [
+      link('חיפוש בגוגל תמונות', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(lastCode)}`),
+      link('שופרסל – חיפוש', `https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(lastCode)}`),
+      link('רמי לוי – חיפוש', `https://www.rami-levy.co.il/he/Search?search=${encodeURIComponent(lastCode)}`),
+      link('Wine & More – חיפוש', `https://winemall.co.il/catalogsearch/result/?q=${encodeURIComponent(lastCode)}`)
+    ].join(' ');
+  }
+
+  function link(txt, href){ return `<a target="_blank" rel="noopener" href="${href}">${txt}</a>`; }
+
+  // הפעלת סריקה
+  async function startScan(){
+    try{
+      if(reader){ await stopScan(); }
+      reader = new ZXing.BrowserMultiFormatReader();
+      const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+
+      // עדיפות למצלמה אחורית אם קיימת
+      let deviceId = devices?.[0]?.deviceId || undefined;
+      const back = devices.find(d => /back|rear|environment/i.test(d.label));
+      if(back) deviceId = back.deviceId;
+
+      currentStream = await navigator.mediaDevices.getUserMedia({
+        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
+        audio: false
+      });
+      preview.srcObject = currentStream;
+
+      setStatus('סורק... כוון את הברקוד אל המצלמה.');
+      btnStart.disabled = true; btnStop.disabled = false;
+
+      reader.decodeFromVideoDevice(deviceId, preview, (result, err) => {
+        if(result){
+          const code = (result.text || '').trim();
+          // מסנן רעשים/חזרות
+          if(code && code !== lastCode){
+            showByCode(code);
+          }
+        }
+      });
+    }catch(e){
+      setStatus('נכשל בהפעלת סריקה: ' + e.message);
+      btnStart.disabled = false; btnStop.disabled = true;
+    }
+  }
+
+  async function stopScan(){
+    try{
+      if(reader){
+        reader.reset();
+        reader = null;
+      }
+      if(currentStream){
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+      }
+      preview.srcObject = null;
+    }finally{
+      btnStart.disabled = false; btnStop.disabled = true;
+      setStatus('הסריקה נעצרה.');
+    }
+  }
+
+  // אירועים
+  btnStart.addEventListener('click', startScan);
+  btnStop .addEventListener('click', stopScan);
+  btnLookup.addEventListener('click', ()=> showByCode(manual.value));
+  manual.addEventListener('keydown', (e)=>{ if(e.key==='Enter') showByCode(manual.value); });
+
+  // ניסיון לקבל הרשאות מצלמה מראש (לא חובה)
+  (async ()=> {
+    try{
+      await navigator.mediaDevices.getUserMedia({video:true});
+      setStatus('מוכן – לחץ "הפעל סריקה".');
+    }catch{ /* יתבקש בלחיצה */ }
+  })();
+</script>
 </body>
 </html>
