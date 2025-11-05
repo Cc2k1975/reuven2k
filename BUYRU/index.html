@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-<title>BUYRU – צילום ברקוד</title>
+<title>BUYRU – צילום ברקוד (מהיר)</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -27,29 +27,31 @@
   .shot{margin-top:16px;background:var(--card);border:var(--border);border-radius:var(--radius);padding:16px}
   .shot img{width:100%;max-height:360px;object-fit:contain;border-radius:12px;background:#000}
   .code{margin-top:12px;font-size:22px;font-weight:900;text-align:center;letter-spacing:1px}
+  .skeleton{width:100%;height:260px;border-radius:12px;background:linear-gradient(90deg, #0d1428 25%, #111a33 37%, #0d1428 63%); background-size:400% 100%; animation:sh 1.2s infinite}
+  @keyframes sh{0%{background-position:100% 50%}100%{background-position:0 50%}}
   .hide{display:none!important}
   .foot{margin-top:14px;text-align:center;color:var(--muted);font-size:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header><h1>BUYRU – צילום ברקוד</h1></header>
+  <header><h1>BUYRU – צילום ברקוד (מהיר)</h1></header>
 
   <div class="panel">
     <input id="capture" type="file" accept="image/*" capture="environment" class="hide">
     <button id="btnShot" class="btn">📷 צלם וסרוק</button>
-    <div class="note">התוצאה תציג רק: תמונת מוצר + מק״ט</div>
+    <div class="note">מציג רק: תמונת מוצר + מק״ט. אופטימיזציות מהירות לזיהוי.</div>
   </div>
 
   <div id="box" class="shot hide">
-    <img id="productImg" alt="תמונת מוצר">
+    <div id="skeleton" class="skeleton hide"></div>
+    <img id="productImg" alt="תמונת מוצר" class="hide">
     <div id="code" class="code"></div>
   </div>
 
-  <footer class="foot">v2.6.0 • רק תמונה ומק״ט</footer>
+  <footer class="foot">v2.7.0 • מינימליסטי ומהיר</footer>
 </div>
 
-<!-- ZXing כגיבוי לפענוח תמונה -->
 <script src="https://unpkg.com/@zxing/browser@0.1.1"></script>
 <script>
 const capture   = document.getElementById('capture');
@@ -57,79 +59,164 @@ const btnShot   = document.getElementById('btnShot');
 const box       = document.getElementById('box');
 const imgProd   = document.getElementById('productImg');
 const codeEl    = document.getElementById('code');
+const skeleton  = document.getElementById('skeleton');
 
 let lastCode = '';
 
-/* ---- חיפוש תמונת מוצר (Open*Facts + רמי לוי) — ללא טקסטים נוספים ---- */
+/* ---------- מועמדים לתמונת מוצר ---------- */
 function gtinToPath(code){ const c=(code||'').replace(/\D/g,''); const p=[]; for(let i=0;i<c.length;i+=3)p.push(c.slice(i,i+3)); return p.join('/'); }
 function openFactsCandidates(code){
   const base=['https://images.openfoodfacts.org/images/products/','https://images.openbeautyfacts.org/images/products/','https://images.openproductsfacts.org/images/products/'];
   const path=gtinToPath(code);
-  return [`${base[0]}${path}/front.400.jpg`,`${base[0]}${path}/front.jpg`,`${base[1]}${path}/front.400.jpg`,`${base[1]}${path}/front.jpg`,`${base[2]}${path}/front.400.jpg`,`${base[2]}${path}/front.jpg`];
+  // ננסה קודם גרסאות קטנות (נטענות מהר יותר)
+  return [`${base[0]}${path}/front.400.jpg`, `${base[0]}${path}/front.jpg`,
+          `${base[1]}${path}/front.400.jpg`, `${base[1]}${path}/front.jpg`,
+          `${base[2]}${path}/front.400.jpg`, `${base[2]}${path}/front.jpg`];
 }
 function ramiLevyCandidates(code){
   const base=`https://img.rami-levy.co.il/product/${code}`;
-  return [`${base}/small.jpg`,`${base}/large.jpg`,`https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,`https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`];
-}
-function firstWorkingImage(urls){ return new Promise(res=>{ let i=0; (function next(){ if(i>=urls.length) return res(null); const url=urls[i++]; const im=new Image(); im.onload=()=>res(url); im.onerror=next; im.src=url+`?t=${Date.now()}`; })(); }); }
-async function findImageByCode(code){
-  return await firstWorkingImage([ ...openFactsCandidates(code), ...ramiLevyCandidates(code) ]);
+  // גם כאן קודם small
+  return [`${base}/small.jpg`, `${base}/large.jpg`,
+          `https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,
+          `https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`];
 }
 
-/* ---- דיקוד ברקוד מהתמונה ---- */
-async function toBitmap(file){
-  try{ return await createImageBitmap(file); }
-  catch{
-    const img = new Image(); const url=URL.createObjectURL(file);
-    img.src=url; await img.decode();
-    const c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight;
-    c.getContext('2d').drawImage(img,0,0); URL.revokeObjectURL(url);
-    return await createImageBitmap(c);
+/* ---------- טעינה תחרותית: הראשון שמצליח מנצח ---------- */
+function raceImage(url){
+  return new Promise((resolve, reject)=>{
+    const im = new Image();
+    const done = (ok)=>{ im.onload=null; im.onerror=null; ok? resolve(url): reject(url); };
+    im.onload = ()=> done(true);
+    im.onerror= ()=> done(false);
+    im.src = url + `?t=${Date.now()}`;
+  });
+}
+async function findImageFast(code){
+  const candidates = [...openFactsCandidates(code), ...ramiLevyCandidates(code)];
+  // Promise.any ירוץ על כולם במקביל ויחזיר את הראשון שטען
+  if (Promise.any) {
+    try { return await Promise.any(candidates.map(raceImage)); }
+    catch { return null; }
+  } else {
+    // פוליפיל פשוט: ננסה בקבוצות קטנות במקביל
+    const chunk = 3;
+    for(let i=0;i<candidates.length;i+=chunk){
+      const group = candidates.slice(i,i+chunk).map(raceImage);
+      try { return await Promise.race(group); } catch{}
+    }
+    return null;
   }
 }
-async function decodeFromBitmap(bitmap){
-  // 1) BarcodeDetector אם קיים
-  if('BarcodeDetector' in window){
+
+/* ---------- המרה מהירה ל־ImageBitmap (עם Resize) ---------- */
+async function toBitmapFast(file){
+  // createImageBitmap עם resizeWidth מהיר משמעותית
+  if ('createImageBitmap' in window) {
+    try {
+      // רוחב יעד 1024 – מספיק לברקוד ומקטין מאוד את החישוב
+      return await createImageBitmap(file, { resizeWidth: 1024, resizeQuality: 'high' });
+    } catch {}
+  }
+  // פולבק: טען לאלמנט תמונה ואז לצייר לקנבס מוקטן
+  const url = URL.createObjectURL(file);
+  const img = new Image(); img.src = url; await img.decode();
+  const scale = Math.min(1, 1024 / img.naturalWidth);
+  const cnv = document.createElement('canvas');
+  cnv.width = Math.round(img.naturalWidth * scale);
+  cnv.height= Math.round(img.naturalHeight * scale);
+  cnv.getContext('2d').drawImage(img, 0, 0, cnv.width, cnv.height);
+  URL.revokeObjectURL(url);
+  return await createImageBitmap(cnv);
+}
+
+/* ---------- זיהוי מהיר: BarcodeDetector עם סט פורמטים מצומצם ---------- */
+async function detectFast(bitmap){
+  // קודם ננסה BarcodeDetector רק עם הפורמטים הרלוונטיים לסופרים
+  if ('BarcodeDetector' in window) {
     try{
-      const det = new window.BarcodeDetector({ formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code'] });
-      const res = await det.detect(bitmap);
-      if(res && res.length) return (res[0].rawValue||'').trim();
+      const det = new window.BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e'] });
+      // קרופ מרכזי צר (מפחית פיקסלים → מהיר יותר), ואם לא עובד – על כל הפריים
+      const codeCenter = await detectOnCrop(det, bitmap, 0.2); // רצועה מרכזית 20% מהגובה
+      if (codeCenter) return codeCenter;
+      const codeFull = await detectOnBitmap(det, bitmap);
+      if (codeFull) return codeFull;
     }catch{}
   }
-  // 2) ZXing גיבוי
+  // ZXing מהיר: על תמונה מוקטנת מראש (כבר 1024px)
   try{
-    const cnv=document.createElement('canvas'), MAX=1400, scale=Math.min(1, MAX/bitmap.width);
-    cnv.width=Math.round(bitmap.width*scale); cnv.height=Math.round(bitmap.height*scale);
-    cnv.getContext('2d').drawImage(bitmap,0,0,cnv.width,cnv.height);
+    const cnv=document.createElement('canvas');
+    cnv.width=bitmap.width; cnv.height=bitmap.height;
+    cnv.getContext('2d').drawImage(bitmap,0,0);
     const im=new Image(); im.src=cnv.toDataURL('image/png'); await im.decode();
     const reader = new ZXing.BrowserMultiFormatReader();
-    const result = await reader.decodeFromImageElement(im).catch(()=>null);
-    if(result?.text) return result.text.trim();
+    const res = await reader.decodeFromImageElement(im).catch(()=>null);
+    if(res?.text) return res.text.trim();
   }catch{}
   return '';
 }
 
-/* ---- זרימה ראשית: צילום → פענוח → הצגה ---- */
+async function detectOnBitmap(det, bitmap){
+  try{
+    const res = await det.detect(bitmap);
+    if (res && res.length) return (res[0].rawValue||'').trim();
+  }catch{}
+  return '';
+}
+
+async function detectOnCrop(det, bitmap, bandRatio=0.2){
+  try{
+    const h = bitmap.height, w = bitmap.width;
+    const bandH = Math.max(40, Math.round(h * bandRatio));
+    const y = Math.round((h - bandH)/2);
+    const cnv = document.createElement('canvas');
+    cnv.width = w; cnv.height = bandH;
+    const ctx = cnv.getContext('2d');
+    ctx.drawImage(bitmap, 0, y, w, bandH, 0, 0, w, bandH);
+    // אפשרות: להבהיר/להעלות קונטרסט — לרוב לא נדרש
+    const bandBitmap = await createImageBitmap(cnv);
+    const res = await det.detect(bandBitmap);
+    if (res && res.length) return (res[0].rawValue||'').trim();
+  }catch{}
+  return '';
+}
+
+/* ---------- זרימה ראשית: צילום → זיהוי (מייד מציג מק״ט) → טעינת תמונה במקביל ---------- */
 async function handleFile(file){
   if(!file) return;
-  const bmp = await toBitmap(file);
-  const code = await decodeFromBitmap(bmp);
 
-  box.classList.remove('hide');        // מציג את התוצאה גם אם לא נמצא (נשאר ריק)
-  codeEl.textContent = code ? code : '';
+  box.classList.remove('hide');
+  imgProd.classList.add('hide');
+  skeleton.classList.remove('hide');
+  codeEl.textContent = '';
 
-  if(code){
+  // 1) המרה מהירה לביטמפ מוקטן
+  const bmp = await toBitmapFast(file);
+
+  // 2) זיהוי מק״ט (מייד שמים על המסך כשנמצא)
+  const code = await detectFast(bmp);
+  if (code) {
     lastCode = code;
-    const url = await findImageByCode(code);
-    if(url){ imgProd.src = url; }
-    else { imgProd.removeAttribute('src'); }
-  }else{
+    codeEl.textContent = code;
+  } else {
+    // אין מק״ט → מפסיקים כאן
+    skeleton.classList.add('hide');
+    return;
+  }
+
+  // 3) במקביל טוענים תמונה – מי שמגיע ראשון מוצג
+  const imgUrl = await findImageFast(code);
+
+  skeleton.classList.add('hide');
+  if (imgUrl){
+    imgProd.src = imgUrl;
+    imgProd.classList.remove('hide');
+  } else {
     imgProd.removeAttribute('src');
+    imgProd.classList.add('hide');
   }
 }
 
 btnShot.addEventListener('click', ()=>{
-  // הערה: מערכת ההפעלה עשויה לדרוש הקשה לאישור לאחר הצילום — אי אפשר לעקוף בדפדפן
   capture.setAttribute('capture','environment');
   capture.click();
 });
