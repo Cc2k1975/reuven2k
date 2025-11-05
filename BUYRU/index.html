@@ -4,26 +4,38 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>POC – סורק מוצר ותמונה</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  body{font-family:Heebo,Arial,sans-serif;background:#f7f7f7;margin:0;padding:16px;color:#222}
-  .wrap{max-width:720px;margin:0 auto}
-  h1{font-size:20px;margin:0 0 12px}
-  video{width:100%;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.12);background:#000}
+  :root{
+    --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --pri:#1f7aeb;
+    --shadow:0 6px 24px rgba(0,0,0,.12); --radius:12px;
+  }
+  body{font-family:Heebo,system-ui,Arial;background:var(--bg);margin:0;padding:16px;color:var(--text)}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 12px}
+  video{width:100%;border-radius:var(--radius);box-shadow:var(--shadow);background:#000}
   .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
   input[type="text"]{flex:1;min-width:220px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px}
   button{padding:10px 14px;border:0;border-radius:10px;cursor:pointer;font-weight:600}
-  .primary{background:#1f7aeb;color:#fff}
+  .primary{background:var(--pri);color:#fff}
   .ghost{background:#eee}
-  .card{margin-top:14px;background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.08);padding:14px}
+  .card{margin-top:14px;background:var(--card);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.08);padding:14px}
   .imgbox img{max-width:100%;border-radius:10px}
   .meta{font-size:14px;color:#555;margin-top:8px}
-  .links a{display:inline-block;margin:6px 8px 0 0;color:#1f7aeb;text-decoration:none}
-  .small{font-size:12px;color:#777}
+  .links a{display:inline-block;margin:6px 8px 0 0;color:var(--pri);text-decoration:none}
+  .small{font-size:12px;color:var(--muted);margin-top:6px}
+  .banner{background:#fff3cd;border:1px solid #ffe08a;color:#6b5800;border-radius:10px;padding:10px;margin:10px 0}
+  .foot{margin-top:20px;text-align:center;color:#888;font-size:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>POC – סורק מוצר ותמונה</h1>
+
+  <div id="httpsWarn" class="banner" style="display:none">
+    האתר נטען ללא HTTPS. גישת מצלמה בדפדפן דורשת <b>https://</b>.
+    פתח דרך: <a id="httpsLink" href="#">קישור מאובטח</a>
+  </div>
 
   <video id="preview" playsinline></video>
 
@@ -47,10 +59,12 @@
       מקורות: Open Food/Beauty/Products Facts (ציבוריים) ורמי-לוי (לבדיקת התכנות). ייתכנו חסימות/שינויי URL.
     </div>
   </div>
+
+  <div class="foot">v1.2.0 – BUYRU</div>
 </div>
 
-<!-- ZXing: סריקת ברקודים בדפדפן -->
-<script src="https://unpkg.com/@zxing/library@0.19.2"></script>
+<!-- ZXing (גרסת browser המודרנית) -->
+<script src="https://unpkg.com/@zxing/browser@0.1.1"></script>
 <script>
   const statusEl = document.getElementById('status');
   const imgBox = document.getElementById('imgBox');
@@ -63,9 +77,21 @@
   const btnLookup= document.getElementById('btnLookup');
   const manual   = document.getElementById('manual');
 
+  const httpsWarn = document.getElementById('httpsWarn');
+  const httpsLink = document.getElementById('httpsLink');
+
   let reader = null;
   let currentStream = null;
   let lastCode = '';
+
+  // --- עזרי HTTPS ---
+  (function ensureHttpsBanner(){
+    const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+    if (location.protocol !== 'https:' && !isLocalhost){
+      httpsWarn.style.display = 'block';
+      httpsLink.href = 'https://' + location.host + location.pathname;
+    }
+  })();
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
@@ -77,7 +103,7 @@
     return parts.join('/');
   }
 
-  // מועמדים – Open Facts
+  // מועמדים – Open*Facts
   function openFactsCandidates(code){
     const base = [
       'https://images.openfoodfacts.org/images/products/',
@@ -95,7 +121,7 @@
     ];
   }
 
-  // מועמדים – רמי לוי (על בסיס הדוגמה שלך)
+  // מועמדים – רמי לוי (על בסיס התבנית שזיהינו)
   function ramiLevyCandidates(code){
     const base = `https://img.rami-levy.co.il/product/${code}`;
     return [
@@ -123,7 +149,6 @@
   }
 
   async function tryLoadImageFor(code){
-    // סדר ניסיון: Open*Facts → רמי לוי
     const candidates = [
       ...openFactsCandidates(code),
       ...ramiLevyCandidates(code),
@@ -162,33 +187,59 @@
 
   function link(txt, href){ return `<a target="_blank" rel="noopener" href="${href}">${txt}</a>`; }
 
-  // הפעלת סריקה
+  // --- הפעלת סריקה: תאימות מלאה לגרסאות ZXing שונות + fallback ל-enumerateDevices ---
+  async function listVideoInputsSafe(){
+    try {
+      // ספריית @zxing/browser מספקת עוטף ל-MediaDevices
+      if (ZXing && ZXing.BrowserCodeReader && ZXing.BrowserCodeReader.listVideoInputDevices) {
+        return await ZXing.BrowserCodeReader.listVideoInputDevices();
+      }
+      if (ZXing && ZXing.BrowserMultiFormatReader && ZXing.BrowserMultiFormatReader.listVideoInputDevices) {
+        return await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+      }
+    } catch (e) {
+      console.warn('ZXing listVideoInputDevices not available:', e);
+    }
+    // Fallback סטנדרטי
+    if (navigator.mediaDevices?.enumerateDevices) {
+      const all = await navigator.mediaDevices.enumerateDevices();
+      return all.filter(d => d.kind === 'videoinput');
+    }
+    return [];
+  }
+
   async function startScan(){
     try{
       if(reader){ await stopScan(); }
-      reader = new ZXing.BrowserMultiFormatReader();
-      const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
 
-      // עדיפות למצלמה אחורית
+      // 1) בחירת מצלמה
+      const devices = await listVideoInputsSafe();
       let deviceId = devices?.[0]?.deviceId || undefined;
-      const back = devices.find(d => /back|rear|environment/i.test(d.label));
+      const back = devices.find(d => /back|rear|environment/i.test(d.label || ''));
       if(back) deviceId = back.deviceId;
 
-      currentStream = await navigator.mediaDevices.getUserMedia({
-        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
-        audio: false
-      });
+      // 2) פתיחת stream
+      const constraints = deviceId
+        ? { video: { deviceId: { exact: deviceId } }, audio: false }
+        : { video: { facingMode: { ideal: 'environment' } }, audio: false };
+
+      currentStream = await navigator.mediaDevices.getUserMedia(constraints);
       preview.srcObject = currentStream;
 
+      // 3) Reader והאזנה
+      reader = new ZXing.BrowserMultiFormatReader();
       setStatus('סורק... כוון את הברקוד אל המצלמה.');
       btnStart.disabled = true; btnStop.disabled = false;
 
-      reader.decodeFromVideoDevice(deviceId, preview, (result) => {
+      // decodeFromVideoDevice תומך ב-deviceId או null
+      reader.decodeFromVideoDevice(deviceId || null, preview, (result, err) => {
         if(result){
           const code = (result.text || '').trim();
           if(code && code !== lastCode) showByCode(code);
         }
+        // שגיאות ביניים מתרחשות הרבה במהלך סריקה — לא מציגים למשתמש
       });
+
     }catch(e){
       setStatus('כשל בהפעלת הסריקה: ' + e.message);
       btnStart.disabled = false; btnStop.disabled = true;
@@ -212,9 +263,19 @@
   btnLookup.addEventListener('click', ()=> showByCode(manual.value));
   manual.addEventListener('keydown', (e)=>{ if(e.key==='Enter') showByCode(manual.value); });
 
-  // נסיון הרשאת מצלמה מראש (לא חובה)
+  // ניסיון הרשאת מצלמה מראש (לא חובה)
   (async ()=> {
-    try{ await navigator.mediaDevices.getUserMedia({video:true}); setStatus('מוכן – לחץ "הפעל סריקה".'); }catch{}
+    try{
+      const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+      if (location.protocol === 'https:' || isLocalhost){
+        await navigator.mediaDevices.getUserMedia({video:true});
+        setStatus('מוכן – לחץ "הפעל סריקה".');
+      } else {
+        setStatus('פתח את הדף ב-HTTPS כדי להפעיל מצלמה.');
+      }
+    }catch{
+      /* ההרשאה תתבקש בלחיצה בפועל */
+    }
   })();
 </script>
 </body>
