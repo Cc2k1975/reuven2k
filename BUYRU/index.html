@@ -2,98 +2,219 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>BUYRU – סריקה בצילום יחיד</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>BUYRU – סריקת ברקוד ותמונת מוצר</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  :root{ --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --pri:#1f7aeb; --radius:12px; --shadow:0 6px 24px rgba(0,0,0,.12); }
-  body{font-family:Heebo,system-ui,Arial;background:var(--bg);margin:0;padding:16px;color:var(--text)}
-  .wrap{max-width:760px;margin:0 auto}
-  h1{font-size:22px;margin:0 0 12px}
-  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
-  input[type="text"]{flex:1;min-width:160px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px}
-  button{padding:10px 14px;border:0;border-radius:10px;cursor:pointer;font-weight:600}
-  .primary{background:var(--pri);color:#fff}
-  .ghost{background:#eee}
-  .card{margin-top:14px;background:var(--card);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.08);padding:14px}
-  .imgbox img{max-width:100%;border-radius:10px}
-  .meta{font-size:14px;color:#555;margin-top:8px}
-  .links a{display:inline-block;margin:6px 8px 0 0;color:var(--pri);text-decoration:none}
-  .small{font-size:12px;color:#777;margin-top:6px}
-  .banner{background:#fff3cd;border:1px solid #ffe08a;color:#6b5800;border-radius:10px;padding:10px;margin:10px 0}
-  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all}
-  .thumb{margin-top:8px;border-radius:10px;box-shadow:var(--shadow);max-height:240px}
-  .foot{margin-top:20px;text-align:center;color:#888;font-size:12px}
+  :root{
+    --bg:#0f172a;           /* slate-900 */
+    --card:#0b1224;         /* deep */
+    --panel:#111b34;        /* mid */
+    --ink:#f8fafc;          /* almost white */
+    --muted:#9aa8c7;        /* slate-400 */
+    --accent:#22c55e;       /* green-500 */
+    --accent-2:#38bdf8;     /* sky-400 */
+    --danger:#ef4444;
+    --gold:#fbbf24;
+    --radius:18px;
+    --shadow:0 20px 50px rgba(0,0,0,.35);
+    --border:1px solid rgba(255,255,255,.08);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:Heebo,system-ui,Arial; margin:0; color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 90% -10%, #143b56 0%, transparent 60%),
+      radial-gradient(900px 500px at -10% 0%, #0f3c2a 0%, transparent 55%),
+      var(--bg);
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:18px 18px 28px}
+  header{
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:14px
+  }
+  .title{display:flex;gap:12px;align-items:center}
+  .logo{
+    width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#002; font-weight:800; box-shadow:var(--shadow)
+  }
+  h1{font-size:22px;margin:0}
+  .sub{color:var(--muted);font-size:14px;margin-top:4px}
+
+  .surface{
+    background:rgba(255,255,255,.03); border-radius:var(--radius); border:var(--border);
+    box-shadow:var(--shadow); overflow:hidden
+  }
+
+  /* אזור אינטראקציה */
+  .hero{
+    padding:18px;
+    display:grid; gap:16px;
+  }
+  .drop{
+    border:2px dashed rgba(255,255,255,.14);
+    border-radius:16px; padding:18px; text-align:center;
+    background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00));
+    transition:.2s border-color;
+  }
+  .drop.drag{ border-color: var(--accent) }
+  .drop h2{margin:0 0 6px 0; font-size:16px}
+  .drop p{margin:0; color:var(--muted); font-size:14px}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}
+  .btn{
+    padding:12px 16px;border:0;border-radius:12px;cursor:pointer;font-weight:700;
+    display:inline-flex;gap:8px;align-items:center
+  }
+  .btn.primary{background:var(--accent);color:#062;box-shadow:0 8px 24px rgba(34,197,94,.35)}
+  .btn.secondary{background:#0f1b35;color:#dbeafe;border:var(--border)}
+  .btn.ghost{background:transparent;color:#e2e8f0;border:var(--border)}
+  .btn.icon{width:44px;height:44px;justify-content:center;padding:0}
+
+  /* מצב/טוסט */
+  .status{
+    background:var(--panel); border:var(--border); border-radius:12px; padding:12px 14px;
+    font-size:14px; display:flex;align-items:center;gap:10px
+  }
+  .dot{width:10px;height:10px;border-radius:50%}
+  .ok{background:var(--accent)} .warn{background:var(--gold)} .err{background:var(--danger)}
+
+  /* כרטיס תוצאה */
+  .result{
+    display:grid; gap:12px; padding:16px; background:var(--card); border:var(--border); border-radius:16px;
+  }
+  .meta{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .tag{padding:6px 10px;background:#0c1a31;border-radius:999px;border:var(--border);color:#cbd5e1;font-size:12px}
+  .thumb{
+    width:100%; max-height:260px; object-fit:contain; border-radius:12px; background:#000;
+  }
+  .product{
+    width:100%; border-radius:14px; background:#000; box-shadow:var(--shadow);
+  }
+  .grid{display:grid; gap:16px}
+  @media(min-width:780px){
+    .grid{grid-template-columns: 1.3fr 1fr}
+  }
+  .links{display:flex;flex-wrap:wrap;gap:8px}
+  .links .btn{padding:10px 12px;border-radius:10px}
+  .hint{font-size:12px;color:var(--muted)}
+
+  /* היסטוריה */
+  .history{
+    display:flex; gap:10px; overflow:auto; padding:10px 4px 4px
+  }
+  .pill{
+    background:#0c1a31;border:var(--border);border-radius:999px;padding:6px 10px;font-size:12px;color:#cbd5e1;cursor:pointer;white-space:nowrap
+  }
+
+  /* כפתור צילום צף במובייל */
+  .fab{
+    position:fixed; right:16px; bottom:16px; width:58px; height:58px; border-radius:50%;
+    display:grid; place-items:center; background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#021; font-weight:900; font-size:20px; border:0; box-shadow:0 14px 40px rgba(56,189,248,.35); z-index:5
+  }
+
+  .foot{margin-top:18px;text-align:center;color:var(--muted);font-size:12px}
+  .hide{display:none!important}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>BUYRU – סריקה בצילום יחיד</h1>
-
-  <div id="httpsWarn" class="banner" style="display:none">
-    כדי לצלם יש לעבוד ב-<b>https://</b>. פתח דרך: <a id="httpsLink" href="#">קישור מאובטח</a>
-  </div>
-
-  <div class="row">
-    <!-- כפתור צילום: פותח מצלמה מובנית בטלפון -->
-    <input id="capture" type="file" accept="image/*" capture="environment" style="display:none">
-    <button class="primary" id="btnShot">צלם וסרוק</button>
-    <button class="ghost" id="btnPick">בחר תמונה מהגלריה</button>
-    <input id="manual" type="text" placeholder="או הזן ידנית ברקוד (GTIN/UPC/EAN)..." />
-    <button class="ghost" id="btnLookup">חפש תמונה</button>
-  </div>
-
-  <div class="card" id="status">מוכן לצילום.</div>
-
-  <img id="thumb" class="thumb" alt="" style="display:none" />
-
-  <div class="card imgbox" id="imgBox" style="display:none">
-    <div class="meta" id="codeMeta"></div>
-    <img id="imgProduct" alt="תמונת מוצר" />
-    <div class="links" id="links"></div>
-    <div class="small">
-      מקורות: Open Food/Beauty/Products Facts (ציבוריים) ורמי-לוי (POC). ייתכנו חסימות/שינויים.
+  <header>
+    <div class="title">
+      <div class="logo">BR</div>
+      <div>
+        <h1>BUYRU – סריקת ברקוד ותמונת מוצר</h1>
+        <div class="sub">מצלם/בוחר תמונה → מזהה ברקוד → מציג תמונת מוצר (Open*Facts / רמי-לוי)</div>
+      </div>
     </div>
-  </div>
+  </header>
 
-  <div class="card"><div class="mono" id="diag"></div></div>
-  <div class="foot">v2.0.0 – BUYRU (צילום יחיד, בלי וידאו)</div>
+  <section class="surface hero">
+    <div id="httpsWarn" class="status hide">
+      <div class="dot warn"></div>
+      <div>לצילום יש להשתמש ב-<b>https://</b>.  
+        <a id="httpsLink" href="#" style="color:#93c5fd;text-decoration:none">פתח ב-HTTPS</a></div>
+    </div>
+
+    <div id="drop" class="drop">
+      <h2>צלם או גרור תמונה עם ברקוד</h2>
+      <p>מומלץ להתקרב כך שהברקוד חד, מואר וישר</p>
+      <div class="actions">
+        <input id="capture" type="file" accept="image/*" capture="environment" class="hide">
+        <button class="btn primary" id="btnShot">📷 צלם וסרוק</button>
+        <button class="btn secondary" id="btnPick">🖼️ בחר מהגלריה</button>
+        <input id="manual" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="או הזן ברקוד ידנית…" style="flex:1;min-width:220px;padding:12px 14px;border-radius:12px;border:var(--border);background:#0b1630;color:#e5e7eb">
+        <button class="btn ghost" id="btnLookup">חפש</button>
+      </div>
+    </div>
+
+    <div id="state" class="status"><div class="dot ok" id="stateDot"></div><div id="stateMsg">מוכן.</div></div>
+
+    <div class="grid">
+      <div class="result" id="resultBox" style="display:none">
+        <div class="meta">
+          <span class="tag" id="barTag">ברקוד: —</span>
+          <span class="tag" id="fmtTag">פורמט: —</span>
+          <span class="tag" id="srcTag">מקור: —</span>
+        </div>
+        <img id="productImg" class="product" alt="תמונת מוצר" />
+        <div class="links" id="quickLinks"></div>
+        <div class="hint">אם לא נמצאה תמונה – נסה לצלם שוב מקרוב ובפוקוס, או הזן ברקוד ידנית.</div>
+      </div>
+
+      <div class="result">
+        <div class="meta"><span class="tag">תצוגה מקדימה של התמונה שצולמה</span></div>
+        <img id="thumb" class="thumb" alt="" />
+        <div class="history" id="history"></div>
+      </div>
+    </div>
+  </section>
+
+  <button class="fab" id="fab">＋</button>
+
+  <footer class="foot">v2.5.0 • BUYRU • עיצוב נקי, אייקונים, היסטוריה, שיתוף/העתקה • by Charles2K</footer>
 </div>
 
-<!-- ZXing לדיקוד מתוך תמונה כגיבוי -->
+<!-- ZXing כגיבוי לפענוח תמונה -->
 <script src="https://unpkg.com/@zxing/browser@0.1.1"></script>
 <script>
-const statusEl = document.getElementById('status');
-const diagEl   = document.getElementById('diag');
-const imgBox   = document.getElementById('imgBox');
-const imgEl    = document.getElementById('imgProduct');
-const codeMeta = document.getElementById('codeMeta');
-const linksEl  = document.getElementById('links');
-const thumbEl  = document.getElementById('thumb');
+/* ====== עזרי UI ====== */
+const qs = s=>document.querySelector(s);
+const stateMsg = qs('#stateMsg');
+const stateDot = qs('#stateDot');
+function setState(type,msg){
+  stateDot.className='dot';
+  if(type==='ok') stateDot.classList.add('ok');
+  else if(type==='warn') stateDot.classList.add('warn');
+  else stateDot.classList.add('err');
+  stateMsg.textContent = msg;
+}
+function toastOK(m){ setState('ok', m) }
+function toastWarn(m){ setState('warn', m) }
+function toastErr(m){ setState('err', m) }
 
-const btnShot  = document.getElementById('btnShot');
-const btnPick  = document.getElementById('btnPick');
-const capture  = document.getElementById('capture');
-const manual   = document.getElementById('manual');
-const btnLookup= document.getElementById('btnLookup');
+/* ====== אלמנטים ====== */
+const httpsWarn = qs('#httpsWarn'); const httpsLink = qs('#httpsLink');
+const capture = qs('#capture'); const btnShot = qs('#btnShot'); const btnPick = qs('#btnPick'); const fab = qs('#fab');
+const drop = qs('#drop');
+const manual = qs('#manual'); const btnLookup = qs('#btnLookup');
+const thumb = qs('#thumb'); const resultBox = qs('#resultBox'); const productImg = qs('#productImg');
+const barTag = qs('#barTag'); const fmtTag = qs('#fmtTag'); const srcTag = qs('#srcTag');
+const quickLinks = qs('#quickLinks'); const historyEl = qs('#history');
 
-const httpsWarn= document.getElementById('httpsWarn');
-const httpsLink= document.getElementById('httpsLink');
+let lastCode=''; let lastFormat=''; let history=[];
 
-let lastCode = '';
-
-function setStatus(m){ statusEl.textContent = m; }
-function log(m){ diagEl.textContent += (diagEl.textContent?'\n':'') + m; }
-
+/* ====== HTTPS בדיקה ====== */
 (function httpsBanner(){
   const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   if(location.protocol!=='https:' && !isLocal){
-    httpsWarn.style.display='block';
+    httpsWarn.classList.remove('hide');
     httpsLink.href='https://' + location.host + location.pathname;
   }
 })();
 
-/* ---------- שליפת תמונת מוצר לפי ברקוד (כמו קודם) ---------- */
+/* ====== לוגיקת מציאת תמונות לפי ברקוד (Open*Facts + רמי לוי) ====== */
 function gtinToPath(code){ const c=(code||'').replace(/\D/g,''); const p=[]; for(let i=0;i<c.length;i+=3)p.push(c.slice(i,i+3)); return p.join('/'); }
 function openFactsCandidates(code){
   const base=['https://images.openfoodfacts.org/images/products/','https://images.openbeautyfacts.org/images/products/','https://images.openproductsfacts.org/images/products/'];
@@ -104,96 +225,146 @@ function ramiLevyCandidates(code){
   const base=`https://img.rami-levy.co.il/product/${code}`;
   return [`${base}/small.jpg`,`${base}/large.jpg`,`https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,`https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`];
 }
-function firstWorkingImage(urls){ return new Promise(res=>{ let i=0; (function next(){ if(i>=urls.length) return res(null); const url=urls[i++]; const im=new Image(); im.onload=()=>res(url); im.onerror=next; im.src=url+`?t=${Date.now()}`; })(); }); }
-async function tryLoadImageFor(code){ return await firstWorkingImage([...openFactsCandidates(code),...ramiLevyCandidates(code)]); }
-function a(txt,href){ return `<a target="_blank" rel="noopener" href="${href}">${txt}</a>`; }
-async function showByCode(code){
-  if(!code) return;
-  lastCode = (code||'').trim();
-  setStatus(`מחפש תמונה לברקוד: ${lastCode} ...`);
-  imgBox.style.display='none'; imgEl.src=''; linksEl.innerHTML='';
-  const url = await tryLoadImageFor(lastCode);
-  codeMeta.textContent = `ברקוד: ${lastCode}`;
-  if(url){ imgEl.src=url; setStatus('נמצאה תמונה.'); } else { setStatus('לא נמצאה תמונה במקורות הנ״ל.'); }
-  imgBox.style.display='block';
-  linksEl.innerHTML = [
-    a('גוגל תמונות', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(lastCode)}`),
-    a('שופרסל', `https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(lastCode)}`),
-    a('רמי לוי', `https://www.rami-levy.co.il/he/Search?search=${encodeURIComponent(lastCode)}`)
-  ].join(' ');
+function firstWorkingImage(urls){ return new Promise(res=>{ let i=0; (function next(){ if(i>=urls.length) return res({ok:false}); const url=urls[i++]; const im=new Image(); im.onload=()=>res({ok:true,url,src: url.includes('rami-levy')?'Rami-Levy':'OpenFacts'}); im.onerror=next; im.src=url+`?t=${Date.now()}`; })(); }); }
+async function fetchProductImage(code){
+  const tries=[...openFactsCandidates(code),...ramiLevyCandidates(code)];
+  return await firstWorkingImage(tries);
 }
 
-/* ---------- דיקוד ברקוד מתמונה (צילום/גלריה) ---------- */
-async function decodeFromImageBitmap(bitmap){
-  // 1) אם יש BarcodeDetector מובנה – הכי יציב
+/* ====== פענוח ברקוד מתוך תמונה ====== */
+async function toBitmap(file){
+  try{ return await createImageBitmap(file); }
+  catch{
+    const img = new Image(); const url=URL.createObjectURL(file);
+    img.src=url; await img.decode();
+    const c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight;
+    c.getContext('2d').drawImage(img,0,0); URL.revokeObjectURL(url);
+    return await createImageBitmap(c);
+  }
+}
+async function decodeFromBitmap(bitmap){
+  // 1) עדיפות ל-BarcodeDetector אם קיים
   if('BarcodeDetector' in window){
     try{
       const det = new window.BarcodeDetector({ formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf','qr_code'] });
       const res = await det.detect(bitmap);
-      if(res && res.length) return (res[0].rawValue||'').trim();
-    }catch(e){ log('BarcodeDetector error: ' + (e.message||e)); }
+      if(res && res.length) return { code:(res[0].rawValue||'').trim(), fmt:res[0].format||'detector' };
+    }catch(e){ /* ממשיכים לגיבוי */ }
   }
-  // 2) גיבוי ZXing – דיקוד מתוך אלמנט תמונה
+  // 2) גיבוי ZXing
   try{
-    // מציירים לקנבס קטן כדי לוודא תאימות
-    const cnv = document.createElement('canvas');
-    const MAX_W = 1280; const scale = Math.min(1, MAX_W / bitmap.width);
-    cnv.width = Math.round(bitmap.width * scale);
-    cnv.height= Math.round(bitmap.height * scale);
-    const ctx = cnv.getContext('2d');
-    ctx.drawImage(bitmap, 0, 0, cnv.width, cnv.height);
-
-    const imgElTemp = new Image();
-    imgElTemp.src = cnv.toDataURL('image/png');
-    await imgElTemp.decode();
-
+    const cnv=document.createElement('canvas'), MAX=1400, scale=Math.min(1, MAX/bitmap.width);
+    cnv.width=Math.round(bitmap.width*scale); cnv.height=Math.round(bitmap.height*scale);
+    cnv.getContext('2d').drawImage(bitmap,0,0,cnv.width,cnv.height);
+    const im=new Image(); im.src=cnv.toDataURL('image/png'); await im.decode();
     const reader = new ZXing.BrowserMultiFormatReader();
-    const result = await reader.decodeFromImageElement(imgElTemp).catch(()=>null);
-    if(result && result.text) return result.text.trim();
-  }catch(e){ log('ZXing image decode error: ' + (e.message||e)); }
-  return '';
+    const result = await reader.decodeFromImageElement(im).catch(()=>null);
+    if(result?.text) return { code: result.text.trim(), fmt: result.getBarcodeFormat?.() || 'zxing' };
+  }catch(e){}
+  return { code:'', fmt:'' };
 }
 
-async function handleFile(file){
-  if(!file){ setStatus('לא נבחר קובץ.'); return; }
-  setStatus('טוען תמונה...');
+/* ====== UI עיקרי ====== */
+function setThumb(file){
   const url = URL.createObjectURL(file);
-  thumbEl.src = url; thumbEl.style.display='block';
-
-  // הופכים ל-ImageBitmap (מהיר)
-  let bitmap = null;
-  try{ bitmap = await createImageBitmap(file); }
-  catch{ // נפילה אחורה: מה-URL
-    const img = new Image(); img.src = url; await img.decode();
-    const c = document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight;
-    c.getContext('2d').drawImage(img,0,0);
-    bitmap = await createImageBitmap(c);
-  }
-
-  setStatus('מזהה ברקוד מהצילום...');
-  const code = await decodeFromImageBitmap(bitmap);
-  if(code){
-    setStatus('ברקוד זוהה: ' + code);
-    await showByCode(code);
-  }else{
-    setStatus('לא זוהה ברקוד בתמונה. נסה לצלם שוב מקרוב ובפוקוס.');
-  }
-  // משחררים URL זמני
-  setTimeout(()=> URL.revokeObjectURL(url), 2000);
+  thumb.src=url; thumb.onload = ()=> URL.revokeObjectURL(url);
+}
+function setQuickLinks(code){
+  quickLinks.innerHTML='';
+  const mk=(txt,href)=>`<a class="btn ghost" target="_blank" rel="noopener" href="${href}">${txt}</a>`;
+  quickLinks.innerHTML = [
+    mk('🔎 גוגל תמונות', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(code)}`),
+    mk('🛒 שופרסל', `https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(code)}`),
+    mk('🛒 רמי לוי', `https://www.rami-levy.co.il/he/Search?search=${encodeURIComponent(code)}`),
+    `<button class="btn ghost" id="copyBtn">📋 העתק ברקוד</button>`,
+    `<button class="btn ghost" id="shareBtn">🔗 שתף</button>`
+  ].join(' ');
+  qs('#copyBtn').onclick = async()=>{ await navigator.clipboard.writeText(code); toastOK('הברקוד הועתק.'); };
+  qs('#shareBtn').onclick = async()=>{
+    const text=`ברקוד: ${code}\nקישורים מהירים:\n`+
+      `Google: https://www.google.com/search?tbm=isch&q=${encodeURIComponent(code)}\n`+
+      `שופרסל: https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(code)}\n`+
+      `רמי לוי: https://www.rami-levy.co.il/he/Search?search=${encodeURIComponent(code)}`;
+    if(navigator.share){ try{ await navigator.share({title:'BUYRU', text}); }catch{} }
+    else { await navigator.clipboard.writeText(text); toastOK('הפרטים הועתקו לשיתוף.'); }
+  };
+}
+function pushHistory(code){
+  if(!code) return;
+  history = [code, ...history.filter(c=>c!==code)].slice(0,12);
+  renderHistory();
+}
+function renderHistory(){
+  historyEl.innerHTML = history.map(c=>`<div class="pill" data-code="${c}">${c}</div>`).join('');
+  historyEl.querySelectorAll('.pill').forEach(el=> el.onclick = ()=> showByCode(el.dataset.code,'History') );
 }
 
-/* ---------- אירועים ---------- */
-btnShot.addEventListener('click', ()=> { capture.setAttribute('capture','environment'); capture.click(); });
-btnPick.addEventListener('click',  ()=> { capture.removeAttribute('capture'); capture.click(); });
-capture.addEventListener('change', async (e)=> {
-  const file = e.target.files && e.target.files[0];
-  handleFile(file);
-});
-btnLookup.addEventListener('click', ()=> showByCode(manual.value));
-manual.addEventListener('keydown', (e)=>{ if(e.key==='Enter') showByCode(manual.value); });
+async function showByCode(code, sourceLabel='Manual'){
+  if(!code) return;
+  lastCode=code; barTag.textContent = `ברקוד: ${code}`;
+  fmtTag.textContent  = `פורמט: —`;
+  srcTag.textContent  = `מקור: —`;
+  productImg.removeAttribute('src');
+  resultBox.style.display='block';
+  setState('ok','מחפש תמונת מוצר…');
+  const got = await fetchProductImage(code);
+  if(got.ok){
+    productImg.src = got.url;
+    srcTag.textContent = `מקור: ${got.src}`;
+    setState('ok','נמצאה תמונת מוצר');
+  }else{
+    productImg.removeAttribute('src');
+    srcTag.textContent = `מקור: —`;
+    setState('warn','לא נמצאה תמונה – נסה לצלם שוב או לחפש');
+  }
+  setQuickLinks(code);
+  pushHistory(code);
+}
 
-/* ---------- אתחול ---------- */
-setStatus('מוכן לצילום – לחץ "צלם וסרוק".');
+async function processFile(file){
+  if(!file){ toastWarn('לא נבחר קובץ'); return; }
+  setThumb(file);
+  setState('ok','מזהה ברקוד מהצילום…');
+  const bmp = await toBitmap(file);
+  const {code, fmt} = await decodeFromBitmap(bmp);
+  if(code){
+    fmtTag.textContent = `פורמט: ${fmt||'נזהה'}`;
+    await showByCode(code, 'Image');
+  }else{
+    fmtTag.textContent = `פורמט: —`;
+    resultBox.style.display='block';
+    productImg.removeAttribute('src');
+    setState('err','לא זוהה ברקוד – צלם קרוב/חד יותר');
+  }
+}
+
+/* ====== אירועים ====== */
+btnShot.onclick = ()=> { capture.setAttribute('capture','environment'); capture.click(); };
+btnPick.onclick = ()=> { capture.removeAttribute('capture'); capture.click(); };
+fab.onclick     = ()=> { capture.setAttribute('capture','environment'); capture.click(); };
+capture.onchange= (e)=> { const f=e.target.files?.[0]; if(f) processFile(f); e.target.value=''; };
+
+btnLookup.onclick = ()=> showByCode(manual.value.trim(),'Manual');
+manual.addEventListener('keydown', e=>{ if(e.key==='Enter') showByCode(manual.value.trim(),'Manual'); });
+
+['dragenter','dragover'].forEach(ev=> drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev=> drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e=>{
+  const f = e.dataTransfer?.files?.[0]; if(f) processFile(f);
+});
+
+/* ====== אתחול ====== */
+(function init(){
+  // היסטוריה מקומית
+  try{
+    const raw = localStorage.getItem('buyru_history'); if(raw) history = JSON.parse(raw)||[];
+  }catch{}
+  renderHistory();
+  const saveHist = ()=>{ try{ localStorage.setItem('buyru_history', JSON.stringify(history)); }catch{} };
+  window.addEventListener('beforeunload', saveHist);
+
+  toastOK('מוכן – צלם או בחר תמונה עם ברקוד.');
+})();
 </script>
 </body>
 </html>
