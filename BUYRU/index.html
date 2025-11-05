@@ -21,23 +21,18 @@
   .primary{background:linear-gradient(135deg,var(--accent),#38bdf8);color:#062;box-shadow:var(--shadow)}
   .ghost{background:transparent;border:var(--border);color:#dbeafe}
   select{padding:10px 12px;border-radius:12px;border:var(--border);background:#0b1630;color:#e5e7eb}
-  .camDock{
-    position:relative; width:340px; max-width:100%; aspect-ratio:16/10;
-    border-radius:14px; overflow:hidden; border:var(--border); background:#000
-  }
+  .camDock{position:relative;width:340px;max-width:100%;aspect-ratio:16/10;border-radius:14px;overflow:hidden;border:var(--border);background:#000}
   .camDock video{width:100%;height:100%;object-fit:cover}
-  .scanLine{
-    position:absolute; left:8%; right:8%; top:50%; height:2px; background:rgba(255,255,255,.65);
-    transform:translateY(-50%); box-shadow:0 0 12px rgba(255,255,255,.55)
-  }
-  .grid{display:grid; gap:14px; margin-top:14px}
-  @media(min-width:760px){ .grid{grid-template-columns: 1fr 1fr} }
+  .scanLine{position:absolute;left:8%;right:8%;top:50%;height:2px;background:rgba(255,255,255,.65);transform:translateY(-50%);box-shadow:0 0 12px rgba(255,255,255,.55)}
+  .grid{display:grid;gap:14px;margin-top:14px}
+  @media(min-width:760px){ .grid{grid-template-columns:1fr 1fr} }
   .shot{background:var(--card);border:var(--border);border-radius:16px;padding:14px}
   .shot img{width:100%;max-height:360px;object-fit:contain;border-radius:12px;background:#000}
   .code{margin-top:10px;font-size:22px;font-weight:900;text-align:center;letter-spacing:1px}
-  .hide{display:none!important}
   .note{font-size:12px;color:var(--muted)}
+  .hide{display:none!important}
   .foot{margin-top:12px;text-align:center;color:var(--muted);font-size:12px}
+  .diag{font-size:11px;color:#9aa8c7;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -54,11 +49,12 @@
 
   <div class="grid">
     <div class="shot">
-      <div class="camDock" id="camDock">
-        <video id="preview" playsinline muted></video>
-        <div class="scanLine" id="scanLine"></div>
+      <div class="camDock">
+        <video id="preview" playsinline muted autoplay></video>
+        <div class="scanLine"></div>
       </div>
-      <div class="note">חלון מצלמה קטן. הזז את הברקוד במרכז הקו הלבן.</div>
+      <div class="note">חלון מצלמה קטן. מקם את הברקוד על הקו הלבן.</div>
+      <div id="diag" class="diag"></div>
     </div>
 
     <div class="shot" id="resultBox">
@@ -67,13 +63,12 @@
     </div>
   </div>
 
-  <footer class="foot">v3.0.0 • חלון מצלמה קטן • מציג רק תמונה ומק״ט</footer>
+  <footer class="foot">v3.0.2 • חלון מצלמה קטן • מציג רק תמונה ומק״ט</footer>
 </div>
 
-<!-- ZXing fallback -->
 <script src="https://unpkg.com/@zxing/browser@0.1.1"></script>
 <script>
-/* ===== אלמנטים ===== */
+/* === אלמנטים === */
 const btnStart  = document.getElementById('btnStart');
 const btnStop   = document.getElementById('btnStop');
 const btnTorch  = document.getElementById('btnTorch');
@@ -82,23 +77,20 @@ const preview   = document.getElementById('preview');
 const codeEl    = document.getElementById('code');
 const imgProd   = document.getElementById('productImg');
 const httpsWarn = document.getElementById('httpsWarn');
-const scanLine  = document.getElementById('scanLine');
+const diagEl    = document.getElementById('diag');
 
-let stream = null;
-let track = null;
-let rafId = null;
-let reader = null; // ZXing fallback
-let lastCode = '';
+let stream = null, track = null, rafId = null, reader = null, lastCode = '';
 
-/* ===== עזרי HTTPS ===== */
+/* === אבחון קצר למסך === */
+function log(m){ diagEl.textContent += (diagEl.textContent?'\n':'') + m; }
+
+/* === HTTPS התראה === */
 (function(){
   const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-  if(location.protocol!=='https:' && !isLocal){
-    httpsWarn.classList.remove('hide');
-  }
+  if(location.protocol!=='https:' && !isLocal){ httpsWarn.classList.remove('hide'); }
 })();
 
-/* ===== רשימת מצלמות ===== */
+/* === רשימת מצלמות === */
 async function listVideoInputs(){
   const all = await navigator.mediaDevices.enumerateDevices();
   return all.filter(d => d.kind === 'videoinput');
@@ -109,11 +101,8 @@ function preferBack(devs){
 }
 async function fillCameras(){
   try{
-    // בקשה קצרה להרשאה כדי לקבל labels
     const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-    if(location.protocol==='https:' || isLocal){
-      await navigator.mediaDevices.getUserMedia({video:true});
-    }
+    if(location.protocol==='https:' || isLocal){ await navigator.mediaDevices.getUserMedia({video:true}); }
   }catch{}
   const devs = await listVideoInputs();
   cameraSel.innerHTML='';
@@ -122,11 +111,11 @@ async function fillCameras(){
     opt.value=d.deviceId; opt.textContent=(d.label||`camera ${i}`)+(/(back|rear|environment)/i.test(d.label||'')?' (אחורית)':'');
     cameraSel.appendChild(opt);
   });
-  const pref = preferBack(devs);
-  if(pref) cameraSel.value = pref.deviceId;
+  const pref=preferBack(devs); if(pref) cameraSel.value = pref.deviceId;
+  log(`Video Inputs: ${devs.length}`);
 }
 
-/* ===== תמונת מוצר לפי מק״ט (Open*Facts + רמי לוי) ===== */
+/* === מציאת תמונת מוצר === */
 function gtinToPath(code){ const c=(code||'').replace(/\D/g,''); const p=[]; for(let i=0;i<c.length;i+=3)p.push(c.slice(i,i+3)); return p.join('/'); }
 function openFactsCandidates(code){
   const base=['https://images.openfoodfacts.org/images/products/','https://images.openbeautyfacts.org/images/products/','https://images.openproductsfacts.org/images/products/'];
@@ -138,25 +127,16 @@ function ramiLevyCandidates(code){
   return [`${base}/small.jpg`,`${base}/large.jpg`,`https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,`https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`];
 }
 function raceImage(url){
-  return new Promise((resolve,reject)=>{
-    const im=new Image();
-    im.onload=()=>resolve(url); im.onerror=()=>reject(url);
-    im.src=url+`?t=${Date.now()}`;
-  });
+  return new Promise((resolve,reject)=>{ const im=new Image(); im.onload=()=>resolve(url); im.onerror=()=>reject(url); im.src=url+`?t=${Date.now()}`; });
 }
 async function findImageFast(code){
   const cands=[...openFactsCandidates(code), ...ramiLevyCandidates(code)];
-  if (Promise.any){
-    try{ return await Promise.any(cands.map(raceImage)); }catch{ return null; }
-  }else{
-    for (let i=0;i<cands.length;i+=3){
-      try{ return await Promise.race(cands.slice(i,i+3).map(raceImage)); }catch{}
-    }
-    return null;
-  }
+  if (Promise.any){ try{ return await Promise.any(cands.map(raceImage)); }catch{ return null; } }
+  for(let i=0;i<cands.length;i+=3){ try{ return await Promise.race(cands.slice(i,i+3).map(raceImage)); }catch{} }
+  return null;
 }
 
-/* ===== התחלה/עצירה ===== */
+/* === עצירה בטוחה === */
 async function stopScan(){
   if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
   if(reader){ reader.reset(); reader=null; }
@@ -164,130 +144,135 @@ async function stopScan(){
   track=null;
   btnStart.disabled=false; btnStop.disabled=true; btnTorch.disabled=true;
 }
+
+/* === פתיחת סטרים עם רצף נסיונות === */
+async function openStreamWithFallbacks(deviceId){
+  const tries = [
+    {audio:false, video:{ deviceId: deviceId? {exact:deviceId}: undefined, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }},
+    {audio:false, video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }},
+    {audio:false, video:{ facingMode:'environment' }},
+    {audio:false, video:true}
+  ];
+  let lastErr = null;
+  for (const c of tries){
+    try{ return await navigator.mediaDevices.getUserMedia(c); }
+    catch(e){ lastErr = e; log(`getUserMedia fail: ${e.name||''} ${e.message||e}`); }
+  }
+  throw lastErr || new Error('No camera available');
+}
+
+/* === START === */
 async function startScan(){
   await stopScan();
   codeEl.textContent=''; imgProd.classList.add('hide'); imgProd.removeAttribute('src');
 
-  const deviceId = cameraSel.value || undefined;
-  const constraints = {
-    audio:false,
-    video: deviceId ? { deviceId:{exact:deviceId}, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }
-                    : { facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }
-  };
-  try{
-    // פותחים סטרים יחיד
-    stream = await navigator.mediaDevices.getUserMedia(constraints);
-    preview.srcObject = stream;
-    track = stream.getVideoTracks()[0] || null;
-    btnStart.disabled=true; btnStop.disabled=false;
-
-    // פנס
+  // אם יש BarcodeDetector – אנחנו מנהלים את הסטרים בעצמנו; אחרת ניתן ל-ZXing לנהל.
+  if ('BarcodeDetector' in window){
     try{
-      const caps=track?.getCapabilities?.();
-      if(caps?.torch){ btnTorch.disabled=false; btnTorch.textContent='פנס כבוי'; } else { btnTorch.disabled=true; }
-    }catch{ btnTorch.disabled=true; }
+      const deviceId = cameraSel.value || undefined;
+      stream = await openStreamWithFallbacks(deviceId);
+      preview.srcObject = stream;
+      preview.muted = true;
+      preview.playsInline = true;
+      await preview.play().catch(()=>{});
 
-    // זיהוי חי: עדיפות BarcodeDetector; נפילה ל-ZXing אם אין
-    if ('BarcodeDetector' in window){
+      track = stream.getVideoTracks()[0] || null;
+      btnStart.disabled=true; btnStop.disabled=false;
+
+      try{
+        const caps=track?.getCapabilities?.();
+        if(caps?.torch){ btnTorch.disabled=false; btnTorch.textContent='פנס כבוי'; }
+      }catch{ btnTorch.disabled=true; }
+
       await liveDetectWithDetector();
-    }else{
-      await liveDetectWithZXing(deviceId);
+    }catch(e){
+      alert('כשל מצלמה: ' + (e.name? e.name+' – ':'') + (e.message||e));
+      await stopScan();
     }
-  }catch(e){
-    alert('כשל בהפעלת מצלמה: ' + (e.name? e.name+' – ':'') + (e.message||e));
-    await stopScan();
+  } else {
+    // ZXing פותח סטרים בעצמו (לא פותחים stream קודם!)
+    try{
+      btnStart.disabled=true; btnStop.disabled=false;
+      await liveDetectWithZXing(cameraSel.value || undefined);
+    }catch(e){
+      alert('כשל ZXing: ' + (e.name? e.name+' – ':'') + (e.message||e));
+      await stopScan();
+    }
   }
 }
 
-/* ===== פנס ===== */
+/* === פנס === */
 btnTorch.addEventListener('click', async ()=>{
   if(!track) return;
   try{
-    const caps=track.getCapabilities?.();
-    if(!caps?.torch) return;
+    const caps=track.getCapabilities?.(); if(!caps?.torch) return;
     const cur = track.getSettings?.().torch === true;
     await track.applyConstraints({ advanced:[{ torch: !cur }] });
     btnTorch.textContent = !cur ? 'פנס דלוק' : 'פנס כבוי';
   }catch{}
 });
 
-/* ===== זיהוי חי עם BarcodeDetector ===== */
+/* === סריקה חיה עם BarcodeDetector === */
 async function liveDetectWithDetector(){
   const det = new window.BarcodeDetector({ formats:['ean_13','ean_8','upc_a','upc_e'] });
 
-  const loop = async () => {
+  const loop = async ()=>{
     try{
-      // נזהה על רצועה מרכזית צרה – מהיר יותר
-      const bmp = await createFrameBandBitmap(preview, 0.22);
+      const bmp = await bandBitmap(preview, 0.22);
       const res = await det.detect(bmp);
       if(res && res.length){
         const code = (res[0].rawValue||'').trim();
-        if(code && code !== lastCode){
-          await onCodeDetected(code);
-          return; // עצירה אחרי זיהוי
-        }
+        if(code && code!==lastCode){ await onCodeDetected(code); return; }
       }
-    }catch{}
+    }catch(e){ /* ממשיכים לנסות */ }
     rafId = requestAnimationFrame(loop);
   };
   rafId = requestAnimationFrame(loop);
 }
-
-/* יצירת ביטמאפ של רצועה אופקית מרכזית מהווידאו */
-async function createFrameBandBitmap(video, bandRatio=0.22){
-  const w = video.videoWidth || 1280;
-  const h = video.videoHeight|| 720;
+async function bandBitmap(video, bandRatio=0.22){
+  const w = video.videoWidth || 1280, h = video.videoHeight || 720;
   const bandH = Math.max(40, Math.round(h * bandRatio));
   const y = Math.round((h - bandH)/2);
-  const cnv = document.createElement('canvas');
-  cnv.width = w; cnv.height = bandH;
-  const ctx = cnv.getContext('2d', { willReadFrequently:true });
-  ctx.drawImage(video, 0, y, w, bandH, 0, 0, w, bandH);
+  const cnv = document.createElement('canvas'); cnv.width = w; cnv.height = bandH;
+  cnv.getContext('2d', { willReadFrequently:true }).drawImage(video, 0, y, w, bandH, 0, 0, w, bandH);
   return await createImageBitmap(cnv);
 }
 
-/* ===== זיהוי חי עם ZXing (fallback) ===== */
+/* === סריקה חיה עם ZXing (ללא פתיחת סטרים מוקדמת) === */
 async function liveDetectWithZXing(deviceId){
   reader = new ZXing.BrowserMultiFormatReader();
   await reader.decodeFromConstraints(
     { audio:false, video: deviceId ? {deviceId:{exact:deviceId}} : {facingMode:{ideal:'environment'}} },
     preview,
-    (result)=>{ if(result){ const code=(result.text||'').trim(); if(code) onCodeDetected(code); } }
+    (result, err) => {
+      if(result){
+        const code=(result.text||'').trim();
+        if(code) onCodeDetected(code);
+      }
+    }
   );
 }
 
-/* ===== בעת זיהוי מק״ט ===== */
+/* === בעת זיהוי מק״ט === */
 async function onCodeDetected(code){
   lastCode = code;
   codeEl.textContent = code;
 
-  // עוצרים סריקה ומכבּים מצלמה כדי לפנות משאבים
+  // עוצרים סריקה ומכבים מצלמה כדי לפנות משאבים
   await stopScan();
 
-  // טוענים תמונת מוצר (הראשונה שמצליחה)
+  // טוענים תמונת מוצר – הראשון שמצליח יוצג
   const url = await findImageFast(code);
   if(url){ imgProd.src = url; imgProd.classList.remove('hide'); }
 }
 
-/* ===== אירועים ===== */
+/* === אירועים ואתחול === */
 btnStart.addEventListener('click', startScan);
 btnStop .addEventListener('click', stopScan);
 cameraSel.addEventListener('change', async ()=>{
-  if(!btnStop.disabled){ await startScan(); } // אם רץ – הפעלה מחדש עם המצלמה החדשה
+  if(!btnStop.disabled){ await startScan(); }
 });
-
-/* ===== אתחול ===== */
 fillCameras();
-
-/* ===== פס סריקה קטן – אפקט אנימציה קל ===== */
-(function animateScanLine(){
-  let t=0;
-  const anim = ()=>{
-    t+=0.02; const amp=6; scanLine.style.top = `calc(50% + ${Math.sin(t)*amp}px)`;
-    requestAnimationFrame(anim);
-  };
-  anim();
-})();
 </script>
 </body>
 </html>
