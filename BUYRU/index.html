@@ -100,7 +100,7 @@
     </div>
   </section>
 
-  <footer class="foot">v3.3.0 • מסך זיהוי עובד • הסרת מוצר • כל היכולות הקודמות נשמרו</footer>
+  <footer class="foot">v3.3.1 • UTF-8 לב־Excel תקין • A1=מס׳ זהות</footer>
 </div>
 
 <!-- ZXing fallback -->
@@ -193,7 +193,6 @@ btnUseEmp.addEventListener('click', ()=>{
 /* ===== דיקוד ברקוד מתוך תמונה בודדת (לתג עובד) ===== */
 async function decodeSingleImage(file){
   const bmp = await toBitmap(file);
-  // 1) BarcodeDetector
   if('BarcodeDetector' in window){
     try{
       const det = new window.BarcodeDetector({ formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf'] });
@@ -201,7 +200,6 @@ async function decodeSingleImage(file){
       if(res && res.length) return (res[0].rawValue||'').trim();
     }catch{}
   }
-  // 2) ZXing fallback
   try{
     const cnv=document.createElement('canvas');
     cnv.width=bmp.width; cnv.height=bmp.height;
@@ -315,7 +313,6 @@ async function startScan(){
     try{ const caps=track?.getCapabilities?.(); if(caps?.torch){ btnTorch.disabled=false; btnTorch.textContent='פנס כבוי'; } }catch{ btnTorch.disabled=true; }
     await liveDetectContinuous();
   }else{
-    // ZXing פותח סטרים לבד
     btnStart.disabled=true; btnStop.disabled=false;
     reader = new ZXing.BrowserMultiFormatReader();
     await reader.decodeFromConstraints(
@@ -357,17 +354,14 @@ function renderList(){
   listEl.innerHTML = items.map(it=>`
     <div class="item" data-code="${it.code}">
       <img class="thumb" src="${it.img||''}" alt="">
-      <div>
-        <div class="code">${it.code}</div>
-      </div>
+      <div><div class="code">${it.code}</div></div>
       <button class="btn ghost danger remove-btn" data-code="${it.code}" aria-label="הסר">הסר מוצר</button>
     </div>
   `).join('');
   countEl.textContent = items.length;
 }
 function addItem(code,img=''){
-  // מניעת כפילויות קשיחה
-  if(items.find(x=>x.code===code)) return;
+  if(items.find(x=>x.code===code)) return; // מניעת כפילויות קשיחה
   items.unshift({code,img});
   if(items.length>400) items.length=400;
   renderList(); saveState();
@@ -397,16 +391,31 @@ async function onNewCode(code){
   if(img) updateItemImage(code,img);
 }
 
-/* ===== CSV ===== */
+/* ===== CSV – עברית תקינה באקסל + A1=מספר זהות ===== */
 btnExport.addEventListener('click', ()=>{
-  if(!items.length){ alert('אין נתונים לייצוא'); return; }
-  const rows=[['מקט','קישור תמונה'], ...items.map(i=>[i.code,i.img||''])];
-  const csv=rows.map(r=>r.map(x=>`"${(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');
+  if(!items.length && !EMPLOYEE_ID){ alert('אין נתונים לייצוא'); return; }
+
+  // שורה 1: A1 = מספר זהות (לפי בקשתך)
+  const rows = [[EMPLOYEE_ID || '']];
+
+  // שורה 2: כותרות בעברית
+  rows.push(['מקט','קישור תמונה']);
+
+  // משורה 3: הנתונים
+  items.forEach(i => rows.push([i.code, i.img || '']));
+
+  // בניית CSV עם BOM ל-Excel בעברית
+  const csv = rows
+    .map(r => r.map(x => `"${String(x||'').replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+
+  const BOM = '\uFEFF'; // חובה כדי למנוע "ג׳יבריש" בעברית באקסל
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+
+  const a = document.createElement('a');
   const empPart = EMPLOYEE_ID ? ('_'+EMPLOYEE_ID) : '';
-  a.href=URL.createObjectURL(blob);
-  a.download='buyru_scan'+empPart+'_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'_')+'.csv';
+  a.href = URL.createObjectURL(blob);
+  a.download = 'buyru_scan'+empPart+'_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'_')+'.csv';
   a.click();
 });
 
