@@ -2,361 +2,363 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>BUYRU – סורק מובייל (אבחון + חלון מלבני)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>POC – סורק מוצר ותמונה</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <style>
-  :root{--bg:#f7f7f7;--card:#fff;--text:#222;--muted:#666;--pri:#1f7aeb;--shadow:0 6px 24px rgba(0,0,0,.12);--radius:12px}
-  *{box-sizing:border-box}
-  body{font-family:Heebo,system-ui,Arial;background:var(--bg);margin:0;padding:16px;color:var(--text);-webkit-tap-highlight-color: transparent}
+  :root{
+    --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --pri:#1f7aeb;
+    --shadow:0 6px 24px rgba(0,0,0,.12); --radius:12px;
+  }
+  body{font-family:Heebo,system-ui,Arial;background:var(--bg);margin:0;padding:16px;color:var(--text)}
   .wrap{max-width:760px;margin:0 auto}
   h1{font-size:22px;margin:0 0 12px}
-
-  #viewport{position:relative;width:100%;max-width:760px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);background:#000}
-  #interactive{
-    position:relative; width:100%;
-    aspect-ratio: 16 / 7; min-height:240px; max-height:520px;
-  }
-  #interactive video{
-    width:100% !important; height:100% !important; object-fit:cover !important; background:#000; display:block;
-  }
-  #interactive canvas.drawing, #interactive canvas.drawingBuffer{
-    position:absolute; top:0; left:0; width:100% !important; height:100% !important;
-  }
-  .scan-mask{ position:absolute; inset:0; pointer-events:none; --vpad:35%; --hpad:10%; }
-  .scan-mask::before{
-    content:""; position:absolute; inset:0;
-    background: linear-gradient(#0008,#0008) content-box, linear-gradient(transparent,transparent);
-    padding: var(--vpad) var(--hpad); border-radius:12px;
-    box-shadow: inset 0 0 0 2px rgba(0,224,255,0.9);
-  }
-
-  #fallbackWrap{display:none; position:relative; width:100%; aspect-ratio:16/7; min-height:240px;
-    background:#000; border-radius:12px; overflow:hidden; box-shadow:var(--shadow)}
-  #fallbackVideo{width:100%; height:100%; object-fit:cover; background:#000}
-
-  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-  input[type="text"]{flex:1;min-width:220px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px}
+  video{width:100%;border-radius:var(--radius);box-shadow:var(--shadow);background:#000}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+  input[type="text"], select{flex:1;min-width:160px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px}
   button{padding:10px 14px;border:0;border-radius:10px;cursor:pointer;font-weight:600}
   .primary{background:var(--pri);color:#fff}
   .ghost{background:#eee}
-  .danger{background:#c0392b;color:#fff}
   .card{margin-top:14px;background:var(--card);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.08);padding:14px}
   .imgbox img{max-width:100%;border-radius:10px}
   .meta{font-size:14px;color:#555;margin-top:8px}
-  .links a{display:inline-block;margin:6px 8px 0 0;color:#1f7aeb;text-decoration:none}
-  .small{font-size:12px;color:#777;margin-top:6px}
+  .links a{display:inline-block;margin:6px 8px 0 0;color:var(--pri);text-decoration:none}
+  .small{font-size:12px;color:var(--muted);margin-top:6px}
   .banner{background:#fff3cd;border:1px solid #ffe08a;color:#6b5800;border-radius:10px;padding:10px;margin:10px 0}
   .foot{margin-top:20px;text-align:center;color:#888;font-size:12px}
-  pre{white-space:pre-wrap; direction:ltr; background:#fafafa; border:1px solid #eee; padding:8px; border-radius:8px; max-height:260px; overflow:auto}
+  .ctrl{display:flex;gap:8px;align-items:center}
+  .ctrl label{font-size:12px;color:#555}
+  .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:12px; color:#555; word-break:break-all}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>BUYRU – סורק ברקוד ותמונה (אבחון + חלון מלבני)</h1>
+  <h1>POC – סורק מוצר ותמונה</h1>
 
   <div id="httpsWarn" class="banner" style="display:none">
-    הדף פתוח ללא HTTPS. מצלמה דורשת <b>https://</b>. פתח דרך:
-    <a id="httpsLink" href="#">קישור מאובטח</a>
+    האתר נטען ללא HTTPS. גישת מצלמה בדפדפן דורשת <b>https://</b>.
+    פתח דרך: <a id="httpsLink" href="#">קישור מאובטח</a>
   </div>
 
-  <div id="viewport">
-    <div id="interactive" class="viewport">
-      <div class="scan-mask"></div>
+  <video id="preview" playsinline muted autoplay></video>
+
+  <div class="row">
+    <select id="cameraSel" title="בחר מצלמה"></select>
+    <div class="ctrl">
+      <button class="ghost" id="btnTorch" disabled>פנס כבוי</button>
+      <label for="zoomRange">זום</label>
+      <input type="range" id="zoomRange" min="1" max="5" step="0.1" value="1" disabled style="width:140px">
     </div>
   </div>
 
-  <div id="fallbackWrap"><video id="fallbackVideo" playsinline autoplay muted></video></div>
-
   <div class="row">
-    <button class="primary" id="btnGrant">1) תן הרשאת מצלמה</button>
-    <button class="primary" id="btnStart" disabled>2) הפעל סריקה</button>
-    <button class="ghost"   id="btnStop"  disabled>עצור</button>
-    <button class="ghost"   id="btnTorch" disabled>פנס</button>
-    <button class="danger"  id="btnDiag">אבחון</button>
-  </div>
-
-  <div class="row">
+    <button class="primary" id="btnStart">הפעל סריקה</button>
+    <button class="ghost" id="btnStop" disabled>עצור</button>
     <input id="manual" type="text" placeholder="או הזן ידנית ברקוד (GTIN/UPC/EAN)..." />
     <button class="ghost" id="btnLookup">חפש תמונה</button>
   </div>
 
-  <div class="card" id="status">מוכן להתחלה.</div>
-
-  <div class="card" id="diagBox" style="display:none">
-    <b>אבחון:</b>
-    <pre id="diag"></pre>
-  </div>
+  <div class="card" id="status">מוכן לסריקה.</div>
 
   <div class="card imgbox" id="imgBox" style="display:none">
     <div class="meta" id="codeMeta"></div>
     <img id="imgProduct" alt="תמונת מוצר" />
     <div class="links" id="links"></div>
-    <div class="small">מקורות: Open Food/Beauty/Products Facts (ציבוריים) + רמי לוי (POC).</div>
+    <div class="small">
+      מקורות: Open Food/Beauty/Products Facts (ציבוריים) ורמי-לוי (לבדיקת התכנות). ייתכנו חסימות/שינויי URL.
+    </div>
   </div>
 
-  <div class="foot">BUYRU v2.4.0 – Rect Window + Mobile Fallback + Diagnostics</div>
+  <div class="card">
+    <div class="mono" id="diag"></div>
+  </div>
+
+  <div class="foot">v1.3.0 – BUYRU</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<!-- ZXing (גרסת browser המודרנית) -->
+<script src="https://unpkg.com/@zxing/browser@0.1.1"></script>
 <script>
-  const q = (s)=>document.querySelector(s);
-  const statusEl = q('#status');
-  const imgBox   = q('#imgBox');
-  const imgEl    = q('#imgProduct');
-  const codeMeta = q('#codeMeta');
-  const linksEl  = q('#links');
-  const btnGrant = q('#btnGrant');
-  const btnStart = q('#btnStart');
-  const btnStop  = q('#btnStop');
-  const btnTorch = q('#btnTorch');
-  const btnLookup= q('#btnLookup');
-  const btnDiag  = q('#btnDiag');
-  const manual   = q('#manual');
-  const httpsWarn= q('#httpsWarn');
-  const httpsLink= q('#httpsLink');
-  const fallbackWrap = q('#fallbackWrap');
-  const fallbackVideo= q('#fallbackVideo');
-  const diagBox = q('#diagBox');
-  const diagEl  = q('#diag');
+  const statusEl = document.getElementById('status');
+  const diagEl   = document.getElementById('diag');
+  const imgBox = document.getElementById('imgBox');
+  const imgEl = document.getElementById('imgProduct');
+  const codeMeta = document.getElementById('codeMeta');
+  const linksEl = document.getElementById('links');
+  const preview = document.getElementById('preview');
+  const btnStart = document.getElementById('btnStart');
+  const btnStop  = document.getElementById('btnStop');
+  const btnLookup= document.getElementById('btnLookup');
+  const manual   = document.getElementById('manual');
+  const cameraSel= document.getElementById('cameraSel');
+  const btnTorch = document.getElementById('btnTorch');
+  const zoomRange= document.getElementById('zoomRange');
 
-  let devicesCache = [];
-  let chosenDeviceId = null;
-  let lastCode = '';
-  let scanning = false;
+  const httpsWarn = document.getElementById('httpsWarn');
+  const httpsLink = document.getElementById('httpsLink');
+
+  let reader = null;
+  let currentStream = null;
   let currentTrack = null;
+  let imageCapture = null;
+  let lastCode = '';
   let torchOn = false;
 
-  // HTTPS banner
-  (function ensureHttps(){
+  // --- עזרי HTTPS ---
+  (function ensureHttpsBanner(){
     const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-    if (location.protocol !== 'https:' && !isLocalhost) {
+    if (location.protocol !== 'https:' && !isLocalhost){
       httpsWarn.style.display = 'block';
       httpsLink.href = 'https://' + location.host + location.pathname;
     }
   })();
 
-  const setStatus = (msg)=> statusEl.textContent = msg;
+  function setStatus(msg){ statusEl.textContent = msg; }
+  function log(msg){ diagEl.textContent += (diagEl.textContent ? '\n' : '') + msg; }
 
-  // ===== אבחון =====
-  async function runDiagnostics(extra){
-    const lines = [];
-    lines.push('User-Agent: ' + navigator.userAgent);
-    lines.push('Protocol: ' + location.protocol + ' | isSecureContext=' + (window.isSecureContext?'yes':'no'));
-    lines.push('mediaDevices: ' + (!!navigator.mediaDevices));
-    lines.push('getUserMedia: ' + (!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)));
-    lines.push('enumerateDevices: ' + (!!(navigator.mediaDevices && navigator.mediaDevices.enumerateDevices)));
-    try{
-      if (navigator.permissions?.query){
-        const st = await navigator.permissions.query({name:'camera'});
-        lines.push('permissions.camera: ' + (st.state||'unknown'));
-      }
-    }catch(e){}
-    try{
-      const devs = await (navigator.mediaDevices?.enumerateDevices?.() || Promise.resolve([]));
-      const vids = devs.filter(d=>d.kind==='videoinput');
-      lines.push('Video Inputs ('+vids.length+'):' + (vids.length? '' : ' NONE'));
-      vids.forEach((d,i)=> lines.push('  ['+i+'] ' + (d.label||'(no label)') + ' id=' + (d.deviceId||d.id)));
-    }catch(e){ lines.push('enumerateDevices ERROR: ' + e.name + ': ' + e.message); }
-
-    if (extra) lines.push('EXTRA: ' + extra);
-
-    diagEl.textContent = lines.join('\n');
-    diagBox.style.display = 'block';
+  // מחלק את ה-GTIN לבלוקים של 3 ספרות – פורמט הנתיב של Open*Facts
+  function gtinToPath(code){
+    const clean = (code || '').replace(/\D/g,'');
+    const parts = [];
+    for(let i=0;i<clean.length;i+=3) parts.push(clean.slice(i,i+3));
+    return parts.join('/');
   }
 
-  // ===== הרשאה + זיהוי מצלמות =====
-  async function grantAndEnumerate(){
-    try{
-      setStatus('מבקש הרשאת מצלמה...');
-      const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      tmp.getTracks().forEach(t => t.stop());
-
-      if (Quagga.CameraAccess && Quagga.CameraAccess.enumerateVideoDevices) {
-        devicesCache = await Quagga.CameraAccess.enumerateVideoDevices();
-      } else if (navigator.mediaDevices?.enumerateDevices) {
-        const all = await navigator.mediaDevices.enumerateDevices();
-        devicesCache = all.filter(d => d.kind === 'videoinput');
-      } else devicesCache = [];
-
-      if (!devicesCache.length){ setStatus('לא נמצאו מצלמות במכשיר.'); return; }
-
-      const byLabel = devicesCache.find(d => /back|rear|environment/i.test(d.label || ''));
-      chosenDeviceId = (byLabel && (byLabel.deviceId || byLabel.id)) ||
-                       (devicesCache[devicesCache.length - 1].deviceId || devicesCache[devicesCache.length - 1].id);
-
-      btnStart.disabled = false;
-      setStatus('הרשאה התקבלה. מוכן לסריקה.');
-    }catch(e){
-      const msg = e.name === 'NotAllowedError'
-        ? 'ההרשאה נחסמה. אשר שימוש במצלמה בהגדרות הדפדפן/המערכת.'
-        : 'שגיאה בקבלת הרשאה: ' + (e.message || e.toString());
-      setStatus(msg);
-      await runDiagnostics('grantAndEnumerate error: ' + e.name + ' ' + e.message);
-    }
-  }
-
-  function quaggaConfig(){
-    const constraints = chosenDeviceId
-      ? { deviceId: { exact: chosenDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 }, focusMode: 'continuous' }
-      : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 }, focusMode: 'continuous' };
-
-    return {
-      inputStream: {
-        type: "LiveStream",
-        target: document.querySelector('#interactive'),
-        constraints,
-        area: { top: "35%", right: "10%", left: "10%", bottom: "35%" } // מלבני רחב ונמוך
-      },
-      decoder: { readers: ["ean_reader","upc_reader","upc_e_reader","ean_8_reader"] },
-      locate: true,
-      numOfWorkers: navigator.hardwareConcurrency ? Math.max(2, navigator.hardwareConcurrency - 1) : 2
-    };
-  }
-
-  function ensureMobileVideoAttributes(){
-    const v = document.querySelector('#interactive video');
-    if (v){
-      v.setAttribute('playsinline','true'); v.setAttribute('muted','true'); v.setAttribute('autoplay','true');
-      v.muted = true; v.playsInline = true;
-    }
-  }
-
-  async function startScan(){
-    if(scanning) return;
-    btnStart.disabled = true; btnStop.disabled = false;
-    setStatus('מפעיל מצלמה...');
-
-    const config = quaggaConfig();
-
-    try{
-      await new Promise((resolve, reject) => {
-        Quagga.init(config, (err) => err ? reject(err) : resolve());
-      });
-
-      setTimeout(ensureMobileVideoAttributes, 200);
-
-      try{
-        const stream = Quagga.cameraAccess.getActiveStream();
-        currentTrack = stream.getVideoTracks()[0] || null;
-        const caps = currentTrack?.getCapabilities?.() || {};
-        btnTorch.disabled = !caps.torch;
-      }catch{ currentTrack = null; btnTorch.disabled = true; }
-
-      Quagga.start();
-      scanning = true;
-      setStatus('סורק... כוון את הברקוד למלבני הכחול.');
-      Quagga.onDetected(onDetected);
-      Quagga.onProcessed(drawBoxes);
-
-    }catch(e){
-      await runDiagnostics('Quagga.init/start error: ' + e.name + ' ' + e.message);
-      setStatus('Quagga נכשלה, מפעיל פולבק וידאו...');
-      btnStop.disabled = true;
-
-      try{
-        fallbackWrap.style.display = 'block';
-        const constraints = chosenDeviceId
-          ? { video: { deviceId: { exact: chosenDeviceId } }, audio:false }
-          : { video: { facingMode: { ideal:'environment' } }, audio:false };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        fallbackVideo.srcObject = stream;
-        fallbackVideo.muted = true; fallbackVideo.playsInline = true; fallbackVideo.autoplay = true;
-        setStatus('תצוגת מצלמה פועלת (פולבק). אפשר להזין קוד ידנית לבדיקה.');
-      }catch(e2){
-        setStatus('כשל מלא בהפעלת מצלמה: ' + (e2.name || '') + ' ' + (e2.message || e2.toString()));
-        await runDiagnostics('fallback getUserMedia error: ' + e2.name + ' ' + e2.message);
-        btnStart.disabled = false;
-      }
-    }
-  }
-
-  function stopScan(){
-    try{ Quagga.offDetected(onDetected); Quagga.offProcessed(drawBoxes); Quagga.stop(); }catch{}
-    try{
-      if (fallbackVideo.srcObject){ fallbackVideo.srcObject.getTracks().forEach(t=>t.stop()); fallbackVideo.srcObject = null; }
-      fallbackWrap.style.display = 'none';
-    }catch{}
-    scanning = false;
-    btnStart.disabled = false; btnStop.disabled = true; btnTorch.disabled = true;
-    setStatus('הסריקה נעצרה.');
-  }
-
-  function onDetected(result){
-    const code = (result && result.codeResult && result.codeResult.code) ? result.codeResult.code.trim() : '';
-    if(code && code !== lastCode) showByCode(code);
-  }
-
-  function drawBoxes(result){
-    const ctx = Quagga.canvas.ctx.overlay;
-    const cvs = Quagga.canvas.dom.overlay;
-    if(!ctx || !cvs) return;
-    ctx.clearRect(0, 0, cvs.width, cvs.height);
-    if(result?.boxes){
-      result.boxes.filter(b => b !== result.box).forEach(box => {
-        ctx.strokeStyle = 'rgba(0,255,0,0.25)'; ctx.lineWidth = 2; ctx.beginPath();
-        box.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.closePath(); ctx.stroke();
-      });
-    }
-    if(result?.box){
-      ctx.strokeStyle = '#00e0ff'; ctx.lineWidth = 3; ctx.beginPath();
-      result.box.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.closePath(); ctx.stroke();
-    }
-  }
-
-  btnTorch.addEventListener('click', async () => {
-    if(!currentTrack?.applyConstraints) return;
-    try{
-      torchOn = !torchOn;
-      await currentTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
-      btnTorch.textContent = torchOn ? 'כבה פנס' : 'פנס';
-    }catch{}
-  });
-
-  // ——— תמונה לפי ברקוד ———
-  function gtinToPath(code){ const clean=(code||'').replace(/\D/g,''); const parts=[]; for(let i=0;i<clean.length;i+=3) parts.push(clean.slice(i,i+3)); return parts.join('/'); }
+  // מועמדים – Open*Facts
   function openFactsCandidates(code){
-    const base=['https://images.openfoodfacts.org/images/products/','https://images.openbeautyfacts.org/images/products/','https://images.openproductsfacts.org/images/products/'];
-    const path=gtinToPath(code);
-    return [`${base[0]}${path}/front.400.jpg`,`${base[0]}${path}/front.jpg`,`${base[1]}${path}/front.400.jpg`,`${base[1]}${path}/front.jpg`,`${base[2]}${path}/front.400.jpg`,`${base[2]}${path}/front.jpg`];
+    const base = [
+      'https://images.openfoodfacts.org/images/products/',
+      'https://images.openbeautyfacts.org/images/products/',
+      'https://images.openproductsfacts.org/images/products/'
+    ];
+    const path = gtinToPath(code);
+    return [
+      `${base[0]}${path}/front.400.jpg`,
+      `${base[0]}${path}/front.jpg`,
+      `${base[1]}${path}/front.400.jpg`,
+      `${base[1]}${path}/front.jpg`,
+      `${base[2]}${path}/front.400.jpg`,
+      `${base[2]}${path}/front.jpg`,
+    ];
   }
+
+  // מועמדים – רמי לוי
   function ramiLevyCandidates(code){
-    const base=`https://img.rami-levy.co.il/product/${code}`;
-    return [`${base}/small.jpg`,`${base}/large.jpg`,`https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,`https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`];
+    const base = `https://img.rami-levy.co.il/product/${code}`;
+    return [
+      `${base}/small.jpg`,
+      `${base}/large.jpg`,
+      `https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,
+      `https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`,
+    ];
   }
-  function firstWorkingImage(urls){ return new Promise((resolve)=>{ let i=0; (function next(){ if(i>=urls.length) return resolve(null); const url=urls[i++]; const img=new Image(); img.onload=()=>resolve(url); img.onerror=()=>next(); img.src=url+`?t=${Date.now()}`; })(); }); }
-  async function tryLoadImageFor(code){ const candidates=[...openFactsCandidates(code), ...ramiLevyCandidates(code)]; return await firstWorkingImage(candidates); }
+
+  // נסה לטעון תמונה מהמועמדים, מחזיר URL ראשון שעובד
+  function firstWorkingImage(urls){
+    return new Promise((resolve) => {
+      let i = 0;
+      function tryNext(){
+        if(i >= urls.length) return resolve(null);
+        const url = urls[i++];
+        const img = new Image();
+        img.onload = ()=> resolve(url);
+        img.onerror= ()=> tryNext();
+        img.src = url + `?t=${Date.now()}`; // עקיפת קאש
+      }
+      tryNext();
+    });
+  }
+
+  async function tryLoadImageFor(code){
+    const candidates = [
+      ...openFactsCandidates(code),
+      ...ramiLevyCandidates(code),
+    ];
+    return await firstWorkingImage(candidates);
+  }
+
   async function showByCode(code){
-    if(!code) return;
+    if(!code){ setStatus('לא הוזן ברקוד.'); return; }
     lastCode = code.replace(/\s/g,'');
     setStatus(`מחפש תמונה לברקוד: ${lastCode} ...`);
-    imgBox.style.display='none'; imgEl.src=''; linksEl.innerHTML='';
+    imgBox.style.display='none';
+    imgEl.src=''; linksEl.innerHTML='';
+
     const url = await tryLoadImageFor(lastCode);
-    if(url){ codeMeta.textContent = `ברקוד: ${lastCode}`; imgEl.src = url; imgBox.style.display='block'; setStatus('נמצאה תמונה.'); }
-    else   { codeMeta.textContent = `ברקוד: ${lastCode}`; imgEl.removeAttribute('src'); imgBox.style.display='block'; setStatus('לא נמצאה תמונה במקורות הנ״ל.'); }
+
+    if(url){
+      codeMeta.textContent = `ברקוד: ${lastCode}`;
+      imgEl.src = url;
+      imgBox.style.display='block';
+      setStatus('נמצאה תמונה.');
+    }else{
+      codeMeta.textContent = `ברקוד: ${lastCode}`;
+      imgEl.removeAttribute('src');
+      imgBox.style.display='block';
+      setStatus('לא נמצאה תמונה במקורות הנ״ל.');
+    }
+
     linksEl.innerHTML = [
       link('חיפוש בגוגל תמונות', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(lastCode)}`),
       link('שופרסל – חיפוש', `https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(lastCode)}`),
       link('רמי לוי – חיפוש', `https://www.rami-levy.co.il/he/Search?search=${encodeURIComponent(lastCode)}`)
     ].join(' ');
   }
+
   function link(txt, href){ return `<a target="_blank" rel="noopener" href="${href}">${txt}</a>`; }
 
+  // --- מצלמות זמינות + מילוי select ---
+  async function listVideoInputsSafe(){
+    let devices = [];
+    try {
+      if (ZXing?.BrowserCodeReader?.listVideoInputDevices) {
+        devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+      } else if (ZXing?.BrowserMultiFormatReader?.listVideoInputDevices) {
+        devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+      }
+    } catch (e) {
+      log('ZXing listVideoInputDevices failed, fallback to enumerateDevices');
+    }
+    if (!devices.length && navigator.mediaDevices?.enumerateDevices) {
+      const all = await navigator.mediaDevices.enumerateDevices();
+      devices = all.filter(d => d.kind === 'videoinput');
+    }
+    return devices;
+  }
+
+  function preferBackCamera(devices){
+    // נותן עדיפות לשמות שמכילים back/rear/environment, ואם יש כמה – קח את האחרון (בד״כ האיכותי).
+    const backs = devices.filter(d => /back|rear|environment/i.test(d.label || ''));
+    return backs.length ? backs[backs.length - 1] : devices[0];
+  }
+
+  async function populateCameraSelect(){
+    const devices = await listVideoInputsSafe();
+    cameraSel.innerHTML = '';
+    devices.forEach((d, idx) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId || d.id || String(idx);
+      opt.textContent = (d.label || `camera ${idx}`) + (/(back|rear|environment)/i.test(d.label || '')?' (אחורית)':'');
+      cameraSel.appendChild(opt);
+    });
+    const pref = preferBackCamera(devices);
+    if(pref){
+      cameraSel.value = pref.deviceId || pref.id || cameraSel.options[0]?.value;
+    }
+    log(`Video Inputs (${devices.length}):\n  ${devices.map((d,i)=>`[${i}] ${d.label || 'camera '+i} id=${d.deviceId||d.id||'n/a'}`).join('\n  ')}`);
+  }
+
+  async function applyZoom(value){
+    if(!currentTrack) return;
+    try{
+      const caps = currentTrack.getCapabilities?.();
+      if(caps?.zoom){
+        await currentTrack.applyConstraints({ advanced:[{ zoom: Number(value) }] });
+      }
+    }catch(e){ /* ignore */ }
+  }
+
+  async function toggleTorch(){
+    if(!currentTrack) return;
+    try{
+      const caps = currentTrack.getCapabilities?.();
+      if(!caps?.torch){ return; }
+      torchOn = !torchOn;
+      await currentTrack.applyConstraints({ advanced:[{ torch: torchOn }] });
+      btnTorch.textContent = torchOn ? 'פנס דלוק' : 'פנס כבוי';
+    }catch(e){ /* ignore */ }
+  }
+
+  async function startScan(){
+    try{
+      await stopScan();
+
+      // 1) בחירת מצלמה מתוך ה-select
+      const deviceId = cameraSel.value || undefined;
+
+      // 2) פתיחת stream עם עדיפות לרזולוציה טובה
+      const constraints = deviceId
+        ? { video: { deviceId: { exact: deviceId }, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }, audio: false }
+        : { video: { facingMode: { ideal: 'environment' }, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }, audio: false };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      currentStream = stream;
+      preview.srcObject = stream;
+
+      // החזק רפרנס ל-VideoTrack עבור torch/zoom
+      currentTrack = stream.getVideoTracks()[0] || null;
+
+      // הכנות ל-torch/zoom
+      btnTorch.disabled = true;
+      zoomRange.disabled = true;
+      torchOn = false;
+      try{
+        const caps = currentTrack?.getCapabilities?.();
+        if(caps?.torch){ btnTorch.disabled = false; btnTorch.textContent = 'פנס כבוי'; }
+        if(caps?.zoom){
+          zoomRange.min = caps.zoom.min || 1;
+          zoomRange.max = caps.zoom.max || 5;
+          zoomRange.step= caps.zoom.step || 0.1;
+          zoomRange.value = caps.zoom.min || 1;
+          zoomRange.disabled = false;
+        }
+      }catch(e){ /* ignore */ }
+
+      // 3) Reader והאזנה
+      reader = new ZXing.BrowserMultiFormatReader();
+      setStatus('סורק... כוון את הברקוד אל המצלמה.');
+      btnStart.disabled = true; btnStop.disabled = false;
+
+      reader.decodeFromVideoDevice(deviceId || null, preview, (result) => {
+        if(result){
+          const code = (result.text || '').trim();
+          if(code && code !== lastCode) showByCode(code);
+        }
+      });
+
+    }catch(e){
+      setStatus('כשל בהפעלת הסריקה: ' + e.message);
+      btnStart.disabled = false; btnStop.disabled = true;
+    }
+  }
+
+  async function stopScan(){
+    try{
+      if(reader){ reader.reset(); reader = null; }
+      if(currentStream){ currentStream.getTracks().forEach(t => t.stop()); currentStream = null; }
+      currentTrack = null;
+      torchOn = false;
+    }finally{
+      btnStart.disabled = false; btnStop.disabled = true;
+      btnTorch.disabled = true; zoomRange.disabled = true;
+      setStatus('הסריקה נעצרה.');
+    }
+  }
+
   // אירועים
-  btnGrant.addEventListener('click', grantAndEnumerate);
   btnStart.addEventListener('click', startScan);
   btnStop .addEventListener('click', stopScan);
   btnLookup.addEventListener('click', ()=> showByCode(manual.value));
   manual.addEventListener('keydown', (e)=>{ if(e.key==='Enter') showByCode(manual.value); });
-  btnDiag .addEventListener('click', ()=> runDiagnostics());
+  btnTorch.addEventListener('click', toggleTorch);
+  zoomRange.addEventListener('input', (e)=> applyZoom(e.target.value));
+  cameraSel.addEventListener('change', startScan); // החלפת מצלמה מיידית
 
-  (async ()=>{
+  // הרשאות + מילוי רשימת מצלמות
+  (async ()=> {
     try{
-      if (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)){
-        await grantAndEnumerate();
-      } else setStatus('פתח את הדף ב-HTTPS ואז לחץ "תן הרשאת מצלמה".');
-    }catch{}
+      const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+      if (location.protocol === 'https:' || isLocalhost){
+        await navigator.mediaDevices.getUserMedia({video:true});
+        await populateCameraSelect();
+        setStatus('מוכן – בחר מצלמה ולחץ "הפעל סריקה".');
+      } else {
+        setStatus('פתח את הדף ב-HTTPS כדי להפעיל מצלמה.');
+      }
+    }catch{
+      await populateCameraSelect(); // עדיין נמלא את הרשימה ככל שאפשר
+      setStatus('אשר גישה למצלמה ואז לחץ "הפעל סריקה".');
+    }
   })();
 </script>
 </body>
