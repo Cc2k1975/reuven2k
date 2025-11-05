@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>POC – סורק מוצר ותמונה</title>
+<style>
+  body{font-family:Heebo,Arial,sans-serif;background:#f7f7f7;margin:0;padding:16px;color:#222}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 12px}
+  video{width:100%;border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.12);background:#000}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  input[type="text"]{flex:1;min-width:220px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px}
+  button{padding:10px 14px;border:0;border-radius:10px;cursor:pointer;font-weight:600}
+  .primary{background:#1f7aeb;color:#fff}
+  .ghost{background:#eee}
+  .card{margin-top:14px;background:#fff;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.08);padding:14px}
+  .imgbox img{max-width:100%;border-radius:10px}
+  .meta{font-size:14px;color:#555;margin-top:8px}
+  .links a{display:inline-block;margin:6px 8px 0 0;color:#1f7aeb;text-decoration:none}
+  .small{font-size:12px;color:#777}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>POC – סורק מוצר ותמונה</h1>
+
+  <video id="preview" playsinline></video>
+
+  <div class="row">
+    <button class="primary" id="btnStart">הפעל סריקה</button>
+    <button class="ghost" id="btnStop" disabled>עצור</button>
+  </div>
+
+  <div class="row">
+    <input id="manual" type="text" placeholder="או הזן ידנית ברקוד (GTIN/UPC/EAN)..." />
+    <button class="ghost" id="btnLookup">חפש תמונה</button>
+  </div>
+
+  <div class="card" id="status">מוכן לסריקה.</div>
+
+  <div class="card imgbox" id="imgBox" style="display:none">
+    <div class="meta" id="codeMeta"></div>
+    <img id="imgProduct" alt="תמונת מוצר" />
+    <div class="links" id="links"></div>
+    <div class="small">
+      מקורות: Open Food/Beauty/Products Facts (ציבוריים) ורמי-לוי (לבדיקת התכנות). ייתכנו חסימות/שינויי URL.
+    </div>
+  </div>
+</div>
+
+<!-- ZXing: סריקת ברקודים בדפדפן -->
+<script src="https://unpkg.com/@zxing/library@0.19.2"></script>
+<script>
+  const statusEl = document.getElementById('status');
+  const imgBox = document.getElementById('imgBox');
+  const imgEl = document.getElementById('imgProduct');
+  const codeMeta = document.getElementById('codeMeta');
+  const linksEl = document.getElementById('links');
+  const preview = document.getElementById('preview');
+  const btnStart = document.getElementById('btnStart');
+  const btnStop  = document.getElementById('btnStop');
+  const btnLookup= document.getElementById('btnLookup');
+  const manual   = document.getElementById('manual');
+
+  let reader = null;
+  let currentStream = null;
+  let lastCode = '';
+
+  function setStatus(msg){ statusEl.textContent = msg; }
+
+  // מחלק את ה-GTIN לבלוקים של 3 ספרות – פורמט הנתיב של Open*Facts
+  function gtinToPath(code){
+    const clean = (code || '').replace(/\D/g,'');
+    const parts = [];
+    for(let i=0;i<clean.length;i+=3) parts.push(clean.slice(i,i+3));
+    return parts.join('/');
+  }
+
+  // מועמדים – Open Facts
+  function openFactsCandidates(code){
+    const base = [
+      'https://images.openfoodfacts.org/images/products/',
+      'https://images.openbeautyfacts.org/images/products/',
+      'https://images.openproductsfacts.org/images/products/'
+    ];
+    const path = gtinToPath(code);
+    return [
+      `${base[0]}${path}/front.400.jpg`,
+      `${base[0]}${path}/front.jpg`,
+      `${base[1]}${path}/front.400.jpg`,
+      `${base[1]}${path}/front.jpg`,
+      `${base[2]}${path}/front.400.jpg`,
+      `${base[2]}${path}/front.jpg`,
+    ];
+  }
+
+  // מועמדים – רמי לוי (על בסיס הדוגמה שלך)
+  function ramiLevyCandidates(code){
+    const base = `https://img.rami-levy.co.il/product/${code}`;
+    return [
+      `${base}/small.jpg`,
+      `${base}/large.jpg`,
+      `https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,
+      `https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`,
+    ];
+  }
+
+  // נסה לטעון תמונה מהמועמדים, מחזיר URL ראשון שעובד
+  function firstWorkingImage(urls){
+    return new Promise((resolve) => {
+      let i = 0;
+      function tryNext(){
+        if(i >= urls.length) return resolve(null);
+        const url = urls[i++];
+        const img = new Image();
+        img.onload = ()=> resolve(url);
+        img.onerror= ()=> tryNext();
+        img.src = url + `?t=${Date.now()}`; // עקיפת קאש
+      }
+      tryNext();
+    });
+  }
+
+  async function tryLoadImageFor(code){
+    // סדר ניסיון: Open*Facts → רמי לוי
+    const candidates = [
+      ...openFactsCandidates(code),
+      ...ramiLevyCandidates(code),
+    ];
+    return await firstWorkingImage(candidates);
+  }
+
+  async function showByCode(code){
+    if(!code){ setStatus('לא הוזן ברקוד.'); return; }
+    lastCode = code.replace(/\s/g,'');
+    setStatus(`מחפש תמונה לברקוד: ${lastCode} ...`);
+    imgBox.style.display='none';
+    imgEl.src=''; linksEl.innerHTML='';
+
+    const url = await tryLoadImageFor(lastCode);
+
+    if(url){
+      codeMeta.textContent = `ברקוד: ${lastCode}`;
+      imgEl.src = url;
+      imgBox.style.display='block';
+      setStatus('נמצאה תמונה.');
+    }else{
+      codeMeta.textContent = `ברקוד: ${lastCode}`;
+      imgEl.removeAttribute('src');
+      imgBox.style.display='block';
+      setStatus('לא נמצאה תמונה במקורות הנ״ל.');
+    }
+
+    // קישורי עזרה/חנויות
+    linksEl.innerHTML = [
+      link('חיפוש בגוגל תמונות', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(lastCode)}`),
+      link('שופרסל – חיפוש', `https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(lastCode)}`),
+      link('רמי לוי – חיפוש', `https://www.rami-levy.co.il/he/Search?search=${encodeURIComponent(lastCode)}`)
+    ].join(' ');
+  }
+
+  function link(txt, href){ return `<a target="_blank" rel="noopener" href="${href}">${txt}</a>`; }
+
+  // הפעלת סריקה
+  async function startScan(){
+    try{
+      if(reader){ await stopScan(); }
+      reader = new ZXing.BrowserMultiFormatReader();
+      const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+
+      // עדיפות למצלמה אחורית
+      let deviceId = devices?.[0]?.deviceId || undefined;
+      const back = devices.find(d => /back|rear|environment/i.test(d.label));
+      if(back) deviceId = back.deviceId;
+
+      currentStream = await navigator.mediaDevices.getUserMedia({
+        video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
+        audio: false
+      });
+      preview.srcObject = currentStream;
+
+      setStatus('סורק... כוון את הברקוד אל המצלמה.');
+      btnStart.disabled = true; btnStop.disabled = false;
+
+      reader.decodeFromVideoDevice(deviceId, preview, (result) => {
+        if(result){
+          const code = (result.text || '').trim();
+          if(code && code !== lastCode) showByCode(code);
+        }
+      });
+    }catch(e){
+      setStatus('כשל בהפעלת הסריקה: ' + e.message);
+      btnStart.disabled = false; btnStop.disabled = true;
+    }
+  }
+
+  async function stopScan(){
+    try{
+      if(reader){ reader.reset(); reader = null; }
+      if(currentStream){ currentStream.getTracks().forEach(t => t.stop()); currentStream = null; }
+      preview.srcObject = null;
+    }finally{
+      btnStart.disabled = false; btnStop.disabled = true;
+      setStatus('הסריקה נעצרה.');
+    }
+  }
+
+  // אירועים
+  btnStart.addEventListener('click', startScan);
+  btnStop .addEventListener('click', stopScan);
+  btnLookup.addEventListener('click', ()=> showByCode(manual.value));
+  manual.addEventListener('keydown', (e)=>{ if(e.key==='Enter') showByCode(manual.value); });
+
+  // נסיון הרשאת מצלמה מראש (לא חובה)
+  (async ()=> {
+    try{ await navigator.mediaDevices.getUserMedia({video:true}); setStatus('מוכן – לחץ "הפעל סריקה".'); }catch{}
+  })();
+</script>
+</body>
+</html>
