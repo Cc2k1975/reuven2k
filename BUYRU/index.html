@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>BUYRU – סורק מובייל (חלון מלבני + פולבק)</title>
+<title>BUYRU – סורק מובייל (אבחון + חלון מלבני)</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <style>
@@ -13,50 +13,27 @@
   .wrap{max-width:760px;margin:0 auto}
   h1{font-size:22px;margin:0 0 12px}
 
-  /* מעטפת וידאו */
   #viewport{position:relative;width:100%;max-width:760px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);background:#000}
-
-  /* הגובה של אזור הווידאו – יחס רחב (16:7) + מינימום הגיוני */
   #interactive{
-    position:relative;
-    width:100%;
-    aspect-ratio: 16 / 7;     /* מלבן רחב ונמוך – נתמך ברוב הדפדפנים */
-    min-height: 240px;        /* גיבוי למקרה ש-aspect-ratio לא נתמך */
-    max-height: 520px;
+    position:relative; width:100%;
+    aspect-ratio: 16 / 7; min-height:240px; max-height:520px;
   }
-
-  /* ודא שהווידאו של Quagga מתוח נכון */
   #interactive video{
-    width:100% !important;
-    height:100% !important;
-    object-fit: cover !important;
-    background:#000;
-    display:block;
+    width:100% !important; height:100% !important; object-fit:cover !important; background:#000; display:block;
   }
-  /* גם הקנבס */
   #interactive canvas.drawing, #interactive canvas.drawingBuffer{
     position:absolute; top:0; left:0; width:100% !important; height:100% !important;
   }
-
-  /* מסכת הדרכה: חלון סריקה מלבני – רחב ונמוך */
-  .scan-mask{
-    position:absolute; inset:0; pointer-events:none;
-    --vpad:35%;  /* גובה ריק למעלה/למטה – יוצר חלון נמוך */
-    --hpad:10%;  /* רווחים בצדדים – שומר על רוחב רחב */
-  }
+  .scan-mask{ position:absolute; inset:0; pointer-events:none; --vpad:35%; --hpad:10%; }
   .scan-mask::before{
-    content:"";
-    position:absolute; inset:0;
-    background:
-      linear-gradient(#0008,#0008) content-box, /* כהה מסביב */
-      linear-gradient(transparent,transparent);  /* החור */
-    padding: var(--vpad) var(--hpad); /* זה ה"חור" המלבני */
-    border-radius: 12px;
-    box-shadow: inset 0 0 0 2px rgba(0,224,255,0.9); /* קו תיחום */
+    content:""; position:absolute; inset:0;
+    background: linear-gradient(#0008,#0008) content-box, linear-gradient(transparent,transparent);
+    padding: var(--vpad) var(--hpad); border-radius:12px;
+    box-shadow: inset 0 0 0 2px rgba(0,224,255,0.9);
   }
 
-  /* וידאו פולבק אם Quagga לא הצליחה לפתוח */
-  #fallbackWrap{display:none; position:relative; width:100%; aspect-ratio:16/7; min-height:240px; background:#000; border-radius:12px; overflow:hidden; box-shadow:var(--shadow)}
+  #fallbackWrap{display:none; position:relative; width:100%; aspect-ratio:16/7; min-height:240px;
+    background:#000; border-radius:12px; overflow:hidden; box-shadow:var(--shadow)}
   #fallbackVideo{width:100%; height:100%; object-fit:cover; background:#000}
 
   .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
@@ -64,6 +41,7 @@
   button{padding:10px 14px;border:0;border-radius:10px;cursor:pointer;font-weight:600}
   .primary{background:var(--pri);color:#fff}
   .ghost{background:#eee}
+  .danger{background:#c0392b;color:#fff}
   .card{margin-top:14px;background:var(--card);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.08);padding:14px}
   .imgbox img{max-width:100%;border-radius:10px}
   .meta{font-size:14px;color:#555;margin-top:8px}
@@ -71,11 +49,12 @@
   .small{font-size:12px;color:#777;margin-top:6px}
   .banner{background:#fff3cd;border:1px solid #ffe08a;color:#6b5800;border-radius:10px;padding:10px;margin:10px 0}
   .foot{margin-top:20px;text-align:center;color:#888;font-size:12px}
+  pre{white-space:pre-wrap; direction:ltr; background:#fafafa; border:1px solid #eee; padding:8px; border-radius:8px; max-height:260px; overflow:auto}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>BUYRU – סורק ברקוד ותמונה (חלון מלבני + פולבק)</h1>
+  <h1>BUYRU – סורק ברקוד ותמונה (אבחון + חלון מלבני)</h1>
 
   <div id="httpsWarn" class="banner" style="display:none">
     הדף פתוח ללא HTTPS. מצלמה דורשת <b>https://</b>. פתח דרך:
@@ -84,11 +63,10 @@
 
   <div id="viewport">
     <div id="interactive" class="viewport">
-      <div class="scan-mask"></div> <!-- מסגרת הסריקה המלבנית -->
+      <div class="scan-mask"></div>
     </div>
   </div>
 
-  <!-- פולבק תצוגת מצלמה אם Quagga נכשלת -->
   <div id="fallbackWrap"><video id="fallbackVideo" playsinline autoplay muted></video></div>
 
   <div class="row">
@@ -96,6 +74,7 @@
     <button class="primary" id="btnStart" disabled>2) הפעל סריקה</button>
     <button class="ghost"   id="btnStop"  disabled>עצור</button>
     <button class="ghost"   id="btnTorch" disabled>פנס</button>
+    <button class="danger"  id="btnDiag">אבחון</button>
   </div>
 
   <div class="row">
@@ -105,6 +84,11 @@
 
   <div class="card" id="status">מוכן להתחלה.</div>
 
+  <div class="card" id="diagBox" style="display:none">
+    <b>אבחון:</b>
+    <pre id="diag"></pre>
+  </div>
+
   <div class="card imgbox" id="imgBox" style="display:none">
     <div class="meta" id="codeMeta"></div>
     <img id="imgProduct" alt="תמונת מוצר" />
@@ -112,27 +96,30 @@
     <div class="small">מקורות: Open Food/Beauty/Products Facts (ציבוריים) + רמי לוי (POC).</div>
   </div>
 
-  <div class="foot">BUYRU v2.3.0 – Rect Window + Mobile Fallback</div>
+  <div class="foot">BUYRU v2.4.0 – Rect Window + Mobile Fallback + Diagnostics</div>
 </div>
 
-<!-- Quagga -->
 <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 <script>
-  const statusEl = document.getElementById('status');
-  const imgBox   = document.getElementById('imgBox');
-  const imgEl    = document.getElementById('imgProduct');
-  const codeMeta = document.getElementById('codeMeta');
-  const linksEl  = document.getElementById('links');
-  const btnGrant = document.getElementById('btnGrant');
-  const btnStart = document.getElementById('btnStart');
-  const btnStop  = document.getElementById('btnStop');
-  const btnTorch = document.getElementById('btnTorch');
-  const btnLookup= document.getElementById('btnLookup');
-  const manual   = document.getElementById('manual');
-  const httpsWarn= document.getElementById('httpsWarn');
-  const httpsLink= document.getElementById('httpsLink');
-  const fallbackWrap = document.getElementById('fallbackWrap');
-  const fallbackVideo= document.getElementById('fallbackVideo');
+  const q = (s)=>document.querySelector(s);
+  const statusEl = q('#status');
+  const imgBox   = q('#imgBox');
+  const imgEl    = q('#imgProduct');
+  const codeMeta = q('#codeMeta');
+  const linksEl  = q('#links');
+  const btnGrant = q('#btnGrant');
+  const btnStart = q('#btnStart');
+  const btnStop  = q('#btnStop');
+  const btnTorch = q('#btnTorch');
+  const btnLookup= q('#btnLookup');
+  const btnDiag  = q('#btnDiag');
+  const manual   = q('#manual');
+  const httpsWarn= q('#httpsWarn');
+  const httpsLink= q('#httpsLink');
+  const fallbackWrap = q('#fallbackWrap');
+  const fallbackVideo= q('#fallbackVideo');
+  const diagBox = q('#diagBox');
+  const diagEl  = q('#diag');
 
   let devicesCache = [];
   let chosenDeviceId = null;
@@ -150,9 +137,36 @@
     }
   })();
 
-  function setStatus(msg){ statusEl.textContent = msg; }
+  const setStatus = (msg)=> statusEl.textContent = msg;
 
-  // הרשאה + זיהוי מצלמות
+  // ===== אבחון =====
+  async function runDiagnostics(extra){
+    const lines = [];
+    lines.push('User-Agent: ' + navigator.userAgent);
+    lines.push('Protocol: ' + location.protocol + ' | isSecureContext=' + (window.isSecureContext?'yes':'no'));
+    lines.push('mediaDevices: ' + (!!navigator.mediaDevices));
+    lines.push('getUserMedia: ' + (!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)));
+    lines.push('enumerateDevices: ' + (!!(navigator.mediaDevices && navigator.mediaDevices.enumerateDevices)));
+    try{
+      if (navigator.permissions?.query){
+        const st = await navigator.permissions.query({name:'camera'});
+        lines.push('permissions.camera: ' + (st.state||'unknown'));
+      }
+    }catch(e){}
+    try{
+      const devs = await (navigator.mediaDevices?.enumerateDevices?.() || Promise.resolve([]));
+      const vids = devs.filter(d=>d.kind==='videoinput');
+      lines.push('Video Inputs ('+vids.length+'):' + (vids.length? '' : ' NONE'));
+      vids.forEach((d,i)=> lines.push('  ['+i+'] ' + (d.label||'(no label)') + ' id=' + (d.deviceId||d.id)));
+    }catch(e){ lines.push('enumerateDevices ERROR: ' + e.name + ': ' + e.message); }
+
+    if (extra) lines.push('EXTRA: ' + extra);
+
+    diagEl.textContent = lines.join('\n');
+    diagBox.style.display = 'block';
+  }
+
+  // ===== הרשאה + זיהוי מצלמות =====
   async function grantAndEnumerate(){
     try{
       setStatus('מבקש הרשאת מצלמה...');
@@ -164,14 +178,9 @@
       } else if (navigator.mediaDevices?.enumerateDevices) {
         const all = await navigator.mediaDevices.enumerateDevices();
         devicesCache = all.filter(d => d.kind === 'videoinput');
-      } else {
-        devicesCache = [];
-      }
+      } else devicesCache = [];
 
-      if (!devicesCache.length){
-        setStatus('לא נמצאו מצלמות במכשיר.');
-        return;
-      }
+      if (!devicesCache.length){ setStatus('לא נמצאו מצלמות במכשיר.'); return; }
 
       const byLabel = devicesCache.find(d => /back|rear|environment/i.test(d.label || ''));
       chosenDeviceId = (byLabel && (byLabel.deviceId || byLabel.id)) ||
@@ -184,10 +193,10 @@
         ? 'ההרשאה נחסמה. אשר שימוש במצלמה בהגדרות הדפדפן/המערכת.'
         : 'שגיאה בקבלת הרשאה: ' + (e.message || e.toString());
       setStatus(msg);
+      await runDiagnostics('grantAndEnumerate error: ' + e.name + ' ' + e.message);
     }
   }
 
-  // קונפיגורציה עם חלון סריקה מלבני (רחב/נמוך)
   function quaggaConfig(){
     const constraints = chosenDeviceId
       ? { deviceId: { exact: chosenDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 }, focusMode: 'continuous' }
@@ -198,31 +207,19 @@
         type: "LiveStream",
         target: document.querySelector('#interactive'),
         constraints,
-        /* אזור סריקה: נמוך ושטוח – 35% מכל צד אנכי, 10% מהצדדים האופקיים */
-        area: { top: "35%", right: "10%", left: "10%", bottom: "35%" }
+        area: { top: "35%", right: "10%", left: "10%", bottom: "35%" } // מלבני רחב ונמוך
       },
-      decoder: {
-        readers: [
-          "ean_reader",
-          "upc_reader",
-          "upc_e_reader",
-          "ean_8_reader"
-        ]
-      },
+      decoder: { readers: ["ean_reader","upc_reader","upc_e_reader","ean_8_reader"] },
       locate: true,
       numOfWorkers: navigator.hardwareConcurrency ? Math.max(2, navigator.hardwareConcurrency - 1) : 2
     };
   }
 
-  // פתיחה בטוחה של Quagga + תיקון playsinline במובייל
   function ensureMobileVideoAttributes(){
     const v = document.querySelector('#interactive video');
     if (v){
-      v.setAttribute('playsinline','true');
-      v.setAttribute('muted','true');
-      v.setAttribute('autoplay','true');
-      v.muted = true;
-      v.playsInline = true;
+      v.setAttribute('playsinline','true'); v.setAttribute('muted','true'); v.setAttribute('autoplay','true');
+      v.muted = true; v.playsInline = true;
     }
   }
 
@@ -238,7 +235,6 @@
         Quagga.init(config, (err) => err ? reject(err) : resolve());
       });
 
-      // ווידאו של Quagga – דאגת מובייל
       setTimeout(ensureMobileVideoAttributes, 200);
 
       try{
@@ -246,21 +242,18 @@
         currentTrack = stream.getVideoTracks()[0] || null;
         const caps = currentTrack?.getCapabilities?.() || {};
         btnTorch.disabled = !caps.torch;
-      }catch{
-        currentTrack = null; btnTorch.disabled = true;
-      }
+      }catch{ currentTrack = null; btnTorch.disabled = true; }
 
       Quagga.start();
       scanning = true;
       setStatus('סורק... כוון את הברקוד למלבני הכחול.');
-
       Quagga.onDetected(onDetected);
       Quagga.onProcessed(drawBoxes);
 
     }catch(e){
-      // פולבק: נציג לפחות וידאו ישיר כדי שתדע שהמצלמה נפתחה, גם אם Quagga נפל
-      setStatus('Quagga נכשלה לפתוח. מנסה פולבק מצלמה...');
-      btnStop.disabled = true; // אין מה לעצור ב-Quagga
+      await runDiagnostics('Quagga.init/start error: ' + e.name + ' ' + e.message);
+      setStatus('Quagga נכשלה, מפעיל פולבק וידאו...');
+      btnStop.disabled = true;
 
       try{
         fallbackWrap.style.display = 'block';
@@ -270,26 +263,19 @@
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         fallbackVideo.srcObject = stream;
         fallbackVideo.muted = true; fallbackVideo.playsInline = true; fallbackVideo.autoplay = true;
-        setStatus('תצוגת מצלמה פועלת (פולבק). אפשר להקיש ידנית קוד למטה לבדיקת תמונה.');
+        setStatus('תצוגת מצלמה פועלת (פולבק). אפשר להזין קוד ידנית לבדיקה.');
       }catch(e2){
-        setStatus('כשל מלא בהפעלת מצלמה: ' + (e2.message || e2.toString()));
+        setStatus('כשל מלא בהפעלת מצלמה: ' + (e2.name || '') + ' ' + (e2.message || e2.toString()));
+        await runDiagnostics('fallback getUserMedia error: ' + e2.name + ' ' + e2.message);
         btnStart.disabled = false;
       }
     }
   }
 
   function stopScan(){
+    try{ Quagga.offDetected(onDetected); Quagga.offProcessed(drawBoxes); Quagga.stop(); }catch{}
     try{
-      Quagga.offDetected(onDetected);
-      Quagga.offProcessed(drawBoxes);
-      Quagga.stop();
-    }catch{}
-    // כיבוי פולבק אם רץ
-    try{
-      if (fallbackVideo.srcObject){
-        fallbackVideo.srcObject.getTracks().forEach(t=>t.stop());
-        fallbackVideo.srcObject = null;
-      }
+      if (fallbackVideo.srcObject){ fallbackVideo.srcObject.getTracks().forEach(t=>t.stop()); fallbackVideo.srcObject = null; }
       fallbackWrap.style.display = 'none';
     }catch{}
     scanning = false;
@@ -299,9 +285,7 @@
 
   function onDetected(result){
     const code = (result && result.codeResult && result.codeResult.code) ? result.codeResult.code.trim() : '';
-    if(code && code !== lastCode){
-      showByCode(code);
-    }
+    if(code && code !== lastCode) showByCode(code);
   }
 
   function drawBoxes(result){
@@ -309,7 +293,6 @@
     const cvs = Quagga.canvas.dom.overlay;
     if(!ctx || !cvs) return;
     ctx.clearRect(0, 0, cvs.width, cvs.height);
-
     if(result?.boxes){
       result.boxes.filter(b => b !== result.box).forEach(box => {
         ctx.strokeStyle = 'rgba(0,255,0,0.25)'; ctx.lineWidth = 2; ctx.beginPath();
@@ -322,7 +305,6 @@
     }
   }
 
-  // פנס
   btnTorch.addEventListener('click', async () => {
     if(!currentTrack?.applyConstraints) return;
     try{
@@ -332,71 +314,27 @@
     }catch{}
   });
 
-  // ——— שליפת תמונה לפי ברקוד ———
-  function gtinToPath(code){
-    const clean = (code || '').replace(/\D/g,'');
-    const parts = [];
-    for(let i=0;i<clean.length;i+=3) parts.push(clean.slice(i,i+3));
-    return parts.join('/');
-  }
+  // ——— תמונה לפי ברקוד ———
+  function gtinToPath(code){ const clean=(code||'').replace(/\D/g,''); const parts=[]; for(let i=0;i<clean.length;i+=3) parts.push(clean.slice(i,i+3)); return parts.join('/'); }
   function openFactsCandidates(code){
-    const base = [
-      'https://images.openfoodfacts.org/images/products/',
-      'https://images.openbeautyfacts.org/images/products/',
-      'https://images.openproductsfacts.org/images/products/'
-    ];
-    const path = gtinToPath(code);
-    return [
-      `${base[0]}${path}/front.400.jpg`,
-      `${base[0]}${path}/front.jpg`,
-      `${base[1]}${path}/front.400.jpg`,
-      `${base[1]}${path}/front.jpg`,
-      `${base[2]}${path}/front.400.jpg`,
-      `${base[2]}${path}/front.jpg`,
-    ];
+    const base=['https://images.openfoodfacts.org/images/products/','https://images.openbeautyfacts.org/images/products/','https://images.openproductsfacts.org/images/products/'];
+    const path=gtinToPath(code);
+    return [`${base[0]}${path}/front.400.jpg`,`${base[0]}${path}/front.jpg`,`${base[1]}${path}/front.400.jpg`,`${base[1]}${path}/front.jpg`,`${base[2]}${path}/front.400.jpg`,`${base[2]}${path}/front.jpg`];
   }
   function ramiLevyCandidates(code){
-    const base = `https://img.rami-levy.co.il/product/${code}`;
-    return [
-      `${base}/small.jpg`,
-      `${base}/large.jpg`,
-      `https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,
-      `https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`,
-    ];
+    const base=`https://img.rami-levy.co.il/product/${code}`;
+    return [`${base}/small.jpg`,`${base}/large.jpg`,`https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,`https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`];
   }
-  function firstWorkingImage(urls){
-    return new Promise((resolve) => {
-      let i = 0;
-      (function next(){
-        if(i >= urls.length) return resolve(null);
-        const url = urls[i++];
-        const img = new Image();
-        img.onload = ()=> resolve(url);
-        img.onerror= ()=> next();
-        img.src = url + `?t=${Date.now()}`;
-      })();
-    });
-  }
-  async function tryLoadImageFor(code){
-    const candidates = [...openFactsCandidates(code), ...ramiLevyCandidates(code)];
-    return await firstWorkingImage(candidates);
-  }
+  function firstWorkingImage(urls){ return new Promise((resolve)=>{ let i=0; (function next(){ if(i>=urls.length) return resolve(null); const url=urls[i++]; const img=new Image(); img.onload=()=>resolve(url); img.onerror=()=>next(); img.src=url+`?t=${Date.now()}`; })(); }); }
+  async function tryLoadImageFor(code){ const candidates=[...openFactsCandidates(code), ...ramiLevyCandidates(code)]; return await firstWorkingImage(candidates); }
   async function showByCode(code){
     if(!code) return;
     lastCode = code.replace(/\s/g,'');
     setStatus(`מחפש תמונה לברקוד: ${lastCode} ...`);
     imgBox.style.display='none'; imgEl.src=''; linksEl.innerHTML='';
-
     const url = await tryLoadImageFor(lastCode);
-    if(url){
-      codeMeta.textContent = `ברקוד: ${lastCode}`;
-      imgEl.src = url; imgBox.style.display='block';
-      setStatus('נמצאה תמונה.');
-    }else{
-      codeMeta.textContent = `ברקוד: ${lastCode}`;
-      imgEl.removeAttribute('src'); imgBox.style.display='block';
-      setStatus('לא נמצאה תמונה במקורות הנ״ל.');
-    }
+    if(url){ codeMeta.textContent = `ברקוד: ${lastCode}`; imgEl.src = url; imgBox.style.display='block'; setStatus('נמצאה תמונה.'); }
+    else   { codeMeta.textContent = `ברקוד: ${lastCode}`; imgEl.removeAttribute('src'); imgBox.style.display='block'; setStatus('לא נמצאה תמונה במקורות הנ״ל.'); }
     linksEl.innerHTML = [
       link('חיפוש בגוגל תמונות', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(lastCode)}`),
       link('שופרסל – חיפוש', `https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(lastCode)}`),
@@ -411,15 +349,13 @@
   btnStop .addEventListener('click', stopScan);
   btnLookup.addEventListener('click', ()=> showByCode(manual.value));
   manual.addEventListener('keydown', (e)=>{ if(e.key==='Enter') showByCode(manual.value); });
+  btnDiag .addEventListener('click', ()=> runDiagnostics());
 
-  // ניסיון אוטומטי אם כבר ניתנה הרשאה בעבר
   (async ()=>{
     try{
       if (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)){
         await grantAndEnumerate();
-      } else {
-        setStatus('פתח את הדף ב-HTTPS ואז לחץ "תן הרשאת מצלמה".');
-      }
+      } else setStatus('פתח את הדף ב-HTTPS ואז לחץ "תן הרשאת מצלמה".');
     }catch{}
   })();
 </script>
