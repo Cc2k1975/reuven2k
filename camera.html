@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>סריקת מוצר – אב טיפוס</title>
+<style>
+  body {
+    font-family: 'Heebo', sans-serif;
+    background: #f7f7f7;
+    text-align: center;
+    direction: rtl;
+    margin: 0;
+    padding: 20px;
+  }
+  video {
+    width: 90%;
+    max-width: 400px;
+    border-radius: 12px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.3);
+  }
+  #productImg {
+    margin-top: 20px;
+    max-width: 300px;
+    border-radius: 12px;
+  }
+  input {
+    margin-top: 20px;
+    padding: 10px;
+    width: 80%;
+    font-size: 18px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+  }
+  button {
+    padding: 10px 20px;
+    margin-top: 10px;
+    font-size: 18px;
+    border: none;
+    border-radius: 8px;
+    background: #008CBA;
+    color: white;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <h2>סריקת מוצר בזמן אמת</h2>
+  <video id="camera" autoplay playsinline></video>
+  <br>
+  <input type="text" id="barcode" placeholder="הכנס או סרוק ברקוד...">
+  <button onclick="lookupProduct()">חפש מוצר</button>
+  <div id="result"></div>
+
+  <script>
+    // הפעלת מצלמה
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        document.getElementById('camera').srcObject = stream;
+      } catch (err) {
+        alert('לא ניתן להפעיל מצלמה: ' + err.message);
+      }
+    }
+
+    // חיפוש תמונת מוצר
+    async function lookupProduct() {
+      const code = document.getElementById("barcode").value.trim();
+      if (!code) {
+        alert("אנא הזן ברקוד או קוד מוצר");
+        return;
+      }
+
+      const apiUrl = `https://api.barcodelookup.com/v3/products?barcode=${code}&formatted=y&key=YOUR_API_KEY`;
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "<p>מחפש נתונים...</p>";
+
+      try {
+        const res = await fetch(apiUrl);
+        const data = await res.json();
+
+        if (data.products && data.products.length > 0) {
+          const product = data.products[0];
+          resultDiv.innerHTML = `
+            <h3>${product.product_name}</h3>
+            <img id="productImg" src="${product.images[0]}" alt="תמונת מוצר">
+          `;
+        } else {
+          resultDiv.innerHTML = "<p>לא נמצאה תמונה למוצר זה.</p>";
+        }
+      } catch (err) {
+        resultDiv.innerHTML = "<p>שגיאה בשליפת הנתונים.</p>";
+      }
+    }
+
+    initCamera();
+  </script>
+</body>
+</html>
