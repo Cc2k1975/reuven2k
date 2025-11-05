@@ -2,16 +2,18 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>BUYRU – סורק ברקוד ותמונה</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>BUYRU – סורק מובייל יציב</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <style>
   :root{--bg:#f7f7f7;--card:#fff;--text:#222;--muted:#666;--pri:#1f7aeb;--shadow:0 6px 24px rgba(0,0,0,.12);--radius:12px}
-  body{font-family:Heebo,system-ui,Arial;background:var(--bg);margin:0;padding:16px;color:var(--text)}
+  *{box-sizing:border-box}
+  body{font-family:Heebo,system-ui,Arial;background:var(--bg);margin:0;padding:16px;color:var(--text);-webkit-tap-highlight-color: transparent}
   .wrap{max-width:760px;margin:0 auto}
   h1{font-size:22px;margin:0 0 12px}
-  #viewport{position:relative;width:100%;max-width:720px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);background:#000}
-  #interactive{position:relative;width:100%}
+  #viewport{position:relative;width:100%;max-width:760px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);background:#000}
+  #interactive{position:relative;width:100%;height:calc(100vw * 0.75);max-height:520px}
   canvas.drawing, canvas.drawingBuffer{position:absolute;top:0;left:0}
   .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
   input[type="text"]{flex:1;min-width:220px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px}
@@ -29,22 +31,20 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>BUYRU – סורק ברקוד ותמונה</h1>
+  <h1>BUYRU – סורק ברקוד ותמונה (Mobile Fix)</h1>
 
   <div id="httpsWarn" class="banner" style="display:none">
-    האתר פתוח ללא HTTPS. גישת מצלמה דורשת <b>https://</b>. פתח דרך:
+    הדף פתוח ללא HTTPS. מצלמה דורשת <b>https://</b>. פתח דרך:
     <a id="httpsLink" href="#">קישור מאובטח</a>
   </div>
 
-  <!-- אזור הווידאו של Quagga -->
-  <div id="viewport">
-    <div id="interactive" class="viewport"></div>
-  </div>
+  <div id="viewport"><div id="interactive" class="viewport"></div></div>
 
   <div class="row">
-    <button class="primary" id="btnStart">הפעל סריקה</button>
-    <button class="ghost" id="btnStop" disabled>עצור</button>
-    <button class="ghost" id="btnTorch" disabled>פנס</button>
+    <button class="primary" id="btnGrant">1) תן הרשאת מצלמה</button>
+    <button class="primary" id="btnStart" disabled>2) הפעל סריקה</button>
+    <button class="ghost"   id="btnStop"  disabled>עצור</button>
+    <button class="ghost"   id="btnTorch" disabled>פנס</button>
   </div>
 
   <div class="row">
@@ -52,19 +52,19 @@
     <button class="ghost" id="btnLookup">חפש תמונה</button>
   </div>
 
-  <div class="card" id="status">מוכן לסריקה.</div>
+  <div class="card" id="status">מוכן להתחלה.</div>
 
   <div class="card imgbox" id="imgBox" style="display:none">
     <div class="meta" id="codeMeta"></div>
     <img id="imgProduct" alt="תמונת מוצר" />
     <div class="links" id="links"></div>
-    <div class="small">מקורות: Open Food/Beauty/Products Facts (ציבוריים) + רמי לוי (POC). ייתכנו חסימות/שינויי URL.</div>
+    <div class="small">מקורות: Open Food/Beauty/Products Facts (ציבוריים) + רמי לוי (POC).</div>
   </div>
 
-  <div class="foot">BUYRU v2.0.0</div>
+  <div class="foot">BUYRU v2.1.0 – Mobile Back Camera via deviceId</div>
 </div>
 
-<!-- Quagga (ספריית סריקת ברקודים בדפדפן) -->
+<!-- Quagga -->
 <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 <script>
   const statusEl = document.getElementById('status');
@@ -72,6 +72,7 @@
   const imgEl    = document.getElementById('imgProduct');
   const codeMeta = document.getElementById('codeMeta');
   const linksEl  = document.getElementById('links');
+  const btnGrant = document.getElementById('btnGrant');
   const btnStart = document.getElementById('btnStart');
   const btnStop  = document.getElementById('btnStop');
   const btnTorch = document.getElementById('btnTorch');
@@ -80,8 +81,10 @@
   const httpsWarn= document.getElementById('httpsWarn');
   const httpsLink= document.getElementById('httpsLink');
 
-  let scanning = false;
+  let devicesCache = [];
+  let chosenDeviceId = null;
   let lastCode = '';
+  let scanning = false;
   let currentTrack = null;
   let torchOn = false;
 
@@ -96,6 +99,156 @@
 
   function setStatus(msg){ statusEl.textContent = msg; }
 
+  // קבלת הרשאה + רשימת מצלמות (עם שמות) — קריטי למובייל
+  async function grantAndEnumerate(){
+    try{
+      setStatus('מבקש הרשאת מצלמה...');
+      // בקשה קלה לפתוח הרשאה ולהפוך שמות-מצלמות לזמינים
+      const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      tmp.getTracks().forEach(t => t.stop());
+
+      // עכשיו שמות המצלמות זמינים
+      if (Quagga.CameraAccess && Quagga.CameraAccess.enumerateVideoDevices) {
+        devicesCache = await Quagga.CameraAccess.enumerateVideoDevices();
+      } else if (navigator.mediaDevices?.enumerateDevices) {
+        const all = await navigator.mediaDevices.enumerateDevices();
+        devicesCache = all.filter(d => d.kind === 'videoinput');
+      } else {
+        devicesCache = [];
+      }
+
+      if (!devicesCache.length){
+        setStatus('לא נמצאו מצלמות במכשיר.');
+        return;
+      }
+
+      // בחירת אחורית: לפי שם (back/rear/environment), אחרת — המכשיר האחרון (בד"כ אחורי במובייל)
+      const byLabel = devicesCache.find(d => /back|rear|environment/i.test(d.label || ''));
+      chosenDeviceId = (byLabel && (byLabel.deviceId || byLabel.id)) ||
+                       (devicesCache[devicesCache.length - 1].deviceId || devicesCache[devicesCache.length - 1].id);
+
+      btnStart.disabled = false;
+      setStatus('הרשאה התקבלה. מוכן לסריקה.');
+    }catch(e){
+      const msg = e.name === 'NotAllowedError'
+        ? 'ההרשאה נחסמה. אשר שימוש במצלמה בהגדרות הדפדפן/המערכת.'
+        : 'שגיאה בקבלת הרשאה: ' + (e.message || e.toString());
+      setStatus(msg);
+    }
+  }
+
+  function quaggaConfig(){
+    const constraints = chosenDeviceId
+      ? { deviceId: { exact: chosenDeviceId }, width: { ideal: 1280 }, height: { ideal: 720 }, focusMode: 'continuous' }
+      : { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 }, focusMode: 'continuous' };
+
+    return {
+      inputStream: {
+        type: "LiveStream",
+        target: document.querySelector('#interactive'),
+        constraints,
+        area: { top: "15%", right: "15%", left: "15%", bottom: "15%" } // אזור סריקה למיקוד
+      },
+      decoder: {
+        readers: [
+          "ean_reader",
+          "upc_reader",
+          "upc_e_reader",
+          "ean_8_reader"
+        ]
+      },
+      locate: true,
+      numOfWorkers: navigator.hardwareConcurrency ? Math.max(2, navigator.hardwareConcurrency - 1) : 2
+    };
+  }
+
+  async function startScan(){
+    if(scanning) return;
+    btnStart.disabled = true; btnStop.disabled = false;
+    setStatus('מפעיל מצלמה...');
+
+    const config = quaggaConfig();
+
+    try{
+      await new Promise((resolve, reject) => {
+        Quagga.init(config, (err) => err ? reject(err) : resolve());
+      });
+
+      // שמירת ה-VideoTrack הנוכחי (לפנס)
+      try{
+        const stream = Quagga.cameraAccess.getActiveStream();
+        currentTrack = stream.getVideoTracks()[0] || null;
+        const caps = currentTrack?.getCapabilities?.() || {};
+        btnTorch.disabled = !caps.torch;
+      }catch{
+        currentTrack = null; btnTorch.disabled = true;
+      }
+
+      Quagga.start();
+      scanning = true;
+      setStatus('סורק... כוון את הברקוד למרכז המסגרת.');
+
+      Quagga.onDetected(onDetected);
+      Quagga.onProcessed(drawBoxes);
+
+    }catch(e){
+      // אם על deviceId נכשל, ננסה נפילה קדימה ל-facingMode
+      if (chosenDeviceId){
+        chosenDeviceId = null;
+        setStatus('לא הצליח עם המצלמה האחורית הספציפית, מנסה מצב כללי...');
+        return startScan();
+      }
+      setStatus('כשל בהפעלת הסריקה: ' + (e.message || e.toString()));
+      btnStart.disabled = false; btnStop.disabled = true;
+    }
+  }
+
+  function stopScan(){
+    try{
+      Quagga.offDetected(onDetected);
+      Quagga.offProcessed(drawBoxes);
+      Quagga.stop();
+    }catch{}
+    scanning = false;
+    btnStart.disabled = false; btnStop.disabled = true; btnTorch.disabled = true;
+    setStatus('הסריקה נעצרה.');
+  }
+
+  function onDetected(result){
+    const code = (result && result.codeResult && result.codeResult.code) ? result.codeResult.code.trim() : '';
+    if(code && code !== lastCode){
+      showByCode(code);
+    }
+  }
+
+  function drawBoxes(result){
+    const ctx = Quagga.canvas.ctx.overlay;
+    const cvs = Quagga.canvas.dom.overlay;
+    if(!ctx || !cvs) return;
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    if(result?.boxes){
+      result.boxes.filter(b => b !== result.box).forEach(box => {
+        ctx.strokeStyle = 'rgba(0,255,0,0.3)'; ctx.lineWidth = 2; ctx.beginPath();
+        box.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.closePath(); ctx.stroke();
+      });
+    }
+    if(result?.box){
+      ctx.strokeStyle = '#00e0ff'; ctx.lineWidth = 3; ctx.beginPath();
+      result.box.forEach((p,i)=> i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)); ctx.closePath(); ctx.stroke();
+    }
+  }
+
+  // פנס
+  btnTorch.addEventListener('click', async () => {
+    if(!currentTrack?.applyConstraints) return;
+    try{
+      torchOn = !torchOn;
+      await currentTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
+      btnTorch.textContent = torchOn ? 'כבה פנס' : 'פנס';
+    }catch{}
+  });
+
+  // ——— שליפת תמונה לפי ברקוד ———
   function gtinToPath(code){
     const clean = (code || '').replace(/\D/g,'');
     const parts = [];
@@ -144,28 +297,22 @@
     const candidates = [...openFactsCandidates(code), ...ramiLevyCandidates(code)];
     return await firstWorkingImage(candidates);
   }
-
   async function showByCode(code){
     if(!code) return;
     lastCode = code.replace(/\s/g,'');
     setStatus(`מחפש תמונה לברקוד: ${lastCode} ...`);
-    imgBox.style.display='none';
-    imgEl.src=''; linksEl.innerHTML='';
+    imgBox.style.display='none'; imgEl.src=''; linksEl.innerHTML='';
 
     const url = await tryLoadImageFor(lastCode);
-
     if(url){
       codeMeta.textContent = `ברקוד: ${lastCode}`;
-      imgEl.src = url;
-      imgBox.style.display='block';
+      imgEl.src = url; imgBox.style.display='block';
       setStatus('נמצאה תמונה.');
     }else{
       codeMeta.textContent = `ברקוד: ${lastCode}`;
-      imgEl.removeAttribute('src');
-      imgBox.style.display='block';
+      imgEl.removeAttribute('src'); imgBox.style.display='block';
       setStatus('לא נמצאה תמונה במקורות הנ״ל.');
     }
-
     linksEl.innerHTML = [
       link('חיפוש בגוגל תמונות', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(lastCode)}`),
       link('שופרסל – חיפוש', `https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(lastCode)}`),
@@ -174,148 +321,22 @@
   }
   function link(txt, href){ return `<a target="_blank" rel="noopener" href="${href}">${txt}</a>`; }
 
-  // הפעלה/עצירה של Quagga
-  async function startScan(){
-    try{
-      if(scanning) return;
-      btnStart.disabled = true;
-      btnStop.disabled  = false;
-      setStatus('פותח מצלמה...');
-
-      // קונפיגורציה: עדשה אחורית, EAN-13/UPC
-      const config = {
-        inputStream: {
-          type: "LiveStream",
-          target: document.querySelector('#interactive'),
-          constraints: {
-            facingMode: "environment", // אחורית; אם אין – הדפדפן יבחר זמין
-            aspectRatio: { min: 1, max: 2 }
-          }
-        },
-        decoder: {
-          readers: [
-            "ean_reader",        // EAN-13 (הנפוץ בישראל)
-            "upc_reader",
-            "upc_e_reader",
-            "ean_8_reader"
-          ]
-        },
-        locate: true,
-        numOfWorkers: navigator.hardwareConcurrency ? Math.max(2, navigator.hardwareConcurrency - 1) : 2
-      };
-
-      await new Promise((resolve, reject) => {
-        Quagga.init(config, (err) => err ? reject(err) : resolve());
-      });
-
-      // פנס (אם נתמך)
-      try {
-        const stream = Quagga.cameraAccess.getActiveStream();
-        currentTrack = stream.getVideoTracks()[0] || null;
-        btnTorch.disabled = !(currentTrack && currentTrack.getCapabilities && currentTrack.getCapabilities().torch);
-      } catch { btnTorch.disabled = true; currentTrack = null; }
-
-      Quagga.start();
-      scanning = true;
-      setStatus('סורק... כוון את הברקוד אל המסגרת.');
-
-      Quagga.onDetected(onDetected);
-      Quagga.onProcessed(drawBoxes);
-
-    }catch(e){
-      setStatus('כשל בהפעלת הסריקה: ' + (e.message || e.toString()));
-      btnStart.disabled = false;
-      btnStop.disabled  = true;
-    }
-  }
-
-  function stopScan(){
-    try{
-      if(!scanning) return;
-      Quagga.offDetected(onDetected);
-      Quagga.offProcessed(drawBoxes);
-      Quagga.stop();
-    }catch{}
-    scanning = false;
-    btnStart.disabled = false;
-    btnStop.disabled  = true;
-    btnTorch.disabled = true;
-    setStatus('הסריקה נעצרה.');
-  }
-
-  function onDetected(result){
-    const code = (result && result.codeResult && result.codeResult.code) ? result.codeResult.code.trim() : '';
-    if(code && code !== lastCode){
-      showByCode(code);
-    }
-  }
-
-  function drawBoxes(result){
-    const drawingCtx = Quagga.canvas.ctx.overlay;
-    const drawingCanvas = Quagga.canvas.dom.overlay;
-    if(!drawingCtx || !drawingCanvas) return;
-
-    drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-
-    if(result) {
-      if(result.boxes){
-        result.boxes.filter(box => box !== result.box).forEach(box => {
-          drawingCtx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
-          drawingCtx.lineWidth = 2;
-          drawingCtx.beginPath();
-          box.forEach((p, i) => {
-            if (i === 0) drawingCtx.moveTo(p.x, p.y);
-            else drawingCtx.lineTo(p.x, p.y);
-          });
-          drawingCtx.closePath();
-          drawingCtx.stroke();
-        });
-      }
-      if(result.box){
-        drawingCtx.strokeStyle = '#00e0ff';
-        drawingCtx.lineWidth = 3;
-        drawingCtx.beginPath();
-        result.box.forEach((p, i) => {
-          if (i === 0) drawingCtx.moveTo(p.x, p.y);
-          else drawingCtx.lineTo(p.x, p.y);
-        });
-        drawingCtx.closePath();
-        drawingCtx.stroke();
-      }
-    }
-  }
-
-  // פנס
-  btnTorch.addEventListener('click', async () => {
-    if(!currentTrack || !currentTrack.applyConstraints) return;
-    try{
-      torchOn = !torchOn;
-      await currentTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
-      btnTorch.textContent = torchOn ? 'כבה פנס' : 'פנס';
-    }catch{
-      // ייתכן שלא נתמך – לא נורא
-    }
-  });
-
   // אירועים
+  btnGrant.addEventListener('click', grantAndEnumerate);
   btnStart.addEventListener('click', startScan);
   btnStop .addEventListener('click', stopScan);
   btnLookup.addEventListener('click', ()=> showByCode(manual.value));
   manual.addEventListener('keydown', (e)=>{ if(e.key==='Enter') showByCode(manual.value); });
 
-  // ניסיון הרשאת מצלמה מראש (לא חובה)
-  (async ()=> {
+  // אוטומטית: אם כבר נתת הרשאה בעבר — ננסה להפעיל grant לבד
+  (async ()=>{
     try{
-      const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-      if (location.protocol === 'https:' || isLocalhost){
-        await navigator.mediaDevices.getUserMedia({video:true});
-        setStatus('מוכן – לחץ "הפעל סריקה".');
+      if (location.protocol === 'https:' || /^(localhost|127\.0\.0\.1)$/.test(location.hostname)){
+        await grantAndEnumerate();
       } else {
-        setStatus('פתח את הדף ב-HTTPS כדי להפעיל מצלמה.');
+        setStatus('פתח את הדף ב-HTTPS ואז לחץ "תן הרשאת מצלמה".');
       }
-    }catch{
-      /* ההרשאה תתבקש בלחיצה בפועל */
-    }
+    }catch{}
   })();
 </script>
 </body>
