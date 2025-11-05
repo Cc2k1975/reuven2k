@@ -3,269 +3,79 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>POC – סורק מוצר ותמונה</title>
+<title>סורק מוצר – תקין</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#f7f7f7; --card:#fff; --text:#222; --muted:#666; --pri:#1f7aeb;
-    --shadow:0 6px 24px rgba(0,0,0,.12); --radius:12px;
-  }
-  body{font-family:Heebo,system-ui,Arial;background:var(--bg);margin:0;padding:16px;color:var(--text)}
-  .wrap{max-width:760px;margin:0 auto}
-  h1{font-size:22px;margin:0 0 12px}
-  video{width:100%;border-radius:var(--radius);box-shadow:var(--shadow);background:#000}
-  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-  input[type="text"]{flex:1;min-width:220px;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:16px}
-  button{padding:10px 14px;border:0;border-radius:10px;cursor:pointer;font-weight:600}
-  .primary{background:var(--pri);color:#fff}
-  .ghost{background:#eee}
-  .card{margin-top:14px;background:var(--card);border-radius:var(--radius);box-shadow:0 4px 16px rgba(0,0,0,.08);padding:14px}
-  .imgbox img{max-width:100%;border-radius:10px}
-  .meta{font-size:14px;color:#555;margin-top:8px}
-  .links a{display:inline-block;margin:6px 8px 0 0;color:var(--pri);text-decoration:none}
-  .small{font-size:12px;color:#777;margin-top:6px}
-  .banner{background:#fff3cd;border:1px solid #ffe08a;color:#6b5800;border-radius:10px;padding:10px;margin:10px 0}
-  .foot{margin-top:20px;text-align:center;color:#888;font-size:12px}
+  body {font-family:Heebo, sans-serif; background:#f5f5f5; margin:0; padding:16px; text-align:center;}
+  h1 {font-size:22px; margin-bottom:10px;}
+  video {width:100%; max-width:600px; border-radius:12px; background:#000; margin-top:10px;}
+  button {padding:10px 16px; margin:8px; border:none; border-radius:8px; font-weight:600;}
+  .start {background:#007bff; color:#fff;}
+  .stop {background:#ccc;}
+  #status {margin-top:10px; font-size:15px;}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>POC – סורק מוצר ותמונה</h1>
+<h1>POC – סורק מוצר</h1>
+<video id="preview" playsinline autoplay muted></video><br>
+<button id="start" class="start">הפעל סריקה</button>
+<button id="stop" class="stop" disabled>עצור</button>
+<div id="status">מוכן...</div>
 
-  <div id="httpsWarn" class="banner" style="display:none">
-    האתר נטען ללא HTTPS. גישת מצלמה דורשת <b>https://</b>. פתח דרך:
-    <a id="httpsLink" href="#">קישור מאובטח</a>
-  </div>
-
-  <!-- autoplay+muted עוזרים להרבה דפדפנים להתחיל להזרים תמונה -->
-  <video id="preview" playsinline autoplay muted></video>
-
-  <div class="row">
-    <button class="primary" id="btnStart">הפעל סריקה</button>
-    <button class="ghost" id="btnStop" disabled>עצור</button>
-  </div>
-
-  <div class="row">
-    <input id="manual" type="text" placeholder="או הזן ידנית ברקוד (GTIN/UPC/EAN)..." />
-    <button class="ghost" id="btnLookup">חפש תמונה</button>
-  </div>
-
-  <div class="card" id="status">מוכן לסריקה.</div>
-
-  <div class="card imgbox" id="imgBox" style="display:none">
-    <div class="meta" id="codeMeta"></div>
-    <img id="imgProduct" alt="תמונת מוצר" />
-    <div class="links" id="links"></div>
-    <div class="small">
-      מקורות: Open Food/Beauty/Products Facts (ציבוריים) ורמי-לוי (לבדיקת התכנות). ייתכנו חסימות/שינויי URL.
-    </div>
-  </div>
-
-  <div class="foot">v1.3.0 – BUYRU</div>
-</div>
-
-<!-- ZXing (browser) -->
-<script src="https://unpkg.com/@zxing/browser@0.1.1"></script>
+<!-- טעינה מאובטחת של ZXing -->
 <script>
-  const statusEl = document.getElementById('status');
-  const imgBox = document.getElementById('imgBox');
-  const imgEl = document.getElementById('imgProduct');
-  const codeMeta = document.getElementById('codeMeta');
-  const linksEl = document.getElementById('links');
+(function loadZXing(){
+  const s = document.createElement('script');
+  s.src = "https://unpkg.com/@zxing/browser@0.1.1";
+  s.onload = ()=>initApp();
+  s.onerror = ()=>document.getElementById('status').innerText = "טעינת ZXing נכשלה!";
+  document.head.appendChild(s);
+})();
+</script>
+
+<script>
+function initApp(){
+  if (typeof ZXing === "undefined") {
+    document.getElementById('status').innerText = "ZXing לא נטענה!";
+    return;
+  }
+
   const preview = document.getElementById('preview');
-  const btnStart = document.getElementById('btnStart');
-  const btnStop  = document.getElementById('btnStop');
-  const btnLookup= document.getElementById('btnLookup');
-  const manual   = document.getElementById('manual');
-  const httpsWarn= document.getElementById('httpsWarn');
-  const httpsLink= document.getElementById('httpsLink');
-
+  const startBtn = document.getElementById('start');
+  const stopBtn  = document.getElementById('stop');
+  const statusEl = document.getElementById('status');
   let reader = null;
-  let currentStream = null;
-  let lastCode = '';
-
-  // === HTTPS banner ===
-  (function ensureHttpsBanner(){
-    const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-    if (location.protocol !== 'https:' && !isLocalhost){
-      httpsWarn.style.display = 'block';
-      httpsLink.href = 'https://' + location.host + location.pathname;
-    }
-  })();
-
-  function setStatus(msg){ statusEl.textContent = msg; }
-
-  // === נתיבי Open*Facts ===
-  function gtinToPath(code){
-    const clean = (code || '').replace(/\D/g,'');
-    const parts = [];
-    for(let i=0;i<clean.length;i+=3) parts.push(clean.slice(i,i+3));
-    return parts.join('/');
-  }
-  function openFactsCandidates(code){
-    const base = [
-      'https://images.openfoodfacts.org/images/products/',
-      'https://images.openbeautyfacts.org/images/products/',
-      'https://images.openproductsfacts.org/images/products/'
-    ];
-    const path = gtinToPath(code);
-    return [
-      `${base[0]}${path}/front.400.jpg`,
-      `${base[0]}${path}/front.jpg`,
-      `${base[1]}${path}/front.400.jpg`,
-      `${base[1]}${path}/front.jpg`,
-      `${base[2]}${path}/front.400.jpg`,
-      `${base[2]}${path}/front.jpg`,
-    ];
-  }
-  function ramiLevyCandidates(code){
-    const base = `https://img.rami-levy.co.il/product/${code}`;
-    return [
-      `${base}/small.jpg`,
-      `${base}/large.jpg`,
-      `https://www.rami-levy.co.il/_ipx/w_500,f_webp/${base}/small.jpg`,
-      `https://www.rami-levy.co.il/_ipx/w_800,f_webp/${base}/large.jpg`,
-    ];
-  }
-  function firstWorkingImage(urls){
-    return new Promise((resolve) => {
-      let i = 0;
-      (function next(){
-        if(i >= urls.length) return resolve(null);
-        const url = urls[i++];
-        const img = new Image();
-        img.onload = ()=> resolve(url);
-        img.onerror= ()=> next();
-        img.src = url + `?t=${Date.now()}`;
-      })();
-    });
-  }
-  async function tryLoadImageFor(code){
-    const candidates = [
-      ...openFactsCandidates(code),
-      ...ramiLevyCandidates(code),
-    ];
-    return await firstWorkingImage(candidates);
-  }
-  async function showByCode(code){
-    if(!code){ setStatus('לא הוזן ברקוד.'); return; }
-    lastCode = code.replace(/\s/g,'');
-    setStatus(`מחפש תמונה לברקוד: ${lastCode} ...`);
-    imgBox.style.display='none';
-    imgEl.src=''; linksEl.innerHTML='';
-
-    const url = await tryLoadImageFor(lastCode);
-
-    if(url){
-      codeMeta.textContent = `ברקוד: ${lastCode}`;
-      imgEl.src = url;
-      imgBox.style.display='block';
-      setStatus('נמצאה תמונה.');
-    }else{
-      codeMeta.textContent = `ברקוד: ${lastCode}`;
-      imgEl.removeAttribute('src');
-      imgBox.style.display='block';
-      setStatus('לא נמצאה תמונה במקורות הנ״ל.');
-    }
-
-    linksEl.innerHTML = [
-      link('חיפוש בגוגל תמונות', `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(lastCode)}`),
-      link('שופרסל – חיפוש', `https://www.shufersal.co.il/online/he/search?text=${encodeURIComponent(lastCode)}`),
-      link('רמי לוי – חיפוש', `https://www.rami-levy.co.il/he/Search?search=${encodeURIComponent(lastCode)}`)
-    ].join(' ');
-  }
-  function link(txt, href){ return `<a target="_blank" rel="noopener" href="${href}">${txt}</a>`; }
-
-  // === startScan עם נפילות לטיפול ב-"could not start video source" ===
-  async function stopCurrentStream(){
-    try{
-      if(currentStream){
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
-      }
-      preview.srcObject = null;
-    }catch{}
-  }
-
-  async function tryOpen(constraints){
-    await stopCurrentStream();
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    preview.srcObject = stream;
-    currentStream = stream;
-    return stream;
-  }
+  let stream = null;
 
   async function startScan(){
     try{
-      if(reader){ reader.reset(); reader = null; }
-      btnStart.disabled = true; btnStop.disabled = false;
-
-      // ניסוי 1: אחורית
-      try{
-        await tryOpen({ video: { facingMode: { ideal: 'environment' } }, audio: false });
-      }catch(e1){
-        // ניסוי 2: קדמית
-        try{
-          await tryOpen({ video: { facingMode: { ideal: 'user' } }, audio: false });
-        }catch(e2){
-          // ניסוי 3: כל מצלמה זמינה
-          await tryOpen({ video: true, audio: false });
-        }
-      }
-
+      startBtn.disabled = true; stopBtn.disabled = false;
       reader = new ZXing.BrowserMultiFormatReader();
-
-      setStatus('סורק... כוון את הברקוד אל המצלמה.');
-      reader.decodeFromVideoDevice(null, preview, (result, err) => {
+      stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}});
+      preview.srcObject = stream;
+      statusEl.textContent = "מפעיל מצלמה...";
+      reader.decodeFromVideoDevice(null, preview, (result, err)=>{
         if(result){
-          const code = (result.text || '').trim();
-          if(code && code !== lastCode) showByCode(code);
+          statusEl.textContent = "נמצא ברקוד: " + result.text;
         }
       });
-
     }catch(e){
-      let msg = 'כשל בהפעלת הסריקה: ' + e.message;
-      // פירושי שגיאה נפוצים
-      if (e.name === 'NotAllowedError') msg = 'הגישה למצלמה נחסמה. אפשר הרשאה והפעל מחדש.';
-      if (e.name === 'NotReadableError') msg = 'המצלמה תפוסה על ידי אפליקציה אחרת. סגור אפליקציות צילום ונסה שוב.';
-      if (e.name === 'NotFoundError') msg = 'לא נמצאה מצלמה במכשיר.';
-      setStatus(msg);
-      btnStart.disabled = false; btnStop.disabled = true;
-      await stopCurrentStream();
+      statusEl.textContent = "שגיאה בהפעלת מצלמה: " + e.message;
+      startBtn.disabled = false; stopBtn.disabled = true;
     }
   }
 
-  async function stopScan(){
-    try{
-      if(reader){ reader.reset(); reader = null; }
-      await stopCurrentStream();
-    }finally{
-      btnStart.disabled = false; btnStop.disabled = true;
-      setStatus('הסריקה נעצרה.');
-    }
+  function stopScan(){
+    if(reader){ reader.reset(); reader=null; }
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    preview.srcObject=null;
+    startBtn.disabled = false; stopBtn.disabled = true;
+    statusEl.textContent = "נעצר.";
   }
 
-  // אירועים
-  btnStart.addEventListener('click', startScan);
-  btnStop .addEventListener('click', stopScan);
-  btnLookup.addEventListener('click', ()=> showByCode(manual.value));
-  manual.addEventListener('keydown', (e)=>{ if(e.key==='Enter') showByCode(manual.value); });
-
-  // ניסיון הרשאת מצלמה מראש (לא חובה)
-  (async ()=> {
-    try{
-      const isLocalhost = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-      if (location.protocol === 'https:' || isLocalhost){
-        await navigator.mediaDevices.getUserMedia({video:true});
-        await stopCurrentStream();
-        setStatus('מוכן – לחץ "הפעל סריקה".');
-      } else {
-        setStatus('פתח את הדף ב-HTTPS כדי להפעיל מצלמה.');
-      }
-    }catch{
-      /* ההרשאה תתבקש בלחיצה בפועל */
-    }
-  })();
+  startBtn.onclick = startScan;
+  stopBtn.onclick = stopScan;
+}
 </script>
 </body>
 </html>
