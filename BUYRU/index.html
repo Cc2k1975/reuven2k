@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-<title>BUYRU – סריקה רציפה (חלון קטן)</title>
+<title>BUYRU – סריקה רציפה + CSV + מניעת כפילויות</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -37,13 +37,11 @@
   .pill{background:var(--pill);border:var(--border);border-radius:999px;padding:4px 10px;font-size:12px;color:#cbd5e1;display:inline-block}
   .note{font-size:12px;color:var(--muted)}
   .foot{margin-top:12px;text-align:center;color:var(--muted);font-size:12px}
-  .hide{display:none!important}
-  .diag{font-size:11px;color:#9aa8c7;white-space:pre-wrap}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header><h1>BUYRU – סריקה רציפה (חלון קטן)</h1></header>
+  <header><h1>BUYRU – סריקה רציפה + CSV + מניעת כפילויות</h1></header>
 
   <div class="panel">
     <button id="btnStart" class="btn primary">הפעל סריקה</button>
@@ -51,7 +49,8 @@
     <select id="cameraSel" title="מצלמה"></select>
     <button id="btnTorch" class="btn ghost" disabled>פנס כבוי</button>
     <button id="btnReset" class="btn danger">איפוס סל</button>
-    <span id="httpsWarn" class="note hide">מצלמה דורשת <b>https://</b> (או localhost)</span>
+    <button id="btnExport" class="btn ghost">ייצוא CSV</button>
+    <span id="httpsWarn" class="note hide">מצלמה דורשת <b>https://</b></span>
   </div>
 
   <div class="grid">
@@ -60,336 +59,136 @@
         <video id="preview" playsinline muted autoplay></video>
         <div class="scanLine"></div>
       </div>
-      <div class="note">סריקה רציפה: מקם את הברקוד על הקו הלבן. כל זיהוי נוסף יופיע מתחת.</div>
-      <div id="diag" class="diag"></div>
+      <div class="note">סריקה רציפה עם חיווי קול – כל מוצר נוסף לסל באופן אוטומטי.</div>
     </div>
 
     <div class="shot">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <div class="pill">פריטים בסל: <span id="count">0</span></div>
-        <div class="note">מוצג: תמונה + מק״ט (ברקוד)</div>
+        <div class="note">מניעת כפילויות • שמירה מקומית • ייצוא CSV</div>
       </div>
       <div id="list" class="list"></div>
     </div>
   </div>
 
-  <footer class="foot">v3.1.0 • סריקה רציפה • רק תמונה ומק״ט • שמירה מקומית עד איפוס</footer>
+  <footer class="foot">v3.2.0 • חיווי קול • מניעת כפילויות • ייצוא CSV</footer>
 </div>
 
-<!-- ZXing fallback -->
 <script src="https://unpkg.com/@zxing/browser@0.1.1"></script>
 <script>
-/* ==== DOM ==== */
-const btnStart  = document.getElementById('btnStart');
-const btnStop   = document.getElementById('btnStop');
-const btnTorch  = document.getElementById('btnTorch');
-const btnReset  = document.getElementById('btnReset');
-const cameraSel = document.getElementById('cameraSel');
-const preview   = document.getElementById('preview');
-const listEl    = document.getElementById('list');
-const countEl   = document.getElementById('count');
-const httpsWarn = document.getElementById('httpsWarn');
-const diagEl    = document.getElementById('diag');
+const btnStart=document.getElementById('btnStart'),btnStop=document.getElementById('btnStop'),btnTorch=document.getElementById('btnTorch'),btnReset=document.getElementById('btnReset'),btnExport=document.getElementById('btnExport'),cameraSel=document.getElementById('cameraSel'),preview=document.getElementById('preview'),listEl=document.getElementById('list'),countEl=document.getElementById('count'),httpsWarn=document.getElementById('httpsWarn');
 
-/* ==== State ==== */
-let stream=null, track=null, rafId=null, reader=null;
-let lastCode='', lastTime=0;
-const DEBOUNCE_MS = 1200;   // לאסוף כל מוצר פעם ב~1.2 שניות (מונע קפיצות כפולות)
-let items=[];                // {code, img, src}
+let stream=null,track=null,rafId=null,reader=null,lastCode='',lastTime=0;
+const DEBOUNCE_MS=1200;
+let items=[];
 
-/* ==== Utils ==== */
-const log = m => diagEl.textContent += (diagEl.textContent?'\n':'') + m;
-(function(){
-  const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-  if(location.protocol!=='https:' && !isLocal) httpsWarn.classList.remove('hide');
-})();
-
-/* ==== Cameras ==== */
-async function listVideoInputs(){
-  const all = await navigator.mediaDevices.enumerateDevices();
-  return all.filter(d=>d.kind==='videoinput');
+/* ==== SOUND ==== */
+function beep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator(); const gain=ctx.createGain();
+    osc.type='sine'; osc.frequency.value=880;
+    osc.connect(gain); gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.2,ctx.currentTime);
+    osc.start(); osc.stop(ctx.currentTime+0.15);
+  }catch{}
 }
-function preferBack(devs){
-  const backs = devs.filter(d=>/back|rear|environment/i.test(d.label||''));
-  return backs.length? backs[backs.length-1] : devs[0];
-}
+
+/* ==== CAMERA ==== */
+async function listVideoInputs(){const all=await navigator.mediaDevices.enumerateDevices();return all.filter(d=>d.kind==='videoinput');}
+function preferBack(devs){const backs=devs.filter(d=>/back|rear|environment/i.test(d.label||''));return backs.length?backs[backs.length-1]:devs[0];}
 async function fillCameras(){
-  try{
-    const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-    if(location.protocol==='https:' || isLocal){
-      await navigator.mediaDevices.getUserMedia({video:true});
-    }
-  }catch{}
-  const devs = await listVideoInputs();
-  cameraSel.innerHTML='';
-  devs.forEach((d,i)=>{
-    const opt=document.createElement('option');
-    opt.value=d.deviceId; opt.textContent=(d.label||`camera ${i}`)+(/(back|rear|environment)/i.test(d.label||'')?' (אחורית)':'');
-    cameraSel.appendChild(opt);
-  });
-  const pref = preferBack(devs);
-  if(pref) cameraSel.value = pref.deviceId;
+ try{await navigator.mediaDevices.getUserMedia({video:true});}catch{}
+ const devs=await listVideoInputs();cameraSel.innerHTML='';
+ devs.forEach((d,i)=>{const o=document.createElement('option');o.value=d.deviceId;o.textContent=(d.label||`camera ${i}`)+(/(back|rear|environment)/i.test(d.label||'')?' (אחורית)':'');cameraSel.appendChild(o);});
+ const pref=preferBack(devs);if(pref)cameraSel.value=pref.deviceId;
 }
 
-/* ==== Product image sources (parallel) ==== */
-function gtinToPath(code){ const c=(code||'').replace(/\D/g,''); const p=[]; for(let i=0;i<c.length;i+=3)p.push(c.slice(i,i+3)); return p.join('/'); }
-function openFactsCandidates(code){
-  const base=['https://images.openfoodfacts.org/images/products/','https://images.openbeautyfacts.org/images/products/','https://images.openproductsfacts.org/images/products/'];
-  const path=gtinToPath(code);
-  return [
-    {u:`${base[0]}${path}/front.400.jpg`, s:'OpenFoodFacts'},
-    {u:`${base[0]}${path}/front.jpg`,     s:'OpenFoodFacts'},
-    {u:`${base[1]}${path}/front.400.jpg`, s:'OpenBeautyFacts'},
-    {u:`${base[1]}${path}/front.jpg`,     s:'OpenBeautyFacts'},
-    {u:`${base[2]}${path}/front.400.jpg`, s:'OpenProductsFacts'},
-    {u:`${base[2]}${path}/front.jpg`,     s:'OpenProductsFacts'}
-  ];
-}
-function ramiLevyCandidates(code){
-  const base=`https://img.rami-levy.co.il/product/${code}`;
-  return [
-    {u:`${base}/small.jpg`, s:'RamiLevy'},
-    {u:`${base}/large.jpg`, s:'RamiLevy'},
-    {u:`https://www.rami-levy.co.il/_ipx/w_360,f_webp/${base}/small.jpg`, s:'RamiLevy'},
-    {u:`https://www.rami-levy.co.il/_ipx/w_640,f_webp/${base}/large.jpg`, s:'RamiLevy'}
-  ];
-}
-/* שופרסל – אין תבנית CDN יציבה ציבורית; כגיבוי מהיר ננסה דרך Google images proxy (thumbnail).
-   זה לא תמיד יחזיר תמונה "נכונה", אבל כגיבוי זה זריז. */
-function shufersalFallbackThumb(code){
-  const q = encodeURIComponent(code + ' site:shufersal.co.il');
-  // שימוש ב-th=isch (תמונות) דרך גוגל – נקבל thumb; הדפדפן יטען אם זמין.
-  return [{u:`https://www.google.com/search?tbm=isch&q=${q}`, s:'Shufersal-Search'}];
-}
-
-function raceImageObj(obj){
-  return new Promise((resolve,reject)=>{
-    const im=new Image();
-    im.onload=()=>resolve(obj);
-    im.onerror=()=>reject(obj);
-    // עבור Google images search, אין תמונה ישירה – נדלג מהר (reject מיד)
-    if (/google\.com\/search\?tbm=isch/.test(obj.u)) { reject(obj); return; }
-    im.src = obj.u + `?t=${Date.now()}`;
-  });
-}
-
+/* ==== PRODUCT IMAGE SOURCES ==== */
+function gtinToPath(code){const c=(code||'').replace(/\D/g,'');const p=[];for(let i=0;i<c.length;i+=3)p.push(c.slice(i,i+3));return p.join('/');}
+function openFactsCandidates(code){const b='https://images.openfoodfacts.org/images/products/';const p=gtinToPath(code);return [`${b}${p}/front.400.jpg`,`${b}${p}/front.jpg`];}
+function ramiLevyCandidates(code){const b=`https://img.rami-levy.co.il/product/${code}`;return [`${b}/small.jpg`,`${b}/large.jpg`];}
+function race(url){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(url);im.onerror=()=>rej();im.src=url+`?t=${Date.now()}`;});}
 async function findImageFast(code){
-  const cands = [
-    ...openFactsCandidates(code),
-    ...ramiLevyCandidates(code),
-    ...shufersalFallbackThumb(code)
-  ];
-  if (Promise.any){
-    try{ return await Promise.any(cands.map(raceImageObj)); }
-    catch{ return null; }
-  } else {
-    for(let i=0;i<cands.length;i+=3){
-      try{ return await Promise.race(cands.slice(i,i+3).map(raceImageObj)); }catch{}
-    }
-    return null;
-  }
+ const cands=[...openFactsCandidates(code),...ramiLevyCandidates(code)];
+ for(let i=0;i<cands.length;i++){try{const ok=await race(cands[i]);if(ok)return ok;}catch{}}
+ return null;
 }
 
-/* ==== Scan start/stop ==== */
-async function stopScan(){
-  if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
-  if(reader){ reader.reset(); reader=null; }
-  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-  track=null;
-  btnStart.disabled=false; btnStop.disabled=true; btnTorch.disabled=true;
-}
-async function openStreamWithFallbacks(deviceId){
-  const tries = [
-    {audio:false, video:{ deviceId: deviceId? {exact:deviceId}: undefined, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }},
-    {audio:false, video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }},
-    {audio:false, video:{ facingMode:'environment' }},
-    {audio:false, video:true}
-  ];
-  let lastErr=null;
-  for(const c of tries){
-    try{ return await navigator.mediaDevices.getUserMedia(c); }
-    catch(e){ lastErr=e; log(`getUserMedia fail: ${e.name||''} ${e.message||e}`); }
-  }
-  throw lastErr || new Error('No camera available');
-}
-async function startScan(){
-  await stopScan();
-  if ('BarcodeDetector' in window){
-    try{
-      const deviceId = cameraSel.value || undefined;
-      stream = await openStreamWithFallbacks(deviceId);
-      preview.srcObject = stream;
-      preview.muted = true; preview.playsInline = true;
-      await preview.play().catch(()=>{});
-      track = stream.getVideoTracks()[0] || null;
-      btnStart.disabled=true; btnStop.disabled=false;
-      try{
-        const caps=track?.getCapabilities?.();
-        if(caps?.torch){ btnTorch.disabled=false; btnTorch.textContent='פנס כבוי'; }
-      }catch{ btnTorch.disabled=true; }
-      await liveDetectContinuous();
-    }catch(e){
-      alert('כשל מצלמה: ' + (e.name? e.name+' – ':'') + (e.message||e));
-      await stopScan();
-    }
-  } else {
-    try{
-      btnStart.disabled=true; btnStop.disabled=false;
-      await liveDetectZXingContinuous(cameraSel.value || undefined);
-    }catch(e){
-      alert('כשל ZXing: ' + (e.name? e.name+' – ':'') + (e.message||e));
-      await stopScan();
-    }
-  }
-}
-
-/* ==== Torch ==== */
-btnTorch.addEventListener('click', async ()=>{
-  if(!track) return;
-  try{
-    const caps=track.getCapabilities?.(); if(!caps?.torch) return;
-    const cur = track.getSettings?.().torch === true;
-    await track.applyConstraints({ advanced:[{ torch: !cur }] });
-    btnTorch.textContent = !cur ? 'פנס דלוק' : 'פנס כבוי';
-  }catch{}
-});
-
-/* ==== Continuous detect (BarcodeDetector) ==== */
-async function bandBitmap(video, bandRatio=0.22){
-  const w = video.videoWidth || 1280, h = video.videoHeight || 720;
-  const bandH = Math.max(40, Math.round(h * bandRatio));
-  const y = Math.round((h - bandH)/2);
-  const cnv = document.createElement('canvas'); cnv.width = w; cnv.height = bandH;
-  cnv.getContext('2d', { willReadFrequently:true }).drawImage(video, 0, y, w, bandH, 0, 0, w, bandH);
-  return await createImageBitmap(cnv);
-}
+/* ==== DETECT ==== */
+async function bandBitmap(v,band=0.22){const w=v.videoWidth||1280,h=v.videoHeight||720,bh=Math.max(40,Math.round(h*band)),y=Math.round((h-bh)/2);const c=document.createElement('canvas');c.width=w;c.height=bh;const ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(v,0,y,w,bh,0,0,w,bh);return await createImageBitmap(c);}
 async function liveDetectContinuous(){
-  const det = new window.BarcodeDetector({ formats:['ean_13','ean_8','upc_a','upc_e'] });
-  const loop = async ()=>{
-    try{
-      const now = Date.now();
-      const bmp = await bandBitmap(preview, 0.22);
-      const res = await det.detect(bmp);
-      if(res && res.length){
-        const code=(res[0].rawValue||'').trim();
-        if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
-          lastCode=code; lastTime=now;
-          onNewCode(code);
-        }
-      }
-    }catch(e){}
-    rafId = requestAnimationFrame(loop);
-  };
-  rafId = requestAnimationFrame(loop);
+ const det=new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']});
+ const loop=async()=>{try{const now=Date.now();const bmp=await bandBitmap(preview,0.22);const res=await det.detect(bmp);
+  if(res&&res.length){const code=(res[0].rawValue||'').trim();
+    if(code&&!items.find(x=>x.code===code)&&(code!==lastCode||(now-lastTime)>DEBOUNCE_MS)){
+      lastCode=code;lastTime=now;beep();onNewCode(code);
+    }}}catch{}rafId=requestAnimationFrame(loop);};
+ rafId=requestAnimationFrame(loop);
 }
 
-/* ==== Continuous detect (ZXing) ==== */
-async function liveDetectZXingContinuous(deviceId){
-  reader = new ZXing.BrowserMultiFormatReader();
-  await reader.decodeFromConstraints(
-    { audio:false, video: deviceId ? {deviceId:{exact:deviceId}} : {facingMode:{ideal:'environment'}} },
-    preview,
-    (result) => {
-      if(result){
-        const code=(result.text||'').trim();
-        const now=Date.now();
-        if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
-          lastCode=code; lastTime=now;
-          onNewCode(code);
-        }
-      }
-    }
-  );
+/* ==== CAMERA START ==== */
+async function startScan(){
+ await stopScan();
+ const dev=cameraSel.value||undefined;
+ stream=await navigator.mediaDevices.getUserMedia({video:{deviceId:dev?{exact:dev}:{},facingMode:'environment'}});
+ preview.srcObject=stream;await preview.play();
+ track=stream.getVideoTracks()[0];
+ btnStart.disabled=true;btnStop.disabled=false;
+ await liveDetectContinuous();
+}
+async function stopScan(){
+ if(rafId)cancelAnimationFrame(rafId);
+ if(reader)reader.reset();
+ if(stream)stream.getTracks().forEach(t=>t.stop());
+ track=null;stream=null;
+ btnStart.disabled=false;btnStop.disabled=true;
 }
 
-/* ==== On new code ==== */
+/* ==== ITEMS ==== */
+function addItem(code,img=''){
+ items.unshift({code,img});
+ if(items.length>200)items.length=200;
+ renderList();saveItems();
+}
+function renderList(){
+ listEl.innerHTML=items.map(it=>`<div class="item"><img class="thumb" src="${it.img||''}" alt=""><div><div class="code">${it.code}</div></div></div>`).join('');
+ countEl.textContent=items.length;
+}
+function resetList(){items=[];renderList();saveItems();}
 async function onNewCode(code){
-  // רטט קצר (אם נתמך) לאישור תפיסה
-  if(navigator.vibrate){ try{ navigator.vibrate(30); }catch{} }
-
-  // הוסף לרשימה (למעלה)
-  addItemPlaceholder(code);
-  // טען תמונה במקביל
-  const res = await findImageFast(code);
-  if(res) updateItemImage(code, res.u, res.s);
-  saveItems();
+ addItem(code);
+ const img=await findImageFast(code);
+ if(img){const it=items.find(i=>i.code===code);if(it)it.img=img;renderList();saveItems();}
 }
 
-/* ==== List handling ==== */
-function renderItems(){
-  listEl.innerHTML = items.map(it => itemHTML(it)).join('');
-  countEl.textContent = items.length;
-}
-function itemHTML(it){
-  return `
-    <div class="item" id="itm-${it.code}">
-      <img class="thumb" src="${it.img||''}" alt="" ${it.img?'':'style="visibility:hidden"'} />
-      <div>
-        <div class="code">${it.code}</div>
-        <div class="src">${it.src? 'מקור: '+it.src : ''}</div>
-      </div>
-    </div>`;
-}
-function addItemPlaceholder(code){
-  // לא משכפלים ברצף מיותר: אם אותו קוד בדיוק כבר בראש הרשימה – דלג
-  if(items[0] && items[0].code===code) return;
-  const obj = { code, img:'', src:'' };
-  items.unshift(obj);
-  // שמור עד 200 פריטים כדי לא לנפח זיכרון
-  if(items.length>200) items.length = 200;
-  // רנדר מהיר של פריט אחד בראש
-  const div = document.createElement('div');
-  div.innerHTML = itemHTML(obj);
-  listEl.prepend(div.firstElementChild);
-  countEl.textContent = items.length;
-}
-function updateItemImage(code, url, src){
-  const idx = items.findIndex(x=>x.code===code);
-  if(idx<0) return;
-  items[idx].img = url; items[idx].src = src||'';
-  const el = document.getElementById('itm-'+code);
-  if(!el) return;
-  const img = el.querySelector('img.thumb');
-  if(img){ img.src = url; img.style.visibility='visible'; }
-  const s = el.querySelector('.src');
-  if(s){ s.textContent = src? 'מקור: '+src : ''; }
-}
-function resetCart(){
-  items = [];
-  renderItems();
-  saveItems();
+/* ==== STORAGE ==== */
+function saveItems(){localStorage.setItem('buyru_cart',JSON.stringify(items));}
+function loadItems(){try{items=JSON.parse(localStorage.getItem('buyru_cart')||'[]');}catch{items=[];}}
+
+/* ==== EXPORT ==== */
+function exportCSV(){
+ if(!items.length){alert('אין נתונים לייצוא');return;}
+ const rows=[['מקט','קישור תמונה'],...items.map(i=>[i.code,i.img||''])];
+ const csv=rows.map(r=>r.map(x=>`"${(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);
+ a.download='buyru_scan_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'_')+'.csv';
+ a.click();
 }
 
-/* ==== Local storage ==== */
-function saveItems(){ try{ localStorage.setItem('buyru_cart', JSON.stringify(items)); }catch{} }
-function loadItems(){ try{ items = JSON.parse(localStorage.getItem('buyru_cart')||'[]'); }catch{ items=[]; } }
+/* ==== EVENTS ==== */
+btnStart.onclick=startScan;
+btnStop.onclick=stopScan;
+btnReset.onclick=resetList;
+btnExport.onclick=exportCSV;
 
-/* ==== Events ==== */
-btnStart.addEventListener('click', startScan);
-btnStop .addEventListener('click', stopScan);
-btnTorch.addEventListener('click', async ()=>{
-  if(!track) return;
-  try{
-    const caps=track.getCapabilities?.(); if(!caps?.torch) return;
-    const cur = track.getSettings?.().torch === true;
-    await track.applyConstraints({ advanced:[{ torch: !cur }] });
-    btnTorch.textContent = !cur ? 'פנס דלוק' : 'פנס כבוי';
-  }catch{}
-});
-cameraSel.addEventListener('change', async ()=>{
-  if(!btnStop.disabled){ await startScan(); }
-});
-btnReset.addEventListener('click', resetCart);
+/* ==== INIT ==== */
+loadItems();renderList();fillCameras();
 
-/* ==== Init ==== */
-loadItems(); renderItems(); fillCameras();
-
-/* ==== Scanline animation ==== */
-(function animate(){
-  const line = document.querySelector('.scanLine'); let t=0;
-  const step=()=>{ t+=0.02; const amp=6; line.style.top=`calc(50% + ${Math.sin(t)*amp}px)`; requestAnimationFrame(step); };
-  step();
-})();
+/* ==== SCAN LINE ==== */
+(function anim(){const line=document.querySelector('.scanLine');let t=0;const s=()=>{t+=0.02;line.style.top=`calc(50% + ${Math.sin(t)*6}px)`;requestAnimationFrame(s)};s();})();
 </script>
 </body>
 </html>
