@@ -185,7 +185,7 @@ empCapture.addEventListener('change', async (e)=>{
 });
 btnUseEmp.addEventListener('click', ()=>{
   const id = (empIdInput.value||'').trim();
-  if(!isValidEmpId(id)){ empHint.textContent='נא להזין מספר זהות (5–10 ספרות).'; return; }
+  if(!isValidEmpId(id)){ empHint.textCONTENT='נא להזין מספר זהות (5–10 ספרות).'; return; }
   EMPLOYEE_ID = id;
   enterScan();
 });
@@ -229,7 +229,7 @@ async function toBitmap(file){
   const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   if(location.protocol!=='https:' && !isLocal) httpsWarn.classList.remove('hide');
 })();
-async function listVideoInputs(){const all=await navigator.mediaDevices.enumerateDevices();return all.filter(d=>d.kind==='videoinput');}
+async function listVideoInputs(){const all=await navigator.mediaDevices.enumerateDevices();return all.filter(d=>d.kind==='videinput');}
 function preferBack(devs){const backs=devs.filter(d=>/back|rear|environment/i.test(d.label||''));return backs.length?backs[backs.length-1]:devs[0];}
 async function fillCameras(){
   try{
@@ -279,7 +279,8 @@ async function liveDetectContinuous(){
       const res=await det.detect(bmp);
       if(res && res.length){
         const code=(res[0].rawValue||'').trim();
-        if(code && !items.find(x=>x.code===code) && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
+        // מאפשר כפילויות: הסרנו בדיקת items.find(...)
+        if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
           lastCode=code; lastTime=now; beep(); onNewCode(code);
         }
       }
@@ -322,7 +323,8 @@ async function startScan(){
         if(result){
           const code=(result.text||'').trim();
           const now=Date.now();
-          if(code && !items.find(x=>x.code===code) && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
+          // מאפשר כפילויות: הסרנו בדיקת items.find(...)
+          if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
             lastCode=code; lastTime=now; beep(); onNewCode(code);
           }
         }
@@ -361,13 +363,14 @@ function renderList(){
   countEl.textContent = items.length;
 }
 function addItem(code,img=''){
-  if(items.find(x=>x.code===code)) return; // מניעת כפילויות קשיחה
+  // מאפשר כפילויות: הוסר ה-return שמנע פריט שכבר קיים
   items.unshift({code,img});
   if(items.length>400) items.length=400;
   renderList(); saveState();
 }
 function updateItemImage(code,url){
-  const i=items.findIndex(x=>x.code===code); if(i<0) return;
+  const i=items.findIndex(x=>x.code===code);
+  if(i<0){ return; } // אם כבר נוצרה כפילות – נשדרג את התמונה של ההופעה הראשונה
   items[i].img=url; saveState();
   const el=listEl.querySelector(`.item[data-code="${CSS.escape(code)}"] img.thumb`);
   if(el){ el.src=url; }
@@ -395,22 +398,18 @@ async function onNewCode(code){
 btnExport.addEventListener('click', ()=>{
   if(!items.length && !EMPLOYEE_ID){ alert('אין נתונים לייצוא'); return; }
 
-  // שורה 1: A1 = מספר זהות (לפי בקשתך)
+  // שורה 1: A1 = מספר זהות
   const rows = [[EMPLOYEE_ID || '']];
 
-  // שורה 2: כותרות בעברית
-  rows.push(['מקט','קישור תמונה']);
+  // שורה 2: כותרות באנגלית (לפי בקשתך)
+  rows.push(['Barcode','Image URL']);
 
-  // משורה 3: הנתונים
+  // משורה 3: הנתונים (כפולים מותרים)
   items.forEach(i => rows.push([i.code, i.img || '']));
 
-  // בניית CSV עם BOM ל-Excel בעברית
-  const csv = rows
-    .map(r => r.map(x => `"${String(x||'').replace(/"/g,'""')}"`).join(','))
-    .join('\n');
-
-  const BOM = '\uFEFF'; // חובה כדי למנוע "ג׳יבריש" בעברית באקסל
-  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+  // CSV עם BOM ל-Excel
+  const csv = rows.map(r => r.map(x => `"${String(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
 
   const a = document.createElement('a');
   const empPart = EMPLOYEE_ID ? ('_'+EMPLOYEE_ID) : '';
