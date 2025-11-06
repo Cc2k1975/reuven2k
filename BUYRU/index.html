@@ -100,7 +100,7 @@
     </div>
   </section>
 
-  <footer class="foot">v3.3.6</footer>
+  <footer class="foot">v3.3.1</footer>
 </div>
 
 <!-- ZXing fallback -->
@@ -130,7 +130,21 @@ let items=[]; // {code, img}
 function show(el){ el.classList.remove('hide'); }
 function hide(el){ el.classList.add('hide'); }
 
-/* ===== סאונד (ביפ) ===== */
+/* ===== שמירה מקומית ===== */
+function saveState(){
+  try{
+    localStorage.setItem('buyru_emp', EMPLOYEE_ID||'');
+    localStorage.setItem('buyru_cart', JSON.stringify(items||[]));
+  }catch{}
+}
+function loadState(){
+  try{
+    EMPLOYEE_ID = localStorage.getItem('buyru_emp')||'';
+    items = JSON.parse(localStorage.getItem('buyru_cart')||'[]');
+  }catch{ EMPLOYEE_ID=''; items=[]; }
+}
+
+/* ===== סאונד ===== */
 function beep(){
   try{
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
@@ -145,6 +159,7 @@ function beep(){
 function enterScan(){
   empLabel.textContent = EMPLOYEE_ID || '—';
   hide(stepUser); show(stepScan); show(btnSwitchUser);
+  saveState();
 }
 function backToUser(){
   hide(stepScan); show(stepUser); hide(btnSwitchUser);
@@ -152,25 +167,70 @@ function backToUser(){
 }
 btnSwitchUser.addEventListener('click', backToUser);
 
-/* ===== אימות ת״ז (5–10 ספרות) ===== */
+/* ===== אימות ת״ז (פשוט: ספרות בלבד, 5–10 ספרות) ===== */
 function isValidEmpId(v){ return /^\d{5,10}$/.test((v||'').trim()); }
 
+/* ===== זיהוי ת״ז מתמונה (תג) ===== */
+btnScanTag.addEventListener('click', ()=> empCapture.click());
+empCapture.addEventListener('change', async (e)=>{
+  const f = e.target.files?.[0]; if(!f) return;
+  const code = await decodeSingleImage(f);
+  if(code){
+    empIdInput.value = code.replace(/\D/g,'');
+    empHint.textContent = 'זוהה מספר מהתג – אפשר לאשר.';
+  }else{
+    empHint.textContent = 'לא זוהה ברקוד. נסה תמונה חדה/קרובה יותר.';
+  }
+  e.target.value='';
+});
 btnUseEmp.addEventListener('click', ()=>{
   const id = (empIdInput.value||'').trim();
-  if(!isValidEmpId(id)){ alert('נא להזין מספר זהות תקין'); return; }
+  if(!isValidEmpId(id)){ empHint.textContent='נא להזין מספר זהות (5–10 ספרות).'; return; }
   EMPLOYEE_ID = id;
   enterScan();
 });
+
+/* ===== דיקוד ברקוד מתוך תמונה בודדת (לתג עובד) ===== */
+async function decodeSingleImage(file){
+  const bmp = await toBitmap(file);
+  if('BarcodeDetector' in window){
+    try{
+      const det = new window.BarcodeDetector({ formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf'] });
+      const res = await det.detect(bmp);
+      if(res && res.length) return (res[0].rawValue||'').trim();
+    }catch{}
+  }
+  try{
+    const cnv=document.createElement('canvas');
+    cnv.width=bmp.width; cnv.height=bmp.height;
+    cnv.getContext('2d').drawImage(bmp,0,0);
+    const im=new Image(); im.src=cnv.toDataURL('image/png'); await im.decode();
+    const reader = new ZXing.BrowserMultiFormatReader();
+    const res = await reader.decodeFromImageElement(im).catch(()=>null);
+    if(res?.text) return res.text.trim();
+  }catch{}
+  return '';
+}
+async function toBitmap(file){
+  try{ return await createImageBitmap(file, { resizeWidth: 1024, resizeQuality:'high' }); }
+  catch{
+    const url=URL.createObjectURL(file); const img=new Image();
+    img.src=url; await img.decode();
+    const c=document.createElement('canvas'), s=Math.min(1, 1024/img.naturalWidth);
+    c.width=Math.round(img.naturalWidth*s); c.height=Math.round(img.naturalHeight*s);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(url);
+    return await createImageBitmap(c);
+  }
+}
 
 /* ===== מצלמות ===== */
 (async function httpsNotice(){
   const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   if(location.protocol!=='https:' && !isLocal) httpsWarn.classList.remove('hide');
 })();
-
 async function listVideoInputs(){const all=await navigator.mediaDevices.enumerateDevices();return all.filter(d=>d.kind==='videoinput');}
 function preferBack(devs){const backs=devs.filter(d=>/back|rear|environment/i.test(d.label||''));return backs.length?backs[backs.length-1]:devs[0];}
-
 async function fillCameras(){
   try{
     const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
@@ -186,6 +246,23 @@ async function fillCameras(){
   const pref=preferBack(devs); if(pref) cameraSel.value=pref.deviceId;
 }
 
+/* ===== מקורות תמונה למוצר ===== */
+function gtinToPath(code){ const c=(code||'').replace(/\D/g,''); const p=[]; for(let i=0;i<c.length;i+=3)p.push(c.slice(i,i+3)); return p.join('/'); }
+function openFactsCandidates(code){
+  const b='https://images.openfoodfacts.org/images/products/'; const p=gtinToPath(code);
+  return [`${b}${p}/front.400.jpg`, `${b}${p}/front.jpg`];
+}
+function ramiLevyCandidates(code){
+  const b=`https://img.rami-levy.co.il/product/${code}`;
+  return [`${b}/small.jpg`, `${b}/large.jpg`, `https://www.rami-levy.co.il/_ipx/w_360,f_webp/${b}/small.jpg`, `https://www.rami-levy.co.il/_ipx/w_640,f_webp/${b}/large.jpg`];
+}
+function race(url){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(url); im.onerror=()=>rej(); im.src=url+`?t=${Date.now()}`; }); }
+async function findImageFast(code){
+  const cands=[...openFactsCandidates(code), ...ramiLevyCandidates(code)];
+  for(let i=0;i<cands.length;i++){ try{ const ok=await race(cands[i]); if(ok) return ok; }catch{} }
+  return null;
+}
+
 /* ===== סריקה רציפה (BarcodeDetector אם קיים, אחרת ZXing) ===== */
 async function bandBitmap(v,band=0.22){
   const w=v.videoWidth||1280,h=v.videoHeight||720,bh=Math.max(40,Math.round(h*band)),y=Math.round((h-bh)/2);
@@ -194,7 +271,7 @@ async function bandBitmap(v,band=0.22){
   return await createImageBitmap(c);
 }
 async function liveDetectContinuous(){
-  const det=new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf']});
+  const det=new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']});
   const loop=async()=>{
     try{
       const now=Date.now();
@@ -202,7 +279,7 @@ async function liveDetectContinuous(){
       const res=await det.detect(bmp);
       if(res && res.length){
         const code=(res[0].rawValue||'').trim();
-        // מאפשר הוספה חוזרת של אותו קוד (עם דיבאונס)
+        // שינוי: מאפשר הוספה חוזרת של אותו קוד (נשאר דיבאונס בלבד)
         if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
           lastCode=code; lastTime=now; beep(); onNewCode(code);
         }
@@ -246,6 +323,7 @@ async function startScan(){
         if(result){
           const code=(result.text||'').trim();
           const now=Date.now();
+          // שינוי: מאפשר הוספה חוזרת של אותו קוד (נשאר דיבאונס בלבד)
           if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
             lastCode=code; lastTime=now; beep(); onNewCode(code);
           }
@@ -285,44 +363,28 @@ function renderList(){
   countEl.textContent = items.length;
 }
 function addItem(code,img=''){
-  // מאפשר כפילויות (עם דיבאונס בלייב)
+  // שינוי: ביטלתי את מניעת הכפילויות כאן
   items.unshift({code,img});
   if(items.length>400) items.length=400;
-  renderList();
+  renderList(); saveState();
 }
 function updateItemImage(code,url){
   const i=items.findIndex(x=>x.code===code); if(i<0) return;
-  items[i].img=url;
+  items[i].img=url; saveState();
   const el=listEl.querySelector(`.item[data-code="${CSS.escape(code)}"] img.thumb`);
   if(el){ el.src=url; }
 }
 function removeItem(code){
   const idx=items.findIndex(x=>x.code===code);
-  if(idx>=0){ items.splice(idx,1); renderList(); }
+  if(idx>=0){ items.splice(idx,1); renderList(); saveState(); }
 }
 listEl.addEventListener('click', (e)=>{
   const btn=e.target.closest('.remove-btn'); if(!btn) return;
   const code=btn.getAttribute('data-code'); removeItem(code);
 });
 btnReset.addEventListener('click', ()=>{
-  if(confirm('לאפס את הסל?')){ items=[]; renderList(); }
+  if(confirm('לאפס את הסל?')){ items=[]; renderList(); saveState(); }
 });
-
-/* ===== מקורות תמונה – שינוי יחיד (אלמוג) ===== */
-function race(url){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(url); im.onerror=()=>rej(); im.src=url+`?t=${Date.now()}`; }); }
-function almogCandidates(code){
-  const clean=(code||'').replace(/\D/g,'');
-  // ניסיונות סטטיים לפי מס’ (ייתכן שלא תמיד יצליחו—אבל לא שוברים כלום)
-  return [
-    `https://www.almog-tech.com/wp-content/uploads/${clean}.jpg`,
-    `https://www.almog-tech.com/wp-content/uploads/${clean}.webp`
-  ];
-}
-async function findImageFast(code){
-  const cands=[...almogCandidates(code)];
-  for(const u of cands){ try{ const ok=await race(u); if(ok) return ok; }catch{} }
-  return null; // אם לא נמצא—פשוט נשאר בלי תמונה, לא שוברים כלום
-}
 
 /* ===== בעת קבלת ברקוד חדש ===== */
 async function onNewCode(code){
@@ -331,15 +393,27 @@ async function onNewCode(code){
   if(img) updateItemImage(code,img);
 }
 
-/* ===== CSV ===== */
+/* ===== CSV – עברית תקינה באקסל + A1=מספר זהות ===== */
 btnExport.addEventListener('click', ()=>{
   if(!items.length && !EMPLOYEE_ID){ alert('אין נתונים לייצוא'); return; }
+
+  // שורה 1: A1 = TZ
   const rows = [[EMPLOYEE_ID || '']];
+
+  // שורה 2: כותרות בעברית
   rows.push(['BARCODE','PIC LINK']);
+
+  // משורה 3: הנתונים
   items.forEach(i => rows.push([i.code, i.img || '']));
-  const csv = rows.map(r => r.map(x => `"${String(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-  const BOM = '\uFEFF';
+
+  // בניית CSV עם BOM ל-Excel בעברית
+  const csv = rows
+    .map(r => r.map(x => `"${String(x||'').replace(/"/g,'""')}"`).join(','))
+    .join('\n');
+
+  const BOM = '\uFEFF'; // חובה כדי למנוע "ג׳יבריש" בעברית באקסל
   const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+
   const a = document.createElement('a');
   const empPart = EMPLOYEE_ID ? ('_'+EMPLOYEE_ID) : '';
   a.href = URL.createObjectURL(blob);
@@ -348,6 +422,9 @@ btnExport.addEventListener('click', ()=>{
 });
 
 /* ===== אתחול ===== */
+loadState();
+empIdInput.value = EMPLOYEE_ID || '';
+if(EMPLOYEE_ID){ enterScan(); } else { backToUser(); }
 renderList();
 fillCameras();
 
