@@ -48,6 +48,7 @@
     <button id="btnSwitchUser" class="btn ghost hide">החלף עובד</button>
   </header>
 
+  <!-- שלב 1: זיהוי עובד -->
   <section id="stepUser" class="panel">
     <div class="row" style="margin-bottom:10px">
       <div style="font-weight:800">זיהוי עובד</div>
@@ -60,98 +61,301 @@
       <button id="btnScanTag" class="btn ghost">📷 סרוק תג</button>
       <span id="empHint" class="note"></span>
     </div>
+    <div class="note">טיפ: אפשר פשוט לצלם את תג-העובד (ברקוד) – נזהה את המספר אוטומטית.</div>
   </section>
 
+  <!-- שלב 2: סריקה רציפה -->
   <section id="stepScan" class="hide">
     <div class="panel row" style="justify-content:space-between">
-      <div class="pill">עובד: <span id="empLabel" class="emp">—</span></div>
+      <div class="row" style="gap:12px">
+        <div class="pill">עובד: <span id="empLabel" class="emp">—</span></div>
+      </div>
       <div class="row">
         <button id="btnStart" class="btn primary">הפעל סריקה</button>
         <button id="btnStop" class="btn ghost" disabled>עצור</button>
+        <select id="cameraSel" title="מצלמה"></select>
+        <button id="btnTorch" class="btn ghost" disabled>פנס כבוי</button>
         <button id="btnReset" class="btn danger">איפוס סל</button>
         <button id="btnExport" class="btn ghost">ייצוא CSV</button>
+        <span id="httpsWarn" class="note hide">מצלמה דורשת <b>https://</b></span>
       </div>
     </div>
+
     <div class="grid">
       <div class="shot">
-        <div class="camDock"><video id="preview" autoplay muted playsinline></video><div class="scanLine"></div></div>
+        <div class="camDock">
+          <video id="preview" playsinline muted autoplay></video>
+          <div class="scanLine"></div>
+        </div>
+        <div class="note"></div>
       </div>
+
       <div class="shot">
-        <div class="pill">פריטים בסל: <span id="count">0</span></div>
-        <div id="list" class="list"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div class="pill">פריטים בסל: <span id="count">0</span></div>
+          <div class="note"></div>
+        </div>
+        <div id="list" class="list" onclick="return false;"></div>
       </div>
     </div>
   </section>
 
-  <footer class="foot">v3.3.5</footer>
+  <footer class="foot">v3.3.6</footer>
 </div>
 
+<!-- ZXing fallback -->
 <script src="https://unpkg.com/@zxing/browser@0.1.1"></script>
 <script>
-const stepUser=document.getElementById('stepUser'), stepScan=document.getElementById('stepScan');
-const empIdInput=document.getElementById('empIdInput'), empLabel=document.getElementById('empLabel');
-const btnUseEmp=document.getElementById('btnUseEmp'), btnSwitchUser=document.getElementById('btnSwitchUser');
-const btnStart=document.getElementById('btnStart'), btnStop=document.getElementById('btnStop');
-const listEl=document.getElementById('list'), countEl=document.getElementById('count');
+/* ===== אלמנטים ===== */
+const stepUser = document.getElementById('stepUser');
+const stepScan = document.getElementById('stepScan');
+const btnSwitchUser = document.getElementById('btnSwitchUser');
 
-let EMPLOYEE_ID='', items=[]; let reader=null, lastCode='', lastTime=0;
-const DEBOUNCE_MS=1200;
+const empIdInput = document.getElementById('empIdInput');
+const empLabel   = document.getElementById('empLabel');
+const empCapture = document.getElementById('empCapture');
+const btnScanTag = document.getElementById('btnScanTag');
+const btnUseEmp  = document.getElementById('btnUseEmp');
+const empHint    = document.getElementById('empHint');
 
-function show(el){el.classList.remove('hide');}
-function hide(el){el.classList.add('hide');}
-function enterScan(){empLabel.textContent=EMPLOYEE_ID; hide(stepUser); show(stepScan);}
-function backToUser(){hide(stepScan); show(stepUser);}
-btnSwitchUser.onclick=backToUser;
+const btnStart=document.getElementById('btnStart'),btnStop=document.getElementById('btnStop'),btnTorch=document.getElementById('btnTorch'),btnReset=document.getElementById('btnReset'),btnExport=document.getElementById('btnExport'),cameraSel=document.getElementById('cameraSel'),preview=document.getElementById('preview'),listEl=document.getElementById('list'),countEl=document.getElementById('count'),httpsWarn=document.getElementById('httpsWarn');
 
-function isValidEmpId(v){return /^\d{5,10}$/.test((v||'').trim());}
-btnUseEmp.onclick=()=>{
-  const id=(empIdInput.value||'').trim();
-  if(!isValidEmpId(id)){alert('נא להזין מספר זהות תקין');return;}
-  EMPLOYEE_ID=id; enterScan();
-};
+/* ===== מצב ===== */
+let EMPLOYEE_ID = '';
+let stream=null,track=null,rafId=null,reader=null,lastCode='',lastTime=0;
+const DEBOUNCE_MS = 1200;
+let items=[]; // {code, img}
 
-function renderList(){
-  listEl.innerHTML=items.map(it=>`
-    <div class="item"><img class="thumb" src="${it.img||''}"><div class="code">${it.code}</div></div>`).join('');
-  countEl.textContent=items.length;
+/* ===== עזרי UI ===== */
+function show(el){ el.classList.remove('hide'); }
+function hide(el){ el.classList.add('hide'); }
+
+/* ===== סאונד (ביפ) ===== */
+function beep(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sine'; o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.18,ctx.currentTime);
+    o.start(); o.stop(ctx.currentTime+0.12);
+  }catch{}
 }
 
-/* ✅ השינוי היחיד — findImageFast מחפש קודם באתר אלמוג */
-function race(url){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(url);i.onerror=()=>rej();i.src=url;});}
-
-async function findImageFast(code){
-  const clean=(code||'').replace(/\D/g,'');
-  const almog = [
-    `https://www.almog-tech.com/wp-content/uploads/${clean}.jpg`,
-    `https://www.almog-tech.com/wp-content/uploads/${clean}.webp`,
-    `https://www.almog-tech.com/?s=${clean}`
-  ];
-  const all = [...almog];
-  for(const u of all){try{const ok=await race(u);if(ok)return ok;}catch{}}
-  return null;
+/* ===== Employee: מעבר בין מסכים ===== */
+function enterScan(){
+  empLabel.textContent = EMPLOYEE_ID || '—';
+  hide(stepUser); show(stepScan); show(btnSwitchUser);
 }
-
-async function onNewCode(code){
-  items.unshift({code, img:''});
-  renderList();
-  const img=await findImageFast(code);
-  if(img){items[0].img=img; renderList();}
+function backToUser(){
+  hide(stepScan); show(stepUser); hide(btnSwitchUser);
+  stopScan();
 }
+btnSwitchUser.addEventListener('click', backToUser);
 
-/* מצלמה — בדיוק כמו קודם */
-async function startScan(){
-  reader=new ZXing.BrowserMultiFormatReader();
-  await reader.decodeFromConstraints({video:{facingMode:'environment'}},document.getElementById('preview'),(res)=>{
-    if(!res)return;
-    const code=res.text.trim(); const now=Date.now();
-    if(code && (code!==lastCode||(now-lastTime)>DEBOUNCE_MS)){
-      lastCode=code; lastTime=now; onNewCode(code);
-    }
+/* ===== אימות ת״ז (5–10 ספרות) ===== */
+function isValidEmpId(v){ return /^\d{5,10}$/.test((v||'').trim()); }
+
+btnUseEmp.addEventListener('click', ()=>{
+  const id = (empIdInput.value||'').trim();
+  if(!isValidEmpId(id)){ alert('נא להזין מספר זהות תקין'); return; }
+  EMPLOYEE_ID = id;
+  enterScan();
+});
+
+/* ===== מצלמות ===== */
+(async function httpsNotice(){
+  const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  if(location.protocol!=='https:' && !isLocal) httpsWarn.classList.remove('hide');
+})();
+
+async function listVideoInputs(){const all=await navigator.mediaDevices.enumerateDevices();return all.filter(d=>d.kind==='videoinput');}
+function preferBack(devs){const backs=devs.filter(d=>/back|rear|environment/i.test(d.label||''));return backs.length?backs[backs.length-1]:devs[0];}
+
+async function fillCameras(){
+  try{
+    const isLocal=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+    if(location.protocol==='https:' || isLocal){ await navigator.mediaDevices.getUserMedia({video:true}); }
+  }catch{}
+  const devs=await listVideoInputs();
+  cameraSel.innerHTML='';
+  devs.forEach((d,i)=>{
+    const opt=document.createElement('option');
+    opt.value=d.deviceId; opt.textContent=(d.label||`camera ${i}`)+(/(back|rear|environment)/i.test(d.label||'')?' (אחורית)':'');
+    cameraSel.appendChild(opt);
   });
-  btnStart.disabled=true; btnStop.disabled=false;
+  const pref=preferBack(devs); if(pref) cameraSel.value=pref.deviceId;
 }
-async function stopScan(){if(reader){reader.reset();reader=null;}btnStart.disabled=false;btnStop.disabled=true;}
+
+/* ===== סריקה רציפה (BarcodeDetector אם קיים, אחרת ZXing) ===== */
+async function bandBitmap(v,band=0.22){
+  const w=v.videoWidth||1280,h=v.videoHeight||720,bh=Math.max(40,Math.round(h*band)),y=Math.round((h-bh)/2);
+  const c=document.createElement('canvas'); c.width=w; c.height=bh;
+  c.getContext('2d',{willReadFrequently:true}).drawImage(v,0,y,w,bh,0,0,w,bh);
+  return await createImageBitmap(c);
+}
+async function liveDetectContinuous(){
+  const det=new window.BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','itf']});
+  const loop=async()=>{
+    try{
+      const now=Date.now();
+      const bmp=await bandBitmap(preview,0.22);
+      const res=await det.detect(bmp);
+      if(res && res.length){
+        const code=(res[0].rawValue||'').trim();
+        // מאפשר הוספה חוזרת של אותו קוד (עם דיבאונס)
+        if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
+          lastCode=code; lastTime=now; beep(); onNewCode(code);
+        }
+      }
+    }catch{}
+    rafId=requestAnimationFrame(loop);
+  };
+  rafId=requestAnimationFrame(loop);
+}
+
+/* ===== פתיחה/עצירה ===== */
+async function openStreamWithFallbacks(deviceId){
+  const tries=[
+    {audio:false, video:{ deviceId: deviceId? {exact:deviceId}: undefined, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }},
+    {audio:false, video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720}, focusMode:{ideal:'continuous'} }},
+    {audio:false, video:{ facingMode:'environment' }},
+    {audio:false, video:true}
+  ];
+  let lastErr=null;
+  for(const c of tries){ try{ return await navigator.mediaDevices.getUserMedia(c); }catch(e){ lastErr=e; } }
+  throw lastErr || new Error('No camera');
+}
+async function startScan(){
+  await stopScan();
+  if('BarcodeDetector' in window){
+    const dev=cameraSel.value||undefined;
+    stream=await openStreamWithFallbacks(dev);
+    preview.srcObject=stream; preview.muted=true; preview.playsInline=true;
+    await preview.play().catch(()=>{});
+    track=stream.getVideoTracks()[0];
+    btnStart.disabled=true; btnStop.disabled=false;
+    try{ const caps=track?.getCapabilities?.(); if(caps?.torch){ btnTorch.disabled=false; btnTorch.textContent='פנס כבוי'; } }catch{ btnTorch.disabled=true; }
+    await liveDetectContinuous();
+  }else{
+    btnStart.disabled=true; btnStop.disabled=false;
+    reader = new ZXing.BrowserMultiFormatReader();
+    await reader.decodeFromConstraints(
+      { audio:false, video: cameraSel.value? {deviceId:{exact:cameraSel.value}} : {facingMode:{ideal:'environment'}} },
+      preview,
+      (result)=>{
+        if(result){
+          const code=(result.text||'').trim();
+          const now=Date.now();
+          if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
+            lastCode=code; lastTime=now; beep(); onNewCode(code);
+          }
+        }
+      }
+    );
+  }
+}
+async function stopScan(){
+  if(rafId) cancelAnimationFrame(rafId), rafId=null;
+  if(reader) reader.reset(), reader=null;
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  track=null;
+  btnStart.disabled=false; btnStop.disabled=true; btnTorch.disabled=true;
+}
+
+/* ===== פנס ===== */
+btnTorch.addEventListener('click', async ()=>{
+  if(!track) return;
+  try{
+    const caps=track.getCapabilities?.(); if(!caps?.torch) return;
+    const cur=track.getSettings?.().torch===true;
+    await track.applyConstraints({ advanced:[{ torch: !cur }] });
+    btnTorch.textContent = !cur ? 'פנס דלוק' : 'פנס כבוי';
+  }catch{}
+});
+
+/* ===== לוגיקת סל ===== */
+function renderList(){
+  listEl.innerHTML = items.map(it=>`
+    <div class="item" data-code="${it.code}">
+      <img class="thumb" src="${it.img||''}" alt="">
+      <div><div class="code">${it.code}</div></div>
+      <button class="btn ghost danger remove-btn" data-code="${it.code}" aria-label="הסר">הסר מוצר</button>
+    </div>
+  `).join('');
+  countEl.textContent = items.length;
+}
+function addItem(code,img=''){
+  // מאפשר כפילויות (עם דיבאונס בלייב)
+  items.unshift({code,img});
+  if(items.length>400) items.length=400;
+  renderList();
+}
+function updateItemImage(code,url){
+  const i=items.findIndex(x=>x.code===code); if(i<0) return;
+  items[i].img=url;
+  const el=listEl.querySelector(`.item[data-code="${CSS.escape(code)}"] img.thumb`);
+  if(el){ el.src=url; }
+}
+function removeItem(code){
+  const idx=items.findIndex(x=>x.code===code);
+  if(idx>=0){ items.splice(idx,1); renderList(); }
+}
+listEl.addEventListener('click', (e)=>{
+  const btn=e.target.closest('.remove-btn'); if(!btn) return;
+  const code=btn.getAttribute('data-code'); removeItem(code);
+});
+btnReset.addEventListener('click', ()=>{
+  if(confirm('לאפס את הסל?')){ items=[]; renderList(); }
+});
+
+/* ===== מקורות תמונה – שינוי יחיד (אלמוג) ===== */
+function race(url){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(url); im.onerror=()=>rej(); im.src=url+`?t=${Date.now()}`; }); }
+function almogCandidates(code){
+  const clean=(code||'').replace(/\D/g,'');
+  // ניסיונות סטטיים לפי מס’ (ייתכן שלא תמיד יצליחו—אבל לא שוברים כלום)
+  return [
+    `https://www.almog-tech.com/wp-content/uploads/${clean}.jpg`,
+    `https://www.almog-tech.com/wp-content/uploads/${clean}.webp`
+  ];
+}
+async function findImageFast(code){
+  const cands=[...almogCandidates(code)];
+  for(const u of cands){ try{ const ok=await race(u); if(ok) return ok; }catch{} }
+  return null; // אם לא נמצא—פשוט נשאר בלי תמונה, לא שוברים כלום
+}
+
+/* ===== בעת קבלת ברקוד חדש ===== */
+async function onNewCode(code){
+  addItem(code);
+  const img=await findImageFast(code);
+  if(img) updateItemImage(code,img);
+}
+
+/* ===== CSV ===== */
+btnExport.addEventListener('click', ()=>{
+  if(!items.length && !EMPLOYEE_ID){ alert('אין נתונים לייצוא'); return; }
+  const rows = [[EMPLOYEE_ID || '']];
+  rows.push(['BARCODE','PIC LINK']);
+  items.forEach(i => rows.push([i.code, i.img || '']));
+  const csv = rows.map(r => r.map(x => `"${String(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  const empPart = EMPLOYEE_ID ? ('_'+EMPLOYEE_ID) : '';
+  a.href = URL.createObjectURL(blob);
+  a.download = 'buyru_scan'+empPart+'_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'_')+'.csv';
+  a.click();
+});
+
+/* ===== אתחול ===== */
+renderList();
+fillCameras();
+
+/* ===== SCAN start/stop ===== */
 btnStart.onclick=startScan; btnStop.onclick=stopScan;
+
+/* ===== אנימציית קו ===== */
+(function anim(){ const line=document.querySelector('.scanLine'); let t=0; const step=()=>{t+=0.02; line.style.top=`calc(50% + ${Math.sin(t)*6}px)`; requestAnimationFrame(step);}; step(); })();
 </script>
 </body>
 </html>
