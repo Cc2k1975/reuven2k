@@ -83,12 +83,11 @@
     </div>
   </section>
 
-  <footer class="foot">v3.3.4</footer>
+  <footer class="foot">v3.3.5</footer>
 </div>
 
 <script src="https://unpkg.com/@zxing/browser@0.1.1"></script>
 <script>
-/* === כל הלוגיקה המקורית נשארה === */
 const stepUser=document.getElementById('stepUser'), stepScan=document.getElementById('stepScan');
 const empIdInput=document.getElementById('empIdInput'), empLabel=document.getElementById('empLabel');
 const btnUseEmp=document.getElementById('btnUseEmp'), btnSwitchUser=document.getElementById('btnSwitchUser');
@@ -117,35 +116,21 @@ function renderList(){
   countEl.textContent=items.length;
 }
 
-/* ======= שינוי יחיד – מקורות תמונה לכלי עבודה ======= */
-function almogCandidates(code){
+/* ✅ השינוי היחיד — findImageFast מחפש קודם באתר אלמוג */
+function race(url){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(url);i.onerror=()=>rej();i.src=url;});}
+
+async function findImageFast(code){
   const clean=(code||'').replace(/\D/g,'');
-  return [
+  const almog = [
     `https://www.almog-tech.com/wp-content/uploads/${clean}.jpg`,
     `https://www.almog-tech.com/wp-content/uploads/${clean}.webp`,
     `https://www.almog-tech.com/?s=${clean}`
   ];
-}
-function brandCandidates(code){
-  const q = encodeURIComponent(code);
-  return [
-    `https://www.bosch-professional.com/il/he/search/?q=${q}`,
-    `https://www.makita.co.il/?s=${q}`,
-    `https://www.hilti.co.il/search?q=${q}`,
-    `https://www.stanleytools.com/search.html?q=${q}`,
-    `https://www.snapon.com/search/${q}`,
-    `https://www.beta-tools.com/en/search/?text=${q}`,
-    `https://www.wera.de/en/search/?query=${q}`
-  ];
-}
-function race(url){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(url);i.onerror=()=>rej();i.src=url;});}
-async function findImageFast(code){
-  const cands=[...almogCandidates(code), ...brandCandidates(code)];
-  for(const u of cands){try{const ok=await race(u);if(ok)return ok;}catch{}}
+  const all = [...almog];
+  for(const u of all){try{const ok=await race(u);if(ok)return ok;}catch{}}
   return null;
 }
 
-/* ==== הוספת פריט ==== */
 async function onNewCode(code){
   items.unshift({code, img:''});
   renderList();
@@ -153,7 +138,7 @@ async function onNewCode(code){
   if(img){items[0].img=img; renderList();}
 }
 
-/* ==== סריקה ==== */
+/* מצלמה — בדיוק כמו קודם */
 async function startScan(){
   reader=new ZXing.BrowserMultiFormatReader();
   await reader.decodeFromConstraints({video:{facingMode:'environment'}},document.getElementById('preview'),(res)=>{
