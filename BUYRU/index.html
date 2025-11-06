@@ -217,7 +217,7 @@ async function toBitmap(file){
     const url=URL.createObjectURL(file); const img=new Image();
     img.src=url; await img.decode();
     const c=document.createElement('canvas'), s=Math.min(1, 1024/img.naturalWidth);
-    c.width=Math.round(img.naturalWidth*s); c.height=Math.round(img.naturalHeight*s);
+    c.width=Math.round(img.naturalWidth*s); c.height=Math.round(img.naturalHeight+s);
     c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     URL.revokeObjectURL(url);
     return await createImageBitmap(c);
@@ -257,9 +257,30 @@ function ramiLevyCandidates(code){
   return [`${b}/small.jpg`, `${b}/large.jpg`, `https://www.rami-levy.co.il/_ipx/w_360,f_webp/${b}/small.jpg`, `https://www.rami-levy.co.il/_ipx/w_640,f_webp/${b}/large.jpg`];
 }
 function race(url){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(url); im.onerror=()=>rej(); im.src=url+`?t=${Date.now()}`; }); }
+
+/* === תוספת: BarcodeLookup (OG image) – בלי לשנות כלום מסביב === */
+async function tryBarcodeLookupOG(code){
+  try{
+    const pageUrl = `https://r.jina.ai/http://www.barcodelookup.com/${encodeURIComponent(code)}`;
+    const html = await fetch(pageUrl).then(r=>r.text());
+    // חילוץ תמונת OG
+    let m = html.match(/property=["']og:image["']\s*content=["']([^"']+)["']/i);
+    if(!m){ m = html.match(/content=["']([^"']+)["']\s*property=["']og:image["']/i); }
+    const img = m && m[1] ? m[1] : null;
+    if(img){
+      const ok = await race(img).catch(()=>null);
+      if(ok) return ok;
+    }
+  }catch{}
+  return null;
+}
+
 async function findImageFast(code){
   const cands=[...openFactsCandidates(code), ...ramiLevyCandidates(code)];
   for(let i=0;i<cands.length;i++){ try{ const ok=await race(cands[i]); if(ok) return ok; }catch{} }
+  // נסיון נוסף: BarcodeLookup (OG image)
+  const og = await tryBarcodeLookupOG(code);
+  if(og) return og;
   return null;
 }
 
@@ -279,7 +300,6 @@ async function liveDetectContinuous(){
       const res=await det.detect(bmp);
       if(res && res.length){
         const code=(res[0].rawValue||'').trim();
-        // שינוי: מאפשר הוספה חוזרת של אותו קוד (נשאר דיבאונס בלבד)
         if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
           lastCode=code; lastTime=now; beep(); onNewCode(code);
         }
@@ -323,7 +343,6 @@ async function startScan(){
         if(result){
           const code=(result.text||'').trim();
           const now=Date.now();
-          // שינוי: מאפשר הוספה חוזרת של אותו קוד (נשאר דיבאונס בלבד)
           if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
             lastCode=code; lastTime=now; beep(); onNewCode(code);
           }
@@ -363,7 +382,6 @@ function renderList(){
   countEl.textContent = items.length;
 }
 function addItem(code,img=''){
-  // שינוי: ביטלתי את מניעת הכפילויות כאן
   items.unshift({code,img});
   if(items.length>400) items.length=400;
   renderList(); saveState();
@@ -397,21 +415,15 @@ async function onNewCode(code){
 btnExport.addEventListener('click', ()=>{
   if(!items.length && !EMPLOYEE_ID){ alert('אין נתונים לייצוא'); return; }
 
-  // שורה 1: A1 = TZ
   const rows = [[EMPLOYEE_ID || '']];
-
-  // שורה 2: כותרות בעברית
   rows.push(['BARCODE','PIC LINK']);
-
-  // משורה 3: הנתונים
   items.forEach(i => rows.push([i.code, i.img || '']));
 
-  // בניית CSV עם BOM ל-Excel בעברית
   const csv = rows
     .map(r => r.map(x => `"${String(x||'').replace(/"/g,'""')}"`).join(','))
     .join('\n');
 
-  const BOM = '\uFEFF'; // חובה כדי למנוע "ג׳יבריש" בעברית באקסל
+  const BOM = '\uFEFF';
   const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
 
   const a = document.createElement('a');
