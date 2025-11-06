@@ -279,7 +279,8 @@ async function liveDetectContinuous(){
       const res=await det.detect(bmp);
       if(res && res.length){
         const code=(res[0].rawValue||'').trim();
-        if(code && !items.find(x=>x.code===code) && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
+        // שינוי: מאפשר הוספה חוזרת של אותו קוד (נשאר דיבאונס בלבד)
+        if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
           lastCode=code; lastTime=now; beep(); onNewCode(code);
         }
       }
@@ -322,7 +323,8 @@ async function startScan(){
         if(result){
           const code=(result.text||'').trim();
           const now=Date.now();
-          if(code && !items.find(x=>x.code===code) && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
+          // שינוי: מאפשר הוספה חוזרת של אותו קוד (נשאר דיבאונס בלבד)
+          if(code && (code!==lastCode || (now-lastTime)>DEBOUNCE_MS)){
             lastCode=code; lastTime=now; beep(); onNewCode(code);
           }
         }
@@ -361,7 +363,7 @@ function renderList(){
   countEl.textContent = items.length;
 }
 function addItem(code,img=''){
-  if(items.find(x=>x.code===code)) return; // מניעת כפילויות קשיחה
+  // שינוי: ביטלתי את מניעת הכפילויות כאן
   items.unshift({code,img});
   if(items.length>400) items.length=400;
   renderList(); saveState();
@@ -395,11 +397,11 @@ async function onNewCode(code){
 btnExport.addEventListener('click', ()=>{
   if(!items.length && !EMPLOYEE_ID){ alert('אין נתונים לייצוא'); return; }
 
-  // שורה 1: A1 = מספר זהות (לפי בקשתך)
+  // שורה 1: A1 = TZ
   const rows = [[EMPLOYEE_ID || '']];
 
   // שורה 2: כותרות בעברית
-  rows.push(['מקט','קישור תמונה']);
+  rows.push(['BARCODE','PIC LINK']);
 
   // משורה 3: הנתונים
   items.forEach(i => rows.push([i.code, i.img || '']));
