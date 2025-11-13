@@ -340,7 +340,6 @@ footer{
 </div>
 
 <script>
-/* ==== לוגיקה זהה – רק שורת כפתורי עובד באותה שורה עם ת.ז ==== */
 const STORAGE_KEY = 'mifkad_v2_ui_clean_emp_row';
 
 const toggleSidebarBtn = document.getElementById('toggleSidebar');
@@ -381,7 +380,7 @@ let quaggaActive = false;
 let quaggaCallbackTarget = null;
 let lastProcessedInvTime = 0;
 
-/* == אודיו/ביפים – כמו קודם == */
+/* ==== אודיו/ביפים ==== */
 let audioCtx = null;
 function ensureAudioContext(){
   if(!audioCtx){
@@ -601,7 +600,7 @@ function updateUI(filter=''){
   });
 }
 
-/* פעולות עובד/פריט (לוגיקה כמו קודם) */
+/* פעולות עובד/פריט */
 btnAddEmployee.addEventListener('click',()=>{
   const v=employeeInput.value.trim();
   if(!v){ beep('error'); alert('אין מספר זהות'); employeeInput.focus(); return; }
@@ -703,14 +702,39 @@ function exportXLSX(){
 }
 btnExportTop.addEventListener('click',exportXLSX);
 
-/* ניקוי */
+/* ניקוי כל הנתונים – אישור כפול */
 btnClearAll.addEventListener('click',()=>{
-  if(confirm('בטוח למחוק את כל הנתונים מכל העובדים?')){
-    groups=[]; currentEmployee=null; lastInv=null;
-    forceSave(); updateUI();
-    beep('error');
+  const first = confirm(
+    'אזהרה חמורה!\n\n' +
+    'לחיצה על "אישור" תמחק את כל הנתונים של כל העובדים.\n' +
+    'האם להמשיך לפעולת מחיקה?'
+  );
+  if(!first){
+    // ביטלת בשלב הראשון – לא קורה כלום
+    return;
   }
+
+  const second = confirm(
+    'אישור סופי!\n\n' +
+    'לאחר אישור הפעולה הבאה אין דרך לשחזר את הנתונים.\n' +
+    'האם אתה בטוח לחלוטין שברצונך למחוק את כל הנתונים?'
+  );
+  if(!second){
+    // התחרטת בשלב השני – גם כאן לא מוחקים
+    beep('transfer');
+    return;
+  }
+
+  // אם הגעת עד לפה – מוחקים באמת
+  groups = [];
+  currentEmployee = null;
+  lastInv = null;
+  forceSave();
+  updateUI();
+  beep('error');
 });
+
+/* ניקוי שמירה מקומית בלבד */
 btnClearLocal.addEventListener('click',()=>{
   if(confirm('מחק את השמירה המקומית (ללא שחזור)?')){
     localStorage.removeItem(STORAGE_KEY);
