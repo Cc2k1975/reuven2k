@@ -15,7 +15,7 @@
   --muted:#556b75;
   --accent:#0ea5a4;
   --danger:#dc2626;
-  --emp:#16a34a;         /* צבע ירוק לתעודת זהות */
+  --emp:#16a34a; /* ירוק לתעודת זהות */
   --radius:12px;
   --touch-size:48px;
 }
@@ -137,25 +137,21 @@ button{
 }
 .group-header{
   display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+/* שורת כותרת: ת.ז + כפתורים */
+.group-title-row{
+  display:flex;
   justify-content:space-between;
-  align-items:flex-start;
+  align-items:center;
   gap:6px;
 }
 .group-main-title{
   font-weight:700;
   font-size:14px;
 }
-.group-sub{
-  font-size:12px;
-  color:var(--muted);
-}
-.group-actions{
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-}
-
-/* תצוגת תעודת זהות */
 .employee-id{
   color:var(--emp);
   font-weight:800;
@@ -164,6 +160,20 @@ button{
 .group-name{
   font-weight:600;
   font-size:13px;
+}
+.group-actions-inline{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+}
+.group-actions-inline button{
+  flex:0 0 auto;
+}
+
+/* טקסט פריטים */
+.group-sub{
+  font-size:12px;
+  color:var(--muted);
 }
 
 /* פריטים */
@@ -330,8 +340,8 @@ footer{
 </div>
 
 <script>
-/* ==== לוגיקה זהה – רק UI וצביעת ת.ז ==== */
-const STORAGE_KEY = 'mifkad_v2_ui_clean_emp';
+/* ==== לוגיקה זהה – רק שורת כפתורי עובד באותה שורה עם ת.ז ==== */
+const STORAGE_KEY = 'mifkad_v2_ui_clean_emp_row';
 
 const toggleSidebarBtn = document.getElementById('toggleSidebar');
 const sidebar = document.getElementById('sidebar');
@@ -371,7 +381,7 @@ let quaggaActive = false;
 let quaggaCallbackTarget = null;
 let lastProcessedInvTime = 0;
 
-/* === Audio / Beeps (כמו קודם) === */
+/* == אודיו/ביפים – כמו קודם == */
 let audioCtx = null;
 function ensureAudioContext(){
   if(!audioCtx){
@@ -395,24 +405,14 @@ function playTone(freq,dur=120,vol=0.12){
 }
 function playSeq(seq){
   let t=0;
-  seq.forEach(s=>{
-    setTimeout(()=>playTone(s.f,s.d,s.v),t);
-    t+=s.d+(s.g||60);
-  });
+  seq.forEach(s=>{ setTimeout(()=>playTone(s.f,s.d,s.v),t); t+=s.d+(s.g||60); });
 }
-function vibrate(pattern){
-  try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
-}
+function vibrate(pattern){ try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){} }
 function beep(kind){
-  if(kind==='success'){
-    playTone(1100,120,0.16); vibrate(70);
-  }else if(kind==='duplicate'){
-    playSeq([{f:520,d:100,v:0.12,g:60},{f:520,d:100,v:0.12}]); vibrate([40,50,40]);
-  }else if(kind==='transfer'){
-    playTone(900,150,0.14); vibrate(80);
-  }else if(kind==='error'){
-    playTone(380,250,0.14); vibrate([200,80]);
-  }
+  if(kind==='success'){ playTone(1100,120,0.16); vibrate(70); }
+  else if(kind==='duplicate'){ playSeq([{f:520,d:100,v:0.12,g:60},{f:520,d:100,v:0.12}]); vibrate([40,50,40]); }
+  else if(kind==='transfer'){ playTone(900,150,0.14); vibrate(80); }
+  else if(kind==='error'){ playTone(380,250,0.14); vibrate([200,80]); }
 }
 (function initAudioOnGesture(){
   function once(){ ensureAudioContext(); document.removeEventListener('touchstart',once); document.removeEventListener('click',once); }
@@ -420,7 +420,7 @@ function beep(kind){
   document.addEventListener('click',once,{passive:true});
 })();
 
-/* === Helpers & Storage === */
+/* Helpers & storage */
 function nowTS(){
   const d=new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+
@@ -450,17 +450,16 @@ function load(){
   }catch(e){console.error(e);}
 }
 
-/* === UI === */
+/* UI */
 function updateUI(filter=''){
-  currentEmployeeDisplay.textContent = currentEmployee||'אין';
-  lastInvDisplay.textContent = lastInv||'אין';
+  currentEmployeeDisplay.textContent=currentEmployee||'אין';
+  lastInvDisplay.textContent=lastInv||'אין';
 
   groupsContainer.innerHTML='';
   const flt=(filter||'').trim().toLowerCase();
   const visible=groups.filter(g=>{
     if(!flt) return true;
-    return String(g.idNumber).toLowerCase().includes(flt) ||
-           (g.name||'').toLowerCase().includes(flt);
+    return String(g.idNumber).toLowerCase().includes(flt) || (g.name||'').toLowerCase().includes(flt);
   });
   if(!visible.length){
     groupsContainer.innerHTML='<div class="small">טרם בוצעו סריקות.</div>';
@@ -474,24 +473,25 @@ function updateUI(filter=''){
     const header=document.createElement('div');
     header.className='group-header';
 
-    const left=document.createElement('div');
-    left.innerHTML =
-      `<div class="group-main-title">
-          <span class="employee-id">ת.ז ${escapeHtml(g.idNumber)}</span>
-          ${g.name ? '<span class="group-name"> — '+escapeHtml(g.name)+'</span>' : ''}
-       </div>
-       <div class="group-sub">פריטים: ${g.items.length}</div>`;
+    const titleRow=document.createElement('div');
+    titleRow.className='group-title-row';
 
-    const right=document.createElement('div');
-    right.className='group-actions';
+    const titleDiv=document.createElement('div');
+    titleDiv.className='group-main-title';
+    titleDiv.innerHTML=
+      `<span class="employee-id">ת.ז ${escapeHtml(g.idNumber)}</span>`+
+      (g.name ? `<span class="group-name"> — ${escapeHtml(g.name)}</span>` : '');
+
+    const actions=document.createElement('div');
+    actions.className='group-actions-inline';
 
     const chooseBtn=document.createElement('button');
-    chooseBtn.className='btn-muted btn-small';
+    chooseBtn.className='btn-muted btn-xsmall';
     chooseBtn.textContent='בחר עובד';
     chooseBtn.onclick=()=>{ currentEmployee=g.idNumber; updateUI(searchEmployee.value||''); save(); };
 
     const editBtn=document.createElement('button');
-    editBtn.className='btn-muted btn-small';
+    editBtn.className='btn-muted btn-xsmall';
     editBtn.textContent='ערוך שם';
     editBtn.onclick=()=>{
       const nm=prompt('שם עובד:',g.name||'');
@@ -503,7 +503,7 @@ function updateUI(filter=''){
     };
 
     const removeBtn=document.createElement('button');
-    removeBtn.className='btn-danger-outline btn-small';
+    removeBtn.className='btn-danger-outline btn-xsmall';
     removeBtn.textContent='הסר עובד';
     removeBtn.onclick=()=>{
       if(confirm('להסיר את העובד וכל הפריטים שלו?')){
@@ -514,12 +514,19 @@ function updateUI(filter=''){
       }
     };
 
-    right.appendChild(chooseBtn);
-    right.appendChild(editBtn);
-    right.appendChild(removeBtn);
+    actions.appendChild(chooseBtn);
+    actions.appendChild(editBtn);
+    actions.appendChild(removeBtn);
 
-    header.appendChild(left);
-    header.appendChild(right);
+    titleRow.appendChild(titleDiv);
+    titleRow.appendChild(actions);
+
+    const subDiv=document.createElement('div');
+    subDiv.className='group-sub';
+    subDiv.textContent='פריטים: '+g.items.length;
+
+    header.appendChild(titleRow);
+    header.appendChild(subDiv);
     groupEl.appendChild(header);
 
     const itemsWrap=document.createElement('div');
@@ -594,7 +601,7 @@ function updateUI(filter=''){
   });
 }
 
-/* === פעולות עובד/פריט === */
+/* פעולות עובד/פריט (לוגיקה כמו קודם) */
 btnAddEmployee.addEventListener('click',()=>{
   const v=employeeInput.value.trim();
   if(!v){ beep('error'); alert('אין מספר זהות'); employeeInput.focus(); return; }
@@ -626,7 +633,7 @@ btnAddInv.addEventListener('click',()=>{
   invInput.value='';
   invInput.focus();
 });
-invInput.addEventListener('keydown',(e)=>{
+invInput.addEventListener('keydown',e=>{
   if(e.key==='Enter'){
     addInvFromInput(invInput.value.trim());
     invInput.value='';
