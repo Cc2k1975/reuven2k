@@ -24,7 +24,7 @@
         position: fixed;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        background: rgba(0,0,0,0.55);
+        background: #f2f2f2; /* מלא, לא שקוף */
         display: flex;
         align-items: center;
         justify-content: center;
@@ -281,28 +281,74 @@ let authed = (localStorage.getItem("auth") === "ok");
 let typingListenerStarted = false;
 let typingTimeout = null;
 
+/* טיימרים */
+const INACTIVITY_LIMIT = 2 * 60 * 1000; // 2 דקות
+const REAUTH_ON_BLUR_MS = 5000;         // 5 שניות
+let inactivityTimer = null;
+let lastHiddenTime = null;
+
+function resetInactivityTimer() {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    if (!authed) return;
+    inactivityTimer = setTimeout(() => {
+        forceReauth(); // אחרי 2 דקות
+    }, INACTIVITY_LIMIT);
+}
+
+function forceReauth() {
+    authed = false;
+    localStorage.removeItem("auth");
+    stopTyping();
+    document.getElementById("passInput").value = "";
+    document.getElementById("passError").textContent = "";
+    document.getElementById("passwordScreen").style.display = "flex";
+    document.getElementById("roleSelect").style.display = "none"; // הצד נשמר, אין צורך לבחור שוב
+}
+
 /* אחרי עליית הדף */
 window.addEventListener("load", () => {
     const passScreen = document.getElementById("passwordScreen");
     const roleSelect = document.getElementById("roleSelect");
 
     if (!authed) {
-        // עדיין לא הוכנסה סיסמה
         passScreen.style.display = "flex";
         roleSelect.style.display = "none";
     } else {
-        // סיסמה כבר אושרה בעבר
         passScreen.style.display = "none";
         if (myRole) {
             roleSelect.style.display = "none";
             startTypingListener();
+            resetInactivityTimer();
         } else {
             roleSelect.style.display = "flex";
         }
     }
 
-    // חיווי מקליד/ה – מאזין לקלט
     document.getElementById("msgInput").addEventListener("input", handleTyping);
+
+    /* זיהוי יציאה/חזרה לטאב */
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+            if (authed) {
+                lastHiddenTime = Date.now();
+            }
+        } else {
+            if (authed && lastHiddenTime) {
+                const diff = Date.now() - lastHiddenTime;
+                if (diff >= REAUTH_ON_BLUR_MS) {
+                    forceReauth();
+                } else {
+                    resetInactivityTimer();
+                }
+            }
+            lastHiddenTime = null;
+        }
+    });
+
+    /* כל לחיצה על הדף – נחשב פעילות */
+    document.addEventListener("click", () => {
+        resetInactivityTimer();
+    });
 });
 
 /* בדיקת סיסמה – הסיסמה: 2009 */
@@ -314,14 +360,16 @@ function checkPassword() {
         authed = true;
         localStorage.setItem("auth", "ok");
         document.getElementById("passwordScreen").style.display = "none";
+        err.textContent = "";
 
-        // אם כבר נבחר תפקיד – לא צריך שוב לבחור
         if (myRole) {
             document.getElementById("roleSelect").style.display = "none";
             startTypingListener();
         } else {
             document.getElementById("roleSelect").style.display = "flex";
         }
+
+        resetInactivityTimer();
     } else {
         err.textContent = "סיסמה שגויה";
     }
@@ -333,6 +381,7 @@ function chooseRole(role) {
     localStorage.setItem("role", role);
     document.getElementById("roleSelect").style.display = "none";
     startTypingListener();
+    resetInactivityTimer();
 }
 
 /* שליחת הודעה */
@@ -349,10 +398,9 @@ function sendMsg() {
         time: Date.now()
     });
 
-    // אחרי שליחה – מפסיקים חיווי מקליד
     stopTyping();
-
     document.getElementById("msgInput").value = "";
+    resetInactivityTimer();
 }
 
 /* קבלת הודעות בזמן אמת */
@@ -393,15 +441,16 @@ function clearChat() {
 
 /* --- חיווי "מקליד..." / "מקלידה..." --- */
 function handleTyping() {
-    if (!myRole) return;
+    if (!myRole || !authed) return;
 
-    // מסמנים שאנחנו מקלידים
     db.ref("chat/typing/" + myRole).set(true);
 
     if (typingTimeout) clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
         stopTyping();
     }, 1200);
+
+    resetInactivityTimer();
 }
 
 function stopTyping() {
@@ -421,7 +470,6 @@ function startTypingListener() {
         const otherRole = (myRole === "male") ? "female" : "male";
 
         if (data[otherRole]) {
-            // הצד השני מקליד
             ti.textContent = (otherRole === "male") ? "מקליד..." : "מקלידה...";
             ti.style.visibility = "visible";
         } else {
