@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>צ'אט אישי</title>
 
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
 <style>
     body {
         margin: 0;
@@ -15,7 +19,7 @@
         height: 100vh;
     }
 
-    /* מסך בחירת תפקיד */
+    /* --- מסך בחירת תפקיד --- */
     #roleSelect {
         position: fixed;
         top: 0; left: 0;
@@ -34,6 +38,7 @@
         width: 80%;
         max-width: 400px;
     }
+
     .role-row {
         display: flex;
         justify-content: space-between;
@@ -61,7 +66,7 @@
     .circle.male { background:#4fc3f7; }
     .circle.female { background:#ff80ab; }
 
-    /* הצ'אט */
+    /* --- צ'אט --- */
     #chatBox {
         flex: 1;
         overflow-y: auto;
@@ -75,7 +80,7 @@
         max-width: 80%;
     }
 
-    /* --- העיגולים שלך — קטנים וצמודים לקצוות --- */
+    /* עיגולים קטנים מאוד צמודים לקצה */
     .icon {
         width: 14px;
         height: 14px;
@@ -85,12 +90,12 @@
     .icon.male {
         background:#4fc3f7;
         margin-left: 6px;
-        margin-right: -6px; /* דוחף לצד ימין קיצוני */
+        margin-right: -6px;
     }
     .icon.female {
         background:#ff80ab;
         margin-right: 6px;
-        margin-left: -6px; /* דוחף לצד שמאל קיצוני */
+        margin-left: -6px;
     }
 
     /* בועות */
@@ -103,18 +108,14 @@
         word-wrap: break-word;
     }
 
-    /* גבר – ימין */
     .me {
         margin-left: auto;
         flex-direction: row-reverse;
-        justify-content: flex-end;
     }
     .me .bubble { background:#d1f5e0; }
 
-    /* אישה – שמאל */
     .friend {
         margin-right: auto;
-        justify-content: flex-start;
     }
     .friend .bubble { background:#ffe0f0; }
 
@@ -125,7 +126,6 @@
         background: white;
         border-top: 1px solid #ccc;
     }
-
     #msgInput {
         flex: 1;
         padding: 10px;
@@ -133,7 +133,6 @@
         border-radius: 10px;
         font-size: 16px;
     }
-
     #sendBtn {
         margin-right: 10px;
         padding: 10px 15px;
@@ -144,7 +143,6 @@
         font-size: 16px;
         cursor: pointer;
     }
-
     #clearBtn {
         width: 100%;
         padding: 12px;
@@ -188,23 +186,57 @@
 <button id="clearBtn" onclick="clearChat()">מחק צ'אט</button>
 
 <script>
-let myRole = null;
 
-function chooseRole(role) {
-    myRole = role;
+/* --- Firebase config שלך --- */
+const firebaseConfig = {
+  apiKey: "AIzaSyBPD1nZQVAdqSP4uS05TYXBeGtJKsjapA",
+  authDomain: "private-chat-b3a36.firebaseapp.com",
+  databaseURL: "https://private-chat-b3a36-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "private-chat-b3a36",
+  storageBucket: "private-chat-b3a36.firebasestorage.app",
+  messagingSenderId: "88424262632",
+  appId: "1:88424262632:web:a38edf362b59703011525d",
+  measurementId: "G-M9SGLXN3TV"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let myRole = localStorage.getItem("role") || null;
+
+/* אם כבר בחר תפקיד בעבר – לא להראות פופאפ */
+if (myRole) {
     document.getElementById("roleSelect").style.display = "none";
 }
 
+function chooseRole(role) {
+    myRole = role;
+    localStorage.setItem("role", role);
+    document.getElementById("roleSelect").style.display = "none";
+}
+
+/* --- שליחת הודעה --- */
 function sendMsg() {
     if (!myRole) return alert("בחר גבר או אישה קודם");
-
     let txt = document.getElementById("msgInput").value.trim();
     if (!txt) return;
 
-    addMessage(txt, myRole);
+    db.ref("chat/messages").push({
+        text: txt,
+        role: myRole,
+        time: Date.now()
+    });
+
     document.getElementById("msgInput").value = "";
 }
 
+/* --- קבלת הודעות בזמן אמת --- */
+db.ref("chat/messages").on("child_added", snap => {
+    const data = snap.val();
+    addMessage(data.text, data.role);
+});
+
+/* --- הצגת הודעה על המסך --- */
 function addMessage(text, role) {
     const chat = document.getElementById("chatBox");
 
@@ -225,9 +257,12 @@ function addMessage(text, role) {
     chat.scrollTop = chat.scrollHeight;
 }
 
+/* --- מחיקת צ'אט --- */
 function clearChat() {
+    db.ref("chat").remove();
     document.getElementById("chatBox").innerHTML = "";
 }
+
 </script>
 
 </body>
