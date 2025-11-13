@@ -19,16 +19,16 @@
         height: 100vh;
     }
 
-    /* --- מסך סיסמה --- */
+    /* --- מסך סיסמה (מלא, לא שקוף) --- */
     #passwordScreen {
         position: fixed;
         top: 0; left: 0;
         width: 100%; height: 100%;
-        background: #f2f2f2; /* מלא, לא שקוף */
+        background: #f2f2f2;
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 120;
+        z-index: 200;
     }
     #passwordBox {
         background: #ffffff;
@@ -79,7 +79,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        z-index: 99;
+        z-index: 150;
     }
     #roleBox {
         background: white;
@@ -89,7 +89,6 @@
         width: 80%;
         max-width: 400px;
     }
-
     .role-row {
         display: flex;
         justify-content: space-between;
@@ -108,7 +107,6 @@
         align-items: center;
         gap: 8px;
     }
-
     .circle {
         width: 40px;
         height: 40px;
@@ -123,15 +121,12 @@
         overflow-y: auto;
         padding: 12px;
     }
-
     .msg {
         display: flex;
         align-items: center;
         margin-bottom: 12px;
         max-width: 80%;
     }
-
-    /* עיגולים קטנים מאוד צמודים לקצה */
     .icon {
         width: 14px;
         height: 14px;
@@ -148,8 +143,6 @@
         margin-right: 6px;
         margin-left: -6px;
     }
-
-    /* בועות */
     .bubble {
         padding: 9px 12px;
         background: white;
@@ -158,13 +151,11 @@
         box-shadow: 0 4px 10px rgba(0,0,0,0.12);
         word-wrap: break-word;
     }
-
     .me {
         margin-left: auto;
         flex-direction: row-reverse;
     }
     .me .bubble { background:#d1f5e0; }
-
     .friend {
         margin-right: auto;
     }
@@ -180,12 +171,13 @@
         visibility: hidden;
     }
 
-    /* קלט */
+    /* קלט + כפתורים */
     #inputArea {
         display: flex;
         padding: 10px;
         background: white;
         border-top: 1px solid #ccc;
+        gap: 8px;
     }
     #msgInput {
         flex: 1;
@@ -194,15 +186,18 @@
         border-radius: 10px;
         font-size: 16px;
     }
-    #sendBtn {
-        margin-right: 10px;
-        padding: 10px 15px;
+    #sendBtn, #liveBtn {
+        padding: 10px 12px;
         background: #009688;
         color: white;
         border: none;
         border-radius: 10px;
-        font-size: 16px;
+        font-size: 14px;
         cursor: pointer;
+        white-space: nowrap;
+    }
+    #liveBtn {
+        background: #e91e63;
     }
     #clearBtn {
         width: 100%;
@@ -213,6 +208,86 @@
         font-size: 16px;
         cursor: pointer;
     }
+
+    /* --- LIVE וידאו --- */
+    #liveOverlay {
+        position: fixed;
+        top:0; left:0;
+        width:100%; height:100%;
+        background:#000;
+        color:#fff;
+        display:none;
+        flex-direction:column;
+        z-index:180;
+    }
+    #liveVideos {
+        flex:1;
+        display:flex;
+        flex-direction:column;
+    }
+    #remoteContainer, #localContainer {
+        flex:1;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-bottom:1px solid #333;
+    }
+    #localContainer {
+        border-bottom:none;
+        border-top:1px solid #333;
+    }
+    video {
+        max-width:100%;
+        max-height:100%;
+        background:#000;
+    }
+    #liveControls {
+        padding:8px;
+        text-align:center;
+    }
+    #endLiveBtn {
+        padding:10px 18px;
+        background:#f44336;
+        border:none;
+        border-radius:8px;
+        color:#fff;
+        font-size:16px;
+        cursor:pointer;
+    }
+
+    /* פופאפ שיחת LIVE נכנסת */
+    #incomingCall {
+        position: fixed;
+        top:0; left:0;
+        width:100%; height:100%;
+        background:rgba(0,0,0,0.6);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        z-index:185;
+    }
+    #incomingBox {
+        background:white;
+        padding:20px;
+        border-radius:14px;
+        width:80%;
+        max-width:320px;
+        text-align:center;
+    }
+    #incomingBox h3 {
+        margin-top:0;
+        margin-bottom:10px;
+    }
+    .incoming-btn {
+        padding:8px 14px;
+        margin:0 6px;
+        border:none;
+        border-radius:8px;
+        cursor:pointer;
+        font-size:14px;
+    }
+    #acceptBtn { background:#4caf50; color:#fff; }
+    #rejectBtn { background:#f44336; color:#fff; }
 </style>
 </head>
 
@@ -251,13 +326,39 @@
 <!-- חיווי מקליד/ה -->
 <div id="typingIndicator"></div>
 
-<!-- קלט -->
+<!-- קלט וכפתורים -->
 <div id="inputArea">
     <input type="text" id="msgInput" placeholder="הקלד הודעה...">
     <button onclick="sendMsg()" id="sendBtn">שלח</button>
+    <button onclick="onLiveClick()" id="liveBtn">LIVE</button>
 </div>
 
 <button id="clearBtn" onclick="clearChat()">מחק צ'אט</button>
+
+<!-- LIVE Overlay -->
+<div id="liveOverlay">
+    <div id="liveVideos">
+        <div id="remoteContainer">
+            <video id="remoteVideo" autoplay playsinline></video>
+        </div>
+        <div id="localContainer">
+            <video id="localVideo" autoplay playsinline muted></video>
+        </div>
+    </div>
+    <div id="liveControls">
+        <button id="endLiveBtn" onclick="endCall()">סיים LIVE</button>
+    </div>
+</div>
+
+<!-- פופאפ שיחת LIVE נכנסת -->
+<div id="incomingCall">
+    <div id="incomingBox">
+        <h3>שיחת וידאו נכנסת</h3>
+        <p>לאשר LIVE?</p>
+        <button class="incoming-btn" id="acceptBtn" onclick="acceptCall()">אישור</button>
+        <button class="incoming-btn" id="rejectBtn" onclick="rejectCall()">דחייה</button>
+    </div>
+</div>
 
 <script>
 /* --- Firebase config שלך --- */
@@ -275,34 +376,63 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* מצב מקומי */
+/* מצב צאט */
 let myRole = localStorage.getItem("role") || null;
 let authed = (localStorage.getItem("auth") === "ok");
 let typingListenerStarted = false;
 let typingTimeout = null;
 
-/* טיימרים */
+/* טיימרים – פעילות / יציאה מהדף */
 const INACTIVITY_LIMIT = 2 * 60 * 1000; // 2 דקות
 const REAUTH_ON_BLUR_MS = 5000;         // 5 שניות
 let inactivityTimer = null;
 let lastHiddenTime = null;
+let lastActivityTime = Date.now();
 
+/* WebRTC LIVE */
+let pc = null;
+let localStream = null;
+let inCall = false;
+let isCaller = false;
+const servers = {
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+};
+
+/* פונקציית פעילות */
+function markActivity() {
+    lastActivityTime = Date.now();
+    resetInactivityTimer();
+}
+
+/* טיימר חוסר פעילות */
 function resetInactivityTimer() {
     if (inactivityTimer) clearTimeout(inactivityTimer);
     if (!authed) return;
     inactivityTimer = setTimeout(() => {
-        forceReauth(); // אחרי 2 דקות
+        forceReauth();
     }, INACTIVITY_LIMIT);
 }
 
+/* בדיקה מחזורית של חוסר פעילות */
+setInterval(() => {
+    if (!authed) return;
+    const diff = Date.now() - lastActivityTime;
+    if (diff >= INACTIVITY_LIMIT) {
+        forceReauth();
+    }
+}, 5000);
+
+/* כפיית הזנת סיסמה מחדש */
 function forceReauth() {
+    if (!authed) return;
     authed = false;
     localStorage.removeItem("auth");
     stopTyping();
+    endCall(true); // אם היה LIVE, לסגור בכוח
     document.getElementById("passInput").value = "";
     document.getElementById("passError").textContent = "";
     document.getElementById("passwordScreen").style.display = "flex";
-    document.getElementById("roleSelect").style.display = "none"; // הצד נשמר, אין צורך לבחור שוב
+    document.getElementById("roleSelect").style.display = "none";
 }
 
 /* אחרי עליית הדף */
@@ -326,32 +456,33 @@ window.addEventListener("load", () => {
 
     document.getElementById("msgInput").addEventListener("input", handleTyping);
 
-    /* זיהוי יציאה/חזרה לטאב */
+    /* יציאה/חזרה לדף */
     document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
             if (authed) {
                 lastHiddenTime = Date.now();
             }
         } else {
-            if (authed && lastHiddenTime) {
+            if (lastHiddenTime) {
                 const diff = Date.now() - lastHiddenTime;
+                lastHiddenTime = null;
                 if (diff >= REAUTH_ON_BLUR_MS) {
                     forceReauth();
                 } else {
-                    resetInactivityTimer();
+                    markActivity();
                 }
             }
-            lastHiddenTime = null;
         }
     });
 
-    /* כל לחיצה על הדף – נחשב פעילות */
-    document.addEventListener("click", () => {
-        resetInactivityTimer();
-    });
+    /* כל קליק – פעילות */
+    document.addEventListener("click", markActivity);
+
+    /* מאזין להודעות LIVE בפיירבייס */
+    listenForCall();
 });
 
-/* בדיקת סיסמה – הסיסמה: 2009 */
+/* בדיקת סיסמה – 2009 */
 function checkPassword() {
     const input = document.getElementById("passInput").value.trim();
     const err = document.getElementById("passError");
@@ -369,7 +500,7 @@ function checkPassword() {
             document.getElementById("roleSelect").style.display = "flex";
         }
 
-        resetInactivityTimer();
+        markActivity();
     } else {
         err.textContent = "סיסמה שגויה";
     }
@@ -381,7 +512,7 @@ function chooseRole(role) {
     localStorage.setItem("role", role);
     document.getElementById("roleSelect").style.display = "none";
     startTypingListener();
-    resetInactivityTimer();
+    markActivity();
 }
 
 /* שליחת הודעה */
@@ -400,7 +531,7 @@ function sendMsg() {
 
     stopTyping();
     document.getElementById("msgInput").value = "";
-    resetInactivityTimer();
+    markActivity();
 }
 
 /* קבלת הודעות בזמן אמת */
@@ -410,7 +541,7 @@ db.ref("chat/messages").on("child_added", snap => {
     addMessage(data.text, data.role);
 });
 
-/* הצגת הודעה על המסך */
+/* הצגת הודעה */
 function addMessage(text, role) {
     const chat = document.getElementById("chatBox");
 
@@ -439,7 +570,7 @@ function clearChat() {
     db.ref("chat/typing").set(null);
 }
 
-/* --- חיווי "מקליד..." / "מקלידה..." --- */
+/* --- חיווי "מקליד/ה" --- */
 function handleTyping() {
     if (!myRole || !authed) return;
 
@@ -450,15 +581,12 @@ function handleTyping() {
         stopTyping();
     }, 1200);
 
-    resetInactivityTimer();
+    markActivity();
 }
-
 function stopTyping() {
     if (!myRole) return;
     db.ref("chat/typing/" + myRole).set(false);
 }
-
-/* האזנה למצב הקלדה של הצד השני */
 function startTypingListener() {
     if (typingListenerStarted || !myRole) return;
     typingListenerStarted = true;
@@ -466,7 +594,6 @@ function startTypingListener() {
     db.ref("chat/typing").on("value", snap => {
         const data = snap.val() || {};
         const ti = document.getElementById("typingIndicator");
-
         const otherRole = (myRole === "male") ? "female" : "male";
 
         if (data[otherRole]) {
@@ -478,10 +605,200 @@ function startTypingListener() {
     });
 }
 
-/* לפני סגירת הדף – נוודא שלא נשאר "מקליד" */
+/* לפני סגירת הדף – לא להשאיר "מקליד" */
 window.addEventListener("beforeunload", () => {
     stopTyping();
+    endCall(true);
 });
+
+/* --- LIVE – לוגיקה --- */
+
+/* לחיצה על כפתור LIVE   */
+function onLiveClick() {
+    if (!authed) return alert("קודם הזן סיסמה.");
+    if (!myRole) return alert("בחר גבר או אישה קודם.");
+    if (inCall) {
+        // כבר בשיחה -> סיים
+        endCall();
+        return;
+    }
+    startCall();
+}
+
+/* התחלת שיחה כקורא */
+async function startCall() {
+    isCaller = true;
+    await setupPeerConnection();
+
+    // מסמן בבסיס נתונים שיש שיחה
+    await db.ref("call").set({
+        state: "calling",
+        from: myRole
+    });
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await db.ref("call/offer").set(offer);
+
+    showLiveOverlay();
+
+    markActivity();
+}
+
+/* הקמת PeerConnection + מצלמה */
+async function setupPeerConnection() {
+    pc = new RTCPeerConnection(servers);
+
+    pc.onicecandidate = event => {
+        if (event.candidate) {
+            db.ref("call/candidates/" + myRole).push(event.candidate.toJSON());
+        }
+    };
+
+    pc.ontrack = event => {
+        const remoteVideo = document.getElementById("remoteVideo");
+        if (remoteVideo.srcObject !== event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+        }
+    };
+
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+    } catch (err) {
+        alert("שגיאה בגישה למצלמה/מיקרופון: " + err.message);
+        return;
+    }
+
+    const localVideo = document.getElementById("localVideo");
+    localVideo.srcObject = localStream;
+
+    localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream);
+    });
+
+    inCall = true;
+}
+
+/* האזנה מזמינה לשיחות נכנסות */
+function listenForCall() {
+    db.ref("call").on("value", async snap => {
+        const data = snap.val();
+
+        if (!data) {
+            // אין שיחה
+            hideIncoming();
+            hideLiveOverlay();
+            return;
+        }
+
+        const state = data.state;
+        const from = data.from;
+
+        const otherRole = (myRole === "male") ? "female" : "male";
+
+        // אם אני הצד השני ויש שיחה נכנסת
+        if (state === "calling" && from === otherRole && !inCall && authed && myRole) {
+            showIncoming();
+        }
+
+        // אם אני המתקשר ורואה שהשיחה התקבלה
+        if (state === "accepted" && isCaller && inCall) {
+            // הצד השני כבר יוצר Answer, אני רק מחכה ל-answer & candidates (מטופל למטה)
+        }
+
+        // אם השיחה נגמרה
+        if (state === "ended") {
+            endCall(true);
+        }
+    });
+
+    // מאזינים ל-answer
+    db.ref("call/answer").on("value", async snap => {
+        const answer = snap.val();
+        if (!answer || !pc || !isCaller) return;
+
+        if (!pc.currentRemoteDescription) {
+            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+    });
+
+    // כל צד מאזין לקנדידייטים של הצד השני
+    const otherRole = (myRole === "male") ? "female" : "male";
+    db.ref("call/candidates/" + otherRole).on("child_added", async snap => {
+        const cand = snap.val();
+        if (pc && cand) {
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(cand));
+            } catch (e) {}
+        }
+    });
+}
+
+/* מענה לשיחה נכנסת */
+async function acceptCall() {
+    hideIncoming();
+    isCaller = false; // אני הנענֶה
+
+    const callSnap = await db.ref("call").once("value");
+    const callData = callSnap.val();
+    if (!callData || callData.state !== "calling") {
+        return;
+    }
+
+    await setupPeerConnection();
+
+    const offerSnap = await db.ref("call/offer").once("value");
+    const offer = offerSnap.val();
+    if (!offer) return;
+
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await db.ref("call/answer").set(answer);
+    await db.ref("call/state").set("accepted");
+
+    showLiveOverlay();
+    markActivity();
+}
+
+/* דחיית שיחה נכנסת */
+async function rejectCall() {
+    hideIncoming();
+    await db.ref("call/state").set("ended");
+}
+
+/* סיום שיחה */
+async function endCall(forceOnlyLocal=false) {
+    if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+    }
+    if (pc) {
+        pc.close();
+        pc = null;
+    }
+    inCall = false;
+    isCaller = false;
+    hideLiveOverlay();
+
+    if (!forceOnlyLocal) {
+        await db.ref("call").set(null);
+    }
+}
+
+/* הצגת/הסתרת תצוגות */
+function showIncoming() {
+    document.getElementById("incomingCall").style.display = "flex";
+}
+function hideIncoming() {
+    document.getElementById("incomingCall").style.display = "none";
+}
+function showLiveOverlay() {
+    document.getElementById("liveOverlay").style.display = "flex";
+}
+function hideLiveOverlay() {
+    document.getElementById("liveOverlay").style.display = "none";
+}
 </script>
 
 </body>
