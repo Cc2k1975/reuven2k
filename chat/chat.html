@@ -19,6 +19,57 @@
         height: 100vh;
     }
 
+    /* --- מסך סיסמה --- */
+    #passwordScreen {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 120;
+    }
+    #passwordBox {
+        background: #ffffff;
+        padding: 24px;
+        border-radius: 18px;
+        width: 80%;
+        max-width: 360px;
+        text-align: center;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    }
+    #passwordBox h2 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 20px;
+    }
+    #passInput {
+        width: 100%;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #aaa;
+        font-size: 16px;
+        text-align: center;
+    }
+    #passBtn {
+        margin-top: 14px;
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 10px;
+        background: #009688;
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    #passError {
+        margin-top: 8px;
+        color: #e53935;
+        font-size: 14px;
+        min-height: 18px;
+    }
+
     /* --- מסך בחירת תפקיד --- */
     #roleSelect {
         position: fixed;
@@ -119,6 +170,16 @@
     }
     .friend .bubble { background:#ffe0f0; }
 
+    /* חיווי מקליד/ה */
+    #typingIndicator {
+        min-height: 20px;
+        padding: 0 12px 4px;
+        font-size: 13px;
+        color: #777;
+        font-style: italic;
+        visibility: hidden;
+    }
+
     /* קלט */
     #inputArea {
         display: flex;
@@ -157,7 +218,17 @@
 
 <body>
 
-<!-- פופאפ בחירה -->
+<!-- מסך סיסמה -->
+<div id="passwordScreen">
+    <div id="passwordBox">
+        <h2>הכנס סיסמה לצ'אט</h2>
+        <input type="password" id="passInput" placeholder="סיסמה" autocomplete="off">
+        <button id="passBtn" onclick="checkPassword()">כניסה</button>
+        <div id="passError"></div>
+    </div>
+</div>
+
+<!-- פופאפ בחירת צד -->
 <div id="roleSelect">
     <div id="roleBox">
         <h2>בחר צד בצ'אט</h2>
@@ -177,6 +248,9 @@
 <!-- צ'אט -->
 <div id="chatBox"></div>
 
+<!-- חיווי מקליד/ה -->
+<div id="typingIndicator"></div>
+
 <!-- קלט -->
 <div id="inputArea">
     <input type="text" id="msgInput" placeholder="הקלד הודעה...">
@@ -186,7 +260,6 @@
 <button id="clearBtn" onclick="clearChat()">מחק צ'אט</button>
 
 <script>
-
 /* --- Firebase config שלך --- */
 const firebaseConfig = {
   apiKey: "AIzaSyBPD1nZQVAdqSP4uS05TYXBeGtJKsjapA",
@@ -202,22 +275,71 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+/* מצב מקומי */
 let myRole = localStorage.getItem("role") || null;
+let authed = (localStorage.getItem("auth") === "ok");
+let typingListenerStarted = false;
+let typingTimeout = null;
 
-/* אם כבר בחר תפקיד בעבר – לא להראות פופאפ */
-if (myRole) {
-    document.getElementById("roleSelect").style.display = "none";
+/* אחרי עליית הדף */
+window.addEventListener("load", () => {
+    const passScreen = document.getElementById("passwordScreen");
+    const roleSelect = document.getElementById("roleSelect");
+
+    if (!authed) {
+        // עדיין לא הוכנסה סיסמה
+        passScreen.style.display = "flex";
+        roleSelect.style.display = "none";
+    } else {
+        // סיסמה כבר אושרה בעבר
+        passScreen.style.display = "none";
+        if (myRole) {
+            roleSelect.style.display = "none";
+            startTypingListener();
+        } else {
+            roleSelect.style.display = "flex";
+        }
+    }
+
+    // חיווי מקליד/ה – מאזין לקלט
+    document.getElementById("msgInput").addEventListener("input", handleTyping);
+});
+
+/* בדיקת סיסמה – הסיסמה: 2009 */
+function checkPassword() {
+    const input = document.getElementById("passInput").value.trim();
+    const err = document.getElementById("passError");
+
+    if (input === "2009") {
+        authed = true;
+        localStorage.setItem("auth", "ok");
+        document.getElementById("passwordScreen").style.display = "none";
+
+        // אם כבר נבחר תפקיד – לא צריך שוב לבחור
+        if (myRole) {
+            document.getElementById("roleSelect").style.display = "none";
+            startTypingListener();
+        } else {
+            document.getElementById("roleSelect").style.display = "flex";
+        }
+    } else {
+        err.textContent = "סיסמה שגויה";
+    }
 }
 
+/* בחירת תפקיד */
 function chooseRole(role) {
     myRole = role;
     localStorage.setItem("role", role);
     document.getElementById("roleSelect").style.display = "none";
+    startTypingListener();
 }
 
-/* --- שליחת הודעה --- */
+/* שליחת הודעה */
 function sendMsg() {
-    if (!myRole) return alert("בחר גבר או אישה קודם");
+    if (!authed) return alert("קודם הזן סיסמה.");
+    if (!myRole) return alert("בחר גבר או אישה קודם.");
+
     let txt = document.getElementById("msgInput").value.trim();
     if (!txt) return;
 
@@ -227,16 +349,20 @@ function sendMsg() {
         time: Date.now()
     });
 
+    // אחרי שליחה – מפסיקים חיווי מקליד
+    stopTyping();
+
     document.getElementById("msgInput").value = "";
 }
 
-/* --- קבלת הודעות בזמן אמת --- */
+/* קבלת הודעות בזמן אמת */
 db.ref("chat/messages").on("child_added", snap => {
     const data = snap.val();
+    if (!data) return;
     addMessage(data.text, data.role);
 });
 
-/* --- הצגת הודעה על המסך --- */
+/* הצגת הודעה על המסך */
 function addMessage(text, role) {
     const chat = document.getElementById("chatBox");
 
@@ -257,12 +383,57 @@ function addMessage(text, role) {
     chat.scrollTop = chat.scrollHeight;
 }
 
-/* --- מחיקת צ'אט --- */
+/* מחיקת צ'אט */
 function clearChat() {
+    if (!confirm("למחוק את כל הצ'אט לכולם?")) return;
     db.ref("chat").remove();
     document.getElementById("chatBox").innerHTML = "";
+    db.ref("chat/typing").set(null);
 }
 
+/* --- חיווי "מקליד..." / "מקלידה..." --- */
+function handleTyping() {
+    if (!myRole) return;
+
+    // מסמנים שאנחנו מקלידים
+    db.ref("chat/typing/" + myRole).set(true);
+
+    if (typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        stopTyping();
+    }, 1200);
+}
+
+function stopTyping() {
+    if (!myRole) return;
+    db.ref("chat/typing/" + myRole).set(false);
+}
+
+/* האזנה למצב הקלדה של הצד השני */
+function startTypingListener() {
+    if (typingListenerStarted || !myRole) return;
+    typingListenerStarted = true;
+
+    db.ref("chat/typing").on("value", snap => {
+        const data = snap.val() || {};
+        const ti = document.getElementById("typingIndicator");
+
+        const otherRole = (myRole === "male") ? "female" : "male";
+
+        if (data[otherRole]) {
+            // הצד השני מקליד
+            ti.textContent = (otherRole === "male") ? "מקליד..." : "מקלידה...";
+            ti.style.visibility = "visible";
+        } else {
+            ti.style.visibility = "hidden";
+        }
+    });
+}
+
+/* לפני סגירת הדף – נוודא שלא נשאר "מקליד" */
+window.addEventListener("beforeunload", () => {
+    stopTyping();
+});
 </script>
 
 </body>
