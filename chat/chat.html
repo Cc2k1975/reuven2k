@@ -171,7 +171,7 @@
         visibility: hidden;
     }
 
-    /* קלט + כפתורים */
+    /* קלט וכפתורים */
     #inputArea {
         display: flex;
         padding: 10px;
@@ -226,7 +226,7 @@
         flex-direction:column;
     }
     #remoteContainer, #localContainer {
-        flex:1;
+        height:50%;
         display:flex;
         align-items:center;
         justify-content:center;
@@ -237,8 +237,9 @@
         border-top:1px solid #333;
     }
     video {
-        max-width:100%;
-        max-height:100%;
+        width:100%;
+        height:100%;
+        object-fit:cover;
         background:#000;
     }
     #liveControls {
@@ -297,7 +298,7 @@
 <div id="passwordScreen">
     <div id="passwordBox">
         <h2>הכנס סיסמה לצ'אט</h2>
-        <input type="password" id="passInput" placeholder="סיסמה" autocomplete="off">
+        <input type="password" id="passInput" placeholder="סיסמה" autocomplete="off" autocapitalize="off">
         <button id="passBtn" onclick="checkPassword()">כניסה</button>
         <div id="passError"></div>
     </div>
@@ -376,18 +377,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* מצב צאט */
+/* מצב צ'אט */
 let myRole = localStorage.getItem("role") || null;
-let authed = (localStorage.getItem("auth") === "ok");
+let authed = false; // תמיד מתחילים לא מחובר
 let typingListenerStarted = false;
 let typingTimeout = null;
-
-/* טיימרים – פעילות / יציאה מהדף */
-const INACTIVITY_LIMIT = 2 * 60 * 1000; // 2 דקות
-const REAUTH_ON_BLUR_MS = 5000;         // 5 שניות
-let inactivityTimer = null;
-let lastHiddenTime = null;
-let lastActivityTime = Date.now();
 
 /* WebRTC LIVE */
 let pc = null;
@@ -398,87 +392,25 @@ const servers = {
     iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 };
 
-/* פונקציית פעילות */
-function markActivity() {
-    lastActivityTime = Date.now();
-    resetInactivityTimer();
-}
-
-/* טיימר חוסר פעילות */
-function resetInactivityTimer() {
-    if (inactivityTimer) clearTimeout(inactivityTimer);
-    if (!authed) return;
-    inactivityTimer = setTimeout(() => {
-        forceReauth();
-    }, INACTIVITY_LIMIT);
-}
-
-/* בדיקה מחזורית של חוסר פעילות */
-setInterval(() => {
-    if (!authed) return;
-    const diff = Date.now() - lastActivityTime;
-    if (diff >= INACTIVITY_LIMIT) {
-        forceReauth();
-    }
-}, 5000);
-
-/* כפיית הזנת סיסמה מחדש */
-function forceReauth() {
-    if (!authed) return;
-    authed = false;
-    localStorage.removeItem("auth");
-    stopTyping();
-    endCall(true); // אם היה LIVE, לסגור בכוח
-    document.getElementById("passInput").value = "";
-    document.getElementById("passError").textContent = "";
-    document.getElementById("passwordScreen").style.display = "flex";
-    document.getElementById("roleSelect").style.display = "none";
-}
-
 /* אחרי עליית הדף */
 window.addEventListener("load", () => {
-    const passScreen = document.getElementById("passwordScreen");
-    const roleSelect = document.getElementById("roleSelect");
-
-    if (!authed) {
-        passScreen.style.display = "flex";
-        roleSelect.style.display = "none";
-    } else {
-        passScreen.style.display = "none";
-        if (myRole) {
-            roleSelect.style.display = "none";
-            startTypingListener();
-            resetInactivityTimer();
-        } else {
-            roleSelect.style.display = "flex";
-        }
-    }
+    // תמיד מתחילים עם מסך סיסמה
+    document.getElementById("passwordScreen").style.display = "flex";
+    document.getElementById("roleSelect").style.display = "none";
 
     document.getElementById("msgInput").addEventListener("input", handleTyping);
 
-    /* יציאה/חזרה לדף */
+    // כל יציאה/חזרה לטאב – אם חוזרים ויש auth => ישר מבקש סיסמה מחדש
     document.addEventListener("visibilitychange", () => {
-        if (document.hidden) {
-            if (authed) {
-                lastHiddenTime = Date.now();
-            }
-        } else {
-            if (lastHiddenTime) {
-                const diff = Date.now() - lastHiddenTime;
-                lastHiddenTime = null;
-                if (diff >= REAUTH_ON_BLUR_MS) {
-                    forceReauth();
-                } else {
-                    markActivity();
-                }
-            }
+        if (!document.hidden && authed) {
+            forceReauth();
         }
     });
 
-    /* כל קליק – פעילות */
-    document.addEventListener("click", markActivity);
+    // קליק נחשב פעילות – לא חשוב כרגע, אבל יכול לשמש לעתיד
+    document.addEventListener("click", () => {});
 
-    /* מאזין להודעות LIVE בפיירבייס */
+    // מאזין לשיחות LIVE
     listenForCall();
 });
 
@@ -489,7 +421,6 @@ function checkPassword() {
 
     if (input === "2009") {
         authed = true;
-        localStorage.setItem("auth", "ok");
         document.getElementById("passwordScreen").style.display = "none";
         err.textContent = "";
 
@@ -499,11 +430,21 @@ function checkPassword() {
         } else {
             document.getElementById("roleSelect").style.display = "flex";
         }
-
-        markActivity();
     } else {
         err.textContent = "סיסמה שגויה";
     }
+}
+
+/* כפיית הזנת סיסמה מחדש */
+function forceReauth() {
+    if (!authed) return;
+    authed = false;
+    stopTyping();
+    endCall(true); // אם יש LIVE – לסגור
+    document.getElementById("passInput").value = "";
+    document.getElementById("passError").textContent = "";
+    document.getElementById("passwordScreen").style.display = "flex";
+    document.getElementById("roleSelect").style.display = "none";
 }
 
 /* בחירת תפקיד */
@@ -512,7 +453,6 @@ function chooseRole(role) {
     localStorage.setItem("role", role);
     document.getElementById("roleSelect").style.display = "none";
     startTypingListener();
-    markActivity();
 }
 
 /* שליחת הודעה */
@@ -531,7 +471,6 @@ function sendMsg() {
 
     stopTyping();
     document.getElementById("msgInput").value = "";
-    markActivity();
 }
 
 /* קבלת הודעות בזמן אמת */
@@ -580,8 +519,6 @@ function handleTyping() {
     typingTimeout = setTimeout(() => {
         stopTyping();
     }, 1200);
-
-    markActivity();
 }
 function stopTyping() {
     if (!myRole) return;
@@ -613,12 +550,10 @@ window.addEventListener("beforeunload", () => {
 
 /* --- LIVE – לוגיקה --- */
 
-/* לחיצה על כפתור LIVE   */
 function onLiveClick() {
     if (!authed) return alert("קודם הזן סיסמה.");
     if (!myRole) return alert("בחר גבר או אישה קודם.");
     if (inCall) {
-        // כבר בשיחה -> סיים
         endCall();
         return;
     }
@@ -630,7 +565,6 @@ async function startCall() {
     isCaller = true;
     await setupPeerConnection();
 
-    // מסמן בבסיס נתונים שיש שיחה
     await db.ref("call").set({
         state: "calling",
         from: myRole
@@ -641,8 +575,6 @@ async function startCall() {
     await db.ref("call/offer").set(offer);
 
     showLiveOverlay();
-
-    markActivity();
 }
 
 /* הקמת PeerConnection + מצלמה */
@@ -679,13 +611,12 @@ async function setupPeerConnection() {
     inCall = true;
 }
 
-/* האזנה מזמינה לשיחות נכנסות */
+/* האזנה לשיחות נכנסות */
 function listenForCall() {
     db.ref("call").on("value", async snap => {
         const data = snap.val();
 
         if (!data) {
-            // אין שיחה
             hideIncoming();
             hideLiveOverlay();
             return;
@@ -694,25 +625,19 @@ function listenForCall() {
         const state = data.state;
         const from = data.from;
 
+        if (!myRole) return;
+
         const otherRole = (myRole === "male") ? "female" : "male";
 
-        // אם אני הצד השני ויש שיחה נכנסת
-        if (state === "calling" && from === otherRole && !inCall && authed && myRole) {
+        if (state === "calling" && from === otherRole && !inCall && authed) {
             showIncoming();
         }
 
-        // אם אני המתקשר ורואה שהשיחה התקבלה
-        if (state === "accepted" && isCaller && inCall) {
-            // הצד השני כבר יוצר Answer, אני רק מחכה ל-answer & candidates (מטופל למטה)
-        }
-
-        // אם השיחה נגמרה
         if (state === "ended") {
             endCall(true);
         }
     });
 
-    // מאזינים ל-answer
     db.ref("call/answer").on("value", async snap => {
         const answer = snap.val();
         if (!answer || !pc || !isCaller) return;
@@ -722,9 +647,8 @@ function listenForCall() {
         }
     });
 
-    // כל צד מאזין לקנדידייטים של הצד השני
-    const otherRole = (myRole === "male") ? "female" : "male";
-    db.ref("call/candidates/" + otherRole).on("child_added", async snap => {
+    const otherRoleForCand = (myRole === "male") ? "female" : "male";
+    db.ref("call/candidates/" + otherRoleForCand).on("child_added", async snap => {
         const cand = snap.val();
         if (pc && cand) {
             try {
@@ -737,7 +661,7 @@ function listenForCall() {
 /* מענה לשיחה נכנסת */
 async function acceptCall() {
     hideIncoming();
-    isCaller = false; // אני הנענֶה
+    isCaller = false;
 
     const callSnap = await db.ref("call").once("value");
     const callData = callSnap.val();
@@ -758,7 +682,6 @@ async function acceptCall() {
     await db.ref("call/state").set("accepted");
 
     showLiveOverlay();
-    markActivity();
 }
 
 /* דחיית שיחה נכנסת */
