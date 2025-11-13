@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>מפקד ציוד — אונליין</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f0fcff;
+  --card:#ffffff;
+  --ink:#06323a;
+  --muted:#556b75;
+  --accent:#0ea5a4;
+  --danger:#dc2626;
+  --emp:#16a34a; /* ירוק לתעודת זהות */
+  --radius:12px;
+  --touch-size:48px;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:Heebo,system-ui,Arial,Roboto,"Segoe UI",sans-serif;
+  background:linear-gradient(180deg,var(--bg),#f6feff);
+  color:var(--ink);
+  font-size:15px;
+  -webkit-font-smoothing:antialiased;
+}
+.page{max-width:900px;margin:0 auto;padding:10px}
+header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:10px;
+}
+h1{
+  font-size:20px;
+  margin:0;
+  text-align:center;
+  flex:1;
+}
+.top-actions{display:flex;gap:6px;align-items:center}
+
+.wrap{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+.sidebar{
+  width:260px;
+  flex:0 0 260px;
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:10px;
+  border:1px solid rgba(6,50,58,0.06);
+  box-shadow:0 4px 14px rgba(2,6,23,0.05);
+}
+.main{flex:1}
+
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  padding:10px;
+  margin-bottom:10px;
+  border:1px solid rgba(6,50,58,0.06);
+}
+.card-title{
+  font-weight:700;
+  font-size:14px;
+  margin-bottom:6px;
+  color:var(--muted);
+}
+label{display:block;color:var(--muted);font-size:13px;margin-bottom:4px}
+input[type="text"],input[type="search"]{
+  width:100%;
+  padding:10px;
+  border-radius:9px;
+  border:1px solid rgba(6,50,58,0.08);
+  font-size:15px;
+  background:#fff;
+}
+
+button{
+  border:0;
+  border-radius:9px;
+  padding:8px 10px;
+  font-weight:800;
+  cursor:pointer;
+  min-height:38px;
+  font-size:14px;
+}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-export{background:#0b77b8;color:#fff}
+.btn-muted{background:#eef7f7;color:var(--muted);border:1px solid rgba(6,50,58,0.04)}
+.btn-danger-solid{background:var(--danger);color:#fff}
+.btn-danger-outline{
+  background:transparent;
+  color:#b91c1c;
+  border:1px solid rgba(220,38,38,0.7);
+}
+.btn-small{font-size:12px;padding:5px 8px;min-height:30px}
+.btn-xsmall{font-size:11px;padding:4px 6px;min-height:26px}
+
+/* כפתור מחיקת כל המסד – קטן ועדין */
+.btn-clear-all{
+  font-size:11px;
+  padding:4px 7px;
+  min-height:26px;
+}
+
+/* שורות קלט */
+.row{display:flex;gap:6px;flex-wrap:wrap}
+.row>*{flex:1}
+
+/* אינדיקטורים */
+.indicator{
+  padding:8px;
+  border-radius:9px;
+  background:#f8feff;
+  border:1px solid rgba(6,50,58,0.03);
+  margin-bottom:8px;
+}
+.indicator .title{font-size:12px;color:var(--muted)}
+.indicator .val{font-size:18px;font-weight:800;color:var(--accent);margin-top:3px}
+
+/* רשימת עובדים/פריטים */
+.groups-container{display:flex;flex-direction:column;gap:8px}
+.group{
+  background:linear-gradient(180deg,#fff,#fbfeff);
+  border-radius:10px;
+  padding:8px;
+  border:1px solid rgba(6,50,58,0.04);
+}
+.group-header{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+/* שורת כותרת: ת.ז + כפתורים */
+.group-title-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:6px;
+}
+.group-main-title{
+  font-weight:700;
+  font-size:14px;
+}
+.employee-id{
+  color:var(--emp);
+  font-weight:800;
+  font-size:16px;
+}
+.group-name{
+  font-weight:600;
+  font-size:13px;
+}
+.group-actions-inline{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+}
+.group-actions-inline button{
+  flex:0 0 auto;
+}
+
+/* טקסט פריטים */
+.group-sub{
+  font-size:12px;
+  color:var(--muted);
+}
+
+/* פריטים */
+.items{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:6px;
+  border-radius:8px;
+  background:#f6feff;
+  border:1px solid rgba(6,50,58,0.03);
+}
+.item-main{
+  font-weight:700;
+  font-size:13px;
+}
+.small{font-size:12px;color:var(--muted)}
+
+/* מודאל מצלמה */
+#cameraModal{
+  position:fixed;
+  left:0;top:0;width:100%;height:100%;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.5);
+  z-index:60;
+}
+#cameraModal .modalCard{
+  width:100%;height:100%;
+  border-radius:0;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+}
+#scanner{flex:1;background:#000;border-radius:8px;overflow:hidden}
+
+/* מובייל */
+.sidebar.collapsed{display:none}
+.sidebar-toggle{display:none}
+@media (max-width:768px){
+  .wrap{flex-direction:column}
+  .sidebar{width:100%;order:0}
+  .main{order:1}
+}
+@media (max-width:540px){
+  h1{font-size:18px}
+  .wrap{flex-direction:column}
+  .sidebar{display:none}
+  .sidebar-toggle{
+    display:inline-block;
+    background:transparent;
+    border:0;
+    color:var(--accent);
+    font-weight:800;
+    font-size:13px;
+  }
+  button{min-height:var(--touch-size);font-size:14px}
+  input[type="text"],input[type="search"]{font-size:15px;padding:10px}
+}
+footer{
+  text-align:center;
+  color:var(--muted);
+  font-size:11px;
+  margin-top:6px;
+}
+
+/* טוסט נשמר בהצלחה */
+.toast{
+  position:fixed;
+  top:16px;
+  right:50%;
+  transform:translateX(50%) translateY(-10px);
+  background:#16a34a;
+  color:#ffffff;
+  padding:8px 16px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:800;
+  box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .25s ease, transform .25s ease;
+  z-index:200;
+}
+.toast.show{
+  opacity:1;
+  transform:translateX(50%) translateY(0);
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <button id="toggleSidebar" class="sidebar-toggle">הצג מידע</button>
+    <h1>מפקד ציוד</h1>
+    <div class="top-actions">
+      <button id="btnExportTop" class="btn-export">ייצא</button>
+      <button id="btnClearAll" class="btn-danger-outline btn-clear-all">נקה נתונים</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <!-- סיידבר מידע -->
+    <aside id="sidebar" class="sidebar" role="complementary" aria-label="מידע עובד">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div>
+          <label for="searchEmployee">חפש עובד לפי תעודת זהות או שם</label>
+          <input id="searchEmployee" type="search" placeholder="הקלד ת.ז. או שם" />
+        </div>
+        <div class="indicator">
+          <div class="title">מספר זהות העובד הפעיל</div>
+          <div class="val" id="currentEmployeeDisplay">אין</div>
+        </div>
+        <div class="indicator">
+          <div class="title">אינוונטר אחרון שנסרק</div>
+          <div class="val" id="lastInvDisplay">אין</div>
+        </div>
+        <div class="small">כאן רואים מצב כללי – אפשר להסתיר בחלון קטן במובייל.</div>
+      </div>
+    </aside>
+
+    <!-- אזור עבודה מרכזי -->
+    <main class="main" role="main">
+      <!-- שורה 1: עובד -->
+      <section class="card" aria-labelledby="employee-heading">
+        <div class="card-title">עובד פעיל</div>
+        <label for="employeeInput">סרוק תג עובד / הקלד מספר זהות</label>
+        <div class="row" style="margin-bottom:6px">
+          <input id="employeeInput" type="text" placeholder="סרוק תג עובד או הקלד ת.ז." />
+          <button id="btnAddEmployee" class="btn-accent">הוסף תג עובד</button>
+        </div>
+        <div class="row" style="margin-bottom:6px">
+          <input id="employeeNameInput" type="text" placeholder="(אופציונלי) שם עובד להצגה ברשימה" />
+          <button id="btnSaveName" class="btn-muted btn-small">שמור שם</button>
+          <button id="btnClearEmployee" class="btn-muted btn-small">נקה</button>
+        </div>
+        <div class="small">בחר/סרוק עובד פעם אחת – כל האינוונטרים שיסרקו יישייכו אליו עד שתבחר עובד אחר.</div>
+      </section>
+
+      <!-- שורה 2: אינבנטור -->
+      <section class="card" aria-labelledby="inv-heading">
+        <div class="card-title">אינוונטרים לעובד הפעיל</div>
+        <label for="invInput">סריקת מספר אינוונטר / הקלד מספר</label>
+        <div class="row" style="margin-bottom:6px">
+          <input id="invInput" type="text" placeholder="סרוק ברקוד או הקלד קוד" />
+          <button id="btnAddInv" class="btn-accent">הוסף אינוונטר</button>
+        </div>
+        <div class="row" style="margin-bottom:4px">
+          <button id="btnManualInv" class="btn-muted btn-small">הוספה ידנית</button>
+          <button id="btnCameraInv" class="btn-muted btn-small">סריקה מצלמה</button>
+        </div>
+        <div class="small">בסריקה מהמצלמה (אינוונטר) – המערכת תקלוט פריט חדש אוטומטית כל 5 שניות.</div>
+      </section>
+
+      <!-- רשימת עובדים + אינוונטרים -->
+      <section id="listSection" class="card" aria-labelledby="list-heading">
+        <div class="card-title">אינוונטר לעובד</div>
+        <div id="groupsContainer" class="groups-container"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- מודאל מצלמה -->
+  <div id="cameraModal">
+    <div class="modalCard card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+        <h3 style="margin:0;font-size:16px">סריקת ברקוד (מצלמה)</h3>
+        <div style="display:flex;gap:6px">
+          <button id="stopScanner" class="btn-muted btn-small">עצור</button>
+          <button id="closeCamera" class="btn-muted btn-small">סגור</button>
+        </div>
+      </div>
+      <div id="scanner" style="margin-top:8px"></div>
+      <div style="margin-top:6px" class="small">
+        סריקה לעובד: פעם אחת ועוצרים. סריקה לאינוונטר: מוסיף פריט חדש כל 5 שניות.
+      </div>
+    </div>
+  </div>
+
+  <footer>mifkad-online – שמירה אונליין בלבד ל־JSONBin.</footer>
+</div>
+
+<div id="toast" class="toast">נשמר בהצלחה לשרת ✓</div>
+
+<script>
+/* ====== הגדרות JSONBIN ====== */
+const BIN_ID  = "69157923ae596e708f563ed3";
+const BIN_KEY = "$2a$10$okE.7WheOd8wNlKfdyTnnOW/h8upYNv4Ry8BEX4OqIXUQJBzCPnBi";
+const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+
+/* ====== DOM ====== */
+const toggleSidebarBtn = document.getElementById('toggleSidebar');
+const sidebar = document.getElementById('sidebar');
+
+const searchEmployee = document.getElementById('searchEmployee');
+const currentEmployeeDisplay = document.getElementById('currentEmployeeDisplay');
+const lastInvDisplay = document.getElementById('lastInvDisplay');
+
+const employeeInput = document.getElementById('employeeInput');
+const btnAddEmployee = document.getElementById('btnAddEmployee');
+const btnClearEmployee = document.getElementById('btnClearEmployee');
+const employeeNameInput = document.getElementById('employeeNameInput');
+const btnSaveName = document.getElementById('btnSaveName');
+
+const invInput = document.getElementById('invInput');
+const btnAddInv = document.getElementById('btnAddInv');
+const btnManualInv = document.getElementById('btnManualInv');
+const btnCameraInv = document.getElementById('btnCameraInv');
+
+const groupsContainer = document.getElementById('groupsContainer');
+const btnExportTop = document.getElementById('btnExportTop');
+const btnClearAll = document.getElementById('btnClearAll');
+
+const cameraModal = document.getElementById('cameraModal');
+const scannerDiv = document.getElementById('scanner');
+const stopScanner = document.getElementById('stopScanner');
+const closeCamera = document.getElementById('closeCamera');
+
+const toastEl = document.getElementById('toast');
+
+/* ====== מצב נתונים ====== */
+let groups = [];          // [{idNumber, name, items:[{inv, ts}]}]
+let currentEmployee = null;
+let lastInv = null;
+
+/* JSONBin save debounce */
+let saveTimer = null;
+
+/* Quagga */
+let quaggaActive = false;
+let quaggaCallbackTarget = null;
+let lastProcessedInvTime = 0;
+
+/* ====== טוסט ====== */
+function showToast(){
+  if(!toastEl) return;
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'),1000);
+}
+
+/* ====== אודיו/ביפים ====== */
+let audioCtx = null;
+function ensureAudioContext(){
+  if(!audioCtx){
+    try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ audioCtx = null; }
+  }
+  return audioCtx;
+}
+function playTone(freq,dur=120,vol=0.12){
+  const ctx = ensureAudioContext();
+  if(!ctx) return;
+  if(ctx.state === 'suspended' && ctx.resume) ctx.resume().catch(()=>{});
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type='sine';
+  osc.frequency.value=freq;
+  gain.gain.value=vol;
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start();
+  setTimeout(()=>{ try{osc.stop();osc.disconnect();gain.disconnect();}catch(e){} },dur);
+}
+function playSeq(seq){
+  let t=0;
+  seq.forEach(s=>{ setTimeout(()=>playTone(s.f,s.d,s.v),t); t+=s.d+(s.g||60); });
+}
+function vibrate(pattern){ try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){} }
+function beep(kind){
+  if(kind==='success'){ playTone(1100,120,0.16); vibrate(70); }
+  else if(kind==='duplicate'){ playSeq([{f:520,d:100,v:0.12,g:60},{f:520,d:100,v:0.12}]); vibrate([40,50,40]); }
+  else if(kind==='transfer'){ playTone(900,150,0.14); vibrate(80); }
+  else if(kind==='error'){ playTone(380,250,0.14); vibrate([200,80]); }
+}
+(function initAudioOnGesture(){
+  function once(){ ensureAudioContext(); document.removeEventListener('touchstart',once); document.removeEventListener('click',once); }
+  document.addEventListener('touchstart',once,{passive:true});
+  document.addEventListener('click',once,{passive:true});
+})();
+
+/* ====== עזרי זמן וטקסט ====== */
+function nowTS(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+
+         String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');
+}
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function findGroup(id){ return groups.find(g=>g.idNumber===id); }
+function ensureGroup(id){
+  let g=findGroup(id);
+  if(!g){
+    g={idNumber:id,name:'',items:[]};
+    groups.unshift(g);
+  }
+  return g;
+}
+function findInv(inv){
+  for(const g of groups){
+    for(const it of g.items){
+      if(it.inv===inv) return {groupId:g.idNumber,item:it};
+    }
+  }
+  return null;
+}
+
+/* ====== טעינה מהשרת ====== */
+async function loadFromServer(){
+  try{
+    const res = await fetch(BIN_URL,{
+      headers:{ "X-Master-Key": BIN_KEY }
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    const rec = json.record || {};
+
+    // אם כבר שמור במבנה Array כמו אצלנו
+    if(Array.isArray(rec.groups)){
+      groups = rec.groups;
+    } else if(rec.groups && typeof rec.groups === 'object'){
+      // המרה ממפה {id:[{inv,time}]} למבנה החדש
+      groups = Object.keys(rec.groups).map(id=>{
+        const raw = rec.groups[id] || {};
+        let items = raw.items || raw || [];
+        if(!Array.isArray(items)) items=[];
+        items = items.map(it=>({
+          inv: it.inv || it.code || '',
+          ts:  it.ts  || it.time || it.date || ''
+        }));
+        return {
+          idNumber:id,
+          name: raw.name || '',
+          items
+        };
+      });
+    } else {
+      groups=[];
+    }
+
+    currentEmployee = rec.currentEmployee || null;
+    lastInv = rec.lastInv || null;
+  }catch(e){
+    console.error('שגיאה בטעינת JSONBin',e);
+    groups=[]; currentEmployee=null; lastInv=null;
+  }
+  updateUI();
+}
+
+/* ====== שמירה לשרת (PUT, עם debounce) ====== */
+function scheduleSave(){
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToServer,500);
+}
+async function saveToServer(){
+  saveTimer = null;
+  const payload = {groups,currentEmployee,lastInv};
+  try{
+    const res = await fetch(BIN_URL,{
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Master-Key':BIN_KEY
+      },
+      body:JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    showToast();
+  }catch(e){
+    console.error('שגיאה בשמירה לשרת',e);
+  }
+}
+function save(){ scheduleSave(); }
+function forceSave(){ saveToServer(); }
+
+/* ====== UI ====== */
+function updateUI(filter=''){
+  currentEmployeeDisplay.textContent=currentEmployee||'אין';
+  lastInvDisplay.textContent=lastInv||'אין';
+
+  groupsContainer.innerHTML='';
+  const flt=(filter||'').trim().toLowerCase();
+  const visible=groups.filter(g=>{
+    if(!flt) return true;
+    return String(g.idNumber).toLowerCase().includes(flt) || (g.name||'').toLowerCase().includes(flt);
+  });
+  if(!visible.length){
+    groupsContainer.innerHTML='<div class="small">טרם בוצעו סריקות.</div>';
+    return;
+  }
+
+  visible.forEach(g=>{
+    const groupEl=document.createElement('div');
+    groupEl.className='group';
+
+    const header=document.createElement('div');
+    header.className='group-header';
+
+    const titleRow=document.createElement('div');
+    titleRow.className='group-title-row';
+
+    const titleDiv=document.createElement('div');
+    titleDiv.className='group-main-title';
+    titleDiv.innerHTML=
+      `<span class="employee-id">ת.ז ${escapeHtml(g.idNumber)}</span>`+
+      (g.name ? `<span class="group-name"> — ${escapeHtml(g.name)}</span>` : '');
+
+    const actions=document.createElement('div');
+    actions.className='group-actions-inline';
+
+    const chooseBtn=document.createElement('button');
+    chooseBtn.className='btn-muted btn-xsmall';
+    chooseBtn.textContent='בחר עובד';
+    chooseBtn.onclick=()=>{ currentEmployee=g.idNumber; updateUI(searchEmployee.value||''); save(); };
+
+    const editBtn=document.createElement('button');
+    editBtn.className='btn-muted btn-xsmall';
+    editBtn.textContent='ערוך שם';
+    editBtn.onclick=()=>{
+      const nm=prompt('שם עובד:',g.name||'');
+      if(nm!==null){
+        g.name=nm.trim();
+        save(); updateUI(searchEmployee.value||'');
+        beep('success');
+      }
+    };
+
+    const removeBtn=document.createElement('button');
+    removeBtn.className='btn-danger-outline btn-xsmall';
+    removeBtn.textContent='הסר עובד';
+    removeBtn.onclick=()=>{
+      if(confirm('להסיר את העובד וכל הפריטים שלו?')){
+        groups=groups.filter(x=>x.idNumber!==g.idNumber);
+        if(currentEmployee===g.idNumber) currentEmployee=null;
+        save(); updateUI(searchEmployee.value||'');
+        beep('error');
+      }
+    };
+
+    actions.appendChild(chooseBtn);
+    actions.appendChild(editBtn);
+    actions.appendChild(removeBtn);
+
+    titleRow.appendChild(titleDiv);
+    titleRow.appendChild(actions);
+
+    const subDiv=document.createElement('div');
+    subDiv.className='group-sub';
+    subDiv.textContent='פריטים: '+g.items.length;
+
+    header.appendChild(titleRow);
+    header.appendChild(subDiv);
+    groupEl.appendChild(header);
+
+    const itemsWrap=document.createElement('div');
+    itemsWrap.className='items';
+
+    if(!g.items.length){
+      const n=document.createElement('div');
+      n.className='small';
+      n.textContent='עדיין אין פריטים לעובד זה.';
+      itemsWrap.appendChild(n);
+    }else{
+      g.items.forEach((it,idx)=>{
+        const itemEl=document.createElement('div');
+        itemEl.className='item';
+
+        const leftPart=document.createElement('div');
+        leftPart.innerHTML=
+          `<div class="item-main">${escapeHtml(it.inv)}</div>
+           <div class="small">${escapeHtml(it.ts)}</div>`;
+
+        const rightPart=document.createElement('div');
+
+        const editItemBtn=document.createElement('button');
+        editItemBtn.className='btn-muted btn-xsmall';
+        editItemBtn.textContent='ערוך פריט';
+        editItemBtn.onclick=()=>{
+          const nv=prompt('ערוך אינוונטר:',it.inv);
+          if(nv!==null){
+            const newCode=nv.trim();
+            if(!newCode){ beep('error'); return; }
+            const ex=findInv(newCode);
+            if(ex && ex.groupId!==g.idNumber){
+              if(confirm('הקוד כבר משויך לעובד '+ex.groupId+'. להעביר אליו?')){
+                const other=findGroup(ex.groupId);
+                if(other) other.items=other.items.filter(x=>x.inv!==it.inv);
+                it.inv=newCode;
+                beep('transfer');
+              }else{
+                beep('duplicate');
+                return;
+              }
+            }else{
+              it.inv=newCode;
+              beep('success');
+            }
+            save(); updateUI(searchEmployee.value||'');
+          }
+        };
+
+        const delItemBtn=document.createElement('button');
+        delItemBtn.className='btn-danger-solid btn-xsmall';
+        delItemBtn.textContent='מחק פריט';
+        delItemBtn.onclick=()=>{
+          if(confirm('למחוק את הפריט הזה מהעובד?')){
+            g.items.splice(idx,1);
+            save(); updateUI(searchEmployee.value||'');
+            beep('error');
+          }
+        };
+
+        rightPart.appendChild(editItemBtn);
+        rightPart.appendChild(delItemBtn);
+
+        itemEl.appendChild(leftPart);
+        itemEl.appendChild(rightPart);
+        itemsWrap.appendChild(itemEl);
+      });
+    }
+
+    groupEl.appendChild(itemsWrap);
+    groupsContainer.appendChild(groupEl);
+  });
+}
+
+/* ====== פעולות עובד/פריט ====== */
+btnAddEmployee.addEventListener('click',()=>{
+  const v=employeeInput.value.trim();
+  if(!v){ beep('error'); alert('אין מספר זהות'); employeeInput.focus(); return; }
+  currentEmployee=v;
+  ensureGroup(currentEmployee);
+  employeeInput.value='';
+  save(); updateUI(searchEmployee.value||'');
+  beep('success');
+});
+btnClearEmployee.addEventListener('click',()=>{
+  if(confirm('לנקות את העובד הפעיל?')){
+    currentEmployee=null;
+    save(); updateUI(searchEmployee.value||'');
+    beep('transfer');
+  }
+});
+btnSaveName.addEventListener('click',()=>{
+  if(!currentEmployee){ beep('error'); alert('בחר עובד קודם'); return; }
+  const nm=employeeNameInput.value.trim();
+  const g=ensureGroup(currentEmployee);
+  g.name=nm;
+  save(); updateUI(searchEmployee.value||'');
+  beep('success');
+});
+
+btnAddInv.addEventListener('click',()=>{
+  const code=invInput.value.trim();
+  addInvFromInput(code);
+  invInput.value='';
+  invInput.focus();
+});
+invInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    addInvFromInput(invInput.value.trim());
+    invInput.value='';
+  }
+});
+btnManualInv.addEventListener('click',()=>{
+  const v=prompt('הכנס אינוונטר:');
+  if(v && v.trim()) addInvFromInput(v.trim());
+});
+
+function addInvFromInput(inv){
+  if(!inv){ beep('error'); alert('אין קוד'); return; }
+  const target=currentEmployee || 'לא מזוהה';
+  const f=findInv(inv);
+
+  if(f){
+    if(f.groupId===target){
+      beep('duplicate');
+      alert('הפריט כבר משויך לאותו עובד');
+      return;
+    }
+    if(confirm('הפריט כבר שויך לעובד '+f.groupId+'. להעביר לעובד הנוכחי ('+target+')?')){
+      const other=findGroup(f.groupId);
+      if(other) other.items=other.items.filter(x=>x.inv!==inv);
+      const g=ensureGroup(target);
+      g.items.unshift({inv,ts:nowTS()});
+      lastInv=inv;
+      save(); updateUI(searchEmployee.value||'');
+      beep('transfer');
+      return;
+    }else{
+      beep('duplicate');
+      return;
+    }
+  }else{
+    const g=ensureGroup(target);
+    g.items.unshift({inv,ts:nowTS()});
+    lastInv=inv;
+    save(); updateUI(searchEmployee.value||'');
+    beep('success');
+  }
+}
+
+/* ====== חיפוש ====== */
+searchEmployee.addEventListener('input',()=>updateUI(searchEmployee.value||''));
+
+/* ====== ייצוא לאקסל ====== */
+function exportXLSX(){
+  const rows=[['CODE','TZ','TADE','NAME']];
+  groups.forEach(g=>{
+    const items=g.items.slice().reverse();
+    items.forEach(it=>rows.push([it.inv,g.idNumber,it.ts,g.name||'']));
+  });
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'מפקד_ציוד');
+  const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const blob=new Blob([wbout],{type:'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='mifkad_CODE_TZ_TADE_'+(new Date()).toISOString().slice(0,19).replace(/[:T]/g,'-')+'.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+btnExportTop.addEventListener('click',exportXLSX);
+
+/* ====== ניקוי כל הנתונים – אישור כפול ====== */
+btnClearAll.addEventListener('click',()=>{
+  const first = confirm(
+    'אזהרה חמורה!\n\n' +
+    'לחיצה על "אישור" תמחק את כל הנתונים של כל העובדים.\n' +
+    'האם להמשיך לפעולת מחיקה?'
+  );
+  if(!first) return;
+
+  const second = confirm(
+    'אישור סופי!\n\n' +
+    'לאחר אישור הפעולה הבאה אין דרך לשחזר את הנתונים.\n' +
+    'האם אתה בטוח לחלוטין שברצונך למחוק את כל הנתונים?'
+  );
+  if(!second){
+    beep('transfer');
+    return;
+  }
+
+  groups = [];
+  currentEmployee = null;
+  lastInv = null;
+  forceSave();
+  updateUI();
+  beep('error');
+});
+
+/* ====== סיידבר במובייל ====== */
+if(toggleSidebarBtn){
+  toggleSidebarBtn.addEventListener('click',()=>{
+    if(sidebar.classList.contains('collapsed')){
+      sidebar.classList.remove('collapsed');
+      toggleSidebarBtn.textContent='הסתר מידע';
+    }else{
+      sidebar.classList.add('collapsed');
+      toggleSidebarBtn.textContent='הצג מידע';
+    }
+  });
+}
+
+/* ====== מצלמה / Quagga ====== */
+function startCameraScan(target){
+  quaggaCallbackTarget=target;
+  cameraModal.style.display='flex';
+  if(quaggaActive) return;
+  Quagga.init({
+    inputStream:{
+      type:"LiveStream",
+      constraints:{width:640,height:480,facingMode:"environment"},
+      target:scannerDiv
+    },
+    decoder:{readers:["code_128_reader","ean_reader","ean_8_reader","upc_reader","code_39_reader","codabar_reader"]},
+    locate:true
+  },err=>{
+    if(err){
+      console.error(err);
+      alert('שגיאת מצלמה: '+(err.message||err));
+      cameraModal.style.display='none';
+      return;
+    }
+    Quagga.start();
+    quaggaActive=true;
+    Quagga.onDetected(onQuaggaDetected);
+  });
+}
+function stopCameraScan(){
+  if(quaggaActive){
+    Quagga.stop();
+    Quagga.offDetected(onQuaggaDetected);
+    quaggaActive=false;
+  }
+  cameraModal.style.display='none';
+  quaggaCallbackTarget=null;
+  lastProcessedInvTime=0;
+}
+function onQuaggaDetected(result){
+  if(!result || !result.codeResult) return;
+  const code=result.codeResult.code;
+  if(!code) return;
+  if(quaggaCallbackTarget==='employee'){
+    stopCameraScan();
+    employeeInput.value=code;
+    btnAddEmployee.click();
+    return;
+  }
+  if(quaggaCallbackTarget==='inv'){
+    const now=Date.now();
+    if(now-lastProcessedInvTime>=5000){
+      addInvFromInput(code);
+      lastProcessedInvTime=now;
+      lastInv=code;
+      save(); updateUI(searchEmployee.value||'');
+    }
+  }
+}
+btnCameraInv.addEventListener('click',()=>startCameraScan('inv'));
+closeCamera.addEventListener('click',stopCameraScan);
+stopScanner.addEventListener('click',stopCameraScan);
+
+/* ====== INIT ====== */
+loadFromServer();
+invInput.focus();
+window.addEventListener('beforeunload',()=>{ if(saveTimer) forceSave(); });
+</script>
+</body>
+</html>
