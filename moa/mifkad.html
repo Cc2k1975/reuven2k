@@ -15,6 +15,7 @@
   --muted:#556b75;
   --accent:#0ea5a4;
   --danger:#dc2626;
+  --emp:#16a34a;         /* צבע ירוק לתעודת זהות */
   --radius:12px;
   --touch-size:48px;
 }
@@ -141,7 +142,7 @@ button{
   gap:6px;
 }
 .group-main-title{
-  font-weight:800;
+  font-weight:700;
   font-size:14px;
 }
 .group-sub{
@@ -153,6 +154,19 @@ button{
   flex-direction:column;
   gap:4px;
 }
+
+/* תצוגת תעודת זהות */
+.employee-id{
+  color:var(--emp);
+  font-weight:800;
+  font-size:16px;
+}
+.group-name{
+  font-weight:600;
+  font-size:13px;
+}
+
+/* פריטים */
 .items{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .item{
   display:flex;
@@ -231,7 +245,7 @@ footer{
   </header>
 
   <div class="wrap">
-    <!-- סיידבר מידע (ניתן להסתיר במובייל) -->
+    <!-- סיידבר מידע -->
     <aside id="sidebar" class="sidebar" role="complementary" aria-label="מידע עובד">
       <div style="display:flex;flex-direction:column;gap:8px">
         <div>
@@ -254,7 +268,7 @@ footer{
       </div>
     </aside>
 
-    <!-- אזור עבודה מרכזי: שורה לעובד, שורה לאינוונטר -->
+    <!-- אזור עבודה מרכזי -->
     <main class="main" role="main">
       <!-- שורה 1: עובד -->
       <section class="card" aria-labelledby="employee-heading">
@@ -316,8 +330,8 @@ footer{
 </div>
 
 <script>
-/* ==== לוגיקה נשארה כמו קודם, רק שיפוץ UI + צלילים ==== */
-const STORAGE_KEY = 'mifkad_v2_ui_clean';
+/* ==== לוגיקה זהה – רק UI וצביעת ת.ז ==== */
+const STORAGE_KEY = 'mifkad_v2_ui_clean_emp';
 
 const toggleSidebarBtn = document.getElementById('toggleSidebar');
 const sidebar = document.getElementById('sidebar');
@@ -357,7 +371,7 @@ let quaggaActive = false;
 let quaggaCallbackTarget = null;
 let lastProcessedInvTime = 0;
 
-/* === אודיו – צלילים שונים === */
+/* === Audio / Beeps (כמו קודם) === */
 let audioCtx = null;
 function ensureAudioContext(){
   if(!audioCtx){
@@ -372,18 +386,18 @@ function playTone(freq,dur=120,vol=0.12){
   if(ctx.state === 'suspended' && ctx.resume) ctx.resume().catch(()=>{});
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  osc.type = 'sine';
-  osc.frequency.value = freq;
-  gain.gain.value = vol;
+  osc.type='sine';
+  osc.frequency.value=freq;
+  gain.gain.value=vol;
   osc.connect(gain); gain.connect(ctx.destination);
   osc.start();
   setTimeout(()=>{ try{osc.stop();osc.disconnect();gain.disconnect();}catch(e){} },dur);
 }
 function playSeq(seq){
-  let t = 0;
+  let t=0;
   seq.forEach(s=>{
     setTimeout(()=>playTone(s.f,s.d,s.v),t);
-    t += s.d + (s.g||60);
+    t+=s.d+(s.g||60);
   });
 }
 function vibrate(pattern){
@@ -391,25 +405,17 @@ function vibrate(pattern){
 }
 function beep(kind){
   if(kind==='success'){
-    playTone(1100,120,0.16);
-    vibrate(70);
-  } else if(kind==='duplicate'){
-    playSeq([{f:520,d:100,v:0.12,g:60},{f:520,d:100,v:0.12}]);
-    vibrate([40,50,40]);
-  } else if(kind==='transfer'){
-    playTone(900,150,0.14);
-    vibrate(80);
-  } else if(kind==='error'){
-    playTone(380,250,0.14);
-    vibrate([200,80]);
+    playTone(1100,120,0.16); vibrate(70);
+  }else if(kind==='duplicate'){
+    playSeq([{f:520,d:100,v:0.12,g:60},{f:520,d:100,v:0.12}]); vibrate([40,50,40]);
+  }else if(kind==='transfer'){
+    playTone(900,150,0.14); vibrate(80);
+  }else if(kind==='error'){
+    playTone(380,250,0.14); vibrate([200,80]);
   }
 }
 (function initAudioOnGesture(){
-  function once(){
-    ensureAudioContext();
-    document.removeEventListener('touchstart',once);
-    document.removeEventListener('click',once);
-  }
+  function once(){ ensureAudioContext(); document.removeEventListener('touchstart',once); document.removeEventListener('click',once); }
   document.addEventListener('touchstart',once,{passive:true});
   document.addEventListener('click',once,{passive:true});
 })();
@@ -449,56 +455,59 @@ function updateUI(filter=''){
   currentEmployeeDisplay.textContent = currentEmployee||'אין';
   lastInvDisplay.textContent = lastInv||'אין';
 
-  groupsContainer.innerHTML = '';
-  const flt = (filter||'').trim().toLowerCase();
-  const visible = groups.filter(g=>{
+  groupsContainer.innerHTML='';
+  const flt=(filter||'').trim().toLowerCase();
+  const visible=groups.filter(g=>{
     if(!flt) return true;
     return String(g.idNumber).toLowerCase().includes(flt) ||
            (g.name||'').toLowerCase().includes(flt);
   });
   if(!visible.length){
-    groupsContainer.innerHTML = '<div class="small">טרם בוצעו סריקות.</div>';
+    groupsContainer.innerHTML='<div class="small">טרם בוצעו סריקות.</div>';
     return;
   }
 
   visible.forEach(g=>{
-    const groupEl = document.createElement('div');
-    groupEl.className = 'group';
+    const groupEl=document.createElement('div');
+    groupEl.className='group';
 
-    const header = document.createElement('div');
-    header.className = 'group-header';
+    const header=document.createElement('div');
+    header.className='group-header';
 
-    const left = document.createElement('div');
+    const left=document.createElement('div');
     left.innerHTML =
-      `<div class="group-main-title">${escapeHtml(g.idNumber)}${g.name?' — '+escapeHtml(g.name):''}</div>
+      `<div class="group-main-title">
+          <span class="employee-id">ת.ז ${escapeHtml(g.idNumber)}</span>
+          ${g.name ? '<span class="group-name"> — '+escapeHtml(g.name)+'</span>' : ''}
+       </div>
        <div class="group-sub">פריטים: ${g.items.length}</div>`;
 
-    const right = document.createElement('div');
-    right.className = 'group-actions';
+    const right=document.createElement('div');
+    right.className='group-actions';
 
-    const chooseBtn = document.createElement('button');
-    chooseBtn.className = 'btn-muted btn-small';
-    chooseBtn.textContent = 'בחר עובד';
-    chooseBtn.onclick = ()=>{ currentEmployee=g.idNumber; updateUI(searchEmployee.value||''); save(); };
+    const chooseBtn=document.createElement('button');
+    chooseBtn.className='btn-muted btn-small';
+    chooseBtn.textContent='בחר עובד';
+    chooseBtn.onclick=()=>{ currentEmployee=g.idNumber; updateUI(searchEmployee.value||''); save(); };
 
-    const editBtn = document.createElement('button');
-    editBtn.className = 'btn-muted btn-small';
-    editBtn.textContent = 'ערוך שם';
-    editBtn.onclick = ()=>{
-      const nm = prompt('שם עובד:', g.name||'');
+    const editBtn=document.createElement('button');
+    editBtn.className='btn-muted btn-small';
+    editBtn.textContent='ערוך שם';
+    editBtn.onclick=()=>{
+      const nm=prompt('שם עובד:',g.name||'');
       if(nm!==null){
-        g.name = nm.trim();
+        g.name=nm.trim();
         save(); updateUI(searchEmployee.value||'');
         beep('success');
       }
     };
 
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'btn-danger-outline btn-small';
-    removeBtn.textContent = 'הסר עובד';
-    removeBtn.onclick = ()=>{
+    const removeBtn=document.createElement('button');
+    removeBtn.className='btn-danger-outline btn-small';
+    removeBtn.textContent='הסר עובד';
+    removeBtn.onclick=()=>{
       if(confirm('להסיר את העובד וכל הפריטים שלו?')){
-        groups = groups.filter(x=>x.idNumber!==g.idNumber);
+        groups=groups.filter(x=>x.idNumber!==g.idNumber);
         if(currentEmployee===g.idNumber) currentEmployee=null;
         save(); updateUI(searchEmployee.value||'');
         beep('error');
@@ -513,8 +522,8 @@ function updateUI(filter=''){
     header.appendChild(right);
     groupEl.appendChild(header);
 
-    const itemsWrap = document.createElement('div');
-    itemsWrap.className = 'items';
+    const itemsWrap=document.createElement('div');
+    itemsWrap.className='items';
 
     if(!g.items.length){
       const n=document.createElement('div');
@@ -523,46 +532,47 @@ function updateUI(filter=''){
       itemsWrap.appendChild(n);
     }else{
       g.items.forEach((it,idx)=>{
-        const itemEl = document.createElement('div');
-        itemEl.className = 'item';
+        const itemEl=document.createElement('div');
+        itemEl.className='item';
 
-        const leftPart = document.createElement('div');
-        leftPart.innerHTML =
+        const leftPart=document.createElement('div');
+        leftPart.innerHTML=
           `<div class="item-main">${escapeHtml(it.inv)}</div>
            <div class="small">${escapeHtml(it.ts)}</div>`;
 
-        const rightPart = document.createElement('div');
-        const editItemBtn = document.createElement('button');
-        editItemBtn.className = 'btn-muted btn-xsmall';
-        editItemBtn.textContent = 'ערוך פריט';
-        editItemBtn.onclick = ()=>{
-          const nv = prompt('ערוך אינוונטר:', it.inv);
+        const rightPart=document.createElement('div');
+
+        const editItemBtn=document.createElement('button');
+        editItemBtn.className='btn-muted btn-xsmall';
+        editItemBtn.textContent='ערוך פריט';
+        editItemBtn.onclick=()=>{
+          const nv=prompt('ערוך אינוונטר:',it.inv);
           if(nv!==null){
-            const newCode = nv.trim();
+            const newCode=nv.trim();
             if(!newCode){ beep('error'); return; }
-            const ex = findInv(newCode);
+            const ex=findInv(newCode);
             if(ex && ex.groupId!==g.idNumber){
               if(confirm('הקוד כבר משויך לעובד '+ex.groupId+'. להעביר אליו?')){
-                const other = findGroup(ex.groupId);
-                if(other) other.items = other.items.filter(x=>x.inv!==it.inv);
-                it.inv = newCode;
+                const other=findGroup(ex.groupId);
+                if(other) other.items=other.items.filter(x=>x.inv!==it.inv);
+                it.inv=newCode;
                 beep('transfer');
               }else{
                 beep('duplicate');
                 return;
               }
             }else{
-              it.inv = newCode;
+              it.inv=newCode;
               beep('success');
             }
             save(); updateUI(searchEmployee.value||'');
           }
         };
 
-        const delItemBtn = document.createElement('button');
-        delItemBtn.className = 'btn-danger-solid btn-xsmall';
-        delItemBtn.textContent = 'מחק פריט';
-        delItemBtn.onclick = ()=>{
+        const delItemBtn=document.createElement('button');
+        delItemBtn.className='btn-danger-solid btn-xsmall';
+        delItemBtn.textContent='מחק פריט';
+        delItemBtn.onclick=()=>{
           if(confirm('למחוק את הפריט הזה מהעובד?')){
             g.items.splice(idx,1);
             save(); updateUI(searchEmployee.value||'');
@@ -586,9 +596,9 @@ function updateUI(filter=''){
 
 /* === פעולות עובד/פריט === */
 btnAddEmployee.addEventListener('click',()=>{
-  const v = employeeInput.value.trim();
+  const v=employeeInput.value.trim();
   if(!v){ beep('error'); alert('אין מספר זהות'); employeeInput.focus(); return; }
-  currentEmployee = v;
+  currentEmployee=v;
   ensureGroup(currentEmployee);
   employeeInput.value='';
   save(); updateUI(searchEmployee.value||'');
@@ -603,15 +613,15 @@ btnClearEmployee.addEventListener('click',()=>{
 });
 btnSaveName.addEventListener('click',()=>{
   if(!currentEmployee){ beep('error'); alert('בחר עובד קודם'); return; }
-  const nm = employeeNameInput.value.trim();
-  const g = ensureGroup(currentEmployee);
-  g.name = nm;
+  const nm=employeeNameInput.value.trim();
+  const g=ensureGroup(currentEmployee);
+  g.name=nm;
   save(); updateUI(searchEmployee.value||'');
   beep('success');
 });
 
 btnAddInv.addEventListener('click',()=>{
-  const code = invInput.value.trim();
+  const code=invInput.value.trim();
   addInvFromInput(code);
   invInput.value='';
   invInput.focus();
@@ -623,14 +633,14 @@ invInput.addEventListener('keydown',(e)=>{
   }
 });
 btnManualInv.addEventListener('click',()=>{
-  const v = prompt('הכנס אינוונטר:');
+  const v=prompt('הכנס אינוונטר:');
   if(v && v.trim()) addInvFromInput(v.trim());
 });
 
 function addInvFromInput(inv){
   if(!inv){ beep('error'); alert('אין קוד'); return; }
-  const target = currentEmployee || 'לא מזוהה';
-  const f = findInv(inv);
+  const target=currentEmployee || 'לא מזוהה';
+  const f=findInv(inv);
 
   if(f){
     if(f.groupId===target){
@@ -639,11 +649,11 @@ function addInvFromInput(inv){
       return;
     }
     if(confirm('הפריט כבר שויך לעובד '+f.groupId+'. להעביר לעובד הנוכחי ('+target+')?')){
-      const other = findGroup(f.groupId);
-      if(other) other.items = other.items.filter(x=>x.inv!==inv);
-      const g = ensureGroup(target);
+      const other=findGroup(f.groupId);
+      if(other) other.items=other.items.filter(x=>x.inv!==inv);
+      const g=ensureGroup(target);
       g.items.unshift({inv,ts:nowTS()});
-      lastInv = inv;
+      lastInv=inv;
       save(); updateUI(searchEmployee.value||'');
       beep('transfer');
       return;
@@ -652,9 +662,9 @@ function addInvFromInput(inv){
       return;
     }
   }else{
-    const g = ensureGroup(target);
+    const g=ensureGroup(target);
     g.items.unshift({inv,ts:nowTS()});
-    lastInv = inv;
+    lastInv=inv;
     save(); updateUI(searchEmployee.value||'');
     beep('success');
   }
@@ -670,12 +680,12 @@ function exportXLSX(){
     const items=g.items.slice().reverse();
     items.forEach(it=>rows.push([it.inv,g.idNumber,it.ts,g.name||'']));
   });
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  const wb = XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'מפקד_ציוד');
-  const wbout = XLSX.write(wb,{bookType:'xlsx',type:'array'});
-  const blob = new Blob([wbout],{type:'application/octet-stream'});
-  const url = URL.createObjectURL(blob);
+  const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+  const blob=new Blob([wbout],{type:'application/octet-stream'});
+  const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
   a.download='mifkad_CODE_TZ_TADE_'+(new Date()).toISOString().slice(0,19).replace(/[:T]/g,'-')+'.xlsx';
@@ -705,9 +715,9 @@ btnClearLocal.addEventListener('click',()=>{
 
 /* אוטו-סייב */
 btnAutoSaveToggle.addEventListener('click',()=>{
-  autoSave = !autoSave;
-  autoSaveStatusEl.textContent = autoSave ? 'מופעלת' : 'כבויה';
-  btnAutoSaveToggle.textContent = autoSave ? 'כיבוי שמירה אוטומטית' : 'הפעל שמירה אוטומטית';
+  autoSave=!autoSave;
+  autoSaveStatusEl.textContent=autoSave?'מופעלת':'כבויה';
+  btnAutoSaveToggle.textContent=autoSave?'כיבוי שמירה אוטומטית':'הפעל שמירה אוטומטית';
   if(autoSave) save();
 });
 
@@ -726,7 +736,7 @@ if(toggleSidebarBtn){
 
 /* מצלמה / Quagga */
 function startCameraScan(target){
-  quaggaCallbackTarget = target;
+  quaggaCallbackTarget=target;
   cameraModal.style.display='flex';
   if(quaggaActive) return;
   Quagga.init({
