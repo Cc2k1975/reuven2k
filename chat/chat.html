@@ -129,7 +129,7 @@
     .presence-side {
         display:flex;
         align-items:center;
-        gap:4px;
+        gap:6px;
     }
     .presence-dot {
         width:10px;
@@ -139,6 +139,19 @@
     }
     .presence-dot.online {
         background:#4caf50; /* ירוק כשמחובר */
+    }
+    .presence-text {
+        display:flex;
+        flex-direction:column;
+        line-height:1.2;
+    }
+    .presence-label {
+        font-weight:600;
+        font-size:12px;
+    }
+    .presence-time {
+        font-size:11px;
+        color:#333;
     }
 
     /* --- צ'אט --- */
@@ -351,11 +364,11 @@
         <div class="role-row">
             <div class="role-btn" onclick="chooseRole('male')">
                 <div class="circle male"></div>
-                <div>גבר</div>
+                <div>C</div>
             </div>
             <div class="role-btn" onclick="chooseRole('female')">
                 <div class="circle female"></div>
-                <div>אישה</div>
+                <div>K</div>
             </div>
         </div>
     </div>
@@ -365,11 +378,17 @@
 <div id="presenceBar">
     <div class="presence-side">
         <span class="presence-dot" id="presenceMale"></span>
-        <span class="presence-label">גבר</span>
+        <div class="presence-text">
+            <div class="presence-label">C</div>
+            <div class="presence-time" id="presenceMaleTime">--:--</div>
+        </div>
     </div>
     <div class="presence-side">
         <span class="presence-dot" id="presenceFemale"></span>
-        <span class="presence-label">אישה</span>
+        <div class="presence-text">
+            <div class="presence-label">K</div>
+            <div class="presence-time" id="presenceFemaleTime">--:--</div>
+        </div>
     </div>
 </div>
 
@@ -439,6 +458,8 @@ let typingTimeout = null;
 let presenceRef = null;
 const presenceMaleDot = document.getElementById("presenceMale");
 const presenceFemaleDot = document.getElementById("presenceFemale");
+const presenceMaleTime = document.getElementById("presenceMaleTime");
+const presenceFemaleTime = document.getElementById("presenceFemaleTime");
 
 /* WebRTC LIVE */
 let pc = null;
@@ -473,21 +494,35 @@ window.addEventListener("load", () => {
 
 /* --- נוכחות --- */
 function listenPresence() {
-    db.ref("presence/male/status").on("value", snap => {
-        const val = snap.val();
-        setPresenceDot("male", val === "online");
+    db.ref("presence/male").on("value", snap => {
+        const data = snap.val() || {};
+        updatePresenceUI("male", data);
     });
-    db.ref("presence/female/status").on("value", snap => {
-        const val = snap.val();
-        setPresenceDot("female", val === "online");
+    db.ref("presence/female").on("value", snap => {
+        const data = snap.val() || {};
+        updatePresenceUI("female", data);
     });
 }
 
-function setPresenceDot(role, online) {
-    const el = (role === "male") ? presenceMaleDot : presenceFemaleDot;
-    if (!el) return;
-    if (online) el.classList.add("online");
-    else el.classList.remove("online");
+function updatePresenceUI(role, data) {
+    const dot = role === "male" ? presenceMaleDot : presenceFemaleDot;
+    const timeEl = role === "male" ? presenceMaleTime : presenceFemaleTime;
+    if (!dot || !timeEl) return;
+
+    const online = data.status === "online";
+    if (online) dot.classList.add("online");
+    else dot.classList.remove("online");
+
+    if (data.lastSeen) {
+        const d = new Date(data.lastSeen);
+        let h = d.getHours();
+        let m = d.getMinutes();
+        const hh = (h < 10 ? "0" + h : "" + h);
+        const mm = (m < 10 ? "0" + m : "" + m);
+        timeEl.textContent = online ? "עכשיו" : hh + ":" + mm;
+    } else {
+        timeEl.textContent = "--:--";
+    }
 }
 
 function updatePresenceOnline() {
