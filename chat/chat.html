@@ -115,6 +115,32 @@
     .circle.male { background:#4fc3f7; }
     .circle.female { background:#ff80ab; }
 
+    /* --- שורת נוכחות למעלה --- */
+    #presenceBar {
+        display:flex;
+        justify-content:center;
+        gap:16px;
+        padding:6px 10px;
+        font-size:12px;
+        color:#555;
+        background:#e0e0e0;
+        border-bottom:1px solid #ccc;
+    }
+    .presence-side {
+        display:flex;
+        align-items:center;
+        gap:4px;
+    }
+    .presence-dot {
+        width:10px;
+        height:10px;
+        border-radius:50%;
+        background:#9e9e9e; /* אפור ברירת מחדל */
+    }
+    .presence-dot.online {
+        background:#4caf50; /* ירוק כשמחובר */
+    }
+
     /* --- צ'אט --- */
     #chatBox {
         flex: 1;
@@ -160,6 +186,20 @@
         margin-right: auto;
     }
     .friend .bubble { background:#ffe0f0; }
+
+    /* שעה קטנה בבועה */
+    .msg-text {
+        white-space: pre-wrap;
+    }
+    .msg-time {
+        margin-top:4px;
+        font-size:11px;
+        color:#777;
+        text-align:right;
+    }
+    .me .msg-time {
+        text-align:left;
+    }
 
     /* חיווי מקליד/ה */
     #typingIndicator {
@@ -321,6 +361,18 @@
     </div>
 </div>
 
+<!-- שורת נוכחות -->
+<div id="presenceBar">
+    <div class="presence-side">
+        <span class="presence-dot" id="presenceMale"></span>
+        <span class="presence-label">גבר</span>
+    </div>
+    <div class="presence-side">
+        <span class="presence-dot" id="presenceFemale"></span>
+        <span class="presence-label">אישה</span>
+    </div>
+</div>
+
 <!-- צ'אט -->
 <div id="chatBox"></div>
 
@@ -383,6 +435,11 @@ let authed = false; // תמיד מתחילים לא מחובר
 let typingListenerStarted = false;
 let typingTimeout = null;
 
+/* נוכחות (presence) */
+let presenceRef = null;
+const presenceMaleDot = document.getElementById("presenceMale");
+const presenceFemaleDot = document.getElementById("presenceFemale");
+
 /* WebRTC LIVE */
 let pc = null;
 let localStream = null;
@@ -394,27 +451,68 @@ const servers = {
 
 /* אחרי עליית הדף */
 window.addEventListener("load", () => {
-    // תמיד מתחילים עם מסך סיסמה
+    // תמיד מסך סיסמה
     document.getElementById("passwordScreen").style.display = "flex";
     document.getElementById("roleSelect").style.display = "none";
 
     document.getElementById("msgInput").addEventListener("input", handleTyping);
 
-    // כל יציאה/חזרה לטאב – אם חוזרים ויש auth => ישר מבקש סיסמה מחדש
+    // יציאה / חזרה לטאב -> אם חוזרים עם auth, נעול שוב
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden && authed) {
             forceReauth();
         }
     });
 
-    // קליק נחשב פעילות – לא חשוב כרגע, אבל יכול לשמש לעתיד
-    document.addEventListener("click", () => {});
-
     // מאזין לשיחות LIVE
     listenForCall();
+
+    // מאזינים לנוכחות של שני הצדדים
+    listenPresence();
 });
 
-/* בדיקת סיסמה – 2009 */
+/* --- נוכחות --- */
+function listenPresence() {
+    db.ref("presence/male/status").on("value", snap => {
+        const val = snap.val();
+        setPresenceDot("male", val === "online");
+    });
+    db.ref("presence/female/status").on("value", snap => {
+        const val = snap.val();
+        setPresenceDot("female", val === "online");
+    });
+}
+
+function setPresenceDot(role, online) {
+    const el = (role === "male") ? presenceMaleDot : presenceFemaleDot;
+    if (!el) return;
+    if (online) el.classList.add("online");
+    else el.classList.remove("online");
+}
+
+function updatePresenceOnline() {
+    if (!myRole) return;
+    presenceRef = db.ref("presence/" + myRole);
+    presenceRef.set({
+        status: "online",
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
+    presenceRef.onDisconnect().set({
+        status: "offline",
+        lastSeen: firebase.database.ServerValue.TIMESTAMP
+    });
+}
+
+function updatePresenceOffline() {
+    if (presenceRef) {
+        presenceRef.set({
+            status: "offline",
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
+        });
+    }
+}
+
+/* --- סיסמה --- */
 function checkPassword() {
     const input = document.getElementById("passInput").value.trim();
     const err = document.getElementById("passError");
@@ -427,6 +525,7 @@ function checkPassword() {
         if (myRole) {
             document.getElementById("roleSelect").style.display = "none";
             startTypingListener();
+            updatePresenceOnline();
         } else {
             document.getElementById("roleSelect").style.display = "flex";
         }
@@ -441,6 +540,7 @@ function forceReauth() {
     authed = false;
     stopTyping();
     endCall(true); // אם יש LIVE – לסגור
+    updatePresenceOffline();
     document.getElementById("passInput").value = "";
     document.getElementById("passError").textContent = "";
     document.getElementById("passwordScreen").style.display = "flex";
@@ -453,6 +553,9 @@ function chooseRole(role) {
     localStorage.setItem("role", role);
     document.getElementById("roleSelect").style.display = "none";
     startTypingListener();
+    if (authed) {
+        updatePresenceOnline();
+    }
 }
 
 /* שליחת הודעה */
@@ -477,11 +580,11 @@ function sendMsg() {
 db.ref("chat/messages").on("child_added", snap => {
     const data = snap.val();
     if (!data) return;
-    addMessage(data.text, data.role);
+    addMessage(data.text, data.role, data.time);
 });
 
 /* הצגת הודעה */
-function addMessage(text, role) {
+function addMessage(text, role, time) {
     const chat = document.getElementById("chatBox");
 
     const msgDiv = document.createElement("div");
@@ -492,13 +595,35 @@ function addMessage(text, role) {
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
-    bubble.innerText = text;
+
+    const textDiv = document.createElement("div");
+    textDiv.className = "msg-text";
+    textDiv.textContent = text;
+
+    const timeDiv = document.createElement("div");
+    timeDiv.className = "msg-time";
+    timeDiv.textContent = formatTime(time);
+
+    bubble.appendChild(textDiv);
+    if (timeDiv.textContent) {
+        bubble.appendChild(timeDiv);
+    }
 
     msgDiv.appendChild(icon);
     msgDiv.appendChild(bubble);
 
     chat.appendChild(msgDiv);
     chat.scrollTop = chat.scrollHeight;
+}
+
+function formatTime(time) {
+    if (!time) return "";
+    const d = new Date(time);
+    let h = d.getHours();
+    let m = d.getMinutes();
+    const hh = (h < 10 ? "0" + h : "" + h);
+    const mm = (m < 10 ? "0" + m : "" + m);
+    return hh + ":" + mm;
 }
 
 /* מחיקת צ'אט */
@@ -542,13 +667,14 @@ function startTypingListener() {
     });
 }
 
-/* לפני סגירת הדף – לא להשאיר "מקליד" */
+/* לפני סגירת הדף – לא להשאיר "מקליד" / נוכחות / LIVE */
 window.addEventListener("beforeunload", () => {
     stopTyping();
     endCall(true);
+    updatePresenceOffline();
 });
 
-/* --- LIVE – לוגיקה --- */
+/* --- LIVE – לוגיקה קיימת --- */
 
 function onLiveClick() {
     if (!authed) return alert("קודם הזן סיסמה.");
@@ -709,7 +835,7 @@ async function endCall(forceOnlyLocal=false) {
     }
 }
 
-/* הצגת/הסתרת תצוגות */
+/* הצגת/הסתרת תצוגות LIVE */
 function showIncoming() {
     document.getElementById("incomingCall").style.display = "flex";
 }
