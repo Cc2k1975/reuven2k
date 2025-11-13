@@ -15,7 +15,7 @@
         height: 100vh;
     }
 
-    /* מסך בחירת אייקון */
+    /* מסך בחירת תפקיד */
     #roleSelect {
         position: fixed;
         top: 0; left: 0;
@@ -41,17 +41,44 @@
         font-size: 22px;
     }
 
+    .role-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
     .role-btn {
-        width: 45%;
+        flex: 1;
         background: white;
         border: 2px solid #ccc;
         border-radius: 15px;
-        padding: 10px;
+        padding: 12px 5px;
         cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
     }
 
-    .role-btn img {
-        width: 100%;
+    .role-btn:hover {
+        border-color: #888;
+    }
+
+    .role-label {
+        font-size: 16px;
+    }
+
+    .circle {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+    }
+    .circle.male {
+        background: #4fc3f7;   /* תכלת */
+    }
+    .circle.female {
+        background: #ff80ab;   /* ורוד */
     }
 
     /* אזור הצ'אט */
@@ -68,9 +95,18 @@
         max-width: 80%;
     }
 
-    .msg .icon {
-        width: 40px;
+    .icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        flex-shrink: 0;
         margin: 0 10px;
+    }
+    .icon.male {
+        background: #4fc3f7;
+    }
+    .icon.female {
+        background: #ff80ab;
     }
 
     .bubble {
@@ -79,6 +115,7 @@
         border-radius: 12px;
         font-size: 16px;
         box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        word-wrap: break-word;
     }
 
     .me {
@@ -91,7 +128,7 @@
     }
 
     .friend .bubble {
-        background: #ffd9ec;
+        background: #ffe0f0;
     }
 
     /* שורת כתיבה */
@@ -135,16 +172,18 @@
 
 <body>
 
-<!-- פופאפ בחירת אייקון -->
+<!-- פופאפ בחירת תפקיד -->
 <div id="roleSelect">
     <div id="roleBox">
-        <h2>בחר אייקון</h2>
-        <div style="display:flex; justify-content:space-between;">
+        <h2>בחר צד בצ'אט</h2>
+        <div class="role-row">
             <div class="role-btn" onclick="chooseRole('male')">
-                <img src="https://i.imgur.com/1e9rWcQ.png">
+                <div class="circle male"></div>
+                <div class="role-label">גבר</div>
             </div>
             <div class="role-btn" onclick="chooseRole('female')">
-                <img src="https://i.imgur.com/1cTagyU.png">
+                <div class="circle female"></div>
+                <div class="role-label">אישה</div>
             </div>
         </div>
     </div>
@@ -163,7 +202,7 @@
 <button id="clearBtn" onclick="clearChat()">מחק צ'אט</button>
 
 <script>
-let myRole = null;
+let myRole = null; // 'male' או 'female'
 
 function chooseRole(role) {
     myRole = role;
@@ -171,13 +210,15 @@ function chooseRole(role) {
 }
 
 function sendMsg() {
-    if (!myRole) return alert("בחר אייקון קודם!");
+    if (!myRole) {
+        alert("בחר קודם גבר או אישה.");
+        return;
+    }
 
     let txt = document.getElementById("msgInput").value.trim();
     if (!txt) return;
 
     addMessage(txt, myRole);
-
     document.getElementById("msgInput").value = "";
 }
 
@@ -187,12 +228,8 @@ function addMessage(text, role) {
     const msgDiv = document.createElement("div");
     msgDiv.className = "msg " + (role === "male" ? "me" : "friend");
 
-    const icon = document.createElement("img");
-    icon.className = "icon";
-
-    icon.src = (role === "male"
-        ? "https://i.imgur.com/1e9rWcQ.png"
-        : "https://i.imgur.com/1cTagyU.png");
+    const icon = document.createElement("div");
+    icon.className = "icon " + (role === "male" ? "male" : "female");
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
