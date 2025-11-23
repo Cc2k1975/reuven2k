@@ -2,8 +2,13 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <title>Global Timer</title>
+
+  <!-- עוזר למסך מלא כששומרים כקיצור במסך הבית -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
 
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
@@ -27,31 +32,48 @@
     .wrapper {
       width:100%;
       max-width:800px;
-      padding:20px;
+      padding:16px;
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      gap:12px;
     }
 
     #eventTitle {
-      font-size:clamp(1.8rem,5vw,2.8rem);
+      font-size:clamp(1.5rem,5vw,2.4rem);
       font-weight:900;
-      margin-bottom:1rem;
+      margin-bottom:4px;
       color:#ffffff;
       word-break:break-word;
     }
 
     #countdown {
-      font-size:clamp(3rem,15vw,5rem);
+      font-size:clamp(2.6rem,14vw,4.4rem);
       font-weight:900;
-      letter-spacing:0.07em;
+      letter-spacing:0.06em;
       direction:ltr;
       color:#00ff55;                 /* ספרות ירוקות HIGH-CONTRAST */
       text-shadow:0 0 12px #00ff55,0 0 22px #009933;
     }
 
     .labels {
-      margin-top:10px;
-      font-size:clamp(1rem,4vw,1.4rem);
+      margin-top:4px;
+      font-size:clamp(0.9rem,3.8vw,1.3rem);
       font-weight:800;
-      letter-spacing:0.3em;
+      letter-spacing:0.25em;
+    }
+
+    /* גרסה */
+    .version {
+      position:fixed;
+      left:8px;
+      bottom:4px;
+      font-size:0.7rem;
+      color:#777;
+      font-family:Arial, sans-serif;
+      opacity:0.8;
     }
 
     /* כפתור סודי */
@@ -79,7 +101,7 @@
 
     .dialog {
       background:#111;
-      padding:20px;
+      padding:18px;
       border-radius:12px;
       width:90%;
       max-width:420px;
@@ -89,13 +111,13 @@
       font-family:Arial,"Heebo",sans-serif;
     }
 
-    .dialog h2 {margin-bottom:15px;font-size:1.2rem;}
+    .dialog h2 {margin-bottom:12px;font-size:1.15rem;}
 
-    .field {margin-bottom:15px;}
-    .field label {display:block;margin-bottom:5px;font-size:0.95rem;}
+    .field {margin-bottom:12px;}
+    .field label {display:block;margin-bottom:4px;font-size:0.9rem;}
     .field input {
       width:100%;
-      padding:10px;
+      padding:8px 10px;
       border:1px solid #555;
       border-radius:8px;
       background:#000;
@@ -103,14 +125,9 @@
       font-size:1rem;
     }
 
-    .buttons {
-      display:flex;
-      justify-content:flex-end;
-      gap:12px;
-      margin-top:10px;
-    }
+    .buttons {display:flex;justify-content:flex-end;gap:10px;margin-top:8px;}
     .btn {
-      padding:9px 16px;
+      padding:8px 14px;
       border-radius:20px;
       cursor:pointer;
       border:1px solid #fff;
@@ -119,17 +136,20 @@
     }
     .btn.secondary {background:#000;color:#fff;}
     .btn.primary {background:#00ff55;color:#000;}
-
-    /* גירסה בפינה */
-    #version {
-      position:fixed;
-      left:8px;
-      bottom:4px;
-      font-size:0.7rem;
-      color:#888;
-      font-family:Arial, sans-serif;
-      pointer-events:none;
-      user-select:none;
+    
+    /* התאמה לגובה נמוך מאוד (טלפונים קטנים / נוף) */
+    @media (max-height: 600px) {
+      #eventTitle {
+        font-size:clamp(1.2rem,4vw,1.8rem);
+      }
+      #countdown {
+        font-size:clamp(2rem,12vw,3.4rem);
+        letter-spacing:0.04em;
+      }
+      .labels {
+        font-size:clamp(0.8rem,3vw,1rem);
+        letter-spacing:0.2em;
+      }
     }
   </style>
 </head>
@@ -164,14 +184,14 @@
   </div>
 </div>
 
-<div id="version"></div>
+<div class="version">v2025-11-23-FS2</div>
 
 <script type="module">
   /* --------- Firebase --------- */
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
   import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-  // קונפיגורציה של הפרויקט global-timer-8ebbd
+  // config של הפרויקט החדש שלך (global-timer-8ebbd)
   const firebaseConfig = {
     apiKey: "AIzaSyAeUBBZDPZnDIcAvluwzubNtbs3xjmTqls",
     authDomain: "global-timer-8ebbd.firebaseapp.com",
@@ -197,14 +217,10 @@
   const eventTimeInput = document.getElementById("eventTimeInput");
   const cancelBtn      = document.getElementById("cancelBtn");
   const saveBtn        = document.getElementById("saveBtn");
-  const versionEl      = document.getElementById("version");
-
-  const VERSION = "global-timer v1.1.1";
-  console.log(VERSION + " – starting…");
-  versionEl.textContent = VERSION;
 
   let targetTime = null;
   let timerId    = null;
+  let fullscreenTried = false;
 
   /* --------- פונקציות --------- */
   function pad(n, size){
@@ -242,11 +258,23 @@
     timerId = setInterval(updateTimer, 10);
   }
 
+  // ניסיון למסך מלא (כפוף לחוקי הדפדפן)
+  function tryFullscreen() {
+    if (fullscreenTried) return;
+    fullscreenTried = true;
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(()=>{});
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    } else if (el.msRequestFullscreen) {
+      el.msRequestFullscreen();
+    }
+  }
+
   /* --------- מאזין ל-Firestore --------- */
   onSnapshot(ref, snap => {
     const data = snap.data();
-    console.log("onSnapshot fired");
-    console.log("Snapshot data:", data);
 
     if (!data || !data.timestamp){
       targetTime = null;
@@ -262,6 +290,7 @@
 
   /* --------- כפתור סודי + שמירה --------- */
   secretBtn.onclick = () => {
+    tryFullscreen();
     overlay.classList.add("active");
     eventNameInput.focus();
   };
@@ -285,20 +314,17 @@
       return;
     }
 
-    const payload = {
-      name: name || "אירוע ללא שם",
-      timestamp: t.getTime()
-    };
-
-    console.log("Trying to save to Firestore:", payload);
-
     try {
-      await setDoc(ref, payload, { merge:true });
-      console.log("Saved to Firestore OK");
+      await setDoc(ref, {
+        name: name || "אירוע ללא שם",
+        timestamp: t.getTime()
+      }, { merge:true });
+
       overlay.classList.remove("active");
-    } catch (err) {
-      console.error("Error saving to Firestore:", err);
+      // אם ההודעה נשמרה – כל המכשירים יראו אותו דבר
+    } catch (e) {
       alert("שגיאה בשמירה לשרת");
+      console.error(e);
     }
   };
 
@@ -306,32 +332,13 @@
     if (e.target === overlay) overlay.classList.remove("active");
   };
 
-  /* --------- מסך מלא בלחיצה ראשונה --------- */
-  function requestFullscreenOnce() {
-    const el = document.documentElement;
+  // ניסיון למסך מלא על הלחיצה הראשונה בכל מקום במסך
+  document.addEventListener("click", () => {
+    tryFullscreen();
+  }, { once:true });
 
-    const isFull =
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.msFullscreenElement;
-
-    if (!isFull) {
-      const req =
-        el.requestFullscreen ||
-        el.webkitRequestFullscreen ||
-        el.msRequestFullscreen;
-
-      if (req) {
-        try { req.call(el); } catch(e) {}
-      }
-    }
-
-    window.removeEventListener("click", requestFullscreenOnce);
-    window.removeEventListener("touchstart", requestFullscreenOnce);
-  }
-
-  window.addEventListener("click", requestFullscreenOnce);
-  window.addEventListener("touchstart", requestFullscreenOnce);
+  // מצב התחלתי
+  updateTimer();
 </script>
 
 </body>
