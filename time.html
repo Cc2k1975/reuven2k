@@ -61,7 +61,7 @@
       right:10px;
       width:45px;
       height:45px;
-      opacity:0; /* נסתר */
+      opacity:0;      /* אפשר לשים 0.2 לבדיקה */
       z-index:50;
     }
 
@@ -115,15 +115,14 @@
     .btn.secondary {background:#000;color:#fff;}
     .btn.primary {background:#00ff55;color:#000;}
 
-    /* תצוגת גרסה בפינה */
-    #version {
+    /* תצוגת גרסה */
+    #versionTag{
       position:fixed;
-      left:10px;
-      bottom:10px;
+      left:4px;
+      bottom:2px;
       font-size:11px;
-      color:#888;
-      font-family:Arial,system-ui;
-      opacity:0.9;
+      color:#666;
+      font-family:Arial,Helvetica,sans-serif;
     }
   </style>
 </head>
@@ -158,7 +157,7 @@
   </div>
 </div>
 
-<div id="version">global-timer v1.0.3</div>
+<div id="versionTag">global-timer v1.1.0</div>
 
 <script type="module">
   /* --------- Firebase --------- */
@@ -176,10 +175,12 @@
     measurementId: "G-WWBL8XHPG8"
   };
 
+  console.log("Global Timer v1.1.0 – starting…");
+
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
 
-  // אוסף + דוקומנט גלובליים – כולם קוראים וכותבים לאותו מקום
+  // אוסף + דוקומנט גלובליים
   const ref = doc(db, "globalTimer", "event");
 
   /* --------- אלמנטים --------- */
@@ -233,7 +234,9 @@
 
   /* --------- מאזין ל-Firestore --------- */
   onSnapshot(ref, snap => {
+    console.log("onSnapshot fired");
     const data = snap.data();
+    console.log("Snapshot data:", data);
 
     if (!data || !data.timestamp){
       targetTime = null;
@@ -245,9 +248,12 @@
     targetTime = data.timestamp;
     eventTitleEl.textContent = data.name || "אירוע ללא שם";
     startInterval();
+  }, err => {
+    console.error("onSnapshot error:", err);
+    alert("שגיאה בקריאת הנתונים מהשרת: " + err.message);
   });
 
-  /* --------- כפתור סודי + שמירה --------- */
+  /* --------- כפתור סודי + שמירה עם בדיקה --------- */
   secretBtn.onclick = () => {
     overlay.classList.add("active");
     eventNameInput.focus();
@@ -272,12 +278,23 @@
       return;
     }
 
-    await setDoc(ref, {
+    const payload = {
       name: name || "אירוע ללא שם",
       timestamp: t.getTime()
-    }, { merge:true });
+    };
 
-    overlay.classList.remove("active");
+    console.log("Trying to save to Firestore:", payload);
+
+    try {
+      await setDoc(ref, payload, { merge:true });
+      console.log("Saved to Firestore successfully");
+      // אם הצליח – נסגור את החלון
+      overlay.classList.remove("active");
+    } catch (err) {
+      console.error("Error saving to Firestore:", err);
+      alert("שמירה לשרת נכשלה: " + err.message);
+      // לא סוגרים את החלון כדי שתוכל לנסות שוב
+    }
   };
 
   overlay.onclick = e => {
