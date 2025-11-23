@@ -2,107 +2,107 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Global Timer</title>
 
-  <!-- למראה כמו אפליקציה במובייל -->
-  <meta name="mobile-web-app-capable" content="yes">
+  <!-- ניסיון מקסימלי למסך מלא באפליקציית דפדפן -->
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#000000">
+  <meta name="mobile-web-app-capable" content="yes">
 
   <style>
-    * {margin:0;padding:0;box-sizing:border-box;}
+    *{margin:0;padding:0;box-sizing:border-box;}
 
-    html, body {
+    html, body{
       width:100%;
       height:100%;
       background:#000;
       color:#fff;
-      font-family:"Courier New", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      overflow:hidden;
+      font-family:"Courier New", monospace;
+      overscroll-behavior:none;
     }
 
-    body {
+    body{
+      min-height:100vh;
       display:flex;
       align-items:center;
       justify-content:center;
       text-align:center;
     }
 
-    .wrapper {
+    .wrapper{
       width:100%;
-      height:100vh;
       max-width:900px;
-      padding:10px 12px 24px;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      align-items:center;
-      gap:18px;
+      padding:2vh 3vw;
     }
 
-    #eventTitle {
+    #eventTitle{
       font-size:clamp(1.8rem,5vw,2.8rem);
       font-weight:900;
+      margin-bottom:1.5rem;
       color:#ffffff;
       word-break:break-word;
     }
 
-    /* שורת הספרות */
-    #countdownRow {
+    /* שורת הטיימר – הכל בקופסאות כדי שהאות מתיישבת מתחת לדיג'יטים הנכונים */
+    .timer-row{
       display:flex;
-      flex-direction:row;
-      align-items:flex-end;
       justify-content:center;
-      gap:0.4em;
-      direction:ltr; /* חשוב – ספרות משמאל לימין */
+      align-items:flex-end;
+      gap:0.2em;
+      padding-inline:3vw;
+      max-width:100%;
+      overflow:hidden;
     }
 
-    .segment {
+    .time-block{
       display:flex;
       flex-direction:column;
       align-items:center;
       min-width:0;
     }
 
-    .num {
-      font-size:clamp(2.5rem, 11vw, 4.7rem);
+    .digits{
       font-weight:900;
-      letter-spacing:0.08em;
+      letter-spacing:0.05em;
+      direction:ltr;
       color:#00ff55;
       text-shadow:0 0 12px #00ff55,0 0 22px #009933;
-      line-height:1.05;
+      /* רספונסיבי – שלא ייחתך בטלפון בפול סקרין */
+      font-size:clamp(2.4rem,10vw,4.5rem);
     }
 
-    .colon {
-      font-size:clamp(2.5rem, 11vw, 4.7rem);
-      font-weight:900;
+    .colon{
       color:#00ff55;
       text-shadow:0 0 12px #00ff55,0 0 22px #009933;
-      line-height:1.05;
-      padding:0 0.05em;
+      font-weight:900;
+      font-size:clamp(2.4rem,10vw,4.5rem);
+      padding-inline:0.05em;
     }
 
-    .label {
-      margin-top:6px;
+    .unit{
+      margin-top:0.4rem;
+      font-size:clamp(0.9rem,3.3vw,1.2rem);
+      font-weight:700;
+    }
+
+    /* מילישניות – אות קטנה יותר אם תרצה לסמן */
+    .unit-ms{
       font-size:clamp(0.7rem,2.7vw,1rem);
-      font-weight:800;
-      letter-spacing:0.25em;
     }
 
     /* כפתור סודי */
-    #secretBtn {
+    #secretBtn{
       position:fixed;
       bottom:10px;
       right:10px;
       width:45px;
       height:45px;
-      opacity:0;   /* נסתר */
+      opacity:0;      /* 0.1 לבדיקה אם תרצה לראות */
       z-index:50;
     }
 
     /* חלון הגדרות */
-    .overlay {
+    .overlay{
       position:fixed;
       inset:0;
       background:rgba(0,0,0,0.65);
@@ -111,9 +111,9 @@
       justify-content:center;
       z-index:100;
     }
-    .overlay.active {display:flex;}
+    .overlay.active{display:flex;}
 
-    .dialog {
+    .dialog{
       background:#111;
       padding:20px;
       border-radius:12px;
@@ -125,11 +125,11 @@
       font-family:Arial,"Heebo",sans-serif;
     }
 
-    .dialog h2 {margin-bottom:15px;font-size:1.2rem;}
+    .dialog h2{margin-bottom:15px;font-size:1.2rem;}
 
-    .field {margin-bottom:15px;}
-    .field label {display:block;margin-bottom:5px;font-size:0.95rem;}
-    .field input {
+    .field{margin-bottom:15px;}
+    .field label{display:block;margin-bottom:5px;font-size:0.95rem;}
+    .field input{
       width:100%;
       padding:10px;
       border:1px solid #555;
@@ -139,13 +139,8 @@
       font-size:1rem;
     }
 
-    .buttons {
-      display:flex;
-      justify-content:flex-end;
-      gap:12px;
-      margin-top:10px;
-    }
-    .btn {
+    .buttons{display:flex;justify-content:flex-end;gap:12px;margin-top:10px;}
+    .btn{
       padding:9px 16px;
       border-radius:20px;
       cursor:pointer;
@@ -153,19 +148,24 @@
       font-size:0.9rem;
       font-weight:600;
     }
-    .btn.secondary {background:#000;color:#fff;}
-    .btn.primary {background:#00ff55;color:#000;}
+    .btn.secondary{background:#000;color:#fff;}
+    .btn.primary{background:#00ff55;color:#000;}
 
-    /* טקסט גרסה */
-    .version {
+    .version{
       position:fixed;
       left:8px;
-      bottom:8px;
+      bottom:6px;
       font-size:0.7rem;
-      color:#888;
-      font-family:monospace;
-      pointer-events:none;
-      user-select:none;
+      opacity:0.7;
+      font-family:"Courier New",monospace;
+    }
+
+    /* התאמה נוספת למסכי מובייל צרים במיוחד */
+    @media (max-width:600px){
+      .wrapper{padding:1vh 2vw;}
+      .digits{font-size:9.2vw;}
+      .colon{font-size:9.2vw;}
+      .unit{font-size:3vw;}
     }
   </style>
 </head>
@@ -174,32 +174,38 @@
 <div class="wrapper">
   <div id="eventTitle">אין אירוע מוגדר</div>
 
-  <!-- שורת הספירה -->
-  <div id="countdownRow">
-    <div class="segment">
-      <span class="num" id="daysVal">000</span>
-      <span class="label">D</span>
+  <div class="timer-row">
+    <div class="time-block">
+      <div class="digits" id="days">000</div>
+      <div class="unit">D</div>
     </div>
-    <span class="colon">:</span>
-    <div class="segment">
-      <span class="num" id="hoursVal">00</span>
-      <span class="label">H</span>
+
+    <div class="colon">:</div>
+
+    <div class="time-block">
+      <div class="digits" id="hours">00</div>
+      <div class="unit">H</div>
     </div>
-    <span class="colon">:</span>
-    <div class="segment">
-      <span class="num" id="minsVal">00</span>
-      <span class="label">M</span>
+
+    <div class="colon">:</div>
+
+    <div class="time-block">
+      <div class="digits" id="minutes">00</div>
+      <div class="unit">M</div>
     </div>
-    <span class="colon">:</span>
-    <div class="segment">
-      <span class="num" id="secsVal">00</span>
-      <span class="label">S</span>
+
+    <div class="colon">:</div>
+
+    <div class="time-block">
+      <div class="digits" id="seconds">00</div>
+      <div class="unit">S</div>
     </div>
-    <span class="colon">:</span>
-    <div class="segment">
-      <span class="num" id="msVal">00</span>
-      <!-- בלי אות מתחת למילי־שניות -->
-      <span class="label">&nbsp;</span>
+
+    <div class="colon">:</div>
+
+    <div class="time-block">
+      <div class="digits" id="millis">00</div>
+      <div class="unit unit-ms">&nbsp;</div> <!-- בלי אות כדי לא להעמיס -->
     </div>
   </div>
 </div>
@@ -227,14 +233,13 @@
   </div>
 </div>
 
-<div class="version">v2025-11-23-FS3</div>
+<div class="version">v2025-11-23-FS4</div>
 
 <script type="module">
-  // -------- Firebase imports --------
+  /* --------- Firebase --------- */
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
   import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-  // -------- Firebase config – global-timer-8ebbd --------
   const firebaseConfig = {
     apiKey: "AIzaSyAeUBBZDPZnDIcAvluwzubNtbs3xjmTqls",
     authDomain: "global-timer-8ebbd.firebaseapp.com",
@@ -245,17 +250,19 @@
     measurementId: "G-WW8L0XHPGB"
   };
 
-  const app  = initializeApp(firebaseConfig);
-  const db   = getFirestore(app);
-  const ref  = doc(db, "globalTimer", "event");
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
 
-  // -------- אלמנטים --------
-  const titleEl   = document.getElementById("eventTitle");
-  const daysEl    = document.getElementById("daysVal");
-  const hoursEl   = document.getElementById("hoursVal");
-  const minsEl    = document.getElementById("minsVal");
-  const secsEl    = document.getElementById("secsVal");
-  const msEl      = document.getElementById("msVal");
+  // אוסף + דוקומנט גלובליים
+  const ref = doc(db, "globalTimer", "event");
+
+  /* --------- אלמנטים --------- */
+  const eventTitleEl = document.getElementById("eventTitle");
+  const daysEl       = document.getElementById("days");
+  const hoursEl      = document.getElementById("hours");
+  const minutesEl    = document.getElementById("minutes");
+  const secondsEl    = document.getElementById("seconds");
+  const millisEl     = document.getElementById("millis");
 
   const secretBtn      = document.getElementById("secretBtn");
   const overlay        = document.getElementById("overlay");
@@ -273,12 +280,12 @@
     return s;
   }
 
-  function renderZero() {
-    daysEl.textContent  = "000";
-    hoursEl.textContent = "00";
-    minsEl.textContent  = "00";
-    secsEl.textContent  = "00";
-    msEl.textContent    = "00";
+  function renderZero(){
+    daysEl.textContent    = "000";
+    hoursEl.textContent   = "00";
+    minutesEl.textContent = "00";
+    secondsEl.textContent = "00";
+    millisEl.textContent  = "00";
   }
 
   function updateTimer(){
@@ -297,11 +304,11 @@
     const seconds = Math.floor((diff / 1000) % 60);
     const millis  = Math.floor((diff % 1000) / 10); // שתי ספרות
 
-    daysEl.textContent  = pad(days,3);
-    hoursEl.textContent = pad(hours,2);
-    minsEl.textContent  = pad(minutes,2);
-    secsEl.textContent  = pad(seconds,2);
-    msEl.textContent    = pad(millis,2);
+    daysEl.textContent    = pad(days,3);
+    hoursEl.textContent   = pad(hours,2);
+    minutesEl.textContent = pad(minutes,2);
+    secondsEl.textContent = pad(seconds,2);
+    millisEl.textContent  = pad(millis,2);
   }
 
   function startInterval(){
@@ -309,29 +316,30 @@
     timerId = setInterval(updateTimer, 10);
   }
 
-  // -------- האזנה לפיירסטור --------
+  /* --------- מאזין ל-Firestore --------- */
   console.log("Global Timer v1.1.0 – starting…");
 
   onSnapshot(ref, snap => {
     const data = snap.data();
-    console.log("onSnapshot fired", data);
+    console.log("onSnapshot fired");
+    console.log("Snapshot data:", data);
 
     if (!data || !data.timestamp){
       targetTime = null;
-      titleEl.textContent = "אין אירוע מוגדר";
-      updateTimer();
+      eventTitleEl.textContent = "אין אירוע מוגדר";
+      renderZero();
       return;
     }
 
     targetTime = data.timestamp;
-    titleEl.textContent = data.name || "אירוע ללא שם";
+    eventTitleEl.textContent = data.name || "אירוע ללא שם";
     startInterval();
   });
 
-  // -------- חלון סודי --------
+  /* --------- כפתור סודי + שמירה --------- */
   secretBtn.onclick = () => {
     overlay.classList.add("active");
-    setTimeout(() => eventNameInput.focus(), 50);
+    eventNameInput.focus();
   };
 
   cancelBtn.onclick = () => {
@@ -359,32 +367,15 @@
     };
 
     console.log("Trying to save to Firestore:", payload);
+    await setDoc(ref, payload, { merge:true });
+    console.log("Saved successfully.");
 
-    try{
-      await setDoc(ref, payload, { merge:true });
-      console.log("Saved to Firestore OK");
-      overlay.classList.remove("active");
-    }catch(err){
-      console.error("Error saving to Firestore", err);
-      alert("שגיאה בשמירה לשרת");
-    }
+    overlay.classList.remove("active");
   };
 
-  // סגירה בלחיצה מחוץ לדיאלוג
   overlay.onclick = e => {
     if (e.target === overlay) overlay.classList.remove("active");
   };
-
-  // -------- פול־סקין לאחר לחיצה ראשונה --------
-  function requestFullScreenOnce() {
-    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    }
-  }
-  document.addEventListener("click", requestFullScreenOnce, { once:true });
-
-  // אפס תצוגה בהתחלה
-  renderZero();
 </script>
 
 </body>
