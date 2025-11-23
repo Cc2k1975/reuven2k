@@ -2,300 +2,284 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ספירה לאחור סודית</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Global Timer</title>
+
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    *{margin:0;padding:0;box-sizing:border-box;}
 
     html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      background:#000;
+      color:#fff;
+      font-family:"Courier New", monospace;
     }
 
     body {
-      background: #ffffff;
-      color: #000000;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-        "Heebo", Arial, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
     }
 
     .wrapper {
-      width: 100%;
-      max-width: 700px;
-      padding: 16px;
-      text-align: center;
+      width:100%;
+      max-width:800px;
+      padding:20px;
     }
 
-    .event-title {
-      font-size: clamp(1.5rem, 5vw, 2.4rem);
-      margin-bottom: 0.8rem;
-      font-weight: 700;
+    #eventTitle {
+      font-size:clamp(1.8rem,5vw,2.8rem);
+      font-weight:900;
+      margin-bottom:1rem;
+      color:#ffffff;
+      word-break:break-word;
     }
 
-    .countdown {
-      font-family: "Courier New", monospace;
-      font-weight: 800;
-      font-size: clamp(2.4rem, 11vw, 3.8rem);
-      letter-spacing: 0.03em;
-      direction: ltr;
+    #countdown {
+      font-size:clamp(3rem,15vw,5rem);
+      font-weight:900;
+      letter-spacing:0.07em;
+      direction:ltr;
+      color:#00ff55;
+      text-shadow:0 0 12px #00ff55,0 0 22px #009933;
     }
 
-    /* כפתור סודי – שקוף, בפינה הימנית התחתונה */
+    .labels {
+      margin-top:10px;
+      font-size:clamp(1rem,4vw,1.4rem);
+      font-weight:800;
+      letter-spacing:0.3em;
+    }
+
+    /* כפתור סודי */
     #secretBtn {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      width: 38px;
-      height: 38px;
-      opacity: 0;
-      background: transparent;
-      border: none;
-      padding: 0;
-      margin: 0;
-      z-index: 10;
+      position:fixed;
+      bottom:10px;
+      right:10px;
+      width:45px;
+      height:45px;
+      opacity:0; /* כפתור נסתר */
+      z-index:50;
     }
-    /* לצורך בדיקות אפשר:
-       #secretBtn { opacity:0.08; background:#000; } */
 
-    /* שכבת הגדרות (מודאל) */
+    /* חלון הגדרות */
     .overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.35);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 20;
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.65);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:100;
     }
-
-    .overlay.active {
-      display: flex;
-    }
+    .overlay.active {display:flex;}
 
     .dialog {
-      background: #ffffff;
-      color: #000;
-      width: 90%;
-      max-width: 420px;
-      border-radius: 14px;
-      padding: 16px 18px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
-      text-align: right;
+      background:#111;
+      padding:20px;
+      border-radius:12px;
+      width:90%;
+      max-width:420px;
+      color:#fff;
+      text-align:right;
+      box-shadow:0 20px 40px rgba(0,0,0,0.7);
+      font-family:Arial,"Heebo",sans-serif;
     }
 
-    .dialog h2 {
-      margin-bottom: 12px;
-      font-size: 1.1rem;
-    }
+    .dialog h2 {margin-bottom:15px;font-size:1.2rem;}
 
-    .field {
-      margin-bottom: 10px;
-    }
-
-    .field label {
-      display: block;
-      font-size: 0.9rem;
-      margin-bottom: 4px;
-    }
-
+    .field {margin-bottom:15px;}
+    .field label {display:block;margin-bottom:5px;font-size:0.95rem;}
     .field input {
-      width: 100%;
-      padding: 8px 10px;
-      font-size: 1rem;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      outline: none;
+      width:100%;
+      padding:10px;
+      border:1px solid #555;
+      border-radius:8px;
+      background:#000;
+      color:#fff;
+      font-size:1rem;
     }
 
-    .field input:focus {
-      border-color: #000;
-    }
-
-    .buttons {
-      margin-top: 10px;
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
+    .buttons {display:flex;justify-content:flex-end;gap:12px;margin-top:10px;}
     .btn {
-      padding: 8px 14px;
-      font-size: 0.9rem;
-      border-radius: 999px;
-      border: 1px solid #000;
-      background: #000;
-      color: #fff;
-      cursor: pointer;
+      padding:9px 16px;
+      border-radius:20px;
+      cursor:pointer;
+      border:1px solid #fff;
+      font-size:0.9rem;
+      font-weight:600;
     }
-
-    .btn.secondary {
-      background: #ffffff;
-      color: #000;
-    }
-
-    .btn:active {
-      transform: scale(0.97);
-    }
+    .btn.secondary {background:#000;color:#fff;}
+    .btn.primary {background:#00ff55;color:#000;}
   </style>
 </head>
 <body>
-  <div class="wrapper">
-    <div class="event-title" id="eventTitle">אין אירוע מוגדר</div>
-    <div class="countdown" id="countdown">
-      000:00:00:00:000
+
+<div class="wrapper">
+  <div id="eventTitle">אין אירוע מוגדר</div>
+  <div id="countdown">000:00:00:00:00</div>
+  <div class="labels">D&nbsp;&nbsp;H&nbsp;&nbsp;M&nbsp;&nbsp;S</div>
+</div>
+
+<button id="secretBtn"></button>
+
+<div class="overlay" id="overlay">
+  <div class="dialog">
+    <h2>הגדרת אירוע חדש</h2>
+
+    <div class="field">
+      <label>שם האירוע</label>
+      <input id="eventNameInput" type="text">
+    </div>
+
+    <div class="field">
+      <label>תאריך ושעה</label>
+      <input id="eventTimeInput" type="datetime-local">
+    </div>
+
+    <div class="buttons">
+      <button class="btn secondary" id="cancelBtn">ביטול</button>
+      <button class="btn primary" id="saveBtn">שמור</button>
     </div>
   </div>
+</div>
 
-  <!-- כפתור סודי שקוף -->
-  <button id="secretBtn" aria-label="הגדרת אירוע"></button>
+<script type="module">
 
-  <!-- חלון הגדרות -->
-  <div class="overlay" id="overlay">
-    <div class="dialog">
-      <h2>הגדרת אירוע חדש</h2>
+  /* ------------------------ FIREBASE ------------------------ */
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+  import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-      <div class="field">
-        <label for="eventNameInput">שם האירוע</label>
-        <input id="eventNameInput" type="text" placeholder="לדוגמה: טיסה לגלפגוס" />
-      </div>
+  // ⭐⭐⭐ הדבק כאן את ה־firebaseConfig של global-timer ⭐⭐⭐
+  const firebaseConfig = {
+    apiKey: "AIzaSyBpiYodCIBxCReDSyfToFiDJp-xksOzuzY",
+    authDomain: "mifkad-online.firebaseapp.com",
+    databaseURL: "https://mifkad-online-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "mifkad-online",
+    storageBucket: "mifkad-online.firebasestorage.app",
+    messagingSenderId: "602973548307",
+    appId: "1:602973548307:web:36c639ca2f030e61d3b4e6",
+    measurementId: "G-K11QKY18SK"
+  };
+  // ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐
 
-      <div class="field">
-        <label for="eventTimeInput">תאריך ושעה</label>
-        <input id="eventTimeInput" type="datetime-local" />
-      </div>
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
 
-      <div class="buttons">
-        <button class="btn secondary" id="cancelBtn">ביטול</button>
-        <button class="btn" id="saveBtn">שמור</button>
-      </div>
-    </div>
-  </div>
+  const ref = doc(db, "globalTimer", "event");
 
-  <script>
-    const countdownEl = document.getElementById("countdown");
-    const eventTitleEl = document.getElementById("eventTitle");
+  /* ------------------------ אלמנטים ------------------------ */
+  const eventTitleEl   = document.getElementById("eventTitle");
+  const countdownEl    = document.getElementById("countdown");
+  const secretBtn      = document.getElementById("secretBtn");
+  const overlay        = document.getElementById("overlay");
+  const eventNameInput = document.getElementById("eventNameInput");
+  const eventTimeInput = document.getElementById("eventTimeInput");
+  const cancelBtn      = document.getElementById("cancelBtn");
+  const saveBtn        = document.getElementById("saveBtn");
 
-    const secretBtn = document.getElementById("secretBtn");
-    const overlay = document.getElementById("overlay");
-    const eventNameInput = document.getElementById("eventNameInput");
-    const eventTimeInput = document.getElementById("eventTimeInput");
-    const cancelBtn = document.getElementById("cancelBtn");
-    const saveBtn = document.getElementById("saveBtn");
+  let targetTime = null;
+  let timerId    = null;
 
-    let targetTime = null;
-    let timerId = null;
+  /* ------------------------ פונקציות ------------------------ */
 
-    function pad(num, size) {
-      let s = String(num);
-      while (s.length < size) s = "0" + s;
-      return s;
+  function pad(n, size){
+    let s = String(n);
+    while (s.length < size) s = "0" + s;
+    return s;
+  }
+
+  function updateTimer(){
+    if (!targetTime){
+      countdownEl.textContent = "000:00:00:00:00";
+      return;
     }
 
-    function updateCountdown() {
-      if (!targetTime) {
-        countdownEl.textContent = "000:00:00:00:000";
-        return;
-      }
+    const now = Date.now();
+    let diff = targetTime - now;
+    if (diff < 0) diff = 0;
 
-      const now = Date.now();
-      let diff = targetTime - now;
+    const days    = Math.floor(diff / 86400000);
+    const hours   = Math.floor((diff / 3600000) % 24);
+    const minutes = Math.floor((diff / 60000) % 60);
+    const seconds = Math.floor((diff / 1000) % 60);
+    const millis  = Math.floor((diff % 1000) / 10); // 2 ספרות בלבד
 
-      if (diff <= 0) {
-        diff = 0;
-        clearInterval(timerId);
-        timerId = null;
-      }
+    countdownEl.textContent =
+      pad(days,3) + ":" +
+      pad(hours,2) + ":" +
+      pad(minutes,2) + ":" +
+      pad(seconds,2) + ":" +
+      pad(millis,2);
+  }
 
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((diff / (1000 * 60)) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
-      const millis = diff % 1000;
+  function startInterval(){
+    if (timerId) clearInterval(timerId);
+    timerId = setInterval(updateTimer, 10);
+  }
 
-      const text =
-        pad(days, 3) + ":" +
-        pad(hours, 2) + ":" +
-        pad(minutes, 2) + ":" +
-        pad(seconds, 2) + ":" +
-        pad(millis, 3);
+  /* ------------------------ מאזין FIRESTORE ------------------------ */
 
-      countdownEl.textContent = text;
+  onSnapshot(ref, snap => {
+    const data = snap.data();
+
+    if (!data || !data.timestamp){
+      targetTime = null;
+      eventTitleEl.textContent = "אין אירוע מוגדר";
+      updateTimer();
+      return;
     }
 
-    function startTimer() {
-      if (timerId) {
-        clearInterval(timerId);
-      }
-      // עדכון כל 10 מילישניות – נותן תחושה של ריצה מהירה
-      timerId = setInterval(updateCountdown, 10);
+    targetTime = data.timestamp;
+    eventTitleEl.textContent = data.name || "אירוע ללא שם";
+
+    startInterval();
+  });
+
+  /* ------------------------ כפתור סודי ------------------------ */
+
+  secretBtn.onclick = () => {
+    overlay.classList.add("active");
+    eventNameInput.focus();
+  };
+
+  cancelBtn.onclick = () => {
+    overlay.classList.remove("active");
+  };
+
+  saveBtn.onclick = async () => {
+
+    const name = eventNameInput.value.trim();
+    const d = eventTimeInput.value;
+
+    if (!d){
+      alert("בחר תאריך ושעה");
+      return;
     }
 
-    // ניסיון לעבור למסך מלא (חלק מהדפדפנים יאפשרו רק אחרי אינטראקציה של המשתמש)
-    function tryFullScreen() {
-      const el = document.documentElement;
-      if (el.requestFullscreen) {
-        el.requestFullscreen().catch(() => {});
-      } else if (el.webkitRequestFullscreen) {
-        el.webkitRequestFullscreen();
-      } else if (el.msRequestFullscreen) {
-        el.msRequestFullscreen();
-      }
+    const t = new Date(d);
+    if (isNaN(t.getTime())){
+      alert("תאריך לא תקין");
+      return;
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-      tryFullScreen();
-      updateCountdown();
-    });
+    await setDoc(ref, {
+      name: name || "אירוע ללא שם",
+      timestamp: t.getTime()
+    }, { merge:true });
 
-    // פתיחת חלון ההגדרות
-    secretBtn.addEventListener("click", () => {
-      tryFullScreen(); // עוד ניסיון למסך מלא אחרי לחיצה
-      overlay.classList.add("active");
-      eventNameInput.focus();
-    });
+    overlay.classList.remove("active");
+  };
 
-    // ביטול
-    cancelBtn.addEventListener("click", () => {
+  overlay.onclick = e => {
+    if (e.target === overlay)
       overlay.classList.remove("active");
-    });
+  };
 
-    // שמירת אירוע חדש
-    saveBtn.addEventListener("click", () => {
-      const name = eventNameInput.value.trim();
-      const dateStr = eventTimeInput.value;
+</script>
 
-      if (!dateStr) {
-        alert("אנא בחר תאריך ושעה לאירוע.");
-        return;
-      }
-
-      const t = new Date(dateStr);
-      if (isNaN(t.getTime())) {
-        alert("פורמט תאריך/שעה לא תקין.");
-        return;
-      }
-
-      targetTime = t.getTime();
-      eventTitleEl.textContent = name || "אירוע ללא שם";
-      overlay.classList.remove("active");
-      startTimer();
-      updateCountdown();
-    });
-
-    // סגירת המודאל בלחיצה על הרקע
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) {
-        overlay.classList.remove("active");
-      }
-    });
-  </script>
 </body>
 </html>
