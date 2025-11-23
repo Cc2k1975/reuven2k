@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Global Timer</title>
 
-  <!-- מקסימום מסך מלא במובייל -->
+  <!-- ניסיון מקסימלי למסך מלא באפליקציית דפדפן -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
 
@@ -43,7 +43,7 @@
       word-break:break-word;
     }
 
-    /* שורת הטיימר */
+    /* שורת הטיימר – הכל בקופסאות כדי שהאות מתיישבת מתחת לדיג'יטים הנכונים */
     .timer-row{
       display:flex;
       justify-content:center;
@@ -67,6 +67,7 @@
       direction:ltr;
       color:#00ff55;
       text-shadow:0 0 12px #00ff55,0 0 22px #009933;
+      /* רספונסיבי – שלא ייחתך בטלפון בפול סקרין */
       font-size:clamp(2.4rem,10vw,4.5rem);
     }
 
@@ -171,7 +172,8 @@
 <div class="wrapper">
   <div id="eventTitle">אין אירוע מוגדר</div>
 
-  <div class="timer-row">
+  <!-- שים לב ל־dir="ltr" כאן כדי שהסדר יהיה: ימים משמאל, מילישניות מימין -->
+  <div class="timer-row" dir="ltr">
     <div class="time-block">
       <div class="digits" id="days">000</div>
       <div class="unit">D</div>
@@ -250,10 +252,8 @@
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
 
-  // אוסף + דוקומנט גלובליים
   const ref = doc(db, "globalTimer", "event");
 
-  /* --------- אלמנטים --------- */
   const eventTitleEl = document.getElementById("eventTitle");
   const daysEl       = document.getElementById("days");
   const hoursEl      = document.getElementById("hours");
@@ -299,7 +299,7 @@
     const hours   = Math.floor((diff / 3600000) % 24);
     const minutes = Math.floor((diff / 60000) % 60);
     const seconds = Math.floor((diff / 1000) % 60);
-    const millis  = Math.floor((diff % 1000) / 10); // שתי ספרות
+    const millis  = Math.floor((diff % 1000) / 10);
 
     daysEl.textContent    = pad(days,3);
     hoursEl.textContent   = pad(hours,2);
@@ -313,7 +313,6 @@
     timerId = setInterval(updateTimer, 10);
   }
 
-  /* --------- מאזין ל-Firestore --------- */
   console.log("Global Timer v1.1.0 – starting…");
 
   onSnapshot(ref, snap => {
@@ -333,7 +332,6 @@
     startInterval();
   });
 
-  /* --------- כפתור סודי + שמירה --------- */
   secretBtn.onclick = () => {
     overlay.classList.add("active");
     eventNameInput.focus();
@@ -373,31 +371,6 @@
   overlay.onclick = e => {
     if (e.target === overlay) overlay.classList.remove("active");
   };
-
-  /* --------- פול סקרין אוטומטי בלחיצה ראשונה --------- */
-
-  function requestFullscreenSafe(){
-    const el = document.documentElement;
-    try{
-      if (el.requestFullscreen) return el.requestFullscreen();
-      if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
-      if (el.msRequestFullscreen) return el.msRequestFullscreen();
-    }catch(e){
-      console.warn("fullscreen error:", e);
-    }
-  }
-
-  function handleFirstInteraction(){
-    const p = requestFullscreenSafe();
-    // בחלק מהדפדפנים מחזיר Promise, בחלק לא – נתעלם משגיאות
-    if (p && p.catch) p.catch(()=>{});
-    document.removeEventListener("click", handleFirstInteraction);
-    document.removeEventListener("touchstart", handleFirstInteraction);
-  }
-
-  document.addEventListener("click", handleFirstInteraction, { once:true });
-  document.addEventListener("touchstart", handleFirstInteraction, { once:true });
-
 </script>
 
 </body>
