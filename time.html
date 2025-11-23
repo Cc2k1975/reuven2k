@@ -12,7 +12,7 @@
       width:100%;
       height:100%;
       overflow:hidden;
-      background:#000;          /* רקע שחור */
+      background:#000;
       color:#fff;
       font-family:"Courier New", monospace;
     }
@@ -43,7 +43,7 @@
       font-weight:900;
       letter-spacing:0.07em;
       direction:ltr;
-      color:#00ff55;                 /* ספרות ירוקות HIGH-CONTRAST */
+      color:#00ff55;
       text-shadow:0 0 12px #00ff55,0 0 22px #009933;
     }
 
@@ -61,7 +61,7 @@
       right:10px;
       width:45px;
       height:45px;
-      opacity:0;      /* נסתר – אפשר לשים 0.1 לבדיקה */
+      opacity:0;
       z-index:50;
     }
 
@@ -115,16 +115,15 @@
     .btn.secondary {background:#000;color:#fff;}
     .btn.primary {background:#00ff55;color:#000;}
 
-    /* גרסת קובץ */
-    .version-tag {
+    /* גרסה */
+    #version {
       position:fixed;
-      left:10px;
       bottom:8px;
-      font-size:11px;
-      font-family:Arial, sans-serif;
-      color:#555;
-      opacity:0.8;
+      left:10px;
+      font-size:12px;
+      opacity:0.5;
     }
+
   </style>
 </head>
 <body>
@@ -135,8 +134,7 @@
   <div class="labels">D&nbsp;&nbsp;H&nbsp;&nbsp;M&nbsp;&nbsp;S</div>
 </div>
 
-<!-- תג גרסה -->
-<div class="version-tag">v0.3</div>
+<div id="version">V1.0.7</div>
 
 <button id="secretBtn"></button>
 
@@ -162,11 +160,10 @@
 </div>
 
 <script type="module">
-  /* --------- Firebase --------- */
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
   import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-  // זה ה-config של הפרויקט החדש global-timer (לפי מה שהיה במסך אצלך)
+  // פרויקט global-timer החדש
   const firebaseConfig = {
     apiKey: "AIzaSyAuEBBZDPZnDtCAvlwuzUbNtbS3xjmTqls",
     authDomain: "global-timer-b8bbd.firebaseapp.com",
@@ -180,10 +177,8 @@
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
 
-  // אוסף + דוקומנט גלובליים
   const ref = doc(db, "globalTimer", "event");
 
-  /* --------- אלמנטים --------- */
   const eventTitleEl   = document.getElementById("eventTitle");
   const countdownEl    = document.getElementById("countdown");
   const secretBtn      = document.getElementById("secretBtn");
@@ -196,7 +191,6 @@
   let targetTime = null;
   let timerId    = null;
 
-  /* --------- פונקציות --------- */
   function pad(n, size){
     let s = String(n);
     while (s.length < size) s = "0" + s;
@@ -217,7 +211,7 @@
     const hours   = Math.floor((diff / 3600000) % 24);
     const minutes = Math.floor((diff / 60000) % 60);
     const seconds = Math.floor((diff / 1000) % 60);
-    const millis  = Math.floor((diff % 1000) / 10); // שתי ספרות אחרי הנקודה
+    const millis  = Math.floor((diff % 1000) / 10);
 
     countdownEl.textContent =
       pad(days,3) + ":" +
@@ -232,10 +226,9 @@
     timerId = setInterval(updateTimer, 10);
   }
 
-  /* --------- מאזין ל-Firestore --------- */
+  // מאזין חי
   onSnapshot(ref, snap => {
     const data = snap.data();
-
     if (!data || !data.timestamp){
       targetTime = null;
       eventTitleEl.textContent = "אין אירוע מוגדר";
@@ -248,7 +241,7 @@
     startInterval();
   });
 
-  /* --------- כפתור סודי + שמירה --------- */
+  // כפתור סודי
   secretBtn.onclick = () => {
     overlay.classList.add("active");
     eventNameInput.focus();
@@ -262,16 +255,10 @@
     const name = eventNameInput.value.trim();
     const d    = eventTimeInput.value;
 
-    if (!d){
-      alert("בחר תאריך ושעה");
-      return;
-    }
+    if (!d){ alert("בחר תאריך ושעה"); return; }
 
     const t = new Date(d);
-    if (isNaN(t.getTime())){
-      alert("תאריך לא תקין");
-      return;
-    }
+    if (isNaN(t.getTime())){ alert("תאריך לא תקין"); return; }
 
     await setDoc(ref, {
       name: name || "אירוע ללא שם",
