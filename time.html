@@ -61,7 +61,7 @@
       right:10px;
       width:45px;
       height:45px;
-      opacity:0;      /* אפשר לשים 0.2 לבדיקה */
+      opacity:0;       /* לגרסה סופית 0. לבדיקות אפשר 0.2 */
       z-index:50;
     }
 
@@ -115,14 +115,15 @@
     .btn.secondary {background:#000;color:#fff;}
     .btn.primary {background:#00ff55;color:#000;}
 
-    /* תצוגת גרסה */
-    #versionTag{
+    /* טקסט מצב קטן למטה */
+    #statusLine {
       position:fixed;
       left:4px;
-      bottom:2px;
-      font-size:11px;
+      bottom:4px;
+      font-size:10px;
       color:#666;
-      font-family:Arial,Helvetica,sans-serif;
+      font-family:Arial, sans-serif;
+      opacity:0.9;
     }
   </style>
 </head>
@@ -157,14 +158,20 @@
   </div>
 </div>
 
-<div id="versionTag">global-timer v1.1.0</div>
+<div id="statusLine">global-timer v1.2.0</div>
 
 <script type="module">
   /* --------- Firebase --------- */
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-  import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+  import {
+    getFirestore,
+    doc,
+    onSnapshot,
+    setDoc,
+    getDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-  // config של הפרויקט החדש global-timer
+  // קונפיגורציה של הפרויקט global-timer-b8bbd
   const firebaseConfig = {
     apiKey: "AIzaSyAuEBBZDPZnDtCAvlwuzUbNtbS3xjmTqls",
     authDomain: "global-timer-b8bbd.firebaseapp.com",
@@ -175,7 +182,7 @@
     measurementId: "G-WWBL8XHPG8"
   };
 
-  console.log("Global Timer v1.1.0 – starting…");
+  console.log("Global Timer v1.2.0 – starting…");
 
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
@@ -192,9 +199,15 @@
   const eventTimeInput = document.getElementById("eventTimeInput");
   const cancelBtn      = document.getElementById("cancelBtn");
   const saveBtn        = document.getElementById("saveBtn");
+  const statusLine     = document.getElementById("statusLine");
 
   let targetTime = null;
   let timerId    = null;
+
+  function setStatus(text, isError = false) {
+    statusLine.textContent = `global-timer v1.2.0 – ${text}`;
+    statusLine.style.color = isError ? "#ff5555" : "#666666";
+  }
 
   /* --------- פונקציות --------- */
   function pad(n, size){
@@ -241,26 +254,30 @@
     if (!data || !data.timestamp){
       targetTime = null;
       eventTitleEl.textContent = "אין אירוע מוגדר";
+      setStatus("אין נתונים בשרת");
       updateTimer();
       return;
     }
 
     targetTime = data.timestamp;
     eventTitleEl.textContent = data.name || "אירוע ללא שם";
+    setStatus("נטען מהשרת בהצלחה");
     startInterval();
   }, err => {
     console.error("onSnapshot error:", err);
-    alert("שגיאה בקריאת הנתונים מהשרת: " + err.message);
+    setStatus("שגיאה בחיבור ל־Firestore", true);
   });
 
-  /* --------- כפתור סודי + שמירה עם בדיקה --------- */
+  /* --------- כפתור סודי + שמירה --------- */
   secretBtn.onclick = () => {
     overlay.classList.add("active");
+    setStatus("מצב: עריכת אירוע");
     eventNameInput.focus();
   };
 
   cancelBtn.onclick = () => {
     overlay.classList.remove("active");
+    setStatus("בוטל על ידי המשתמש");
   };
 
   saveBtn.onclick = async () => {
@@ -284,19 +301,37 @@
     };
 
     console.log("Trying to save to Firestore:", payload);
+    setStatus("שומר לשרת…");
+    saveBtn.disabled = true;
+    saveBtn.textContent = "שומר…";
 
     try {
+      // כתיבה לשרת
       await setDoc(ref, payload, { merge:true });
-      console.log("Saved to Firestore successfully");
-      // אם הצליח – נסגור את החלון
-      overlay.classList.remove("active");
+
+      // בדיקת נתונים אחרי כתיבה
+      const checkSnap = await getDoc(ref);
+      if (!checkSnap.exists()) {
+        console.error("Verify after save – document missing");
+        setStatus("שגיאה: המסמך לא נמצא אחרי שמירה", true);
+        alert("שמירה נכשלה (מסמך לא נמצא אחרי שמירה).");
+      } else {
+        const saved = checkSnap.data();
+        console.log("Verify after save – got:", saved);
+        setStatus("נשמר לשרת בהצלחה");
+        overlay.classList.remove("active");
+      }
     } catch (err) {
-      console.error("Error saving to Firestore:", err);
-      alert("שמירה לשרת נכשלה: " + err.message);
-      // לא סוגרים את החלון כדי שתוכל לנסות שוב
+      console.error("Error while saving to Firestore:", err);
+      setStatus("שגיאה בשמירה לשרת", true);
+      alert("שגיאה בשמירה לשרת: " + err.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "שמור";
     }
   };
 
+  // סגירת החלון בלחיצה מחוץ לדיאלוג
   overlay.onclick = e => {
     if (e.target === overlay) overlay.classList.remove("active");
   };
