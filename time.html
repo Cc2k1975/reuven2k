@@ -12,7 +12,7 @@
       width:100%;
       height:100%;
       overflow:hidden;
-      background:#000;
+      background:#000;          /* רקע שחור */
       color:#fff;
       font-family:"Courier New", monospace;
     }
@@ -43,7 +43,7 @@
       font-weight:900;
       letter-spacing:0.07em;
       direction:ltr;
-      color:#00ff55;
+      color:#00ff55;                 /* ספרות ירוקות HIGH-CONTRAST */
       text-shadow:0 0 12px #00ff55,0 0 22px #009933;
     }
 
@@ -61,8 +61,10 @@
       right:10px;
       width:45px;
       height:45px;
-      opacity:0;       /* לגרסה סופית 0. לבדיקות אפשר 0.2 */
+      opacity:0.06;      /* נסתר אבל עדיין אפשר לראות טיפה לבדיקה */
       z-index:50;
+      background:transparent;
+      border:none;
     }
 
     /* חלון הגדרות */
@@ -115,15 +117,14 @@
     .btn.secondary {background:#000;color:#fff;}
     .btn.primary {background:#00ff55;color:#000;}
 
-    /* טקסט מצב קטן למטה */
-    #statusLine {
+    /* טקסט גרסה */
+    .version {
       position:fixed;
-      left:4px;
+      left:5px;
       bottom:4px;
       font-size:10px;
-      color:#666;
-      font-family:Arial, sans-serif;
-      opacity:0.9;
+      color:#888;
+      font-family:monospace;
     }
   </style>
 </head>
@@ -135,7 +136,8 @@
   <div class="labels">D&nbsp;&nbsp;H&nbsp;&nbsp;M&nbsp;&nbsp;S</div>
 </div>
 
-<button id="secretBtn"></button>
+<button id="secretBtn" title="הגדרת אירוע"></button>
+<div class="version">global-timer v1.2.0</div>
 
 <div class="overlay" id="overlay">
   <div class="dialog">
@@ -158,31 +160,25 @@
   </div>
 </div>
 
-<div id="statusLine">global-timer v1.2.0</div>
-
 <script type="module">
-  /* --------- Firebase --------- */
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-  import {
-    getFirestore,
-    doc,
-    onSnapshot,
-    setDoc,
-    getDoc
-  } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+  console.log("Global Timer v1.2.0 – starting…");
 
-  // קונפיגורציה של הפרויקט global-timer-b8bbd
+  // --------- Firebase (CDN imports) ---------
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+  import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+
+  // זה ה-config ששלחת לפרויקט global-timer-8ebbd
   const firebaseConfig = {
-    apiKey: "AIzaSyAuEBBZDPZnDtCAvlwuzUbNtbS3xjmTqls",
-    authDomain: "global-timer-b8bbd.firebaseapp.com",
-    projectId: "global-timer-b8bbd",
-    storageBucket: "global-timer-b8bbd.appspot.com",
-    messagingSenderId: "603463071136",
-    appId: "1:603463071136:web:0269c3a8847a1fb3d81585",
-    measurementId: "G-WWBL8XHPG8"
+    apiKey: "AIzaSyAeUBBZDPZnDIcAvluwzubNtbs3xjmTqls",
+    authDomain: "global-timer-8ebbd.firebaseapp.com",
+    projectId: "global-timer-8ebbd",
+    storageBucket: "global-timer-8ebbd.firebasestorage.app",
+    messagingSenderId: "603403671136",
+    appId: "1:603403671136:web:0269c03a847a1fb3d81505",
+    measurementId: "G-WW8L0XHPGB"
   };
 
-  console.log("Global Timer v1.2.0 – starting…");
+  console.log("Firebase projectId:", firebaseConfig.projectId);
 
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
@@ -190,7 +186,7 @@
   // אוסף + דוקומנט גלובליים
   const ref = doc(db, "globalTimer", "event");
 
-  /* --------- אלמנטים --------- */
+  // --------- אלמנטים ---------
   const eventTitleEl   = document.getElementById("eventTitle");
   const countdownEl    = document.getElementById("countdown");
   const secretBtn      = document.getElementById("secretBtn");
@@ -199,17 +195,11 @@
   const eventTimeInput = document.getElementById("eventTimeInput");
   const cancelBtn      = document.getElementById("cancelBtn");
   const saveBtn        = document.getElementById("saveBtn");
-  const statusLine     = document.getElementById("statusLine");
 
   let targetTime = null;
   let timerId    = null;
 
-  function setStatus(text, isError = false) {
-    statusLine.textContent = `global-timer v1.2.0 – ${text}`;
-    statusLine.style.color = isError ? "#ff5555" : "#666666";
-  }
-
-  /* --------- פונקציות --------- */
+  // --------- פונקציות ---------
   function pad(n, size){
     let s = String(n);
     while (s.length < size) s = "0" + s;
@@ -230,7 +220,7 @@
     const hours   = Math.floor((diff / 3600000) % 24);
     const minutes = Math.floor((diff / 60000) % 60);
     const seconds = Math.floor((diff / 1000) % 60);
-    const millis  = Math.floor((diff % 1000) / 10); // שתי ספרות
+    const millis  = Math.floor((diff % 1000) / 10); // שתי ספרות אחרי הנקודה
 
     countdownEl.textContent =
       pad(days,3) + ":" +
@@ -245,7 +235,7 @@
     timerId = setInterval(updateTimer, 10);
   }
 
-  /* --------- מאזין ל-Firestore --------- */
+  // --------- מאזין ל-Firestore (סנכרון גלובלי) ---------
   onSnapshot(ref, snap => {
     console.log("onSnapshot fired");
     const data = snap.data();
@@ -254,30 +244,26 @@
     if (!data || !data.timestamp){
       targetTime = null;
       eventTitleEl.textContent = "אין אירוע מוגדר";
-      setStatus("אין נתונים בשרת");
       updateTimer();
       return;
     }
 
     targetTime = data.timestamp;
     eventTitleEl.textContent = data.name || "אירוע ללא שם";
-    setStatus("נטען מהשרת בהצלחה");
     startInterval();
   }, err => {
     console.error("onSnapshot error:", err);
-    setStatus("שגיאה בחיבור ל־Firestore", true);
+    alert("שגיאה בקריאה מהשרת: " + err.message);
   });
 
-  /* --------- כפתור סודי + שמירה --------- */
+  // --------- כפתור סודי + שמירה ---------
   secretBtn.onclick = () => {
     overlay.classList.add("active");
-    setStatus("מצב: עריכת אירוע");
     eventNameInput.focus();
   };
 
   cancelBtn.onclick = () => {
     overlay.classList.remove("active");
-    setStatus("בוטל על ידי המשתמש");
   };
 
   saveBtn.onclick = async () => {
@@ -301,37 +287,18 @@
     };
 
     console.log("Trying to save to Firestore:", payload);
-    setStatus("שומר לשרת…");
-    saveBtn.disabled = true;
-    saveBtn.textContent = "שומר…";
 
     try {
-      // כתיבה לשרת
       await setDoc(ref, payload, { merge:true });
-
-      // בדיקת נתונים אחרי כתיבה
-      const checkSnap = await getDoc(ref);
-      if (!checkSnap.exists()) {
-        console.error("Verify after save – document missing");
-        setStatus("שגיאה: המסמך לא נמצא אחרי שמירה", true);
-        alert("שמירה נכשלה (מסמך לא נמצא אחרי שמירה).");
-      } else {
-        const saved = checkSnap.data();
-        console.log("Verify after save – got:", saved);
-        setStatus("נשמר לשרת בהצלחה");
-        overlay.classList.remove("active");
-      }
+      console.log("Saved to Firestore successfully");
+      overlay.classList.remove("active");
+      // אין צורך לעדכן כאן ידנית – onSnapshot ירוץ מיד אחרי השמירה
     } catch (err) {
-      console.error("Error while saving to Firestore:", err);
-      setStatus("שגיאה בשמירה לשרת", true);
+      console.error("Error saving to Firestore:", err);
       alert("שגיאה בשמירה לשרת: " + err.message);
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = "שמור";
     }
   };
 
-  // סגירת החלון בלחיצה מחוץ לדיאלוג
   overlay.onclick = e => {
     if (e.target === overlay) overlay.classList.remove("active");
   };
