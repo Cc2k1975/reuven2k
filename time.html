@@ -61,18 +61,8 @@
       right:10px;
       width:45px;
       height:45px;
-      opacity:0;      /* נסתר – אם תרצה לבדוק שים 0.2 */
+      opacity:0; /* נסתר */
       z-index:50;
-    }
-
-    /* תצוגת גרסה */
-    #version {
-      position:fixed;
-      bottom:8px;
-      left:10px;
-      font-size:0.8rem;
-      color:#888;
-      font-family:Arial, sans-serif;
     }
 
     /* חלון הגדרות */
@@ -124,6 +114,17 @@
     }
     .btn.secondary {background:#000;color:#fff;}
     .btn.primary {background:#00ff55;color:#000;}
+
+    /* תצוגת גרסה בפינה */
+    #version {
+      position:fixed;
+      left:10px;
+      bottom:10px;
+      font-size:11px;
+      color:#888;
+      font-family:Arial,system-ui;
+      opacity:0.9;
+    }
   </style>
 </head>
 <body>
@@ -133,9 +134,6 @@
   <div id="countdown">000:00:00:00:00</div>
   <div class="labels">D&nbsp;&nbsp;H&nbsp;&nbsp;M&nbsp;&nbsp;S</div>
 </div>
-
-<!-- תצוגת גרסה מקומית בלבד -->
-<div id="version">v1.0.0</div>
 
 <button id="secretBtn"></button>
 
@@ -160,12 +158,14 @@
   </div>
 </div>
 
+<div id="version">global-timer v1.0.3</div>
+
 <script type="module">
   /* --------- Firebase --------- */
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
   import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-  // config של הפרויקט החדש global-timer-b8bbd
+  // config של הפרויקט החדש global-timer
   const firebaseConfig = {
     apiKey: "AIzaSyAuEBBZDPZnDtCAvlwuzUbNtbS3xjmTqls",
     authDomain: "global-timer-b8bbd.firebaseapp.com",
@@ -179,7 +179,7 @@
   const app = initializeApp(firebaseConfig);
   const db  = getFirestore(app);
 
-  // אוסף + דוקומנט גלובליים
+  // אוסף + דוקומנט גלובליים – כולם קוראים וכותבים לאותו מקום
   const ref = doc(db, "globalTimer", "event");
 
   /* --------- אלמנטים --------- */
@@ -272,16 +272,10 @@
       return;
     }
 
-    try {
-      await setDoc(ref, {
-        name: name || "אירוע ללא שם",
-        timestamp: t.getTime()
-      }, { merge:true });
-
-    } catch (err) {
-      console.error("Firebase write error:", err);
-      alert("שגיאה בשמירה ל-Firebase: " + err.message);
-    }
+    await setDoc(ref, {
+      name: name || "אירוע ללא שם",
+      timestamp: t.getTime()
+    }, { merge:true });
 
     overlay.classList.remove("active");
   };
