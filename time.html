@@ -11,12 +11,17 @@
       padding: 0;
     }
 
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
     body {
       background: #ffffff;
       color: #000000;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
         "Heebo", Arial, sans-serif;
-      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -24,44 +29,23 @@
 
     .wrapper {
       width: 100%;
-      max-width: 600px;
+      max-width: 700px;
       padding: 16px;
       text-align: center;
     }
 
     .event-title {
-      font-size: clamp(1.4rem, 4vw, 2.1rem);
-      margin-bottom: 0.6rem;
-      font-weight: 600;
-    }
-
-    .status-text {
-      font-size: clamp(0.9rem, 2.6vw, 1rem);
-      margin-bottom: 1.2rem;
-      color: #333;
+      font-size: clamp(1.5rem, 5vw, 2.4rem);
+      margin-bottom: 0.8rem;
+      font-weight: 700;
     }
 
     .countdown {
       font-family: "Courier New", monospace;
-      font-weight: 700;
-      font-size: clamp(1.8rem, 9vw, 3.2rem);
-      letter-spacing: 0.08em;
-      margin-bottom: 0.4rem;
+      font-weight: 800;
+      font-size: clamp(2.4rem, 11vw, 3.8rem);
+      letter-spacing: 0.03em;
       direction: ltr;
-    }
-
-    .labels {
-      font-size: clamp(0.7rem, 2.2vw, 0.9rem);
-      color: #555;
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 0.6rem;
-    }
-
-    .labels span {
-      min-width: 60px;
-      text-align: center;
     }
 
     /* כפתור סודי – שקוף, בפינה הימנית התחתונה */
@@ -78,15 +62,14 @@
       margin: 0;
       z-index: 10;
     }
-
-    /* אפשר להחליף ל-0.05 אם תרצה לראות אותו קצת לצורך בדיקות */
-    /* #secretBtn { opacity: 0.05; background:#000; } */
+    /* לצורך בדיקות אפשר:
+       #secretBtn { opacity:0.08; background:#000; } */
 
     /* שכבת הגדרות (מודאל) */
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.35);
       display: none;
       align-items: center;
       justify-content: center;
@@ -166,20 +149,8 @@
 <body>
   <div class="wrapper">
     <div class="event-title" id="eventTitle">אין אירוע מוגדר</div>
-    <div class="status-text" id="statusText">
-      לחץ על הכפתור הסודי כדי להגדיר אירוע…
-    </div>
-
     <div class="countdown" id="countdown">
-      000&nbsp;:&nbsp;00&nbsp;:&nbsp;00&nbsp;:&nbsp;00&nbsp;:&nbsp;000
-    </div>
-
-    <div class="labels">
-      <span>ימים</span>
-      <span>שעות</span>
-      <span>דקות</span>
-      <span>שניות</span>
-      <span>מילישניות</span>
+      000:00:00:00:000
     </div>
   </div>
 
@@ -211,7 +182,6 @@
   <script>
     const countdownEl = document.getElementById("countdown");
     const eventTitleEl = document.getElementById("eventTitle");
-    const statusTextEl = document.getElementById("statusText");
 
     const secretBtn = document.getElementById("secretBtn");
     const overlay = document.getElementById("overlay");
@@ -231,7 +201,7 @@
 
     function updateCountdown() {
       if (!targetTime) {
-        countdownEl.innerHTML = "000&nbsp;:&nbsp;00&nbsp;:&nbsp;00&nbsp;:&nbsp;00&nbsp;:&nbsp;000";
+        countdownEl.textContent = "000:00:00:00:000";
         return;
       }
 
@@ -242,7 +212,6 @@
         diff = 0;
         clearInterval(timerId);
         timerId = null;
-        statusTextEl.textContent = "האירוע כבר התרחש!";
       }
 
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -252,26 +221,44 @@
       const millis = diff % 1000;
 
       const text =
-        pad(days, 3) + "&nbsp;:&nbsp;" +
-        pad(hours, 2) + "&nbsp;:&nbsp;" +
-        pad(minutes, 2) + "&nbsp;:&nbsp;" +
-        pad(seconds, 2) + "&nbsp;:&nbsp;" +
+        pad(days, 3) + ":" +
+        pad(hours, 2) + ":" +
+        pad(minutes, 2) + ":" +
+        pad(seconds, 2) + ":" +
         pad(millis, 3);
 
-      countdownEl.innerHTML = text;
+      countdownEl.textContent = text;
     }
 
     function startTimer() {
       if (timerId) {
         clearInterval(timerId);
       }
-      timerId = setInterval(updateCountdown, 10); // עדכון כל 10 מילישניות
+      // עדכון כל 10 מילישניות – נותן תחושה של ריצה מהירה
+      timerId = setInterval(updateCountdown, 10);
     }
+
+    // ניסיון לעבור למסך מלא (חלק מהדפדפנים יאפשרו רק אחרי אינטראקציה של המשתמש)
+    function tryFullScreen() {
+      const el = document.documentElement;
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => {});
+      } else if (el.webkitRequestFullscreen) {
+        el.webkitRequestFullscreen();
+      } else if (el.msRequestFullscreen) {
+        el.msRequestFullscreen();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      tryFullScreen();
+      updateCountdown();
+    });
 
     // פתיחת חלון ההגדרות
     secretBtn.addEventListener("click", () => {
+      tryFullScreen(); // עוד ניסיון למסך מלא אחרי לחיצה
       overlay.classList.add("active");
-      // לאפס שדות לקלים לעריכה
       eventNameInput.focus();
     });
 
@@ -298,7 +285,6 @@
 
       targetTime = t.getTime();
       eventTitleEl.textContent = name || "אירוע ללא שם";
-      statusTextEl.textContent = "ספירה לאחור עד האירוע:";
       overlay.classList.remove("active");
       startTimer();
       updateCountdown();
@@ -310,9 +296,6 @@
         overlay.classList.remove("active");
       }
     });
-
-    // הפעלה ראשונית (למקרה תרצה לראות אפס)
-    updateCountdown();
   </script>
 </body>
 </html>
