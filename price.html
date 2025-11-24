@@ -39,12 +39,12 @@
       margin-bottom: 10px;
     }
 
-    /* חלון מצלמה קטן */
+    /* 🔹 חלון מצלמה מלבני – רחב ונמוך (יחס 4:1 בערך) */
     .camera-box {
       position: relative;
-      width: 70%;
-      max-width: 220px;
-      aspect-ratio: 1 / 1;
+      width: 100%;
+      max-width: 420px;
+      aspect-ratio: 4 / 1;   /* רחב מאוד, נמוך */
       background: #020617;
       border-radius: 12px;
       overflow: hidden;
@@ -55,15 +55,19 @@
     video {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: cover;      /* ממלא את המלבן */
       /* אין מראה */
     }
 
+    /* 🔹 מסגרת פנימית – מלבן דק כמו תווית (בערך 1:4) */
     .overlay-frame {
       position: absolute;
-      inset: 15%;
-      border-radius: 12px;
-      border: 2px solid rgba(248, 250, 252, 0.85);
+      top: 25%;
+      bottom: 25%;
+      left: 5%;
+      right: 5%;
+      border-radius: 8px;
+      border: 2px solid rgba(248, 250, 252, 0.9);
       box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
       pointer-events: none;
     }
@@ -152,15 +156,17 @@
       text-align: left;
     }
 
+    /* 🔴 כפתור מחיקה ממש קטן */
     .delete-btn {
       border: none;
       border-radius: 999px;
-      padding: 2px 8px;
-      font-size: 11px;
+      padding: 1px 5px;
+      font-size: 9px;
       background: #ef4444;
       color: #fef2f2;
       cursor: pointer;
       flex-shrink: 0;
+      line-height: 1.1;
     }
 
     .delete-btn:active {
@@ -200,7 +206,7 @@
     </div>
 
     <div class="info">
-      כוון את מדבקת המחיר למרכז הריבוע ולחץ על "הוסף מוצר".
+      כוון את מדבקת המחיר למלבן הלבן ולחץ על "הוסף מוצר".
     </div>
     <div id="status"></div>
 
@@ -234,26 +240,30 @@
 
     const prices = [];
 
+    // 🔹 הפעלת המצלמה – מבקש יחס 4:1 וגובה קטן יחסית
     async function startCamera() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 320 },      // נמוך – כמו פס
+            aspectRatio: { ideal: 4.0 }  // יחס 4:1
+          },
           audio: false
         });
         video.srcObject = stream;
-        statusEl.textContent = 'המצלמה פועלת. כוון את מדבקת המחיר לריבוע.';
+        statusEl.textContent = 'המצלמה פועלת. כוון את מדבקת המחיר למלבן.';
       } catch (err) {
         statusEl.textContent = 'לא הצלחתי להפעיל מצלמה: ' + err.message;
       }
     }
 
-    // 🔹 אלגוריתם ניקוי ודרוג מחירים – בלי סינון טווח קשיח
+    // אותו אלגוריתם מחירים כמו בגרסה האחרונה – בלי סינון טווח קשיח
     function extractPriceFromText(text) {
       if (!text) return null;
 
-      // נשאיר רק ספרות, נקודות ופסיקים
       let cleaned = text.replace(/[^0-9.,]/g, ' ');
-      // עד 5 ספרות לפני הנקודה + עד 2 אחרי
       const matches = cleaned.match(/\d{1,5}(?:[.,]\d{1,2})?/g);
       if (!matches) return null;
 
@@ -262,9 +272,7 @@
       for (const raw of matches) {
         if (!raw) continue;
 
-        // איחוד פסיק לנקודה
         let norm = raw.replace(/,/g, '.');
-
         const partsDot = norm.split('.');
         if (partsDot.length > 2) {
           norm = partsDot[0] + '.' + partsDot[1];
@@ -272,7 +280,7 @@
 
         const value = parseFloat(norm);
         if (isNaN(value)) continue;
-        if (value <= 0) continue; // רק חיובי
+        if (value <= 0) continue;
 
         candidates.push({ raw: norm, value });
       }
@@ -289,23 +297,18 @@
 
         let score = 0;
 
-        // יותר ספרות בחלק השלם – מחיר "אמיתי"
         score += intPart.length * 2;
 
-        // שתי ספרות אחרי הנקודה – מקבל חיזוק
         if (fracPart.length === 2) score += 4;
         else if (fracPart.length === 1) score += 2;
 
-        // אגורות נפוצות
         const cents = Math.round((value - Math.floor(value)) * 100);
         const typicalCents = [0, 5, 9, 10, 20, 50, 90, 95, 99];
         if (typicalCents.includes(cents)) score += 3;
 
-        // טווח "נוח" – אבל בלי לסנן לגמרי, רק ציון
         if (value >= 0.5 && value <= 500) score += 3;
         else if (value > 500 && value <= 5000) score += 1;
 
-        // 2–4 ספרות לפני הנקודה – יושב טוב על רוב המחירים
         if (intPart.length >= 2 && intPart.length <= 4) score += 2;
 
         return score;
@@ -379,6 +382,7 @@
       ctx.putImageData(imageData, 0, 0);
     }
 
+    // 🔹 צילום של מלבן 4:1 מהוידאו (מתאים למסגרת)
     async function handleAddProduct() {
       if (!video.videoWidth || !video.videoHeight) {
         statusEl.textContent = 'מחכה שהמצלמה תעלה... נסה שוב עוד רגע.';
@@ -387,19 +391,32 @@
 
       statusEl.textContent = 'מזהה מחיר...';
 
-      const baseSize = Math.min(video.videoWidth, video.videoHeight);
-      const roiSize = baseSize * 0.7;
-      const sx = (video.videoWidth - roiSize) / 2;
-      const sy = (video.videoHeight - roiSize) / 2;
+      const fullW = video.videoWidth;
+      const fullH = video.videoHeight;
 
-      const targetSize = Math.floor(roiSize * 2);
-      captureCanvas.width = targetSize;
-      captureCanvas.height = targetSize;
+      // ננסה לקחת 80% מהרוחב, ולהתאים גובה ליחס 4:1
+      let roiW = fullW * 0.8;
+      let roiH = roiW / 4;
+
+      // אם הגובה יוצא גדול מדי ביחס לתמונה – נתאים הפוך
+      if (roiH > fullH * 0.8) {
+        roiH = fullH * 0.8;
+        roiW = roiH * 4;
+      }
+
+      const sx = (fullW - roiW) / 2;
+      const sy = (fullH - roiH) / 2;
+
+      const targetW = Math.floor(roiW * 2); // הגדלה פי 2
+      const targetH = Math.floor(roiH * 2);
+
+      captureCanvas.width = targetW;
+      captureCanvas.height = targetH;
       const ctx = captureCanvas.getContext('2d');
 
-      ctx.drawImage(video, sx, sy, roiSize, roiSize, 0, 0, targetSize, targetSize);
+      ctx.drawImage(video, sx, sy, roiW, roiH, 0, 0, targetW, targetH);
 
-      applyGrayscaleAndContrast(ctx, targetSize, targetSize);
+      applyGrayscaleAndContrast(ctx, targetW, targetH);
 
       try {
         const result = await Tesseract.recognize(
@@ -446,4 +463,3 @@
   </script>
 </body>
 </html>
-111
