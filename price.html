@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>סורק מחירים</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #101827;
+      color: #f9fafb;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Heebo", Arial, sans-serif;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 12px;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 480px;
+      margin-top: 8px;
+    }
+
+    h1 {
+      font-size: 20px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .camera-box {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #020617;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1); /* כדי שיהיה מרגיש כמו מראת סלפי */
+    }
+
+    .overlay-frame {
+      position: absolute;
+      inset: 12%;
+      border-radius: 12px;
+      border: 2px solid rgba(248, 250, 252, 0.85);
+      box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.45);
+      pointer-events: none;
+    }
+
+    .info {
+      font-size: 13px;
+      color: #cbd5f5;
+      margin-top: 6px;
+      text-align: center;
+    }
+
+    #status {
+      margin-top: 6px;
+      font-size: 13px;
+      text-align: center;
+      min-height: 18px;
+      color: #e5e7eb;
+    }
+
+    .btn-row {
+      margin-top: 10px;
+      display: flex;
+      justify-content: center;
+    }
+
+    button {
+      padding: 10px 18px;
+      font-size: 16px;
+      border-radius: 999px;
+      border: none;
+      background: #22c55e;
+      color: #022c22;
+      font-weight: 600;
+      box-shadow: 0 8px 18px rgba(34, 197, 94, 0.35);
+      cursor: pointer;
+      min-width: 180px;
+    }
+
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4);
+    }
+
+    .list-box {
+      margin-top: 14px;
+      background: #020617;
+      border-radius: 14px;
+      padding: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #e5e7eb;
+    }
+
+    ul {
+      list-style: none;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+      font-size: 14px;
+    }
+
+    li:last-child {
+      border-bottom: none;
+    }
+
+    .total-row {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(148, 163, 184, 0.7);
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .total-label {
+      color: #e5e7eb;
+    }
+
+    .total-value {
+      color: #22c55e;
+    }
+
+    /* קנבס נסתר ללכידת התמונה */
+    #captureCanvas {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <h1>סורק מחירים פשוט</h1>
+
+    <div class="camera-box">
+      <video id="video" autoplay playsinline></video>
+      <div class="overlay-frame"></div>
+    </div>
+
+    <div class="info">
+      כוון את המדבקת מחיר למרכז הריבוע ולחץ על "הוסף מוצר".
+    </div>
+    <div id="status"></div>
+
+    <div class="btn-row">
+      <button id="addBtn">הוסף מוצר</button>
+    </div>
+
+    <div class="list-box">
+      <div class="list-header">
+        <span>מוצר</span>
+        <span>מחיר (₪)</span>
+      </div>
+      <ul id="itemsList"></ul>
+      <div class="total-row">
+        <span class="total-label">סה״כ:</span>
+        <span class="total-value" id="totalPrice">0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- קנבס נסתר ללכידת תמונה מהריבוע -->
+  <canvas id="captureCanvas"></canvas>
+
+  <!-- Tesseract.js לזיהוי טקסט מהתמונה -->
+  <script src="https://unpkg.com/tesseract.js@5.0.3/dist/tesseract.min.js"></script>
+  <script>
+    const video = document.getElementById('video');
+    const addBtn = document.getElementById('addBtn');
+    const statusEl = document.getElementById('status');
+    const itemsList = document.getElementById('itemsList');
+    const totalPriceEl = document.getElementById('totalPrice');
+    const captureCanvas = document.getElementById('captureCanvas');
+
+    const prices = [];
+
+    // הפעלת המצלמה (מצלמה אחורית אם אפשר)
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+        video.srcObject = stream;
+        statusEl.textContent = 'המצלמה פועלת. כוון את מדבקת המחיר לריבוע.';
+      } catch (err) {
+        statusEl.textContent = 'לא הצלחתי להפעיל מצלמה: ' + err.message;
+      }
+    }
+
+    // פונקציה לחילוץ המחיר מהטקסט
+    function extractPriceFromText(text) {
+      if (!text) return null;
+
+      // מנקים רווחים כפולים
+      text = text.replace(/\s+/g, ' ');
+
+      // מחפשים מספרים בסגנון 12, 12.9, 12.90, 3, 3.5 וכו'
+      const matches = text.match(/(\d{1,3}(?:[.,]\d{1,2})?)/g);
+      if (!matches) return null;
+
+      const nums = matches
+        .map(str => parseFloat(str.replace(',', '.')))
+        .filter(n => !isNaN(n) && n > 0 && n < 500); // מסנן שטויות
+
+      if (!nums.length) return null;
+
+      // לוקחים את המספר הכי גדול (בדרך כלל זה המחיר הסופי)
+      const price = Math.max(...nums);
+      return price;
+    }
+
+    // רענון רשימת המוצרים והסכום
+    function renderList() {
+      itemsList.innerHTML = '';
+      let total = 0;
+
+      prices.forEach((price, index) => {
+        total += price;
+        const li = document.createElement('li');
+        li.innerHTML =
+          '<span>מוצר ' + (index + 1) + '</span>' +
+          '<span>' + price.toFixed(2) + '</span>';
+        itemsList.appendChild(li);
+      });
+
+      totalPriceEl.textContent = total.toFixed(2);
+    }
+
+    // צילום מהריבוע, OCR, הוספת מחיר
+    async function handleAddProduct() {
+      if (!video.videoWidth || !video.videoHeight) {
+        statusEl.textContent = 'מחכה שהמצלמה תעלה... נסה שוב עוד רגע.';
+        return;
+      }
+
+      statusEl.textContent = 'מזהה מחיר... זה עשוי לקחת כמה שניות.';
+
+      // בוחרים ריבוע מרכזי מהוידאו (תואם לריבוע הלבן)
+      const size = Math.min(video.videoWidth, video.videoHeight);
+      const sx = (video.videoWidth - size) / 2;
+      const sy = (video.videoHeight - size) / 2;
+
+      captureCanvas.width = size;
+      captureCanvas.height = size;
+      const ctx = captureCanvas.getContext('2d');
+
+      ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
+
+      try {
+        const result = await Tesseract.recognize(captureCanvas, 'eng', {
+          logger: () => {} // בלי לוג לקונסול
+        });
+
+        const rawText = result.data.text;
+        const price = extractPriceFromText(rawText);
+
+        if (price == null) {
+          statusEl.textContent =
+            'לא הצלחתי למצוא מחיר ברור בתמונה. נסה להתקרב למדבקה או לשפר תאורה.';
+          return;
+        }
+
+        prices.push(price);
+        renderList();
+        statusEl.textContent = 'נוסף מוצר: ' + price.toFixed(2) + ' ₪';
+      } catch (err) {
+        statusEl.textContent = 'שגיאה בזיהוי מחיר: ' + err.message;
+      }
+    }
+
+    // אירועים
+    window.addEventListener('load', startCamera);
+    addBtn.addEventListener('click', handleAddProduct);
+  </script>
+</body>
+</html>
