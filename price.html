@@ -247,13 +247,14 @@
       }
     }
 
-    // אלגוריתם ניקוי ודרוג מחירים
+    // 🔹 אלגוריתם ניקוי ודרוג מחירים – בלי סינון טווח קשיח
     function extractPriceFromText(text) {
       if (!text) return null;
 
-      // השמטת כל מה שלא ספרות/נקודה/פסיק
+      // נשאיר רק ספרות, נקודות ופסיקים
       let cleaned = text.replace(/[^0-9.,]/g, ' ');
-      const matches = cleaned.match(/\d{1,4}(?:[.,]\d{1,2})?/g);
+      // עד 5 ספרות לפני הנקודה + עד 2 אחרי
+      const matches = cleaned.match(/\d{1,5}(?:[.,]\d{1,2})?/g);
       if (!matches) return null;
 
       const candidates = [];
@@ -264,7 +265,6 @@
         // איחוד פסיק לנקודה
         let norm = raw.replace(/,/g, '.');
 
-        // אם יש יותר מנקודה אחת – לקחת רק מההתחלה עד השנייה
         const partsDot = norm.split('.');
         if (partsDot.length > 2) {
           norm = partsDot[0] + '.' + partsDot[1];
@@ -272,9 +272,7 @@
 
         const value = parseFloat(norm);
         if (isNaN(value)) continue;
-
-        // טווח סביר למחיר
-        if (value < 0.1 || value > 500) continue;
+        if (value <= 0) continue; // רק חיובי
 
         candidates.push({ raw: norm, value });
       }
@@ -291,23 +289,23 @@
 
         let score = 0;
 
-        // יותר ספרות בחלק השלם – נראה כמו מחיר "אמיתי"
+        // יותר ספרות בחלק השלם – מחיר "אמיתי"
         score += intPart.length * 2;
 
-        // שתי ספרות אחרי הנקודה – הכי נפוץ
+        // שתי ספרות אחרי הנקודה – מקבל חיזוק
         if (fracPart.length === 2) score += 4;
         else if (fracPart.length === 1) score += 2;
 
         // אגורות נפוצות
         const cents = Math.round((value - Math.floor(value)) * 100);
-        const typicalCents = [0, 5, 9, 10, 90, 95, 99];
+        const typicalCents = [0, 5, 9, 10, 20, 50, 90, 95, 99];
         if (typicalCents.includes(cents)) score += 3;
 
-        // טווח מחיר "יפה"
-        if (value >= 1 && value <= 200) score += 3;
-        else if (value < 1) score -= 1;
+        // טווח "נוח" – אבל בלי לסנן לגמרי, רק ציון
+        if (value >= 0.5 && value <= 500) score += 3;
+        else if (value > 500 && value <= 5000) score += 1;
 
-        // עדיפות למספרים עם 2–4 ספרות לפני הנקודה
+        // 2–4 ספרות לפני הנקודה – יושב טוב על רוב המחירים
         if (intPart.length >= 2 && intPart.length <= 4) score += 2;
 
         return score;
@@ -359,11 +357,10 @@
       totalPriceEl.textContent = total.toFixed(2);
     }
 
-    // שחור-לבן + קונטרסט
     function applyGrayscaleAndContrast(ctx, width, height) {
       const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
-      const contrast = 1.4; // טיפה יותר אגרסיבי
+      const contrast = 1.4;
 
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
@@ -390,13 +387,12 @@
 
       statusEl.textContent = 'מזהה מחיר...';
 
-      // לוקחים אזור מרכזי מצומצם (70%) ומגדילים פי 2 בקנבס
       const baseSize = Math.min(video.videoWidth, video.videoHeight);
       const roiSize = baseSize * 0.7;
       const sx = (video.videoWidth - roiSize) / 2;
       const sy = (video.videoHeight - roiSize) / 2;
 
-      const targetSize = Math.floor(roiSize * 2); // הגדלה
+      const targetSize = Math.floor(roiSize * 2);
       captureCanvas.width = targetSize;
       captureCanvas.height = targetSize;
       const ctx = captureCanvas.getContext('2d');
@@ -450,4 +446,4 @@
   </script>
 </body>
 </html>
-123
+111
