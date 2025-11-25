@@ -331,6 +331,14 @@
       font-weight:600;
     }
 
+    /* שורת סטטוס בתוך המודל לשם (ממתין ל-GPS) */
+    .modal-gps-status{
+      font-size:0.85rem;
+      margin-top:2px;
+      min-height:18px;
+      color:#e67e22;
+    }
+
     .hidden{display:none;}
 
     /* אנימציות */
@@ -368,7 +376,7 @@
     </button>
   </div>
 
-  <!-- הקואורדינטות – נסתר ב-CSS, רק למשחק פנימי אם נרצה -->
+  <!-- הקואורדינטות – נסתר -->
   <div id="coordsBox" class="coords"></div>
 
   <!-- אזור רשימת המיקומים + מפה + SOS -->
@@ -397,12 +405,13 @@
   <!-- אינפוט נסתר לצילום תמונה מהמכשיר -->
   <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none">
 
-  <!-- מודל: שם מקום -->
+  <!-- מודל: שם מקום + סטטוס GPS -->
   <div id="modalOverlay" class="modal-overlay">
     <div id="modalName" class="modal hidden">
       <div class="modal-title">שם המיקום</div>
       <div class="modal-text">הכנס שם קצר כדי שתזהה את המקום (למשל: מלון, מפל, מסעדה).</div>
       <input id="modalPlaceName" type="text" placeholder="שם המקום…">
+      <div id="modalGpsStatus" class="modal-gps-status"></div>
       <div class="modal-buttons">
         <button id="btnNameCancel" class="btn-modal btn-modal-secondary">ביטול</button>
         <button id="btnNameOk" class="btn-modal btn-modal-primary">המשך</button>
@@ -442,6 +451,7 @@
     const modalName        = document.getElementById('modalName');
     const modalPhoto       = document.getElementById('modalPhoto');
     const modalPlaceName   = document.getElementById('modalPlaceName');
+    const modalGpsStatus   = document.getElementById('modalGpsStatus');
     const btnNameCancel    = document.getElementById('btnNameCancel');
     const btnNameOk        = document.getElementById('btnNameOk');
     const btnPhotoSkip     = document.getElementById('btnPhotoSkip');
@@ -507,12 +517,14 @@
       modalName.classList.remove('hidden');
       modalPhoto.classList.add('hidden');
       modalPlaceName.value = '';
+      modalGpsStatus.textContent = '';  // אין הודעה בהתחלה
       setTimeout(()=>modalPlaceName.focus(), 50);
     }
     function closeModals(){
       modalOverlay.style.display = 'none';
       modalName.classList.add('hidden');
       modalPhoto.classList.add('hidden');
+      modalGpsStatus.textContent = '';
     }
 
     btnNameCancel.addEventListener('click', ()=>{
@@ -524,10 +536,12 @@
 
       if (!navigator.geolocation) {
         statusText('המכשיר לא תומך ב-GPS דרך הדפדפן.', true);
+        modalGpsStatus.textContent = 'המכשיר לא תומך ב-GPS.';
         return;
       }
 
       statusText('טוען מיקום… אנא אשר גישה ל-GPS.', false);
+      modalGpsStatus.textContent = 'ממתין לאות GPS… אנא הישאר במסך הזה.';
 
       navigator.geolocation.getCurrentPosition(
         pos => {
@@ -549,6 +563,7 @@
           savePlaces();
           renderPlaces();
           statusText('המיקום נשמר ✔', false);
+          modalGpsStatus.textContent = 'המיקום התקבל בהצלחה ✔';
           showListSection();
 
           // מעבר למודל צילום
@@ -557,6 +572,7 @@
         },
         err => {
           statusText('לא הצלחתי לקבל מיקום: ' + err.message, true);
+          modalGpsStatus.textContent = 'שגיאה בקבלת GPS: ' + err.message;
         },
         {
           enableHighAccuracy:true,
