@@ -22,7 +22,7 @@
   .container {
     flex: 1;
     display: grid;
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: 1fr auto 1fr; /* תחנה – שעון – תחנה */
   }
 
   .station {
@@ -36,12 +36,12 @@
     justify-content: center;
   }
 
-  /* שתי התמונות עכשיו תמיד באותו גודל בדיוק */
+  /* שני האייקונים בגודל זהה כמו קודם */
   .station img {
     width: 70%;
     height: auto;
     max-height: 75%;
-    aspect-ratio: 1 / 1;       /* איזון מלא */
+    aspect-ratio: 1 / 1;
     object-fit: contain;
     border-radius: 16px;
     box-shadow: 0 8px 20px rgba(255,255,255,0.15);
@@ -55,7 +55,34 @@
     filter: brightness(1.15);
   }
 
-  /* כפתור השתק */
+  /* עטיפת השעון */
+  .clock-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 4px;
+  }
+
+  /* שעון ניאון "נושם" */
+  #clock {
+    font-family: "Courier New", monospace;
+    font-size: clamp(3rem, 9vw, 4.2rem);
+    color: #00e5ff;
+    text-shadow:
+      0 0 8px  #00e5ff,
+      0 0 16px #00e5ff,
+      0 0 30px #00bcd4,
+      0 0 45px #0088aa;
+    letter-spacing: 0.15em;
+    animation: breathe 2.4s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%   { transform: scale(1);    opacity: 0.9; }
+    50%  { transform: scale(1.05); opacity: 1;   }
+    100% { transform: scale(1);    opacity: 0.9; }
+  }
+
   #muteBtn {
     width: 100%;
     padding: 18px;
@@ -83,6 +110,11 @@
   <button class="station" onclick="playStream('995')">
     <img src="https://media.radiodeck.com/stations/5f74f75c664ee8400841f6b9/profile/605933e0f197d64e94f5f0a4/xl.jpg" alt="">
   </button>
+
+  <!-- שעון ניאון באמצע -->
+  <div class="clock-wrapper">
+    <div id="clock">00:00</div>
+  </div>
 
   <!-- 101.5 -->
   <button class="station" onclick="playStream('1015')">
@@ -124,11 +156,21 @@
 
   function toggleMute() {
     vibrate();
-
     player.muted = !player.muted;
-
     muteBtn.textContent = player.muted ? "בטל השתק" : "השתק ניגון";
   }
+
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, "0");
+    const m = String(now.getMinutes()).padStart(2, "0");
+    const el = document.getElementById("clock");
+    if (el) el.textContent = `${h}:${m}`;
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000 * 10); // מעדכן כל 10 שניות
+
 </script>
 
 </body>
