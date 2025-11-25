@@ -6,19 +6,17 @@
 <title>רדיו חי</title>
 
 <style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
   html, body {
     width: 100%;
     height: 100%;
     background: #000;
     overflow: hidden;
+    overscroll-behavior: none;
     display: flex;
     flex-direction: column;
+    user-select: none;
   }
 
   .container {
@@ -28,8 +26,8 @@
   }
 
   .station {
-    width: 90%;
-    height: 90%;
+    width: 100%;
+    height: 100%;
     border: none;
     outline: none;
     background: #000;
@@ -38,24 +36,42 @@
     justify-content: center;
   }
 
+  /* שתי התמונות עכשיו תמיד באותו גודל בדיוק */
   .station img {
-    width: 80%;
+    width: 70%;
     height: auto;
-    max-height: 90%;
+    max-height: 75%;
+    aspect-ratio: 1 / 1;       /* איזון מלא */
     object-fit: contain;
     border-radius: 16px;
     box-shadow: 0 8px 20px rgba(255,255,255,0.15);
+    background: #000;
+    padding: 10px;
     transition: 0.15s;
   }
 
   .station:active img {
-    transform: scale(0.95);
+    transform: scale(0.93);
     filter: brightness(1.15);
   }
 
-  audio {
-    display: none;
+  /* כפתור השתק */
+  #muteBtn {
+    width: 100%;
+    padding: 18px;
+    background: #222;
+    color: #fff;
+    border: none;
+    font-size: 1.3rem;
+    font-weight: bold;
+    cursor: pointer;
   }
+
+  #muteBtn:active {
+    background: #444;
+  }
+
+  audio { display: none; }
 </style>
 
 </head>
@@ -63,54 +79,55 @@
 
 <div class="container">
 
-  <!-- 99.5 חם אש -->
+  <!-- 99.5 -->
   <button class="station" onclick="playStream('995')">
     <img src="https://media.radiodeck.com/stations/5f74f75c664ee8400841f6b9/profile/605933e0f197d64e94f5f0a4/xl.jpg" alt="">
   </button>
 
-  <!-- 101.5 התחנה -->
+  <!-- 101.5 -->
   <button class="station" onclick="playStream('1015')">
     <img src="https://fm1.co.il/assets/stations/radio-darom-1015.png" alt="">
   </button>
 
 </div>
 
+<button id="muteBtn" onclick="toggleMute()">השתק ניגון</button>
+
 <audio id="player"></audio>
 
 <script>
   const streams = {
-    // 99.5 חם אש – HLS רשמי (אם ייכשל, נפתח פופאפ רשמי)
     "995":  "https://cdna.streamgates.net/Radios_Radio_App/Ham_Esh/playlist.m3u8",
-
-    // 101.5 התחנה
     "1015": "https://radio.streamgates.net/stream/hatahana"
   };
 
+  const player = document.getElementById("player");
+  const muteBtn = document.getElementById("muteBtn");
+
+  function vibrate() {
+    if (navigator.vibrate) navigator.vibrate(50);
+  }
+
   function playStream(id) {
-    const player = document.getElementById("player");
+    vibrate();
 
     if (id === "995") {
-      // ניסיון לנגן ישירות
-      if (player.src !== streams[id]) {
-        player.src = streams[id];
-      }
-
-      player.play().catch(err => {
-        console.log("שגיאה בהפעלה של 99.5:", err);
-        // פלן B – פתיחת נגן רשמי של התחנה
+      if (player.src !== streams[id]) player.src = streams[id];
+      player.play().catch(() => {
         window.open("https://995.co.il/popup-player", "_blank");
       });
-
-    } else if (id === "1015") {
-      // התחנה 101.5 – ניגון פשוט
-      if (player.src !== streams[id]) {
-        player.src = streams[id];
-      }
-      player.play().catch(err => {
-        console.log("שגיאה בהפעלה של 101.5:", err);
-        alert("לא הצלחתי להפעיל את 101.5 מהדפדפן.");
-      });
+    } else {
+      if (player.src !== streams[id]) player.src = streams[id];
+      player.play();
     }
+  }
+
+  function toggleMute() {
+    vibrate();
+
+    player.muted = !player.muted;
+
+    muteBtn.textContent = player.muted ? "בטל השתק" : "השתק ניגון";
   }
 </script>
 
