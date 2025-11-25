@@ -6,8 +6,8 @@
   <title>שמירת מקומות GPS</title>
 
   <!-- Leaflet למפה -->
-  <link rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     html,body{
@@ -30,12 +30,14 @@
       box-shadow:0 14px 35px rgba(0,0,0,0.18);
       padding:18px 16px 20px;
       color:#000;
+      position:relative;
+      overflow:hidden;
     }
     h1{
-      font-size:1.4rem;
-      margin-bottom:10px;
+      font-size:1.5rem;
+      margin-bottom:6px;
       text-align:center;
-      font-weight:700;
+      font-weight:800;
       color:#000;
     }
     .subtitle{
@@ -45,69 +47,67 @@
       margin-bottom:14px;
       color:#333;
     }
-    button{
-      cursor:pointer;
-      border:none;
-      border-radius:999px;
-      padding:10px 16px;
-      font-size:0.95rem;
-    }
-    .btn-main{
-      width:100%;
-      background:linear-gradient(135deg,#00b7ff,#00ffae);
-      color:#000;
-      font-weight:600;
-      margin-bottom:12px;
-    }
-    .btn-main:active{ transform:scale(0.98); }
 
     .status{
-      min-height:32px;
+      min-height:26px;
       font-size:0.9rem;
-      margin-bottom:10px;
+      margin-bottom:8px;
+    }
+    .error{color:#d63031;}
+    .ok{color:#27ae60;}
+
+    /* מסך ראשי – שני לחצנים */
+    .main-actions{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-bottom:14px;
+      animation: fadeInUp 0.6s ease;
+    }
+    .btn-hero{
+      width:100%;
+      padding:14px 18px;
+      border-radius:999px;
+      border:none;
+      font-size:1.05rem;
+      font-weight:700;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      box-shadow:0 7px 18px rgba(0,0,0,0.12);
+      transition:transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .btn-hero:active{
+      transform:scale(0.97);
+      box-shadow:0 4px 10px rgba(0,0,0,0.15);
+    }
+    .btn-hero-primary{
+      background:linear-gradient(135deg,#00b7ff,#00ffae);
+      color:#00242f;
+    }
+    .btn-hero-secondary{
+      background:#f2f4f7;
+      color:#222;
     }
 
-    /* הקואורדינטות – מוסתרות */
+    /* הקואורדינטות – נסתרות */
     #coordsBox{
       display:none !important;
     }
 
-    label{
-      display:block;
-      font-size:0.9rem;
-      margin:6px 0 4px;
-      color:#000;
-    }
-    input[type="text"]{
-      width:100%;
-      padding:8px 10px;
-      border-radius:999px;
-      border:1px solid rgba(0,0,0,0.2);
-      background:#f7f7f7;
-      color:#000;
-      font-size:0.95rem;
-    }
-    input::placeholder{
-      color:rgba(0,0,0,0.35);
-    }
-
-    .btn-save{
-      width:100%;
-      margin-top:10px;
-      background:#00c98d;
-      color:#000;
-      font-weight:700;
-    }
-    .btn-save:disabled{
-      opacity:0.4;
-      cursor:not-allowed;
+    /* אזור רשימת המיקומים */
+    #sectionList{
+      display:none;
+      animation: fadeIn 0.4s ease;
     }
 
     .places-header{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      margin-top:16px;
+      margin-top:8px;
       margin-bottom:6px;
       color:#000;
       gap:8px;
@@ -128,6 +128,7 @@
       padding:4px 10px;
       font-size:0.78rem;
       color:#d63031;
+      cursor:pointer;
     }
     .btn-wa-all{
       background:transparent;
@@ -139,26 +140,29 @@
       display:flex;
       align-items:center;
       gap:4px;
+      cursor:pointer;
     }
 
     .search-wrapper{
       margin:6px 0 8px;
     }
-
-    .list{
-      max-height:50vh;
-      overflow-y:auto;
-      padding-right:2px;
+    .search-wrapper input{
+      width:100%;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,0.2);
+      background:#f7f7f7;
+      color:#000;
+      font-size:0.95rem;
+    }
+    .search-wrapper input::placeholder{
+      color:rgba(0,0,0,0.35);
     }
 
-    /* מפה – עכשיו בסוף למטה */
-    #map{
-      width:100%;
-      height:260px;
-      border-radius:14px;
-      overflow:hidden;
-      margin:10px 0 10px;
-      border:1px solid rgba(0,0,0,0.1);
+    .list{
+      max-height:45vh;
+      overflow-y:auto;
+      padding-right:2px;
     }
 
     .place{
@@ -168,6 +172,7 @@
       margin-bottom:8px;
       border:1px solid rgba(0,0,0,0.08);
       color:#000;
+      animation: fadeInUp 0.4s ease;
     }
 
     .place-photo{
@@ -185,14 +190,12 @@
       gap:8px;
       margin-bottom:4px;
     }
-
     .place-name{
       font-weight:700;
       font-size:1.35rem;
       color:#000;
       word-break:break-word;
     }
-
     .place-time{
       font-size:0.75rem;
       opacity:0.55;
@@ -211,7 +214,7 @@
     }
 
     .place-coords{
-      display:none !נט;
+      display:none !important;
     }
 
     .btn-group{
@@ -226,6 +229,7 @@
       border:none;
       white-space:nowrap;
       font-weight:600;
+      cursor:pointer;
     }
 
     .btn-photo{background:#f1c40f;color:#000;}
@@ -233,22 +237,115 @@
     .btn-gmaps{background:#1abc9c;color:#000;}
     .btn-del{background:#ff4757;color:#fff;}
 
+    /* מפה בסוף */
+    #map{
+      width:100%;
+      height:230px;
+      border-radius:14px;
+      overflow:hidden;
+      margin:10px 0 10px;
+      border:1px solid rgba(0,0,0,0.1);
+    }
+
     /* כפתור SOS */
     .btn-sos{
       width:100%;
-      margin-top:12px;
+      margin-top:4px;
       background:#d50000;
       color:#fff;
       font-weight:900;
       letter-spacing:1px;
       text-transform:uppercase;
+      cursor:pointer;
+      padding:11px 16px;
+      border-radius:999px;
     }
     .btn-sos:active{
       transform:scale(0.98);
     }
 
-    .error{color:#d63031;}
-    .ok{color:#27ae60;}
+    /* מודל (חלון קופץ) */
+    .modal-overlay{
+      position:absolute;
+      inset:0;
+      background:rgba(0,0,0,0.32);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:50;
+    }
+    .modal{
+      width:92%;
+      max-width:360px;
+      background:#ffffff;
+      border-radius:16px;
+      box-shadow:0 14px 40px rgba(0,0,0,0.45);
+      padding:16px 14px 12px;
+      animation: popIn 0.35s ease;
+    }
+    .modal-title{
+      font-size:1.05rem;
+      font-weight:700;
+      margin-bottom:6px;
+    }
+    .modal-text{
+      font-size:0.9rem;
+      opacity:0.85;
+      margin-bottom:10px;
+    }
+    .modal input[type="text"]{
+      width:100%;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid rgba(0,0,0,0.2);
+      background:#f7f7f7;
+      color:#000;
+      font-size:0.95rem;
+      margin-bottom:10px;
+    }
+    .modal-buttons{
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      margin-top:4px;
+    }
+    .btn-modal{
+      border:none;
+      border-radius:999px;
+      padding:7px 14px;
+      font-size:0.9rem;
+      cursor:pointer;
+    }
+    .btn-modal-secondary{
+      background:#f1f1f1;
+      color:#333;
+    }
+    .btn-modal-primary{
+      background:#00b894;
+      color:#000;
+      font-weight:600;
+    }
+    .btn-modal-danger{
+      background:#d50000;
+      color:#fff;
+      font-weight:600;
+    }
+
+    .hidden{display:none;}
+
+    /* אנימציות */
+    @keyframes fadeIn{
+      from{opacity:0;}
+      to{opacity:1;}
+    }
+    @keyframes fadeInUp{
+      from{opacity:0; transform:translateY(12px);}
+      to{opacity:1; transform:translateY(0);}
+    }
+    @keyframes popIn{
+      from{opacity:0; transform:translateY(18px) scale(0.96);}
+      to{opacity:1; transform:translateY(0) scale(1);}
+    }
   </style>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -256,67 +353,103 @@
 
 <body>
 <div class="app">
-  <h1>שמירת מקומות בטיול</h1>
-  <div class="subtitle">לחץ על הכפתור, תן למיקום להיטען, תן שם למקום ושמור.</div>
-
-  <button id="btnGetLocation" class="btn-main">📍 קבל מיקום נוכחי</button>
+  <h1>מפות טיול חכמות</h1>
+  <div class="subtitle">שמור מיקומים בטיול, צלם כל נקודה, ושלח SOS אם צריך.</div>
 
   <div id="status" class="status"></div>
 
-  <!-- קופסת קואורדינטות (מוסתרת ב-CSS) -->
+  <!-- מסך ראשי: שתי אפשרויות -->
+  <div class="main-actions">
+    <button id="btnNewPlace" class="btn-hero btn-hero-primary">
+      📍 שמור מיקום חדש
+    </button>
+    <button id="btnShowList" class="btn-hero btn-hero-secondary">
+      📌 המיקומים שלי
+    </button>
+  </div>
+
+  <!-- הקואורדינטות – נסתר ב-CSS, רק למשחק פנימי אם נרצה -->
   <div id="coordsBox" class="coords"></div>
 
-  <label for="placeName">שם המקום</label>
-  <input id="placeName" type="text" placeholder="הכנס שם למקום…">
-
-  <button id="btnSave" class="btn-save" disabled>💾 שמור מקום</button>
-
-  <div class="places-header">
-    <span>המקומות ששמרת</span>
-    <div class="header-buttons">
-      <button id="btnShareWhatsApp" class="btn-wa-all" type="button">
-        📲 שלח לוואטסאפ
-      </button>
-      <button id="btnClearAll" class="btn-clear" type="button">מחק הכל</button>
+  <!-- אזור רשימת המיקומים + מפה + SOS -->
+  <div id="sectionList">
+    <div class="places-header">
+      <span>המקומות ששמרת</span>
+      <div class="header-buttons">
+        <button id="btnShareWhatsApp" class="btn-wa-all" type="button">
+          📲 שלח לוואטסאפ
+        </button>
+        <button id="btnClearAll" class="btn-clear" type="button">מחק הכל</button>
+      </div>
     </div>
+
+    <div class="search-wrapper">
+      <input id="searchInput" type="text" placeholder="חיפוש לפי שם מקום…">
+    </div>
+
+    <div id="placesList" class="list"></div>
+
+    <div id="map"></div>
+
+    <button id="btnSOS" class="btn-sos" type="button">SOS</button>
   </div>
-
-  <!-- שורת חיפוש -->
-  <div class="search-wrapper">
-    <input id="searchInput" type="text" placeholder="חיפוש לפי שם מקום…">
-  </div>
-
-  <!-- רשימת המקומות -->
-  <div id="placesList" class="list"></div>
-
-  <!-- מפה עם כל הנקודות – עכשיו בסוף -->
-  <div id="map"></div>
-
-  <!-- כפתור SOS -->
-  <button id="btnSOS" class="btn-sos" type="button">SOS</button>
 
   <!-- אינפוט נסתר לצילום תמונה מהמכשיר -->
   <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none">
+
+  <!-- מודל: שם מקום -->
+  <div id="modalOverlay" class="modal-overlay">
+    <div id="modalName" class="modal hidden">
+      <div class="modal-title">שם המיקום</div>
+      <div class="modal-text">הכנס שם קצר כדי שתזהה את המקום (למשל: מלון, מפל, מסעדה).</div>
+      <input id="modalPlaceName" type="text" placeholder="שם המקום…">
+      <div class="modal-buttons">
+        <button id="btnNameCancel" class="btn-modal btn-modal-secondary">ביטול</button>
+        <button id="btnNameOk" class="btn-modal btn-modal-primary">המשך</button>
+      </div>
+    </div>
+
+    <!-- מודל: צילום מקום -->
+    <div id="modalPhoto" class="modal hidden">
+      <div class="modal-title">צלם את המקום?</div>
+      <div class="modal-text">אפשר לצלם תמונה קטנה שתעזור לזהות את המקום במבט אחד.</div>
+      <div class="modal-buttons">
+        <button id="btnPhotoSkip" class="btn-modal btn-modal-secondary">דלג</button>
+        <button id="btnPhotoTake" class="btn-modal btn-modal-primary">📷 צלם</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 
 <script>
   (function(){
-    const btnGetLocation   = document.getElementById('btnGetLocation');
-    const btnSave          = document.getElementById('btnSave');
+    const statusEl         = document.getElementById('status');
+
+    const btnNewPlace      = document.getElementById('btnNewPlace');
+    const btnShowList      = document.getElementById('btnShowList');
+
+    const sectionList      = document.getElementById('sectionList');
+    const placesListEl     = document.getElementById('placesList');
+    const searchInput      = document.getElementById('searchInput');
     const btnClearAll      = document.getElementById('btnClearAll');
     const btnShareWhatsApp = document.getElementById('btnShareWhatsApp');
     const btnSOS           = document.getElementById('btnSOS');
-    const statusEl         = document.getElementById('status');
-    const coordsBox        = document.getElementById('coordsBox');
-    const placeNameInput   = document.getElementById('placeName');
-    const placesListEl     = document.getElementById('placesList');
-    const searchInput      = document.getElementById('searchInput');
+
     const photoInput       = document.getElementById('photoInput');
 
-    let currentCoords = null;
-    let currentFilter = '';
-    let photoTargetId = null;
+    const modalOverlay     = document.getElementById('modalOverlay');
+    const modalName        = document.getElementById('modalName');
+    const modalPhoto       = document.getElementById('modalPhoto');
+    const modalPlaceName   = document.getElementById('modalPlaceName');
+    const btnNameCancel    = document.getElementById('btnNameCancel');
+    const btnNameOk        = document.getElementById('btnNameOk');
+    const btnPhotoSkip     = document.getElementById('btnPhotoSkip');
+    const btnPhotoTake     = document.getElementById('btnPhotoTake');
+
+    let currentFilter      = '';
+    let photoTargetId      = null;
+    let lastSavedPlaceId   = null;
 
     // מפה
     let map = null;
@@ -345,28 +478,85 @@
       if (stored) places = JSON.parse(stored);
     } catch(e){}
 
-    ensureMap();
     renderPlaces();
 
-    btnGetLocation.addEventListener('click', function(){
+    // מסך "שמור מיקום חדש"
+    btnNewPlace.addEventListener('click', ()=>{
+      openNameModal();
+    });
+
+    // מסך "המיקומים שלי"
+    btnShowList.addEventListener('click', ()=>{
+      showListSection();
+    });
+
+    function showListSection(){
+      sectionList.style.display = 'block';
+      ensureMap();
+      setTimeout(()=>{
+        if (map) {
+          map.invalidateSize();
+          updateMapMarkers();
+        }
+      }, 50);
+    }
+
+    // מודל – שם מקום
+    function openNameModal(){
+      modalOverlay.style.display = 'flex';
+      modalName.classList.remove('hidden');
+      modalPhoto.classList.add('hidden');
+      modalPlaceName.value = '';
+      setTimeout(()=>modalPlaceName.focus(), 50);
+    }
+    function closeModals(){
+      modalOverlay.style.display = 'none';
+      modalName.classList.add('hidden');
+      modalPhoto.classList.add('hidden');
+    }
+
+    btnNameCancel.addEventListener('click', ()=>{
+      closeModals();
+    });
+
+    btnNameOk.addEventListener('click', ()=>{
+      const name = (modalPlaceName.value || '').trim() || 'ללא שם';
+
       if (!navigator.geolocation) {
         statusText('המכשיר לא תומך ב-GPS דרך הדפדפן.', true);
         return;
       }
+
       statusText('טוען מיקום… אנא אשר גישה ל-GPS.', false);
-      btnSave.disabled = true;
 
       navigator.geolocation.getCurrentPosition(
         pos => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
-          currentCoords = {lat, lng};
-          statusText('המיקום נטען בהצלחה ✔', false);
-          btnSave.disabled = false;
+          const now = new Date();
+
+          const item = {
+            id: Date.now(),
+            name,
+            lat: Number(lat.toFixed(6)),
+            lng: Number(lng.toFixed(6)),
+            time: now.toISOString(),
+            photo: null
+          };
+
+          places.unshift(item);
+          lastSavedPlaceId = item.id;
+          savePlaces();
+          renderPlaces();
+          statusText('המיקום נשמר ✔', false);
+          showListSection();
+
+          // מעבר למודל צילום
+          modalName.classList.add('hidden');
+          modalPhoto.classList.remove('hidden');
         },
         err => {
           statusText('לא הצלחתי לקבל מיקום: ' + err.message, true);
-          btnSave.disabled = true;
         },
         {
           enableHighAccuracy:true,
@@ -376,37 +566,20 @@
       );
     });
 
-    btnSave.addEventListener('click', function(){
-      if (!currentCoords) {
-        statusText('עדכן מיקום לפני שמירה.', true);
-        return;
-      }
-      const name = placeNameInput.value.trim() || 'ללא שם';
-      const now = new Date();
-
-      const item = {
-        id: Date.now(),
-        name,
-        lat: Number(currentCoords.lat.toFixed(6)),
-        lng: Number(currentCoords.lng.toFixed(6)),
-        time: now.toISOString(),
-        photo: null
-      };
-
-      places.unshift(item);
-      savePlaces();
-      renderPlaces();
-      placeNameInput.value = '';
-      statusText('המקום נשמר ✔', false);
+    // מודל – צילום מקום
+    btnPhotoSkip.addEventListener('click', ()=>{
+      closeModals();
     });
 
-    btnClearAll.addEventListener('click', function(){
-      if (!places.length) return;
-      if (!confirm('מחק את כל המקומות?')) return;
-      places = [];
-      savePlaces();
-      renderPlaces();
-      statusText('כל המקומות נמחקו.', false);
+    btnPhotoTake.addEventListener('click', ()=>{
+      if (!lastSavedPlaceId){
+        closeModals();
+        return;
+      }
+      photoTargetId = lastSavedPlaceId;
+      closeModals();
+      photoInput.value = '';
+      photoInput.click();
     });
 
     // חיפוש
@@ -447,7 +620,7 @@
       window.open(url, '_blank');
     });
 
-    // SOS – שולח מיקום נוכחי לוואטסאפ שלך
+    // כפתור SOS – חירום
     btnSOS.addEventListener('click', function(){
       if (!navigator.geolocation) {
         statusText('המכשיר לא תומך ב-GPS – אי אפשר לשלוח מיקום SOS.', true);
@@ -480,6 +653,16 @@
           maximumAge:0
         }
       );
+    });
+
+    // ניקוי כל המקומות
+    btnClearAll.addEventListener('click', function(){
+      if (!places.length) return;
+      if (!confirm('מחק את כל המקומות?')) return;
+      places = [];
+      savePlaces();
+      renderPlaces();
+      statusText('כל המקומות נמחקו.', false);
     });
 
     // צילום / בחירת תמונה למקום
@@ -539,7 +722,7 @@
     });
 
     function statusText(msg, isError){
-      statusEl.textContent = msg;
+      statusEl.textContent = msg || '';
       statusEl.className = 'status ' + (isError ? 'error' : 'ok');
     }
 
@@ -549,7 +732,8 @@
 
     function renderPlaces(){
       ensureMap();
-      placesListEl.innerHTML = '';
+      const listEl = placesListEl;
+      listEl.innerHTML = '';
 
       const filtered = currentFilter
         ? places.filter(p => p.name.toLowerCase().includes(currentFilter))
@@ -562,7 +746,7 @@
         empty.textContent = currentFilter
           ? 'לא נמצאו מקומות תואמים לחיפוש.'
           : 'עדיין לא שמרת שום מקום.';
-        placesListEl.appendChild(empty);
+        listEl.appendChild(empty);
         updateMapMarkers();
         return;
       }
@@ -650,7 +834,7 @@
         div.appendChild(top);
         div.appendChild(bottom);
 
-        placesListEl.appendChild(div);
+        listEl.appendChild(div);
       });
 
       updateMapMarkers();
