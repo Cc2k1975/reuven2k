@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>שמירת מקומות GPS</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{
+      height:100%;
+      font-family:system-ui,"Heebo","Arial",sans-serif;
+      background:#05070a;
+      color:#fff;
+    }
+    body{
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:16px;
+    }
+    .app{
+      width:100%;
+      max-width:500px;
+      background:#10131a;
+      border-radius:18px;
+      box-shadow:0 14px 40px rgba(0,0,0,0.7);
+      padding:18px 16px 20px;
+    }
+    h1{
+      font-size:1.3rem;
+      margin-bottom:10px;
+      text-align:center;
+    }
+    .subtitle{
+      font-size:0.85rem;
+      opacity:0.7;
+      text-align:center;
+      margin-bottom:14px;
+    }
+    button{
+      cursor:pointer;
+      border:none;
+      border-radius:999px;
+      padding:10px 16px;
+      font-size:0.95rem;
+    }
+    .btn-main{
+      width:100%;
+      background:linear-gradient(135deg,#00d0ff,#00ff88);
+      color:#000;
+      font-weight:600;
+      margin-bottom:12px;
+    }
+    .btn-main:active{
+      transform:scale(0.98);
+    }
+    .status{
+      min-height:32px;
+      font-size:0.9rem;
+      margin-bottom:10px;
+    }
+    .coords{
+      font-family:"Courier New",monospace;
+      font-size:0.9rem;
+      margin-top:4px;
+    }
+    label{
+      display:block;
+      font-size:0.9rem;
+      margin:6px 0 4px;
+    }
+    input[type="text"]{
+      width:100%;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.1);
+      background:#05070a;
+      color:#fff;
+      font-size:0.95rem;
+    }
+    input::placeholder{color:rgba(255,255,255,0.35);}
+    .btn-save{
+      width:100%;
+      margin-top:10px;
+      background:#00b894;
+      color:#000;
+      font-weight:600;
+    }
+    .btn-save:disabled{
+      opacity:0.4;
+      cursor:not-allowed;
+    }
+    .places-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-top:16px;
+      margin-bottom:6px;
+    }
+    .places-header span{
+      font-size:0.95rem;
+      font-weight:600;
+    }
+    .btn-clear{
+      background:transparent;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.25);
+      padding:4px 10px;
+      font-size:0.78rem;
+      color:#ff7675;
+    }
+    .list{
+      max-height:50vh;
+      overflow-y:auto;
+      padding-right:2px;
+    }
+    .place{
+      border-radius:14px;
+      background:#151925;
+      padding:10px 10px 9px;
+      margin-bottom:8px;
+      border:1px solid rgba(255,255,255,0.05);
+    }
+    .place-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      margin-bottom:4px;
+    }
+    .place-name{
+      font-weight:600;
+      font-size:0.95rem;
+      word-break:break-word;
+    }
+    .place-time{
+      font-size:0.7rem;
+      opacity:0.6;
+      white-space:nowrap;
+    }
+    .place-bottom{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:4px;
+    }
+    .place-coords{
+      font-size:0.8rem;
+      font-family:"Courier New",monospace;
+      opacity:0.8;
+    }
+    .btn-group{
+      display:flex;
+      gap:4px;
+      flex-wrap:nowrap;
+    }
+    .btn-mini{
+      padding:5px 9px;
+      font-size:0.78rem;
+      border-radius:999px;
+      border:none;
+      white-space:nowrap;
+    }
+    .btn-waze{background:#0f99ff;color:#fff;}
+    .btn-gmaps{background:#1abc9c;color:#000;}
+    .btn-del{
+      background:#ff4757;
+      color:#fff;
+    }
+    .error{color:#ff7675;}
+    .ok{color:#55efc4;}
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>שמירת מקומות בטיול</h1>
+  <div class="subtitle">לחץ על הכפתור, תן למיקום להיטען, תן שם למקום ושמור.</div>
+
+  <button id="btnGetLocation" class="btn-main">
+    📍 קבל מיקום נוכחי
+  </button>
+
+  <div id="status" class="status"></div>
+
+  <div id="coordsBox" class="coords" style="display:none;"></div>
+
+  <label for="placeName">שם המקום (למשל: מלון, מסעדה, נקודת תצפית)</label>
+  <input id="placeName" type="text" placeholder="הכנס שם למקום…">
+
+  <button id="btnSave" class="btn-save" disabled>💾 שמור מקום</button>
+
+  <div class="places-header">
+    <span>המקומות ששמרת</span>
+    <button id="btnClearAll" class="btn-clear" type="button">מחק הכל</button>
+  </div>
+
+  <div id="placesList" class="list"></div>
+</div>
+
+<script>
+  (function(){
+    const btnGetLocation = document.getElementById('btnGetLocation');
+    const btnSave        = document.getElementById('btnSave');
+    const btnClearAll    = document.getElementById('btnClearAll');
+    const statusEl       = document.getElementById('status');
+    const coordsBox      = document.getElementById('coordsBox');
+    const placeNameInput = document.getElementById('placeName');
+    const placesListEl   = document.getElementById('placesList');
+
+    let currentCoords = null; // {lat, lng}
+
+    // טוען מהמכשיר
+    let places = [];
+    try {
+      const stored = localStorage.getItem('geo_places_v1');
+      if (stored) places = JSON.parse(stored);
+    } catch(e){
+      console.error('שגיאה בקריאת localStorage', e);
+    }
+
+    renderPlaces();
+
+    btnGetLocation.addEventListener('click', function(){
+      if (!navigator.geolocation) {
+        statusText('המכשיר לא תומך ב-GPS דרך הדפדפן.', true);
+        return;
+      }
+      statusText('טוען מיקום… אנא אשר גישה ל-GPS.', false);
+      coordsBox.style.display = 'none';
+      btnSave.disabled = true;
+
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          currentCoords = {lat, lng};
+          const latStr = lat.toFixed(6);
+          const lngStr = lng.toFixed(6);
+          coordsBox.textContent = `LAT: ${latStr}  |  LNG: ${lngStr}`;
+          coordsBox.style.display = 'block';
+          statusText('המיקום נטען בהצלחה ✔', false);
+          btnSave.disabled = false;
+        },
+        err => {
+          console.error(err);
+          statusText('לא הצלחתי לקבל מיקום: ' + err.message, true);
+          coordsBox.style.display = 'none';
+          btnSave.disabled = true;
+        },
+        {
+          enableHighAccuracy:true,
+          timeout:15000,
+          maximumAge:0
+        }
+      );
+    });
+
+    btnSave.addEventListener('click', function(){
+      if (!currentCoords) {
+        statusText('עדכן קודם מיקום לפני שמירה.', true);
+        return;
+      }
+      const name = placeNameInput.value.trim() || 'ללא שם';
+      const now = new Date();
+      const item = {
+        id: Date.now(),
+        name,
+        lat: Number(currentCoords.lat.toFixed(6)),
+        lng: Number(currentCoords.lng.toFixed(6)),
+        time: now.toISOString()
+      };
+      places.unshift(item); // חדש למעלה
+      savePlaces();
+      renderPlaces();
+      placeNameInput.value = '';
+      statusText('המקום נשמר ✔', false);
+    });
+
+    btnClearAll.addEventListener('click', function(){
+      if (!places.length) return;
+      const ok = confirm('למחוק את כל המקומות ששמרת?');
+      if (!ok) return;
+      places = [];
+      savePlaces();
+      renderPlaces();
+      statusText('כל המקומות נמחקו.', false);
+    });
+
+    function statusText(msg, isError){
+      statusEl.textContent = msg || '';
+      statusEl.className = 'status ' + (isError ? 'error' : 'ok');
+    }
+
+    function savePlaces(){
+      try{
+        localStorage.setItem('geo_places_v1', JSON.stringify(places));
+      }catch(e){
+        console.error('שגיאה בשמירה ל-localStorage', e);
+      }
+    }
+
+    function renderPlaces(){
+      placesListEl.innerHTML = '';
+      if (!places.length){
+        const empty = document.createElement('div');
+        empty.style.fontSize='0.85rem';
+        empty.style.opacity='0.6';
+        empty.textContent = 'עדיין לא שמרת שום מקום.';
+        placesListEl.appendChild(empty);
+        return;
+      }
+
+      places.forEach(p=>{
+        const div = document.createElement('div');
+        div.className = 'place';
+
+        const top = document.createElement('div');
+        top.className = 'place-top';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'place-name';
+        nameEl.textContent = p.name;
+
+        const timeEl = document.createElement('div');
+        timeEl.className = 'place-time';
+        const dt = new Date(p.time);
+        const d  = String(dt.getDate()).padStart(2,'0');
+        const m  = String(dt.getMonth()+1).padStart(2,'0');
+        const y  = dt.getFullYear();
+        const hh = String(dt.getHours()).padStart(2,'0');
+        const mm = String(dt.getMinutes()).padStart(2,'0');
+        timeEl.textContent = `${d}.${m}.${y}  ${hh}:${mm}`;
+
+        top.appendChild(nameEl);
+        top.appendChild(timeEl);
+
+        const bottom = document.createElement('div');
+        bottom.className = 'place-bottom';
+
+        const coordsEl = document.createElement('div');
+        coordsEl.className = 'place-coords';
+        coordsEl.textContent = `LAT: ${p.lat.toFixed(6)}  |  LNG: ${p.lng.toFixed(6)}`;
+
+        const btnGroup = document.createElement('div');
+        btnGroup.className = 'btn-group';
+
+        const btnWaze = document.createElement('button');
+        btnWaze.className = 'btn-mini btn-waze';
+        btnWaze.textContent = 'Waze';
+        btnWaze.addEventListener('click', ()=>{
+          const url = `https://waze.com/ul?ll=${p.lat},${p.lng}&navigate=yes`;
+          window.open(url,'_blank');
+        });
+
+        const btnGMaps = document.createElement('button');
+        btnGMaps.className = 'btn-mini btn-gmaps';
+        btnGMaps.textContent = 'Maps';
+        btnGMaps.addEventListener('click', ()=>{
+          const url = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+          window.open(url,'_blank');
+        });
+
+        const btnDel = document.createElement('button');
+        btnDel.className = 'btn-mini btn-del';
+        btnDel.textContent = 'מחק';
+        btnDel.addEventListener('click', ()=>{
+          places = places.filter(x=>x.id !== p.id);
+          savePlaces();
+          renderPlaces();
+        });
+
+        btnGroup.appendChild(btnWaze);
+        btnGroup.appendChild(btnGMaps);
+        btnGroup.appendChild(btnDel);
+
+        bottom.appendChild(coordsEl);
+        bottom.appendChild(btnGroup);
+
+        div.appendChild(top);
+        div.appendChild(bottom);
+
+        placesListEl.appendChild(div);
+      });
+    }
+  })();
+</script>
+</body>
+</html>
