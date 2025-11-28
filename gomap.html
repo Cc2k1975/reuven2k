@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>שמירת מקומות GPS</title>
 
+  <!-- PWA: מניפסט + אייקון -->
+  <link rel="manifest" href="gomap-manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="https://reuven2k.com/gomap.png">
+  <link rel="apple-touch-icon" href="https://reuven2k.com/gomap.png">
+  <meta name="theme-color" content="#000000">
+
   <!-- Leaflet למפה -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
@@ -341,6 +347,30 @@
 
     .hidden{display:none;}
 
+    /* כפתור "הוסף למסך הבית" */
+    #installBtn{
+      position:fixed;
+      top:8px;
+      left:8px;
+      z-index:9999;
+      padding:8px 14px;
+      background:rgba(0,0,0,0.85);
+      color:#fff;
+      border-radius:20px;
+      border:1px solid rgba(255,255,255,0.25);
+      font-size:0.9rem;
+      display:none; /* יוצג רק אם הדפדפן מאפשר התקנה */
+      align-items:center;
+      gap:6px;
+      cursor:pointer;
+    }
+    #installBtn span.icon{
+      font-size:1.1rem;
+    }
+    #installBtn:active{
+      background:rgba(40,40,40,0.95);
+    }
+
     /* אנימציות */
     @keyframes fadeIn{
       from{opacity:0;}
@@ -361,6 +391,12 @@
 
 <body>
 <div class="app">
+  <!-- כפתור הוסף למסך הבית -->
+  <button id="installBtn">
+    <span class="icon">📌</span>
+    <span>הוסף למסך הבית</span>
+  </button>
+
   <h1>מפות טיול חכמות</h1>
   <div class="subtitle">שמור מיקומים בטיול, צלם כל נקודה, ושלח SOS אם צריך.</div>
 
@@ -883,6 +919,40 @@
     }
 
   })();
+</script>
+
+<!-- לוגיקת "הוסף למסך הבית" (אנדרואיד / כרום) -->
+<script>
+  let deferredPrompt = null;
+  const installBtn = document.getElementById('installBtn');
+
+  function isInStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.navigator.standalone === true;
+  }
+
+  if (isInStandalone()) {
+    installBtn.style.display = 'none';
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.style.display = 'flex';
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (navigator.vibrate) navigator.vibrate(50);
+    if (!deferredPrompt) {
+      alert('ייתכן שהאפליקציה כבר מותקנת או שהדפדפן לא תומך.');
+      return;
+    }
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+    console.log('תוצאת ההתקנה:', choice.outcome);
+  });
 </script>
 
 </body>
