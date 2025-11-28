@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>שמירת מקומות GPS</title>
+  <title>מפות טיול חכמות</title>
 
-  <!-- PWA: מניפסט + אייקון -->
+  <!-- PWA -->
   <link rel="manifest" href="gomap-manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="https://reuven2k.com/gomap.png">
   <link rel="apple-touch-icon" href="https://reuven2k.com/gomap.png">
@@ -50,8 +50,32 @@
       font-size:0.85rem;
       opacity:0.7;
       text-align:center;
-      margin-bottom:14px;
+      margin-bottom:10px;
       color:#333;
+    }
+
+    /* כפתור הוסף למסך הבית */
+    #installBtn{
+      width:100%;
+      margin-bottom:12px;
+      padding:8px 12px;
+      border-radius:999px;
+      border:none;
+      background:#111827;
+      color:#fff;
+      font-size:0.95rem;
+      font-weight:600;
+      display:flex;             /* תמיד מוצג */
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      cursor:pointer;
+    }
+    #installBtn span.icon{
+      font-size:1.1rem;
+    }
+    #installBtn:active{
+      transform:scale(0.97);
     }
 
     .status{
@@ -243,7 +267,6 @@
     .btn-gmaps{background:#1abc9c;color:#000;}
     .btn-del{background:#ff4757;color:#fff;}
 
-    /* מפה בסוף */
     #map{
       width:100%;
       height:230px;
@@ -253,7 +276,6 @@
       border:1px solid rgba(0,0,0,0.1);
     }
 
-    /* כפתור SOS */
     .btn-sos{
       width:100%;
       margin-top:4px;
@@ -270,7 +292,6 @@
       transform:scale(0.98);
     }
 
-    /* מודל (חלון קופץ) */
     .modal-overlay{
       position:absolute;
       inset:0;
@@ -331,13 +352,7 @@
       color:#000;
       font-weight:600;
     }
-    .btn-modal-danger{
-      background:#d50000;
-      color:#fff;
-      font-weight:600;
-    }
 
-    /* שורת סטטוס בתוך המודל לשם (ממתין ל-GPS) */
     .modal-gps-status{
       font-size:0.85rem;
       margin-top:2px;
@@ -347,31 +362,6 @@
 
     .hidden{display:none;}
 
-    /* כפתור "הוסף למסך הבית" */
-    #installBtn{
-      position:fixed;
-      top:8px;
-      left:8px;
-      z-index:9999;
-      padding:8px 14px;
-      background:rgba(0,0,0,0.85);
-      color:#fff;
-      border-radius:20px;
-      border:1px solid rgba(255,255,255,0.25);
-      font-size:0.9rem;
-      display:none; /* יוצג רק אם הדפדפן מאפשר התקנה */
-      align-items:center;
-      gap:6px;
-      cursor:pointer;
-    }
-    #installBtn span.icon{
-      font-size:1.1rem;
-    }
-    #installBtn:active{
-      background:rgba(40,40,40,0.95);
-    }
-
-    /* אנימציות */
     @keyframes fadeIn{
       from{opacity:0;}
       to{opacity:1;}
@@ -402,7 +392,6 @@
 
   <div id="status" class="status"></div>
 
-  <!-- מסך ראשי: שתי אפשרויות -->
   <div class="main-actions">
     <button id="btnNewPlace" class="btn-hero btn-hero-primary">
       📍 שמור מיקום חדש
@@ -412,10 +401,8 @@
     </button>
   </div>
 
-  <!-- הקואורדינטות – נסתר -->
   <div id="coordsBox" class="coords"></div>
 
-  <!-- אזור רשימת המיקומים + מפה + SOS -->
   <div id="sectionList">
     <div class="places-header">
       <span>המקומות ששמרת</span>
@@ -438,10 +425,8 @@
     <button id="btnSOS" class="btn-sos" type="button">SOS</button>
   </div>
 
-  <!-- אינפוט נסתר לצילום תמונה מהמכשיר -->
   <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none">
 
-  <!-- מודל: שם מקום + סטטוס GPS -->
   <div id="modalOverlay" class="modal-overlay">
     <div id="modalName" class="modal hidden">
       <div class="modal-title">שם המיקום</div>
@@ -454,7 +439,6 @@
       </div>
     </div>
 
-    <!-- מודל: צילום מקום -->
     <div id="modalPhoto" class="modal hidden">
       <div class="modal-title">צלם את המקום?</div>
       <div class="modal-text">אפשר לצלם תמונה קטנה שתעזור לזהות את המקום במבט אחד.</div>
@@ -466,23 +450,18 @@
   </div>
 </div>
 
-
 <script>
   (function(){
     const statusEl         = document.getElementById('status');
-
     const btnNewPlace      = document.getElementById('btnNewPlace');
     const btnShowList      = document.getElementById('btnShowList');
-
     const sectionList      = document.getElementById('sectionList');
     const placesListEl     = document.getElementById('placesList');
     const searchInput      = document.getElementById('searchInput');
     const btnClearAll      = document.getElementById('btnClearAll');
     const btnShareWhatsApp = document.getElementById('btnShareWhatsApp');
     const btnSOS           = document.getElementById('btnSOS');
-
     const photoInput       = document.getElementById('photoInput');
-
     const modalOverlay     = document.getElementById('modalOverlay');
     const modalName        = document.getElementById('modalName');
     const modalPhoto       = document.getElementById('modalPhoto');
@@ -497,7 +476,6 @@
     let photoTargetId      = null;
     let lastSavedPlaceId   = null;
 
-    // מפה
     let map = null;
     let markersLayer = null;
     let mapInited = false;
@@ -526,12 +504,10 @@
 
     renderPlaces();
 
-    // מסך "שמור מיקום חדש"
     btnNewPlace.addEventListener('click', ()=>{
       openNameModal();
     });
 
-    // מסך "המיקומים שלי"
     btnShowList.addEventListener('click', ()=>{
       showListSection();
     });
@@ -547,13 +523,12 @@
       }, 50);
     }
 
-    // מודל – שם מקום
     function openNameModal(){
       modalOverlay.style.display = 'flex';
       modalName.classList.remove('hidden');
       modalPhoto.classList.add('hidden');
       modalPlaceName.value = '';
-      modalGpsStatus.textContent = '';  // אין הודעה בהתחלה
+      modalGpsStatus.textContent = '';
       setTimeout(()=>modalPlaceName.focus(), 50);
     }
     function closeModals(){
@@ -602,7 +577,6 @@
           modalGpsStatus.textContent = 'המיקום התקבל בהצלחה ✔';
           showListSection();
 
-          // מעבר למודל צילום
           modalName.classList.add('hidden');
           modalPhoto.classList.remove('hidden');
         },
@@ -618,7 +592,6 @@
       );
     });
 
-    // מודל – צילום מקום
     btnPhotoSkip.addEventListener('click', ()=>{
       closeModals();
     });
@@ -634,13 +607,11 @@
       photoInput.click();
     });
 
-    // חיפוש
     searchInput.addEventListener('input', function(){
       currentFilter = (searchInput.value || '').toLowerCase().trim();
       renderPlaces();
     });
 
-    // שליחת כל המקומות לוואטסאפ
     btnShareWhatsApp.addEventListener('click', function(){
       if (!places.length){
         statusText('אין מקומות לשליחה לוואטסאפ.', true);
@@ -672,7 +643,6 @@
       window.open(url, '_blank');
     });
 
-    // כפתור SOS – חירום
     btnSOS.addEventListener('click', function(){
       if (!navigator.geolocation) {
         statusText('המכשיר לא תומך ב-GPS – אי אפשר לשלוח מיקום SOS.', true);
@@ -707,7 +677,6 @@
       );
     });
 
-    // ניקוי כל המקומות
     btnClearAll.addEventListener('click', function(){
       if (!places.length) return;
       if (!confirm('מחק את כל המקומות?')) return;
@@ -717,7 +686,6 @@
       statusText('כל המקומות נמחקו.', false);
     });
 
-    // צילום / בחירת תמונה למקום
     photoInput.addEventListener('change', function(){
       const file = this.files && this.files[0];
       if (!file || !photoTargetId) {
@@ -838,9 +806,6 @@
         const bottom = document.createElement('div');
         bottom.className = 'place-bottom';
 
-        const coordsEl = document.createElement('div');
-        coordsEl.className = 'place-coords';
-
         const btnGroup = document.createElement('div');
         btnGroup.className = 'btn-group';
 
@@ -921,37 +886,26 @@
   })();
 </script>
 
-<!-- לוגיקת "הוסף למסך הבית" (אנדרואיד / כרום) -->
+<!-- לוגיקה של כפתור "הוסף למסך הבית" -->
 <script>
   let deferredPrompt = null;
   const installBtn = document.getElementById('installBtn');
 
-  function isInStandalone() {
-    return window.matchMedia('(display-mode: standalone)').matches ||
-           window.navigator.standalone === true;
-  }
-
-  if (isInStandalone()) {
-    installBtn.style.display = 'none';
-  }
-
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    installBtn.style.display = 'flex';
   });
 
   installBtn.addEventListener('click', async () => {
-    if (navigator.vibrate) navigator.vibrate(50);
-    if (!deferredPrompt) {
-      alert('ייתכן שהאפליקציה כבר מותקנת או שהדפדפן לא תומך.');
-      return;
+    if (navigator.vibrate) navigator.vibrate(40);
+
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    } else {
+      alert('כדי להוסיף למסך הבית:\n\nבכרום בטלפון לחץ על ⋮ ואז "הוסף למסך הבית".');
     }
-    deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    installBtn.style.display = 'none';
-    console.log('תוצאת ההתקנה:', choice.outcome);
   });
 </script>
 
