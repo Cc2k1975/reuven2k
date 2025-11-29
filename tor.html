@@ -1,76 +1,3 @@
-<?php
-/* ---------------------------------------------
-   חלק 1: מצב "ICS" – אם יש פרמטר e ב-URL
-   מחזירים קובץ לוח שנה (ICS) עם תזכורת 30 דק' לפני
-   --------------------------------------------- */
-if (isset($_GET['e']) && $_GET['e'] !== '') {
-    $token = $_GET['e'];
-
-    // המרה מ-base64 URL-safe ל-base64 רגיל
-    $token = strtr($token, '-_', '+/');
-    $mod4 = strlen($token) % 4;
-    if ($mod4) {
-        $token .= substr('====', $mod4);
-    }
-
-    $data = base64_decode($token, true);
-    if ($data === false || strlen($data) < 14) {
-        http_response_code(400);
-        echo 'Bad event token';
-        exit;
-    }
-
-    // פורמט מקודד: YYMMDDHHMMHHMM (תאריך, שעת התחלה, שעת סיום)
-    $yy  = substr($data, 0, 2);
-    $mm  = substr($data, 2, 2);
-    $dd  = substr($data, 4, 2);
-    $shh = substr($data, 6, 2);
-    $smm = substr($data, 8, 2);
-    $ehh = substr($data,10, 2);
-    $emm = substr($data,12, 2);
-
-    $year = 2000 + intval($yy); // מניחים שנים 20xx
-
-    $dtstart = sprintf('%04d%02d%02dT%02d%02d00', $year, $mm, $dd, $shh, $smm);
-    $dtend   = sprintf('%04d%02d%02dT%02d%02d00', $year, $mm, $dd, $ehh, $emm);
-
-    $uid = uniqid('odelia-', true) . '@reuven2k.com';
-    $now = gmdate('Ymd\THis\Z');
-
-    $summary     = 'פן אצל אודליה';
-    $description = 'תור לפן אצל אודליה פן אקספרס';
-
-    $ics  = "BEGIN:VCALENDAR\r\n";
-    $ics .= "VERSION:2.0\r\n";
-    $ics .= "PRODID:-//OdeliaSalon//Appointments//HE\r\n";
-    $ics .= "CALSCALE:GREGORIAN\r\n";
-    $ics .= "METHOD:PUBLISH\r\n";
-    $ics .= "BEGIN:VEVENT\r\n";
-    $ics .= "UID:$uid\r\n";
-    $ics .= "DTSTAMP:$now\r\n";
-    $ics .= "DTSTART:$dtstart\r\n";
-    $ics .= "DTEND:$dtend\r\n";
-    $ics .= "SUMMARY:$summary\r\n";
-    $ics .= "DESCRIPTION:$description\r\n";
-    $ics .= "BEGIN:VALARM\r\n";
-    $ics .= "TRIGGER:-PT30M\r\n"; // תזכורת 30 דק' לפני
-    $ics .= "ACTION:DISPLAY\r\n";
-    $ics .= "DESCRIPTION:תזכורת תור לפן אצל אודליה\r\n";
-    $ics .= "END:VALARM\r\n";
-    $ics .= "END:VEVENT\r\n";
-    $ics .= "END:VCALENDAR\r\n";
-
-    header('Content-Type: text/calendar; charset=utf-8');
-    header('Content-Disposition: attachment; filename="odelia_appointment.ics"');
-    echo $ics;
-    exit;
-}
-
-/* ---------------------------------------------
-   חלק 2: מצב "דף ניהול תורים" – אין פרמטר e
-   מציגים HTML + JS
-   --------------------------------------------- */
-?>
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -101,6 +28,7 @@ if (isset($_GET['e']) && $_GET['e'] !== '') {
       padding:20px 18px 28px;
     }
 
+    /* כותרת + כפתור בשורה אחת */
     .header-row{
       display:flex;
       align-items:center;
@@ -129,6 +57,7 @@ if (isset($_GET['e']) && $_GET['e'] !== '') {
       background:#ffd2d2;
     }
 
+    /* שורת תאריך עם לוח שנה */
     .date-row{
       display:flex;
       align-items:center;
@@ -238,6 +167,7 @@ if (isset($_GET['e']) && $_GET['e'] !== '') {
       border-top:1px solid #ebedf3;
     }
 
+    /* כותרת + חיפוש */
     .section-header{
       display:flex;
       flex-direction:column;
@@ -287,7 +217,7 @@ if (isset($_GET['e']) && $_GET['e'] !== '') {
     .appt-name{
       font-size:1.1rem;
       color:#333;
-      font-weight:700;
+      font-weight:700; /* שם הלקוחה בבולד */
     }
     .appt-delete{
       padding:8px 14px;
@@ -395,6 +325,7 @@ if (isset($_GET['e']) && $_GET['e'] !== '') {
   </div>
 
 <script>
+/* --- טיפולים --- */
 const TREATMENTS = {
   short: { label: 'פן קצר', minutes: 15 },
   long:  { label: 'פן ארוך', minutes: 20 }
@@ -405,6 +336,7 @@ function getSlotsForTreatment(key){
   return Math.round(t.minutes / 5);
 }
 
+/* --- קפיצות של 5 דקות --- */
 const times = [];
 for(let h = 8; h < 22; h++){
   for(let m = 0; m < 60; m += 5){
@@ -417,9 +349,9 @@ for(let h = 8; h < 22; h++){
 const LS_CLIENTS_KEY = 'salonClients';
 const LS_APPTS_KEY   = 'salonAppointmentsByDate';
 
-let clients = [];           
-let appointmentsByDate = {};
-let appointments = {};       
+let clients = [];           // [{name,phone}]
+let appointmentsByDate = {}; // { "YYYY-MM-DD": { "HH:MM": {...} } }
+let appointments = {};       // התורים של התאריך הנבחר
 let currentDateKey = '';
 let todayKey = '';
 
@@ -437,6 +369,7 @@ const datePicker      = document.getElementById('datePicker');
 const filterInput     = document.getElementById('filterInput');
 const btnWhatsApp     = document.getElementById('btnWhatsApp');
 
+/* --- עזר תאריכים --- */
 function formatDateKey(d){
   const y = d.getFullYear();
   const m = (d.getMonth()+1).toString().padStart(2,'0');
@@ -456,6 +389,7 @@ function setDateLimits(){
   datePicker.max = formatDateKey(max);
 }
 
+/* --- לקוחות --- */
 function normalizeName(name){
   return name.trim();
 }
@@ -481,6 +415,7 @@ function ensureClientsArray(raw){
   })).filter(c => c.name);
 }
 
+/* --- אתחול --- */
 window.addEventListener('DOMContentLoaded', () => {
   const now = new Date();
   todayKey = formatDateKey(now);
@@ -498,6 +433,7 @@ window.addEventListener('DOMContentLoaded', () => {
   renderAppointments();
 });
 
+/* שינוי תאריך */
 datePicker.addEventListener('change', () => {
   currentDateKey = datePicker.value || todayKey;
   if(!appointmentsByDate[currentDateKey]) appointmentsByDate[currentDateKey] = {};
@@ -567,6 +503,7 @@ function saveAppointments(){
   localStorage.setItem(LS_APPTS_KEY, JSON.stringify(appointmentsByDate));
 }
 
+/* --- הצגת/הסתרת טלפון לפי לקוחה --- */
 function showPhoneField(){
   phoneGroup.style.display = 'block';
 }
@@ -588,6 +525,7 @@ function onClientNameChange(){
   }
 }
 
+/* --- השלמת שמות --- */
 clientInput.addEventListener('input', () => {
   onClientNameChange();
   showSuggestions(clientInput.value.trim());
@@ -628,48 +566,18 @@ function hideSuggestions(){
   suggestionsList.classList.add('empty');
 }
 
+/* --- עזר טלפון לוואטסאפ --- */
 function sanitizePhone(phone){
   if(!phone) return '';
   let digits = phone.replace(/[^\d]/g,'');
+  // אם מתחיל ב-0 ויש 10 ספרות (050...), נהפוך ל-972
   if(digits.length === 10 && digits[0] === '0'){
     digits = '972' + digits.slice(1);
   }
   return digits;
 }
 
-/* בניית קישור ICS על בסיס אותו קובץ PHP */
-function buildCalendarLink(dateKey, time, treatment){
-  if(!dateKey || !time || !treatment) return '';
-  const parts = dateKey.split('-');
-  if(parts.length !== 3) return '';
-  const year = parts[0];
-  const yy   = year.slice(-2);
-  const mm   = parts[1];
-  const dd   = parts[2];
-
-  const tParts = time.split(':');
-  if(tParts.length !== 2) return '';
-  const sh = parseInt(tParts[0],10);
-  const sm = parseInt(tParts[1],10);
-  if(isNaN(sh) || isNaN(sm)) return '';
-
-  const dur = (TREATMENTS[treatment] && TREATMENTS[treatment].minutes) ? TREATMENTS[treatment].minutes : 15;
-  const startTotal = sh*60 + sm;
-  const endTotal   = startTotal + dur;
-  const eh = String(Math.floor(endTotal/60)).padStart(2,'0');
-  const em = String(endTotal % 60).padStart(2,'0');
-
-  const raw = yy + mm + dd + String(sh).padStart(2,'0') + String(sm).padStart(2,'0') + eh + em;
-  let base64 = btoa(raw)
-    .replace(/\+/g,'-')
-    .replace(/\//g,'_')
-    .replace(/=+$/,'');
-
-  const baseUrl = window.location.origin + window.location.pathname;
-  return baseUrl + '?e=' + base64;
-}
-
-/* שמירת תור + וואטסאפ אוטומטי */
+/* --- שמירת תור + וואטסאפ אוטומטי --- */
 btnSaveAppt.addEventListener('click', () => {
   const time      = timeSelect.value;
   const treatment = treatmentSelect.value;
@@ -753,14 +661,15 @@ btnSaveAppt.addEventListener('click', () => {
   renderAppointments();
   alert('התור נשמר בהצלחה.');
 
+  // איפוס שדות, אבל השם נשאר לטובת קביעת עוד תור ברצף
   treatmentSelect.value = '';
   phoneInput.value = '';
   hidePhoneField();
   hideSuggestions();
 
-  const dateKey = currentDateKey || (datePicker.value || todayKey);
+  // שליחת וואטסאפ אוטומטית
   if(phone){
-    sendWhatsAppToClient(name, phone, dateKey, time, treatment);
+    sendWhatsAppToClient(name, phone, currentDateKey || (datePicker.value || todayKey), time);
   }
 });
 
@@ -774,6 +683,7 @@ function updateTimeOptions(){
   }
 }
 
+/* --- סטטיסטיקות --- */
 function updateStats(mainTimesAll){
   if(!statsContainer) return;
   if(mainTimesAll.length === 0){
@@ -801,6 +711,7 @@ function updateStats(mainTimesAll){
     (timeText ? ` | סה״כ זמן עבודה: ${timeText}` : '');
 }
 
+/* --- תצוגת תורים --- */
 function renderAppointments(){
   appointmentsDiv.innerHTML = '';
   statsContainer.textContent = '';
@@ -876,6 +787,7 @@ function renderAppointments(){
   updateStats(mainTimesAll);
 }
 
+/* --- רשימה יומית חדשה --- */
 btnNewDay.addEventListener('click', () => {
   if(!confirm('לפתוח רשימה יומית חדשה ולמחוק את כל התורים?')) return;
 
@@ -893,6 +805,7 @@ btnNewDay.addEventListener('click', () => {
   hideSuggestions();
 });
 
+/* --- שליחה יומית לוואטסאפ --- */
 btnWhatsApp.addEventListener('click', () => {
   const mainTimesAll = times.filter(t => appointments[t] && appointments[t].isMain);
   if(mainTimesAll.length === 0){
@@ -911,18 +824,15 @@ btnWhatsApp.addEventListener('click', () => {
   window.open(url, '_blank');
 });
 
-function sendWhatsAppToClient(name, phone, dateKey, time, treatment){
+/* --- שליחת וואטסאפ ללקוחה יחידה --- */
+function sendWhatsAppToClient(name, phone, dateKey, time){
   const intlPhone = sanitizePhone(phone);
   if(!intlPhone){
     alert('לא נשמר מספר טלפון ללקוחה, לא ניתן לשלוח וואטסאפ.');
     return;
   }
   const niceDate = niceDateFromKey(dateKey);
-  let msg = `היי ${name} מזכירה לך שיש לנו תור בתאריך ${niceDate} בשעה ${time} תודה אודליה פן אקספרס`;
-  const calLink = buildCalendarLink(dateKey, time, treatment);
-  if(calLink){
-    msg += `\n\nלהוספת תזכורת ללוח שנה:\n${calLink}`;
-  }
+  const msg = `היי ${name} מזכירה לך שיש לנו תור בתאריך ${niceDate} בשעה ${time} תודה אודליה פן אקספרס`;
   const url = 'https://wa.me/' + intlPhone + '?text=' + encodeURIComponent(msg);
   window.open(url, '_blank');
 }
