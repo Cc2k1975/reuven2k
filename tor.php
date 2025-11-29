@@ -1,0 +1,932 @@
+<?php
+/* ---------------------------------------------
+   חלק 1: מצב "ICS" – אם יש פרמטר e ב-URL
+   מחזירים קובץ לוח שנה (ICS) עם תזכורת 30 דק' לפני
+   --------------------------------------------- */
+if (isset($_GET['e']) && $_GET['e'] !== '') {
+    $token = $_GET['e'];
+
+    // המרה מ-base64 URL-safe ל-base64 רגיל
+    $token = strtr($token, '-_', '+/');
+    $mod4 = strlen($token) % 4;
+    if ($mod4) {
+        $token .= substr('====', $mod4);
+    }
+
+    $data = base64_decode($token, true);
+    if ($data === false || strlen($data) < 14) {
+        http_response_code(400);
+        echo 'Bad event token';
+        exit;
+    }
+
+    // פורמט מקודד: YYMMDDHHMMHHMM (תאריך, שעת התחלה, שעת סיום)
+    $yy  = substr($data, 0, 2);
+    $mm  = substr($data, 2, 2);
+    $dd  = substr($data, 4, 2);
+    $shh = substr($data, 6, 2);
+    $smm = substr($data, 8, 2);
+    $ehh = substr($data,10, 2);
+    $emm = substr($data,12, 2);
+
+    $year = 2000 + intval($yy); // מניחים שנים 20xx
+
+    $dtstart = sprintf('%04d%02d%02dT%02d%02d00', $year, $mm, $dd, $shh, $smm);
+    $dtend   = sprintf('%04d%02d%02dT%02d%02d00', $year, $mm, $dd, $ehh, $emm);
+
+    $uid = uniqid('odelia-', true) . '@reuven2k.com';
+    $now = gmdate('Ymd\THis\Z');
+
+    $summary     = 'פן אצל אודליה';
+    $description = 'תור לפן אצל אודליה פן אקספרס';
+
+    $ics  = "BEGIN:VCALENDAR\r\n";
+    $ics .= "VERSION:2.0\r\n";
+    $ics .= "PRODID:-//OdeliaSalon//Appointments//HE\r\n";
+    $ics .= "CALSCALE:GREGORIAN\r\n";
+    $ics .= "METHOD:PUBLISH\r\n";
+    $ics .= "BEGIN:VEVENT\r\n";
+    $ics .= "UID:$uid\r\n";
+    $ics .= "DTSTAMP:$now\r\n";
+    $ics .= "DTSTART:$dtstart\r\n";
+    $ics .= "DTEND:$dtend\r\n";
+    $ics .= "SUMMARY:$summary\r\n";
+    $ics .= "DESCRIPTION:$description\r\n";
+    $ics .= "BEGIN:VALARM\r\n";
+    $ics .= "TRIGGER:-PT30M\r\n"; // תזכורת 30 דק' לפני
+    $ics .= "ACTION:DISPLAY\r\n";
+    $ics .= "DESCRIPTION:תזכורת תור לפן אצל אודליה\r\n";
+    $ics .= "END:VALARM\r\n";
+    $ics .= "END:VEVENT\r\n";
+    $ics .= "END:VCALENDAR\r\n";
+
+    header('Content-Type: text/calendar; charset=utf-8');
+    header('Content-Disposition: attachment; filename="odelia_appointment.ics"');
+    echo $ics;
+    exit;
+}
+
+/* ---------------------------------------------
+   חלק 2: מצב "דף ניהול תורים" – אין פרמטר e
+   מציגים HTML + JS
+   --------------------------------------------- */
+?>
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ניהול תורים</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{
+      font-family:system-ui,"Heebo","Arial",sans-serif;
+      background:#f3f5fa;
+      color:#111;
+      font-size:20px;
+    }
+    body{
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:18px;
+    }
+    .app{
+      width:100%;
+      max-width:540px;
+      background:#fff;
+      border-radius:18px;
+      box-shadow:0 12px 25px rgba(0,0,0,0.08);
+      padding:20px 18px 28px;
+    }
+
+    .header-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:nowrap;
+      margin-bottom:6px;
+    }
+    h1{
+      font-size:1.4rem;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    .btn-reset{
+      padding:4px 10px;
+      border-radius:10px;
+      border:none;
+      font-size:0.75rem;
+      background:#ffecec;
+      color:#c80000;
+      cursor:pointer;
+      white-space:nowrap;
+      flex-shrink:0;
+    }
+    .btn-reset:hover{
+      background:#ffd2d2;
+    }
+
+    .date-row{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      margin-bottom:14px;
+    }
+    .date-label{
+      font-size:0.95rem;
+      color:#444;
+      white-space:nowrap;
+    }
+    .date-input{
+      padding:4px 8px;
+      border-radius:8px;
+      border:1px solid #ccd3e0;
+      font-size:0.95rem;
+      background:#f9fafc;
+    }
+
+    .field-group{
+      margin-bottom:18px;
+    }
+    label{
+      display:block;
+      font-size:1rem;
+      margin-bottom:6px;
+      color:#333;
+    }
+    select,
+    input[type="text"],
+    input[type="tel"]{
+      width:100%;
+      padding:14px 14px;
+      border-radius:12px;
+      border:1px solid #ccd3e0;
+      font-size:1.1rem;
+      outline:none;
+      background:#f9fafc;
+    }
+    select:focus,
+    input[type="text"]:focus,
+    input[type="tel"]:focus{
+      border-color:#4a6cf7;
+      box-shadow:0 0 0 2px rgba(74,108,247,0.35);
+      background:#fff;
+    }
+    select option[disabled]{
+      color:#888;
+      background:#f0f0f0;
+    }
+
+    .inline-buttons{
+      display:flex;
+      margin-top:12px;
+    }
+    .btn{
+      flex:1;
+      padding:14px 0;
+      border-radius:999px;
+      border:none;
+      font-size:1.1rem;
+      cursor:pointer;
+    }
+    .btn-primary{
+      background:#4a6cf7;
+      color:#fff;
+    }
+    .btn-primary:hover{
+      background:#3857d1;
+    }
+
+    .suggestions{
+      position:relative;
+      margin-top:6px;
+    }
+    .suggestions-list{
+      position:absolute;
+      right:0;
+      left:0;
+      background:#fff;
+      border:1px solid #d0d7e5;
+      border-radius:12px;
+      max-height:230px;
+      overflow-y:auto;
+      z-index:20;
+      box-shadow:0 10px 22px rgba(0,0,0,0.08);
+    }
+    .suggestion-item{
+      padding:12px 14px;
+      font-size:1.05rem;
+      cursor:pointer;
+    }
+    .suggestion-item:hover{
+      background:#f2f5ff;
+    }
+    .suggestions-list.empty{
+      display:none;
+    }
+
+    .phone-group{
+      margin-top:10px;
+    }
+
+    .divider{
+      margin:20px 0 10px;
+      border-top:1px solid #ebedf3;
+    }
+
+    .section-header{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-bottom:12px;
+    }
+    .section-title{
+      font-size:1.3rem;
+      font-weight:600;
+    }
+    .filter-input{
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid #ccd3e0;
+      font-size:0.95rem;
+      background:#f9fafc;
+    }
+
+    .appointments{
+      max-height:450px;
+      overflow-y:auto;
+      border-radius:14px;
+      border:1px solid #e1e5f0;
+      padding:8px;
+      background:#fafbff;
+    }
+    .appt-row{
+      display:flex;
+      align-items:center;
+      padding:14px 14px;
+      border-radius:12px;
+      background:#fff;
+      box-shadow:0 1px 3px rgba(0,0,0,0.07);
+      margin-bottom:10px;
+      gap:12px;
+    }
+    .appt-time{
+      font-weight:700;
+      font-size:1.05rem;
+      min-width:74px;
+    }
+    .appt-info{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+    }
+    .appt-name{
+      font-size:1.1rem;
+      color:#333;
+      font-weight:700;
+    }
+    .appt-delete{
+      padding:8px 14px;
+      font-size:0.95rem;
+      border-radius:999px;
+      border:none;
+      cursor:pointer;
+      background:#ffe5e5;
+      color:#c0392b;
+    }
+    .appt-delete:hover{
+      background:#ffd2d2;
+    }
+    .empty-msg{
+      text-align:center;
+      font-size:1.1rem;
+      color:#777;
+      padding:22px 6px;
+    }
+
+    .stats{
+      margin-top:8px;
+      font-size:0.95rem;
+      color:#333;
+      text-align:right;
+    }
+
+    .actions-row{
+      margin-top:12px;
+    }
+    .btn-whatsapp{
+      width:100%;
+      padding:12px 0;
+      border-radius:999px;
+      border:none;
+      font-size:1rem;
+      cursor:pointer;
+      background:#25D366;
+      color:#fff;
+    }
+    .btn-whatsapp:hover{
+      filter:brightness(0.95);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="header-row">
+      <h1>ניהול תורים</h1>
+      <button class="btn-reset" id="btnNewDay">רשימה יומית חדשה</button>
+    </div>
+
+    <div class="date-row">
+      <span class="date-label">תאריך:</span>
+      <input type="date" id="datePicker" class="date-input">
+    </div>
+
+    <div class="field-group">
+      <label for="timeSelect">בחר שעה</label>
+      <select id="timeSelect">
+        <option value="">בחר שעה...</option>
+      </select>
+    </div>
+
+    <div class="field-group">
+      <label for="treatmentSelect">סוג פן</label>
+      <select id="treatmentSelect">
+        <option value="">בחר סוג...</option>
+        <option value="short">פן קצר (15 דקות)</option>
+        <option value="long">פן ארוך (20 דקות)</option>
+      </select>
+    </div>
+
+    <div class="field-group">
+      <label for="clientInput">שם לקוחה</label>
+      <input type="text" id="clientInput" placeholder="הקלד שם לקוחה">
+      <div class="suggestions">
+        <div id="suggestionsList" class="suggestions-list empty"></div>
+      </div>
+
+      <div class="phone-group" id="phoneGroup" style="display:none;">
+        <label for="phoneInput">טלפון לקוחה (פעם אחת)</label>
+        <input type="tel" id="phoneInput" placeholder="לדוגמה: 0501234567">
+      </div>
+
+      <div class="inline-buttons">
+        <button class="btn btn-primary" id="btnSaveAppt">שמור תור</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-header">
+      <div class="section-title">תורים להיום</div>
+      <input type="text" id="filterInput" class="filter-input" placeholder="סינון לפי שם לקוחה">
+    </div>
+
+    <div id="appointmentsContainer" class="appointments"></div>
+    <div id="statsContainer" class="stats"></div>
+
+    <div class="actions-row">
+      <button class="btn-whatsapp" id="btnWhatsApp">שלח לוואטסאפ (רשימת תורים)</button>
+    </div>
+  </div>
+
+<script>
+const TREATMENTS = {
+  short: { label: 'פן קצר', minutes: 15 },
+  long:  { label: 'פן ארוך', minutes: 20 }
+};
+function getSlotsForTreatment(key){
+  const t = TREATMENTS[key];
+  if(!t) return 0;
+  return Math.round(t.minutes / 5);
+}
+
+const times = [];
+for(let h = 8; h < 22; h++){
+  for(let m = 0; m < 60; m += 5){
+    const hh = h.toString().padStart(2,'0');
+    const mm = m.toString().padStart(2,'0');
+    times.push(`${hh}:${mm}`);
+  }
+}
+
+const LS_CLIENTS_KEY = 'salonClients';
+const LS_APPTS_KEY   = 'salonAppointmentsByDate';
+
+let clients = [];           
+let appointmentsByDate = {};
+let appointments = {};       
+let currentDateKey = '';
+let todayKey = '';
+
+const timeSelect      = document.getElementById('timeSelect');
+const treatmentSelect = document.getElementById('treatmentSelect');
+const clientInput     = document.getElementById('clientInput');
+const phoneGroup      = document.getElementById('phoneGroup');
+const phoneInput      = document.getElementById('phoneInput');
+const suggestionsList = document.getElementById('suggestionsList');
+const appointmentsDiv = document.getElementById('appointmentsContainer');
+const statsContainer  = document.getElementById('statsContainer');
+const btnSaveAppt     = document.getElementById('btnSaveAppt');
+const btnNewDay       = document.getElementById('btnNewDay');
+const datePicker      = document.getElementById('datePicker');
+const filterInput     = document.getElementById('filterInput');
+const btnWhatsApp     = document.getElementById('btnWhatsApp');
+
+function formatDateKey(d){
+  const y = d.getFullYear();
+  const m = (d.getMonth()+1).toString().padStart(2,'0');
+  const day = d.getDate().toString().padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function niceDateFromKey(dateKey){
+  if(!dateKey || !dateKey.includes('-')) return dateKey || '';
+  const [y,m,d] = dateKey.split('-');
+  return `${d}.${m}.${y}`;
+}
+function setDateLimits(){
+  const today = new Date();
+  const max   = new Date();
+  max.setMonth(max.getMonth()+1);
+  datePicker.min = formatDateKey(today);
+  datePicker.max = formatDateKey(max);
+}
+
+function normalizeName(name){
+  return name.trim();
+}
+function findClientByName(name){
+  const norm = normalizeName(name).toLowerCase();
+  if(!norm) return null;
+  for(const c of clients){
+    if(c && c.name && c.name.trim().toLowerCase() === norm){
+      return c;
+    }
+  }
+  return null;
+}
+function ensureClientsArray(raw){
+  if(!Array.isArray(raw)) return [];
+  if(raw.length === 0) return [];
+  if(typeof raw[0] === 'string'){
+    return raw.map(n => ({name:n, phone:''}));
+  }
+  return raw.map(c => ({
+    name: c.name || '',
+    phone: c.phone || ''
+  })).filter(c => c.name);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  todayKey = formatDateKey(now);
+  setDateLimits();
+  datePicker.value = todayKey;
+
+  loadFromStorage();
+
+  currentDateKey = datePicker.value || todayKey;
+  if(!appointmentsByDate[currentDateKey]) appointmentsByDate[currentDateKey] = {};
+  appointments = appointmentsByDate[currentDateKey];
+
+  fillTimesSelect();
+  updateTimeOptions();
+  renderAppointments();
+});
+
+datePicker.addEventListener('change', () => {
+  currentDateKey = datePicker.value || todayKey;
+  if(!appointmentsByDate[currentDateKey]) appointmentsByDate[currentDateKey] = {};
+  appointments = appointmentsByDate[currentDateKey];
+
+  timeSelect.value = '';
+  treatmentSelect.value = '';
+  clientInput.value = '';
+  phoneInput.value = '';
+  filterInput.value = '';
+  hidePhoneField();
+  hideSuggestions();
+
+  updateTimeOptions();
+  renderAppointments();
+});
+
+filterInput.addEventListener('input', () => {
+  renderAppointments();
+});
+
+function fillTimesSelect(){
+  times.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t;
+    timeSelect.appendChild(opt);
+  });
+}
+
+function loadFromStorage(){
+  try{
+    const c = localStorage.getItem(LS_CLIENTS_KEY);
+    if(c){
+      const parsed = JSON.parse(c);
+      clients = ensureClientsArray(parsed);
+    }
+  }catch {}
+
+  try{
+    const a = localStorage.getItem(LS_APPTS_KEY);
+    if(a){
+      const parsed = JSON.parse(a);
+      if(parsed && typeof parsed === 'object'){
+        const keys = Object.keys(parsed);
+        const looksOld = keys.some(k => k.includes(':'));
+        if(looksOld){
+          appointmentsByDate = {};
+          appointmentsByDate[todayKey] = parsed;
+        }else{
+          appointmentsByDate = parsed;
+        }
+      }
+    }
+  }catch {}
+  if(!appointmentsByDate) appointmentsByDate = {};
+}
+
+function saveClients(){
+  localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(clients));
+}
+function saveAppointments(){
+  if(!currentDateKey){
+    currentDateKey = datePicker.value || todayKey;
+  }
+  appointmentsByDate[currentDateKey] = appointments;
+  localStorage.setItem(LS_APPTS_KEY, JSON.stringify(appointmentsByDate));
+}
+
+function showPhoneField(){
+  phoneGroup.style.display = 'block';
+}
+function hidePhoneField(){
+  phoneGroup.style.display = 'none';
+}
+function onClientNameChange(){
+  const name = clientInput.value.trim();
+  if(!name){
+    hidePhoneField();
+    return;
+  }
+  const client = findClientByName(name);
+  if(client && client.phone){
+    hidePhoneField();
+    phoneInput.value = '';
+  }else{
+    showPhoneField();
+  }
+}
+
+clientInput.addEventListener('input', () => {
+  onClientNameChange();
+  showSuggestions(clientInput.value.trim());
+});
+clientInput.addEventListener('focus', () => {
+  showSuggestions(clientInput.value.trim());
+});
+document.addEventListener('click', e => {
+  if(!e.target.closest('.field-group')) hideSuggestions();
+});
+
+function showSuggestions(query){
+  const q = query.toLowerCase();
+  let filtered = clients;
+  if(q.length > 0){
+    filtered = clients.filter(c => c.name && c.name.toLowerCase().startsWith(q));
+  }
+  suggestionsList.innerHTML = '';
+  if(filtered.length === 0){
+    suggestionsList.classList.add('empty');
+    return;
+  }
+  suggestionsList.classList.remove('empty');
+  filtered.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    item.textContent = c.name;
+    item.addEventListener('click', () => {
+      clientInput.value = c.name;
+      hideSuggestions();
+      onClientNameChange();
+    });
+    suggestionsList.appendChild(item);
+  });
+}
+function hideSuggestions(){
+  suggestionsList.innerHTML = '';
+  suggestionsList.classList.add('empty');
+}
+
+function sanitizePhone(phone){
+  if(!phone) return '';
+  let digits = phone.replace(/[^\d]/g,'');
+  if(digits.length === 10 && digits[0] === '0'){
+    digits = '972' + digits.slice(1);
+  }
+  return digits;
+}
+
+/* בניית קישור ICS על בסיס אותו קובץ PHP */
+function buildCalendarLink(dateKey, time, treatment){
+  if(!dateKey || !time || !treatment) return '';
+  const parts = dateKey.split('-');
+  if(parts.length !== 3) return '';
+  const year = parts[0];
+  const yy   = year.slice(-2);
+  const mm   = parts[1];
+  const dd   = parts[2];
+
+  const tParts = time.split(':');
+  if(tParts.length !== 2) return '';
+  const sh = parseInt(tParts[0],10);
+  const sm = parseInt(tParts[1],10);
+  if(isNaN(sh) || isNaN(sm)) return '';
+
+  const dur = (TREATMENTS[treatment] && TREATMENTS[treatment].minutes) ? TREATMENTS[treatment].minutes : 15;
+  const startTotal = sh*60 + sm;
+  const endTotal   = startTotal + dur;
+  const eh = String(Math.floor(endTotal/60)).padStart(2,'0');
+  const em = String(endTotal % 60).padStart(2,'0');
+
+  const raw = yy + mm + dd + String(sh).padStart(2,'0') + String(sm).padStart(2,'0') + eh + em;
+  let base64 = btoa(raw)
+    .replace(/\+/g,'-')
+    .replace(/\//g,'_')
+    .replace(/=+$/,'');
+
+  const baseUrl = window.location.origin + window.location.pathname;
+  return baseUrl + '?e=' + base64;
+}
+
+/* שמירת תור + וואטסאפ אוטומטי */
+btnSaveAppt.addEventListener('click', () => {
+  const time      = timeSelect.value;
+  const treatment = treatmentSelect.value;
+  const nameRaw   = clientInput.value.trim();
+  const name      = normalizeName(nameRaw);
+
+  if(!time){
+    alert('בחר שעה לתור.');
+    return;
+  }
+  if(!treatment){
+    alert('בחר סוג פן (קצר/ארוך).');
+    return;
+  }
+  if(!name){
+    alert('כתוב שם לקוחה.');
+    return;
+  }
+
+  let client = findClientByName(name);
+  let phone = '';
+
+  if(client && client.phone){
+    phone = client.phone;
+  }else{
+    const phoneVal = phoneInput.value.trim();
+    if(!phoneVal){
+      alert('לקוחה חדשה – חובה להזין טלפון פעם אחת.');
+      return;
+    }
+    const sanitized = sanitizePhone(phoneVal);
+    if(!sanitized){
+      alert('מספר הטלפון לא תקין.');
+      return;
+    }
+    phone = sanitized;
+
+    if(client){
+      client.phone = phone;
+    }else{
+      clients.push({name, phone});
+    }
+    clients.sort((a,b)=>a.name.localeCompare(b.name,'he'));
+    saveClients();
+  }
+
+  const startIdx = times.indexOf(time);
+  if(startIdx === -1){
+    alert('שגיאה בשעה שנבחרה.');
+    return;
+  }
+  const slots = getSlotsForTreatment(treatment);
+  if(slots <= 0){
+    alert('שגיאה בסוג הטיפול.');
+    return;
+  }
+  if(startIdx + slots > times.length){
+    alert('אין מספיק זמן עד סוף היום לטיפול מסוג זה בשעה שנבחרה.');
+    return;
+  }
+
+  for(let i=0;i<slots;i++){
+    const tSlot = times[startIdx + i];
+    if(appointments[tSlot]){
+      alert('טווח הזמן שבחרת חופף לתור אחר. בחר שעה אחרת.');
+      return;
+    }
+  }
+
+  for(let i=0;i<slots;i++){
+    const tSlot = times[startIdx + i];
+    appointments[tSlot] = {
+      name,
+      treatment,
+      isMain: i === 0
+    };
+  }
+  saveAppointments();
+
+  updateTimeOptions();
+  renderAppointments();
+  alert('התור נשמר בהצלחה.');
+
+  treatmentSelect.value = '';
+  phoneInput.value = '';
+  hidePhoneField();
+  hideSuggestions();
+
+  const dateKey = currentDateKey || (datePicker.value || todayKey);
+  if(phone){
+    sendWhatsAppToClient(name, phone, dateKey, time, treatment);
+  }
+});
+
+function updateTimeOptions(){
+  Array.from(timeSelect.options).forEach(opt => {
+    if(!opt.value) return;
+    opt.disabled = !!appointments[opt.value];
+  });
+  if(timeSelect.value && appointments[timeSelect.value]){
+    timeSelect.value = '';
+  }
+}
+
+function updateStats(mainTimesAll){
+  if(!statsContainer) return;
+  if(mainTimesAll.length === 0){
+    statsContainer.textContent = '';
+    return;
+  }
+  let totalMinutes = 0;
+  mainTimesAll.forEach(t => {
+    const appt = appointments[t];
+    if(!appt) return;
+    const tDef = TREATMENTS[appt.treatment];
+    if(tDef) totalMinutes += tDef.minutes;
+  });
+  const totalAppointments = mainTimesAll.length;
+  let timeText = '';
+  if(totalMinutes > 0){
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    if(h > 0 && m > 0) timeText = `${h} שעות ו-${m} דקות`;
+    else if(h > 0)     timeText = `${h} שעות`;
+    else               timeText = `${m} דקות`;
+  }
+  statsContainer.textContent =
+    `סה״כ תורים ביום זה: ${totalAppointments}` +
+    (timeText ? ` | סה״כ זמן עבודה: ${timeText}` : '');
+}
+
+function renderAppointments(){
+  appointmentsDiv.innerHTML = '';
+  statsContainer.textContent = '';
+
+  const mainTimesAll = times.filter(t => appointments[t] && appointments[t].isMain);
+  const filter = (filterInput.value || '').trim().toLowerCase();
+
+  if(mainTimesAll.length === 0){
+    appointmentsDiv.innerHTML =
+      '<div class="empty-msg">אין תורים רשומים ליום זה.</div>';
+    return;
+  }
+
+  let mainTimes = mainTimesAll;
+  if(filter){
+    mainTimes = mainTimesAll.filter(t => {
+      const appt = appointments[t];
+      if(!appt || !appt.name) return false;
+      return appt.name.toLowerCase().includes(filter);
+    });
+  }
+
+  if(mainTimes.length === 0){
+    updateStats(mainTimesAll);
+    appointmentsDiv.innerHTML =
+      '<div class="empty-msg">אין תורים התואמים לחיפוש.</div>';
+    return;
+  }
+
+  mainTimes.forEach(t => {
+    const appt = appointments[t];
+
+    const row = document.createElement('div');
+    row.className = 'appt-row';
+
+    const timeEl = document.createElement('div');
+    timeEl.className = 'appt-time';
+    timeEl.textContent = t;
+
+    const infoEl = document.createElement('div');
+    infoEl.className = 'appt-info';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'appt-name';
+    nameEl.textContent = appt.name;
+
+    infoEl.appendChild(nameEl);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'appt-delete';
+    delBtn.textContent = 'מחק';
+    delBtn.addEventListener('click', () => {
+      if(!confirm(`למחוק את התור של "${appt.name}" בשעה ${t}?`)) return;
+
+      const startIdx = times.indexOf(t);
+      const slots = getSlotsForTreatment(appt.treatment);
+
+      for(let i=0;i<slots;i++){
+        const tSlot = times[startIdx + i];
+        if(appointments[tSlot]) delete appointments[tSlot];
+      }
+      saveAppointments();
+      updateTimeOptions();
+      renderAppointments();
+    });
+
+    row.appendChild(timeEl);
+    row.appendChild(infoEl);
+    row.appendChild(delBtn);
+    appointmentsDiv.appendChild(row);
+  });
+
+  updateStats(mainTimesAll);
+}
+
+btnNewDay.addEventListener('click', () => {
+  if(!confirm('לפתוח רשימה יומית חדשה ולמחוק את כל התורים?')) return;
+
+  appointments = {};
+  appointmentsByDate[currentDateKey || (datePicker.value || todayKey)] = appointments;
+  saveAppointments();
+  updateTimeOptions();
+  renderAppointments();
+  timeSelect.value = '';
+  treatmentSelect.value = '';
+  clientInput.value = '';
+  phoneInput.value = '';
+  filterInput.value = '';
+  hidePhoneField();
+  hideSuggestions();
+});
+
+btnWhatsApp.addEventListener('click', () => {
+  const mainTimesAll = times.filter(t => appointments[t] && appointments[t].isMain);
+  if(mainTimesAll.length === 0){
+    alert('אין תורים ליום זה לשליחה.');
+    return;
+  }
+  const dateKey = currentDateKey || (datePicker.value || todayKey);
+  const niceDate = niceDateFromKey(dateKey);
+  let text = `תורים ל-${niceDate}:\n`;
+  mainTimesAll.forEach(t => {
+    const appt = appointments[t];
+    if(!appt) return;
+    text += `${t} – ${appt.name}\n`;
+  });
+  const url = 'https://wa.me/?text=' + encodeURIComponent(text);
+  window.open(url, '_blank');
+});
+
+function sendWhatsAppToClient(name, phone, dateKey, time, treatment){
+  const intlPhone = sanitizePhone(phone);
+  if(!intlPhone){
+    alert('לא נשמר מספר טלפון ללקוחה, לא ניתן לשלוח וואטסאפ.');
+    return;
+  }
+  const niceDate = niceDateFromKey(dateKey);
+  let msg = `היי ${name} מזכירה לך שיש לנו תור בתאריך ${niceDate} בשעה ${time} תודה אודליה פן אקספרס`;
+  const calLink = buildCalendarLink(dateKey, time, treatment);
+  if(calLink){
+    msg += `\n\nלהוספת תזכורת ללוח שנה:\n${calLink}`;
+  }
+  const url = 'https://wa.me/' + intlPhone + '?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
+</script>
+
+</body>
+</html>
