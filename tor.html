@@ -349,9 +349,9 @@ for(let h = 8; h < 22; h++){
 const LS_CLIENTS_KEY = 'salonClients';
 const LS_APPTS_KEY   = 'salonAppointmentsByDate';
 
-let clients = [];           // [{name,phone}]
-let appointmentsByDate = {}; // { "YYYY-MM-DD": { "HH:MM": {...} } }
-let appointments = {};       // התורים של התאריך הנבחר
+let clients = [];           
+let appointmentsByDate = {}; 
+let appointments = {};       
 let currentDateKey = '';
 let todayKey = '';
 
@@ -570,14 +570,13 @@ function hideSuggestions(){
 function sanitizePhone(phone){
   if(!phone) return '';
   let digits = phone.replace(/[^\d]/g,'');
-  // אם מתחיל ב-0 ויש 10 ספרות (050...), נהפוך ל-972
   if(digits.length === 10 && digits[0] === '0'){
     digits = '972' + digits.slice(1);
   }
   return digits;
 }
 
-/* --- שמירת תור + וואטסאפ אוטומטי --- */
+/* --- שמירת תור + וואטסאפ (אופציונלי) --- */
 btnSaveAppt.addEventListener('click', () => {
   const time      = timeSelect.value;
   const treatment = treatmentSelect.value;
@@ -661,15 +660,17 @@ btnSaveAppt.addEventListener('click', () => {
   renderAppointments();
   alert('התור נשמר בהצלחה.');
 
-  // איפוס שדות, אבל השם נשאר לטובת קביעת עוד תור ברצף
   treatmentSelect.value = '';
   phoneInput.value = '';
   hidePhoneField();
   hideSuggestions();
 
-  // שליחת וואטסאפ אוטומטית
+  // במקום לשלוח אוטומטית - שואל אם לשלוח
   if(phone){
-    sendWhatsAppToClient(name, phone, currentDateKey || (datePicker.value || todayKey), time);
+    const sendNow = confirm('לשלוח עכשיו הודעת וואטסאפ ללקוחה?');
+    if(sendNow){
+      sendWhatsAppToClient(name, phone, currentDateKey || (datePicker.value || todayKey), time);
+    }
   }
 });
 
