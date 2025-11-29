@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOS Video</title>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{
+    width:100%;
+    height:100%;
+    font-family:Heebo,Arial,sans-serif;
+    background:#111;
+    color:#fff;
+  }
+  body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .wrapper{
+    width:100%;
+    max-width:500px;
+    padding:16px;
+    text-align:center;
+  }
+
+  h1{
+    font-size:24px;
+    margin-bottom:10px;
+  }
+  p{
+    font-size:14px;
+    margin-bottom:14px;
+    color:#ccc;
+  }
+
+  #sosBtn{
+    width:220px;
+    height:220px;
+    border-radius:50%;
+    background:#d50000;
+    border:none;
+    color:#fff;
+    font-size:42px;
+    font-weight:bold;
+    box-shadow:0 0 35px rgba(0,0,0,0.7);
+    cursor:pointer;
+    margin:20px auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #sosBtn.in-call{
+    background:#f57c00;
+  }
+
+  #statusText{
+    margin-top:10px;
+    font-size:15px;
+    color:#ffeb3b;
+    min-height:22px;
+  }
+
+  /* LIVE overlay */
+  #liveOverlay{
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:#000;
+    display:none;
+    flex-direction:column;
+    z-index:100;
+  }
+  #videosArea{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+  }
+  #remoteContainer,#localContainer{
+    flex:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-bottom:1px solid #333;
+  }
+  #localContainer{
+    border-bottom:none;
+    border-top:1px solid #333;
+  }
+  video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    background:#000;
+  }
+  #liveControls{
+    padding:8px;
+    text-align:center;
+  }
+  #endBtn{
+    padding:10px 18px;
+    border:none;
+    border-radius:8px;
+    background:#f44336;
+    color:#fff;
+    font-size:16px;
+    cursor:pointer;
+  }
+
+  /* בחירת צד */
+  #roleSelect{
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.8);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:120;
+  }
+  #roleBox{
+    background:#222;
+    padding:20px;
+    border-radius:16px;
+    text-align:center;
+    width:80%;
+    max-width:360px;
+    box-shadow:0 0 25px rgba(0,0,0,0.7);
+  }
+  #roleBox h2{
+    margin-top:0;
+    margin-bottom:12px;
+  }
+  .role-row{
+    display:flex;
+    gap:12px;
+    margin-top:10px;
+  }
+  .role-btn{
+    flex:1;
+    padding:12px;
+    border-radius:12px;
+    border:2px solid #555;
+    cursor:pointer;
+    color:#fff;
+    font-size:16px;
+  }
+  .role-btn:hover{
+    border-color:#ff9800;
+  }
+
+  /* שיחה נכנסת */
+  #incomingCall{
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.7);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:110;
+  }
+  #incomingBox{
+    background:#222;
+    padding:20px;
+    border-radius:14px;
+    width:80%;
+    max-width:320px;
+    text-align:center;
+    box-shadow:0 0 25px rgba(0,0,0,0.7);
+  }
+  #incomingBox h3{
+    margin-top:0;
+    margin-bottom:10px;
+  }
+  .incoming-btn{
+    padding:8px 14px;
+    margin:0 6px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14px;
+  }
+  #acceptBtn{background:#4caf50;color:#fff;}
+  #rejectBtn{background:#f44336;color:#fff;}
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <h1>SOS Video</h1>
+  <p>שני מכשירים נכנסים לאותו דף. אחד בוחר "מכשיר 1", השני "מכשיר 2". לוחצים SOS כדי להתחיל שיחת וידאו.</p>
+
+  <button id="sosBtn">SOS</button>
+  <div id="statusText"></div>
+</div>
+
+<!-- שכבת הווידאו -->
+<div id="liveOverlay">
+  <div id="videosArea">
+    <div id="remoteContainer">
+      <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+    <div id="localContainer">
+      <video id="localVideo" autoplay playsinline muted></video>
+    </div>
+  </div>
+  <div id="liveControls">
+    <button id="endBtn" onclick="endCall()">סיום שיחה</button>
+  </div>
+</div>
+
+<!-- בחירת צד -->
+<div id="roleSelect">
+  <div id="roleBox">
+    <h2>בחר מכשיר</h2>
+    <p>במכשיר אחד לבחור "מכשיר 1", במכשיר השני לבחור "מכשיר 2".</p>
+    <div class="role-row">
+      <button class="role-btn" onclick="chooseRole('a')">מכשיר 1</button>
+      <button class="role-btn" onclick="chooseRole('b')">מכשיר 2</button>
+    </div>
+  </div>
+</div>
+
+<!-- שיחת SOS נכנסת -->
+<div id="incomingCall">
+  <div id="incomingBox">
+    <h3>שיחת SOS נכנסת</h3>
+    <p>לאשר חיבור וידאו?</p>
+    <button class="incoming-btn" id="acceptBtn" onclick="acceptCall()">אישור</button>
+    <button class="incoming-btn" id="rejectBtn" onclick="rejectCall()">דחייה</button>
+  </div>
+</div>
+
+<script>
+/* Firebase config שלך (כמו בצ'אט) */
+const firebaseConfig = {
+  apiKey: "AIzaSyBPD1nZQVAdqSP4uS05TYXBeGtJKsjapA",
+  authDomain: "private-chat-b3a36.firebaseapp.com",
+  databaseURL: "https://private-chat-b3a36-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "private-chat-b3a36",
+  storageBucket: "private-chat-b3a36.firebasestorage.app",
+  messagingSenderId: "88424262632",
+  appId: "1:88424262632:web:a38edf362b59703011525d",
+  measurementId: "G-M9SGLXN3TV"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* מצב כללי */
+let myRole = null;       // 'a' או 'b'
+let pc = null;
+let localStream = null;
+let inCall = false;
+let isCaller = false;
+
+const sosBtn = document.getElementById("sosBtn");
+const statusText = document.getElementById("statusText");
+
+const servers = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" }
+  ]
+};
+
+/* אירועים */
+window.addEventListener("load", () => {
+  const savedRole = localStorage.getItem("sosRole");
+  if (savedRole === "a" || savedRole === "b") {
+    myRole = savedRole;
+    document.getElementById("roleSelect").style.display = "none";
+    listenForCall();
+  }
+});
+
+/* בחירת תפקיד (מכשיר 1/2) */
+function chooseRole(role) {
+  myRole = role;
+  localStorage.setItem("sosRole", role);
+  document.getElementById("roleSelect").style.display = "none";
+  listenForCall();
+}
+
+/* לחיצה על SOS */
+sosBtn.addEventListener("click", () => {
+  if (!myRole) {
+    alert("קודם בחר מכשיר 1 או 2.");
+    return;
+  }
+  if (!inCall) {
+    startCall();
+  } else {
+    endCall();
+  }
+});
+
+/* התחלת שיחה כמתקשר */
+async function startCall() {
+  isCaller = true;
+  statusText.textContent = "מתחיל שיחת SOS...";
+  sosBtn.classList.add("in-call");
+
+  // ננקה מצב קודם
+  await db.ref("sosCall").set(null);
+
+  await setupPeerConnection();
+
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await db.ref("sosCall/offer").set(offer);
+    await db.ref("sosCall").update({
+      state: "calling",
+      from: myRole
+    });
+    statusText.textContent = "ממתין לצד השני...";
+    showLiveOverlay();
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה ביצירת שיחה: " + err.message);
+    endCall(true);
+  }
+}
+
+/* יצירת PeerConnection + מצלמה מקומית */
+async function setupPeerConnection() {
+  pc = new RTCPeerConnection(servers);
+
+  pc.onicecandidate = event => {
+    if (event.candidate) {
+      db.ref("sosCall/candidates/" + myRole).push(event.candidate.toJSON());
+    }
+  };
+
+  pc.ontrack = event => {
+    const remoteVideo = document.getElementById("remoteVideo");
+    if (remoteVideo.srcObject !== event.streams[0]) {
+      remoteVideo.srcObject = event.streams[0];
+    }
+  };
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+  } catch (err) {
+    alert("שגיאה בגישה למצלמה/מיקרופון: " + err.message);
+    throw err;
+  }
+
+  const localVideo = document.getElementById("localVideo");
+  localVideo.srcObject = localStream;
+
+  localStream.getTracks().forEach(track => {
+    pc.addTrack(track, localStream);
+  });
+
+  inCall = true;
+}
+
+/* האזנה לשיחה ב-Firebase */
+function listenForCall() {
+  if (!myRole) return;
+
+  // האזנה לשינוי מצב השיחה
+  db.ref("sosCall").on("value", async snap => {
+    const data = snap.val();
+    if (!data) {
+      hideIncoming();
+      hideLiveOverlay();
+      statusText.textContent = "";
+      sosBtn.classList.remove("in-call");
+      return;
+    }
+
+    const state = data.state;
+    const from = data.from;
+
+    const otherRole = (myRole === "a") ? "b" : "a";
+
+    // אם הצד השני מתקשר אליי
+    if (state === "calling" && from === otherRole && !inCall) {
+      showIncoming();
+      statusText.textContent = "שיחת SOS נכנסת...";
+    }
+
+    // אם השיחה הסתיימה
+    if (state === "ended") {
+      endCall(true);
+      statusText.textContent = "השיחה הסתיימה.";
+    }
+  });
+
+  // תשובה לשיחה (answer)
+  db.ref("sosCall/answer").on("value", async snap => {
+    const answer = snap.val();
+    if (!answer || !pc || !isCaller) return;
+    if (!pc.currentRemoteDescription) {
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      } catch (err) {
+        console.error("setRemoteDescription(answer) error", err);
+      }
+    }
+  });
+
+  // ICE candidates של הצד השני
+  const otherRole = (myRole === "a") ? "b" : "a";
+  db.ref("sosCall/candidates/" + otherRole).on("child_added", async snap => {
+    const cand = snap.val();
+    if (pc && cand) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(cand));
+      } catch (e) {
+        console.error("addIceCandidate error", e);
+      }
+    }
+  });
+}
+
+/* מענה לשיחת SOS נכנסת */
+async function acceptCall() {
+  hideIncoming();
+  isCaller = false;
+  statusText.textContent = "מחבר וידאו...";
+  sosBtn.classList.add("in-call");
+
+  try {
+    await setupPeerConnection();
+
+    const offerSnap = await db.ref("sosCall/offer").once("value");
+    const offer = offerSnap.val();
+    if (!offer) {
+      alert("אין הצעת שיחה זמינה.");
+      return;
+    }
+
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await db.ref("sosCall/answer").set(answer);
+    await db.ref("sosCall/state").set("accepted");
+
+    showLiveOverlay();
+    statusText.textContent = "שיחת SOS פעילה.";
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה במענה לשיחה: " + err.message);
+    endCall(true);
+  }
+}
+
+/* דחיית שיחה נכנסת */
+async function rejectCall() {
+  hideIncoming();
+  await db.ref("sosCall/state").set("ended");
+}
+
+/* סיום שיחה */
+async function endCall(forceOnlyLocal=false) {
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+  if (pc) {
+    pc.close();
+    pc = null;
+  }
+  inCall = false;
+  isCaller = false;
+  hideLiveOverlay();
+  sosBtn.classList.remove("in-call");
+
+  if (!forceOnlyLocal) {
+    await db.ref("sosCall").set({ state:"ended" });
+  }
+}
+
+/* הצגת/הסתרת שכבות */
+function showLiveOverlay() {
+  document.getElementById("liveOverlay").style.display = "flex";
+}
+function hideLiveOverlay() {
+  document.getElementById("liveOverlay").style.display = "none";
+}
+function showIncoming() {
+  document.getElementById("incomingCall").style.display = "flex";
+}
+function hideIncoming() {
+  document.getElementById("incomingCall").style.display = "none";
+}
+
+/* לפני סגירת הדף – ניקוי */
+window.addEventListener("beforeunload", () => {
+  if (inCall) {
+    endCall(true);
+  }
+});
+</script>
+
+</body>
+</html>
