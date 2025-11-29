@@ -79,31 +79,37 @@
     flex-direction:column;
     z-index:100;
   }
+
   #videosArea{
     flex:1;
     display:flex;
     flex-direction:column;
+    margin:0;
+    padding:0;
   }
-  #remoteContainer,#localContainer{
-    flex:1;
+
+  #remoteContainer,
+  #localContainer{
+    flex:1 1 50%;
+    height:50%;
+    margin:0;
+    padding:0;
     display:flex;
     align-items:center;
     justify-content:center;
-    border-bottom:1px solid #333;
   }
-  #localContainer{
-    border-bottom:none;
-    border-top:1px solid #333;
-  }
+
   video{
     width:100%;
     height:100%;
     object-fit:cover;
     background:#000;
   }
+
   #liveControls{
     padding:8px;
     text-align:center;
+    border-top:1px solid #333;
   }
   #endBtn{
     padding:10px 18px;
@@ -148,13 +154,15 @@
     flex:1;
     padding:12px;
     border-radius:12px;
-    border:2px solid #555;
+    border:2px solid #666;
     cursor:pointer;
-    color:#fff;
     font-size:16px;
+    background:#333;
+    color:#fff;
   }
   .role-btn:hover{
     border-color:#ff9800;
+    background:#444;
   }
 
   /* שיחה נכנסת */
@@ -188,9 +196,10 @@
     border-radius:8px;
     cursor:pointer;
     font-size:14px;
+    color:#fff;
   }
-  #acceptBtn{background:#4caf50;color:#fff;}
-  #rejectBtn{background:#f44336;color:#fff;}
+  #acceptBtn{background:#4caf50;}
+  #rejectBtn{background:#f44336;}
 </style>
 </head>
 <body>
@@ -241,7 +250,7 @@
 </div>
 
 <script>
-/* Firebase config שלך (כמו בצ'אט) */
+/* Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyBPD1nZQVAdqSP4uS05TYXBeGtJKsjapA",
   authDomain: "private-chat-b3a36.firebaseapp.com",
@@ -369,7 +378,6 @@ async function setupPeerConnection() {
 function listenForCall() {
   if (!myRole) return;
 
-  // האזנה לשינוי מצב השיחה
   db.ref("sosCall").on("value", async snap => {
     const data = snap.val();
     if (!data) {
@@ -385,20 +393,17 @@ function listenForCall() {
 
     const otherRole = (myRole === "a") ? "b" : "a";
 
-    // אם הצד השני מתקשר אליי
     if (state === "calling" && from === otherRole && !inCall) {
       showIncoming();
       statusText.textContent = "שיחת SOS נכנסת...";
     }
 
-    // אם השיחה הסתיימה
     if (state === "ended") {
       endCall(true);
       statusText.textContent = "השיחה הסתיימה.";
     }
   });
 
-  // תשובה לשיחה (answer)
   db.ref("sosCall/answer").on("value", async snap => {
     const answer = snap.val();
     if (!answer || !pc || !isCaller) return;
@@ -411,7 +416,6 @@ function listenForCall() {
     }
   });
 
-  // ICE candidates של הצד השני
   const otherRole = (myRole === "a") ? "b" : "a";
   db.ref("sosCall/candidates/" + otherRole).on("child_added", async snap => {
     const cand = snap.val();
