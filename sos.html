@@ -281,6 +281,63 @@ const servers = {
   ]
 };
 
+/* רינגטון + רטט */
+let audioCtx = null;
+let ringInterval = null;
+
+function startRingtone() {
+  // ייתכן שהדפדפן ידרוש אינטראקציה קודמת כדי לאפשר סאונד
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } else if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+  } catch (e) {
+    console.warn("AudioContext error:", e);
+    return;
+  }
+
+  const playBeep = () => {
+    if (!audioCtx) return;
+    const duration = 0.4;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 900; // צליל די צעקני
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.3, now + 0.05);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+
+    osc.start(now);
+    osc.stop(now + duration);
+  };
+
+  if (!ringInterval) {
+    playBeep();
+    ringInterval = setInterval(playBeep, 800);
+  }
+
+  if (navigator.vibrate) {
+    navigator.vibrate([300, 200, 300, 200]);
+  }
+}
+
+function stopRingtone() {
+  if (ringInterval) {
+    clearInterval(ringInterval);
+    ringInterval = null;
+  }
+  if (navigator.vibrate) {
+    navigator.vibrate(0);
+  }
+}
+
 /* אירועים */
 window.addEventListener("load", () => {
   const savedRole = localStorage.getItem("sosRole");
@@ -385,6 +442,7 @@ function listenForCall() {
       hideLiveOverlay();
       statusText.textContent = "";
       sosBtn.classList.remove("in-call");
+      stopRingtone();
       return;
     }
 
@@ -396,11 +454,13 @@ function listenForCall() {
     if (state === "calling" && from === otherRole && !inCall) {
       showIncoming();
       statusText.textContent = "שיחת SOS נכנסת...";
+      startRingtone();
     }
 
     if (state === "ended") {
       endCall(true);
       statusText.textContent = "השיחה הסתיימה.";
+      stopRingtone();
     }
   });
 
@@ -432,6 +492,7 @@ function listenForCall() {
 /* מענה לשיחת SOS נכנסת */
 async function acceptCall() {
   hideIncoming();
+  stopRingtone();
   isCaller = false;
   statusText.textContent = "מחבר וידאו...";
   sosBtn.classList.add("in-call");
@@ -464,11 +525,14 @@ async function acceptCall() {
 /* דחיית שיחה נכנסת */
 async function rejectCall() {
   hideIncoming();
+  stopRingtone();
   await db.ref("sosCall/state").set("ended");
 }
 
 /* סיום שיחה */
 async function endCall(forceOnlyLocal=false) {
+  stopRingtone();
+
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
     localStream = null;
@@ -505,6 +569,8 @@ function hideIncoming() {
 window.addEventListener("beforeunload", () => {
   if (inCall) {
     endCall(true);
+  } else {
+    stopRingtone();
   }
 });
 </script>
