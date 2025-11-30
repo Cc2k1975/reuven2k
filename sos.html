@@ -203,7 +203,6 @@
   #acceptBtn{background:#4caf50;}
   #rejectBtn{background:#f44336;}
 
-  /* התאמה לנייד – רשימת משתתפים למעלה */
   @media (max-width:700px){
     #liveMain{
       flex-direction:column;
@@ -230,13 +229,13 @@
 <!-- שכבת הווידאו -->
 <div id="liveOverlay">
   <div id="liveMain">
-    <!-- אזור וידאו -->
+    <!-- וידאו -->
     <div id="videoArea">
       <video id="remoteVideo" autoplay playsinline></video>
       <video id="localVideo" autoplay playsinline muted></video>
     </div>
 
-    <!-- פאנל משתמשים -->
+    <!-- רשימת משתתפים -->
     <div id="usersPanel">
       <h3>משתתפים</h3>
       <ul id="usersList">
@@ -404,7 +403,6 @@ async function setupPeerConnection(asCaller) {
   isCaller = asCaller;
   pc = new RTCPeerConnection(servers);
 
-  // ICE שלנו
   pc.onicecandidate = event => {
     if (event.candidate) {
       const roleKey = asCaller ? "caller" : "callee";
@@ -412,15 +410,18 @@ async function setupPeerConnection(asCaller) {
     }
   };
 
-  // וידאו של הצד השני
+  pc.oniceconnectionstatechange = () => {
+    statusText.textContent = "מצב חיבור: " + pc.iceConnectionState;
+  };
+
   pc.ontrack = event => {
     const remoteVideo = document.getElementById("remoteVideo");
     if (remoteVideo.srcObject !== event.streams[0]) {
       remoteVideo.srcObject = event.streams[0];
+      remoteVideo.play().catch(e => console.log("remote play error", e));
     }
   };
 
-  // מצלמה + מיקרופון שלנו
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
   } catch (err) {
@@ -430,6 +431,7 @@ async function setupPeerConnection(asCaller) {
 
   const localVideo = document.getElementById("localVideo");
   localVideo.srcObject = localStream;
+  localVideo.play().catch(e => console.log("local play error", e));
 
   localStream.getTracks().forEach(track => {
     pc.addTrack(track, localStream);
@@ -437,7 +439,6 @@ async function setupPeerConnection(asCaller) {
 
   inCall = true;
 
-  // מאזין ל-ICE של הצד השני
   const remoteKey = asCaller ? "callee" : "caller";
   remoteCandidatesRef = db.ref("sosCall/candidates/" + remoteKey);
   remoteCandidatesRef.on("child_added", async snap => {
@@ -452,7 +453,7 @@ async function setupPeerConnection(asCaller) {
   });
 }
 
-/* התחלת שיחה כקורא */
+/* התחלת שיחה כמתקשר */
 async function startCall() {
   statusText.textContent = "מתחיל שיחת SOS...";
   sosBtn.classList.add("in-call");
@@ -494,7 +495,6 @@ function listenForCall() {
     const state = data.state;
     const from = data.from || null;
 
-    // שיחה נכנסת – רק אם מישהו אחר יזם ואנחנו לא באמצע שיחה
     if (state === "calling" && from && from !== clientId && !inCall) {
       showIncoming();
       statusText.textContent = "שיחת SOS נכנסת...";
@@ -508,7 +508,6 @@ function listenForCall() {
     }
   });
 
-  // תשובה לשיחה – מי שיזם (caller) שומע את ה-answer
   db.ref("sosCall/answer").on("value", async snap => {
     const answer = snap.val();
     if (!answer || !pc || !isCaller) return;
