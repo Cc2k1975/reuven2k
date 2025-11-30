@@ -80,28 +80,74 @@
     z-index:100;
   }
 
-  #videosArea{
+  /* תוכן הווידאו + רשימת משתמשים */
+  #liveMain{
     flex:1;
     display:flex;
-    flex-direction:column;
-    margin:0;
-    padding:0;
+    flex-direction:row;
+    height:100%;
   }
 
-  #remoteContainer,
-  #localContainer{
-    flex:1 1 50%;
-    height:50%;
-    margin:0;
-    padding:0;
+  /* פאנל משתמשים */
+  #usersPanel{
+    width:140px;
+    min-width:110px;
+    background:#181818;
+    border-left:1px solid #333;
+    padding:10px;
+    font-size:14px;
+  }
+  #usersPanel h3{
+    margin-bottom:8px;
+    font-size:16px;
+  }
+  #usersList{
+    list-style:none;
+  }
+  #usersList li{
+    margin-bottom:6px;
+  }
+  .user-name{
+    font-weight:bold;
+  }
+  .user-status{
+    font-size:12px;
+  }
+  .online{
+    color:#4caf50;
+  }
+  .offline{
+    color:#b0bec5;
+  }
+
+  /* אזור הווידאו הראשי */
+  #videoArea{
+    flex:1;
+    position:relative;
+    background:#000;
     display:flex;
     align-items:center;
     justify-content:center;
+    overflow:hidden;
   }
 
-  video{
+  #remoteVideo{
     width:100%;
     height:100%;
+    object-fit:cover;
+    background:#000;
+  }
+
+  #localVideo{
+    position:absolute;
+    bottom:10px;
+    right:10px;
+    width:25%;
+    max-width:220px;
+    aspect-ratio:16/9;
+    border-radius:10px;
+    border:2px solid #fff;
+    box-shadow:0 0 10px rgba(0,0,0,0.7);
     object-fit:cover;
     background:#000;
   }
@@ -110,6 +156,7 @@
     padding:8px;
     text-align:center;
     border-top:1px solid #333;
+    background:#111;
   }
   #endBtn{
     padding:10px 18px;
@@ -200,6 +247,21 @@
   }
   #acceptBtn{background:#4caf50;}
   #rejectBtn{background:#f44336;}
+
+  /* התאמה למסכים קטנים – רשימת משתמשים למעלה */
+  @media (max-width:700px){
+    #liveMain{
+      flex-direction:column;
+    }
+    #usersPanel{
+      width:100%;
+      min-width:100%;
+      border-left:none;
+      border-bottom:1px solid #333;
+      display:flex;
+      flex-direction:column;
+    }
+  }
 </style>
 </head>
 <body>
@@ -214,14 +276,29 @@
 
 <!-- שכבת הווידאו -->
 <div id="liveOverlay">
-  <div id="videosArea">
-    <div id="remoteContainer">
+  <div id="liveMain">
+    <!-- אזור וידאו -->
+    <div id="videoArea">
       <video id="remoteVideo" autoplay playsinline></video>
-    </div>
-    <div id="localContainer">
       <video id="localVideo" autoplay playsinline muted></video>
     </div>
+
+    <!-- פאנל משתמשים -->
+    <div id="usersPanel">
+      <h3>משתמשים</h3>
+      <ul id="usersList">
+        <li>
+          <span class="user-name">מכשיר 1</span><br>
+          <span id="userAStatus" class="user-status offline">מנותק</span>
+        </li>
+        <li>
+          <span class="user-name">מכשיר 2</span><br>
+          <span id="userBStatus" class="user-status offline">מנותק</span>
+        </li>
+      </ul>
+    </div>
   </div>
+
   <div id="liveControls">
     <button id="endBtn" onclick="endCall()">סיום שיחה</button>
   </div>
@@ -275,6 +352,9 @@ let isCaller = false;
 const sosBtn = document.getElementById("sosBtn");
 const statusText = document.getElementById("statusText");
 
+const userAStatusEl = document.getElementById("userAStatus");
+const userBStatusEl = document.getElementById("userBStatus");
+
 const servers = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" }
@@ -286,7 +366,6 @@ let audioCtx = null;
 let ringInterval = null;
 
 function startRingtone() {
-  // ייתכן שהדפדפן ידרוש אינטראקציה קודמת כדי לאפשר סאונד
   try {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -304,7 +383,7 @@ function startRingtone() {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = "sine";
-    osc.frequency.value = 900; // צליל די צעקני
+    osc.frequency.value = 900;
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
@@ -338,12 +417,64 @@ function stopRingtone() {
   }
 }
 
+/* נוכחות משתמשים */
+function setPresenceOnline(role) {
+  db.ref("sosPresence/" + role).set({
+    status: "online",
+    ts: firebase.database.ServerValue.TIMESTAMP
+  });
+  db.ref("sosPresence/" + role).onDisconnect().set({
+    status: "offline",
+    ts: firebase.database.ServerValue.TIMESTAMP
+  });
+}
+
+function setPresenceOffline(role) {
+  db.ref("sosPresence/" + role).set({
+    status: "offline",
+    ts: firebase.database.ServerValue.TIMESTAMP
+  });
+}
+
+function listenPresence() {
+  db.ref("sosPresence/a").on("value", snap => {
+    const data = snap.val() || {};
+    const el = userAStatusEl;
+    if (!el) return;
+    if (data.status === "online") {
+      el.textContent = "מחובר";
+      el.classList.add("online");
+      el.classList.remove("offline");
+    } else {
+      el.textContent = "מנותק";
+      el.classList.add("offline");
+      el.classList.remove("online");
+    }
+  });
+  db.ref("sosPresence/b").on("value", snap => {
+    const data = snap.val() || {};
+    const el = userBStatusEl;
+    if (!el) return;
+    if (data.status === "online") {
+      el.textContent = "מחובר";
+      el.classList.add("online");
+      el.classList.remove("offline");
+    } else {
+      el.textContent = "מנותק";
+      el.classList.add("offline");
+      el.classList.remove("online");
+    }
+  });
+}
+
 /* אירועים */
 window.addEventListener("load", () => {
   const savedRole = localStorage.getItem("sosRole");
+  listenPresence();
   if (savedRole === "a" || savedRole === "b") {
     myRole = savedRole;
     document.getElementById("roleSelect").style.display = "none";
+    setPresenceOnline(myRole);
     listenForCall();
   }
 });
@@ -353,6 +484,7 @@ function chooseRole(role) {
   myRole = role;
   localStorage.setItem("sosRole", role);
   document.getElementById("roleSelect").style.display = "none";
+  setPresenceOnline(myRole);
   listenForCall();
 }
 
@@ -375,7 +507,6 @@ async function startCall() {
   statusText.textContent = "מתחיל שיחת SOS...";
   sosBtn.classList.add("in-call");
 
-  // ננקה מצב קודם
   await db.ref("sosCall").set(null);
 
   await setupPeerConnection();
@@ -448,7 +579,6 @@ function listenForCall() {
 
     const state = data.state;
     const from = data.from;
-
     const otherRole = (myRole === "a") ? "b" : "a";
 
     if (state === "calling" && from === otherRole && !inCall) {
@@ -565,12 +695,15 @@ function hideIncoming() {
   document.getElementById("incomingCall").style.display = "none";
 }
 
-/* לפני סגירת הדף – ניקוי */
+/* לפני סגירת הדף – ניקוי נוכחות וכו' */
 window.addEventListener("beforeunload", () => {
   if (inCall) {
     endCall(true);
   } else {
     stopRingtone();
+  }
+  if (myRole) {
+    setPresenceOffline(myRole);
   }
 });
 </script>
