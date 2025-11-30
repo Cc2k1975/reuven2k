@@ -80,7 +80,6 @@
     z-index:100;
   }
 
-  /* תוכן הווידאו + רשימת משתמשים */
   #liveMain{
     flex:1;
     display:flex;
@@ -90,8 +89,8 @@
 
   /* פאנל משתמשים */
   #usersPanel{
-    width:140px;
-    min-width:110px;
+    width:160px;
+    min-width:120px;
     background:#181818;
     border-left:1px solid #333;
     padding:10px;
@@ -168,50 +167,6 @@
     cursor:pointer;
   }
 
-  /* בחירת צד */
-  #roleSelect{
-    position:fixed;
-    top:0; left:0;
-    width:100%; height:100%;
-    background:rgba(0,0,0,0.8);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    z-index:120;
-  }
-  #roleBox{
-    background:#222;
-    padding:20px;
-    border-radius:16px;
-    text-align:center;
-    width:80%;
-    max-width:360px;
-    box-shadow:0 0 25px rgba(0,0,0,0.7);
-  }
-  #roleBox h2{
-    margin-top:0;
-    margin-bottom:12px;
-  }
-  .role-row{
-    display:flex;
-    gap:12px;
-    margin-top:10px;
-  }
-  .role-btn{
-    flex:1;
-    padding:12px;
-    border-radius:12px;
-    border:2px solid #666;
-    cursor:pointer;
-    font-size:16px;
-    background:#333;
-    color:#fff;
-  }
-  .role-btn:hover{
-    border-color:#ff9800;
-    background:#444;
-  }
-
   /* שיחה נכנסת */
   #incomingCall{
     position:fixed;
@@ -248,7 +203,7 @@
   #acceptBtn{background:#4caf50;}
   #rejectBtn{background:#f44336;}
 
-  /* התאמה למסכים קטנים – רשימת משתמשים למעלה */
+  /* התאמה לנייד – רשימת משתתפים למעלה */
   @media (max-width:700px){
     #liveMain{
       flex-direction:column;
@@ -258,8 +213,6 @@
       min-width:100%;
       border-left:none;
       border-bottom:1px solid #333;
-      display:flex;
-      flex-direction:column;
     }
   }
 </style>
@@ -268,7 +221,7 @@
 
 <div class="wrapper">
   <h1>SOS Video</h1>
-  <p>שני מכשירים נכנסים לאותו דף. אחד בוחר "מכשיר 1", השני "מכשיר 2". לוחצים SOS כדי להתחיל שיחת וידאו.</p>
+  <p>כל מי שנכנס לדף מחובר. לוחצים SOS כדי להתחיל שיחת וידאו.</p>
 
   <button id="sosBtn">SOS</button>
   <div id="statusText"></div>
@@ -285,34 +238,15 @@
 
     <!-- פאנל משתמשים -->
     <div id="usersPanel">
-      <h3>משתמשים</h3>
+      <h3>משתתפים</h3>
       <ul id="usersList">
-        <li>
-          <span class="user-name">מכשיר 1</span><br>
-          <span id="userAStatus" class="user-status offline">מנותק</span>
-        </li>
-        <li>
-          <span class="user-name">מכשיר 2</span><br>
-          <span id="userBStatus" class="user-status offline">מנותק</span>
-        </li>
+        <li>טוען...</li>
       </ul>
     </div>
   </div>
 
   <div id="liveControls">
     <button id="endBtn" onclick="endCall()">סיום שיחה</button>
-  </div>
-</div>
-
-<!-- בחירת צד -->
-<div id="roleSelect">
-  <div id="roleBox">
-    <h2>בחר מכשיר</h2>
-    <p>במכשיר אחד לבחור "מכשיר 1", במכשיר השני לבחור "מכשיר 2".</p>
-    <div class="role-row">
-      <button class="role-btn" onclick="chooseRole('a')">מכשיר 1</button>
-      <button class="role-btn" onclick="chooseRole('b')">מכשיר 2</button>
-    </div>
   </div>
 </div>
 
@@ -342,18 +276,23 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+/* מזהה ייחודי לכל מכשיר */
+let clientId = localStorage.getItem("sosClientId");
+if (!clientId) {
+  clientId = "u_" + Math.random().toString(36).substr(2,8);
+  localStorage.setItem("sosClientId", clientId);
+}
+
 /* מצב כללי */
-let myRole = null;       // 'a' או 'b'
 let pc = null;
 let localStream = null;
 let inCall = false;
 let isCaller = false;
+let remoteCandidatesRef = null;
 
 const sosBtn = document.getElementById("sosBtn");
 const statusText = document.getElementById("statusText");
-
-const userAStatusEl = document.getElementById("userAStatus");
-const userBStatusEl = document.getElementById("userBStatus");
+const usersListEl = document.getElementById("usersList");
 
 const servers = {
   iceServers: [
@@ -417,127 +356,63 @@ function stopRingtone() {
   }
 }
 
-/* נוכחות משתמשים */
-function setPresenceOnline(role) {
-  db.ref("sosPresence/" + role).set({
+/* נוכחות */
+function setPresenceOnline() {
+  db.ref("sosPresence/" + clientId).set({
     status: "online",
     ts: firebase.database.ServerValue.TIMESTAMP
   });
-  db.ref("sosPresence/" + role).onDisconnect().set({
+  db.ref("sosPresence/" + clientId).onDisconnect().set({
     status: "offline",
     ts: firebase.database.ServerValue.TIMESTAMP
   });
 }
 
-function setPresenceOffline(role) {
-  db.ref("sosPresence/" + role).set({
+function setPresenceOffline() {
+  db.ref("sosPresence/" + clientId).set({
     status: "offline",
     ts: firebase.database.ServerValue.TIMESTAMP
   });
 }
 
 function listenPresence() {
-  db.ref("sosPresence/a").on("value", snap => {
+  db.ref("sosPresence").on("value", snap => {
     const data = snap.val() || {};
-    const el = userAStatusEl;
-    if (!el) return;
-    if (data.status === "online") {
-      el.textContent = "מחובר";
-      el.classList.add("online");
-      el.classList.remove("offline");
-    } else {
-      el.textContent = "מנותק";
-      el.classList.add("offline");
-      el.classList.remove("online");
+    usersListEl.innerHTML = "";
+    const entries = Object.entries(data).filter(([id, val]) => val.status === "online");
+
+    if (entries.length === 0) {
+      usersListEl.innerHTML = "<li>אף אחד לא מחובר</li>";
+      return;
     }
-  });
-  db.ref("sosPresence/b").on("value", snap => {
-    const data = snap.val() || {};
-    const el = userBStatusEl;
-    if (!el) return;
-    if (data.status === "online") {
-      el.textContent = "מחובר";
-      el.classList.add("online");
-      el.classList.remove("offline");
-    } else {
-      el.textContent = "מנותק";
-      el.classList.add("offline");
-      el.classList.remove("online");
-    }
-  });
-}
 
-/* אירועים */
-window.addEventListener("load", () => {
-  const savedRole = localStorage.getItem("sosRole");
-  listenPresence();
-  if (savedRole === "a" || savedRole === "b") {
-    myRole = savedRole;
-    document.getElementById("roleSelect").style.display = "none";
-    setPresenceOnline(myRole);
-    listenForCall();
-  }
-});
-
-/* בחירת תפקיד (מכשיר 1/2) */
-function chooseRole(role) {
-  myRole = role;
-  localStorage.setItem("sosRole", role);
-  document.getElementById("roleSelect").style.display = "none";
-  setPresenceOnline(myRole);
-  listenForCall();
-}
-
-/* לחיצה על SOS */
-sosBtn.addEventListener("click", () => {
-  if (!myRole) {
-    alert("קודם בחר מכשיר 1 או 2.");
-    return;
-  }
-  if (!inCall) {
-    startCall();
-  } else {
-    endCall();
-  }
-});
-
-/* התחלת שיחה כמתקשר */
-async function startCall() {
-  isCaller = true;
-  statusText.textContent = "מתחיל שיחת SOS...";
-  sosBtn.classList.add("in-call");
-
-  await db.ref("sosCall").set(null);
-
-  await setupPeerConnection();
-
-  try {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await db.ref("sosCall/offer").set(offer);
-    await db.ref("sosCall").update({
-      state: "calling",
-      from: myRole
+    let index = 1;
+    entries.forEach(([id, val]) => {
+      const li = document.createElement("li");
+      const isMe = (id === clientId);
+      const name = isMe ? "אני" : ("משתתף " + index++);
+      li.innerHTML =
+        '<span class="user-name">' + name + '</span><br>' +
+        '<span class="user-status online">מחובר</span>';
+      usersListEl.appendChild(li);
     });
-    statusText.textContent = "ממתין לצד השני...";
-    showLiveOverlay();
-  } catch (err) {
-    console.error(err);
-    alert("שגיאה ביצירת שיחה: " + err.message);
-    endCall(true);
-  }
+  });
 }
 
-/* יצירת PeerConnection + מצלמה מקומית */
-async function setupPeerConnection() {
+/* PeerConnection + מצלמה */
+async function setupPeerConnection(asCaller) {
+  isCaller = asCaller;
   pc = new RTCPeerConnection(servers);
 
+  // ICE שלנו
   pc.onicecandidate = event => {
     if (event.candidate) {
-      db.ref("sosCall/candidates/" + myRole).push(event.candidate.toJSON());
+      const roleKey = asCaller ? "caller" : "callee";
+      db.ref("sosCall/candidates/" + roleKey).push(event.candidate.toJSON());
     }
   };
 
+  // וידאו של הצד השני
   pc.ontrack = event => {
     const remoteVideo = document.getElementById("remoteVideo");
     if (remoteVideo.srcObject !== event.streams[0]) {
@@ -545,6 +420,7 @@ async function setupPeerConnection() {
     }
   };
 
+  // מצלמה + מיקרופון שלנו
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
   } catch (err) {
@@ -560,12 +436,50 @@ async function setupPeerConnection() {
   });
 
   inCall = true;
+
+  // מאזין ל-ICE של הצד השני
+  const remoteKey = asCaller ? "callee" : "caller";
+  remoteCandidatesRef = db.ref("sosCall/candidates/" + remoteKey);
+  remoteCandidatesRef.on("child_added", async snap => {
+    const cand = snap.val();
+    if (pc && cand) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(cand));
+      } catch (e) {
+        console.error("addIceCandidate error", e);
+      }
+    }
+  });
+}
+
+/* התחלת שיחה כקורא */
+async function startCall() {
+  statusText.textContent = "מתחיל שיחת SOS...";
+  sosBtn.classList.add("in-call");
+
+  await db.ref("sosCall").set(null);
+
+  await setupPeerConnection(true);
+
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await db.ref("sosCall/offer").set(offer);
+    await db.ref("sosCall").update({
+      state: "calling",
+      from: clientId
+    });
+    statusText.textContent = "ממתין לצד השני...";
+    showLiveOverlay();
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה ביצירת שיחה: " + err.message);
+    endCall(true);
+  }
 }
 
 /* האזנה לשיחה ב-Firebase */
 function listenForCall() {
-  if (!myRole) return;
-
   db.ref("sosCall").on("value", async snap => {
     const data = snap.val();
     if (!data) {
@@ -578,10 +492,10 @@ function listenForCall() {
     }
 
     const state = data.state;
-    const from = data.from;
-    const otherRole = (myRole === "a") ? "b" : "a";
+    const from = data.from || null;
 
-    if (state === "calling" && from === otherRole && !inCall) {
+    // שיחה נכנסת – רק אם מישהו אחר יזם ואנחנו לא באמצע שיחה
+    if (state === "calling" && from && from !== clientId && !inCall) {
       showIncoming();
       statusText.textContent = "שיחת SOS נכנסת...";
       startRingtone();
@@ -594,6 +508,7 @@ function listenForCall() {
     }
   });
 
+  // תשובה לשיחה – מי שיזם (caller) שומע את ה-answer
   db.ref("sosCall/answer").on("value", async snap => {
     const answer = snap.val();
     if (!answer || !pc || !isCaller) return;
@@ -605,30 +520,17 @@ function listenForCall() {
       }
     }
   });
-
-  const otherRole = (myRole === "a") ? "b" : "a";
-  db.ref("sosCall/candidates/" + otherRole).on("child_added", async snap => {
-    const cand = snap.val();
-    if (pc && cand) {
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(cand));
-      } catch (e) {
-        console.error("addIceCandidate error", e);
-      }
-    }
-  });
 }
 
 /* מענה לשיחת SOS נכנסת */
 async function acceptCall() {
   hideIncoming();
   stopRingtone();
-  isCaller = false;
   statusText.textContent = "מחבר וידאו...";
   sosBtn.classList.add("in-call");
 
   try {
-    await setupPeerConnection();
+    await setupPeerConnection(false);
 
     const offerSnap = await db.ref("sosCall/offer").once("value");
     const offer = offerSnap.val();
@@ -671,15 +573,27 @@ async function endCall(forceOnlyLocal=false) {
     pc.close();
     pc = null;
   }
+  if (remoteCandidatesRef) {
+    remoteCandidatesRef.off();
+    remoteCandidatesRef = null;
+  }
   inCall = false;
-  isCaller = false;
-  hideLiveOverlay();
   sosBtn.classList.remove("in-call");
+  hideLiveOverlay();
 
   if (!forceOnlyLocal) {
     await db.ref("sosCall").set({ state:"ended" });
   }
 }
+
+/* לחיצה על SOS */
+sosBtn.addEventListener("click", () => {
+  if (!inCall) {
+    startCall();
+  } else {
+    endCall();
+  }
+});
 
 /* הצגת/הסתרת שכבות */
 function showLiveOverlay() {
@@ -695,16 +609,21 @@ function hideIncoming() {
   document.getElementById("incomingCall").style.display = "none";
 }
 
-/* לפני סגירת הדף – ניקוי נוכחות וכו' */
+/* אתחול */
+window.addEventListener("load", () => {
+  setPresenceOnline();
+  listenPresence();
+  listenForCall();
+});
+
+/* לפני סגירת הדף – ניקוי */
 window.addEventListener("beforeunload", () => {
   if (inCall) {
     endCall(true);
   } else {
     stopRingtone();
   }
-  if (myRole) {
-    setPresenceOffline(myRole);
-  }
+  setPresenceOffline();
 });
 </script>
 
