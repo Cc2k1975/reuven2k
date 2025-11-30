@@ -80,73 +80,28 @@
     z-index:100;
   }
 
-  #liveMain{
+  #videosArea{
     flex:1;
     display:flex;
-    flex-direction:row;
-    height:100%;
+    flex-direction:column;
+    margin:0;
+    padding:0;
   }
 
-  /* פאנל משתמשים */
-  #usersPanel{
-    width:160px;
-    min-width:120px;
-    background:#181818;
-    border-left:1px solid #333;
-    padding:10px;
-    font-size:14px;
-  }
-  #usersPanel h3{
-    margin-bottom:8px;
-    font-size:16px;
-  }
-  #usersList{
-    list-style:none;
-  }
-  #usersList li{
-    margin-bottom:6px;
-  }
-  .user-name{
-    font-weight:bold;
-  }
-  .user-status{
-    font-size:12px;
-  }
-  .online{
-    color:#4caf50;
-  }
-  .offline{
-    color:#b0bec5;
-  }
-
-  /* אזור הווידאו הראשי */
-  #videoArea{
-    flex:1;
-    position:relative;
-    background:#000;
+  #remoteContainer,
+  #localContainer{
+    flex:1 1 50%;
+    height:50%;
+    margin:0;
+    padding:0;
     display:flex;
     align-items:center;
     justify-content:center;
-    overflow:hidden;
   }
 
-  #remoteVideo{
+  video{
     width:100%;
     height:100%;
-    object-fit:cover;
-    background:#000;
-  }
-
-  #localVideo{
-    position:absolute;
-    bottom:10px;
-    right:10px;
-    width:25%;
-    max-width:220px;
-    aspect-ratio:16/9;
-    border-radius:10px;
-    border:2px solid #fff;
-    box-shadow:0 0 10px rgba(0,0,0,0.7);
     object-fit:cover;
     background:#000;
   }
@@ -155,7 +110,6 @@
     padding:8px;
     text-align:center;
     border-top:1px solid #333;
-    background:#111;
   }
   #endBtn{
     padding:10px 18px;
@@ -165,6 +119,50 @@
     color:#fff;
     font-size:16px;
     cursor:pointer;
+  }
+
+  /* בחירת צד */
+  #roleSelect{
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.8);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:120;
+  }
+  #roleBox{
+    background:#222;
+    padding:20px;
+    border-radius:16px;
+    text-align:center;
+    width:80%;
+    max-width:360px;
+    box-shadow:0 0 25px rgba(0,0,0,0.7);
+  }
+  #roleBox h2{
+    margin-top:0;
+    margin-bottom:12px;
+  }
+  .role-row{
+    display:flex;
+    gap:12px;
+    margin-top:10px;
+  }
+  .role-btn{
+    flex:1;
+    padding:12px;
+    border-radius:12px;
+    border:2px solid #666;
+    cursor:pointer;
+    font-size:16px;
+    background:#333;
+    color:#fff;
+  }
+  .role-btn:hover{
+    border-color:#ff9800;
+    background:#444;
   }
 
   /* שיחה נכנסת */
@@ -202,25 +200,13 @@
   }
   #acceptBtn{background:#4caf50;}
   #rejectBtn{background:#f44336;}
-
-  @media (max-width:700px){
-    #liveMain{
-      flex-direction:column;
-    }
-    #usersPanel{
-      width:100%;
-      min-width:100%;
-      border-left:none;
-      border-bottom:1px solid #333;
-    }
-  }
 </style>
 </head>
 <body>
 
 <div class="wrapper">
   <h1>SOS Video</h1>
-  <p>כל מי שנכנס לדף מחובר. לוחצים SOS כדי להתחיל שיחת וידאו.</p>
+  <p>שני מכשירים נכנסים לאותו דף. אחד בוחר "מכשיר 1", השני "מכשיר 2". לוחצים SOS כדי להתחיל שיחת וידאו.</p>
 
   <button id="sosBtn">SOS</button>
   <div id="statusText"></div>
@@ -228,24 +214,28 @@
 
 <!-- שכבת הווידאו -->
 <div id="liveOverlay">
-  <div id="liveMain">
-    <!-- וידאו -->
-    <div id="videoArea">
+  <div id="videosArea">
+    <div id="remoteContainer">
       <video id="remoteVideo" autoplay playsinline></video>
+    </div>
+    <div id="localContainer">
       <video id="localVideo" autoplay playsinline muted></video>
     </div>
-
-    <!-- רשימת משתתפים -->
-    <div id="usersPanel">
-      <h3>משתתפים</h3>
-      <ul id="usersList">
-        <li>טוען...</li>
-      </ul>
-    </div>
   </div>
-
   <div id="liveControls">
     <button id="endBtn" onclick="endCall()">סיום שיחה</button>
+  </div>
+</div>
+
+<!-- בחירת צד -->
+<div id="roleSelect">
+  <div id="roleBox">
+    <h2>בחר מכשיר</h2>
+    <p>במכשיר אחד לבחור "מכשיר 1", במכשיר השני לבחור "מכשיר 2".</p>
+    <div class="role-row">
+      <button class="role-btn" onclick="chooseRole('a')">מכשיר 1</button>
+      <button class="role-btn" onclick="chooseRole('b')">מכשיר 2</button>
+    </div>
   </div>
 </div>
 
@@ -275,23 +265,15 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* מזהה ייחודי לכל מכשיר */
-let clientId = localStorage.getItem("sosClientId");
-if (!clientId) {
-  clientId = "u_" + Math.random().toString(36).substr(2,8);
-  localStorage.setItem("sosClientId", clientId);
-}
-
 /* מצב כללי */
+let myRole = null;       // 'a' או 'b'
 let pc = null;
 let localStream = null;
 let inCall = false;
 let isCaller = false;
-let remoteCandidatesRef = null;
 
 const sosBtn = document.getElementById("sosBtn");
 const statusText = document.getElementById("statusText");
-const usersListEl = document.getElementById("usersList");
 
 const servers = {
   iceServers: [
@@ -299,126 +281,79 @@ const servers = {
   ]
 };
 
-/* רינגטון + רטט */
-let audioCtx = null;
-let ringInterval = null;
+/* אירועים */
+window.addEventListener("load", () => {
+  const savedRole = localStorage.getItem("sosRole");
+  if (savedRole === "a" || savedRole === "b") {
+    myRole = savedRole;
+    document.getElementById("roleSelect").style.display = "none";
+    listenForCall();
+  }
+});
 
-function startRingtone() {
-  try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    } else if (audioCtx.state === "suspended") {
-      audioCtx.resume();
-    }
-  } catch (e) {
-    console.warn("AudioContext error:", e);
+/* בחירת תפקיד (מכשיר 1/2) */
+function chooseRole(role) {
+  myRole = role;
+  localStorage.setItem("sosRole", role);
+  document.getElementById("roleSelect").style.display = "none";
+  listenForCall();
+}
+
+/* לחיצה על SOS */
+sosBtn.addEventListener("click", () => {
+  if (!myRole) {
+    alert("קודם בחר מכשיר 1 או 2.");
     return;
   }
-
-  const playBeep = () => {
-    if (!audioCtx) return;
-    const duration = 0.4;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 900;
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    const now = audioCtx.currentTime;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.3, now + 0.05);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-
-    osc.start(now);
-    osc.stop(now + duration);
-  };
-
-  if (!ringInterval) {
-    playBeep();
-    ringInterval = setInterval(playBeep, 800);
+  if (!inCall) {
+    startCall();
+  } else {
+    endCall();
   }
+});
 
-  if (navigator.vibrate) {
-    navigator.vibrate([300, 200, 300, 200]);
-  }
-}
+/* התחלת שיחה כמתקשר */
+async function startCall() {
+  isCaller = true;
+  statusText.textContent = "מתחיל שיחת SOS...";
+  sosBtn.classList.add("in-call");
 
-function stopRingtone() {
-  if (ringInterval) {
-    clearInterval(ringInterval);
-    ringInterval = null;
-  }
-  if (navigator.vibrate) {
-    navigator.vibrate(0);
-  }
-}
+  // ננקה מצב קודם
+  await db.ref("sosCall").set(null);
 
-/* נוכחות */
-function setPresenceOnline() {
-  db.ref("sosPresence/" + clientId).set({
-    status: "online",
-    ts: firebase.database.ServerValue.TIMESTAMP
-  });
-  db.ref("sosPresence/" + clientId).onDisconnect().set({
-    status: "offline",
-    ts: firebase.database.ServerValue.TIMESTAMP
-  });
-}
+  await setupPeerConnection();
 
-function setPresenceOffline() {
-  db.ref("sosPresence/" + clientId).set({
-    status: "offline",
-    ts: firebase.database.ServerValue.TIMESTAMP
-  });
-}
-
-function listenPresence() {
-  db.ref("sosPresence").on("value", snap => {
-    const data = snap.val() || {};
-    usersListEl.innerHTML = "";
-    const entries = Object.entries(data).filter(([id, val]) => val.status === "online");
-
-    if (entries.length === 0) {
-      usersListEl.innerHTML = "<li>אף אחד לא מחובר</li>";
-      return;
-    }
-
-    let index = 1;
-    entries.forEach(([id, val]) => {
-      const li = document.createElement("li");
-      const isMe = (id === clientId);
-      const name = isMe ? "אני" : ("משתתף " + index++);
-      li.innerHTML =
-        '<span class="user-name">' + name + '</span><br>' +
-        '<span class="user-status online">מחובר</span>';
-      usersListEl.appendChild(li);
+  try {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await db.ref("sosCall/offer").set(offer);
+    await db.ref("sosCall").update({
+      state: "calling",
+      from: myRole
     });
-  });
+    statusText.textContent = "ממתין לצד השני...";
+    showLiveOverlay();
+  } catch (err) {
+    console.error(err);
+    alert("שגיאה ביצירת שיחה: " + err.message);
+    endCall(true);
+  }
 }
 
-/* PeerConnection + מצלמה */
-async function setupPeerConnection(asCaller) {
-  isCaller = asCaller;
+/* יצירת PeerConnection + מצלמה מקומית */
+async function setupPeerConnection() {
   pc = new RTCPeerConnection(servers);
 
   pc.onicecandidate = event => {
     if (event.candidate) {
-      const roleKey = asCaller ? "caller" : "callee";
-      db.ref("sosCall/candidates/" + roleKey).push(event.candidate.toJSON());
+      db.ref("sosCall/candidates/" + myRole).push(event.candidate.toJSON());
     }
-  };
-
-  pc.oniceconnectionstatechange = () => {
-    statusText.textContent = "מצב חיבור: " + pc.iceConnectionState;
   };
 
   pc.ontrack = event => {
     const remoteVideo = document.getElementById("remoteVideo");
     if (remoteVideo.srcObject !== event.streams[0]) {
       remoteVideo.srcObject = event.streams[0];
-      remoteVideo.play().catch(e => console.log("remote play error", e));
     }
   };
 
@@ -431,56 +366,18 @@ async function setupPeerConnection(asCaller) {
 
   const localVideo = document.getElementById("localVideo");
   localVideo.srcObject = localStream;
-  localVideo.play().catch(e => console.log("local play error", e));
 
   localStream.getTracks().forEach(track => {
     pc.addTrack(track, localStream);
   });
 
   inCall = true;
-
-  const remoteKey = asCaller ? "callee" : "caller";
-  remoteCandidatesRef = db.ref("sosCall/candidates/" + remoteKey);
-  remoteCandidatesRef.on("child_added", async snap => {
-    const cand = snap.val();
-    if (pc && cand) {
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(cand));
-      } catch (e) {
-        console.error("addIceCandidate error", e);
-      }
-    }
-  });
-}
-
-/* התחלת שיחה כמתקשר */
-async function startCall() {
-  statusText.textContent = "מתחיל שיחת SOS...";
-  sosBtn.classList.add("in-call");
-
-  await db.ref("sosCall").set(null);
-
-  await setupPeerConnection(true);
-
-  try {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await db.ref("sosCall/offer").set(offer);
-    await db.ref("sosCall").update({
-      state: "calling",
-      from: clientId
-    });
-    statusText.textContent = "ממתין לצד השני...";
-    showLiveOverlay();
-  } catch (err) {
-    console.error(err);
-    alert("שגיאה ביצירת שיחה: " + err.message);
-    endCall(true);
-  }
 }
 
 /* האזנה לשיחה ב-Firebase */
 function listenForCall() {
+  if (!myRole) return;
+
   db.ref("sosCall").on("value", async snap => {
     const data = snap.val();
     if (!data) {
@@ -488,23 +385,22 @@ function listenForCall() {
       hideLiveOverlay();
       statusText.textContent = "";
       sosBtn.classList.remove("in-call");
-      stopRingtone();
       return;
     }
 
     const state = data.state;
-    const from = data.from || null;
+    const from = data.from;
 
-    if (state === "calling" && from && from !== clientId && !inCall) {
+    const otherRole = (myRole === "a") ? "b" : "a";
+
+    if (state === "calling" && from === otherRole && !inCall) {
       showIncoming();
       statusText.textContent = "שיחת SOS נכנסת...";
-      startRingtone();
     }
 
     if (state === "ended") {
       endCall(true);
       statusText.textContent = "השיחה הסתיימה.";
-      stopRingtone();
     }
   });
 
@@ -519,17 +415,29 @@ function listenForCall() {
       }
     }
   });
+
+  const otherRole = (myRole === "a") ? "b" : "a";
+  db.ref("sosCall/candidates/" + otherRole).on("child_added", async snap => {
+    const cand = snap.val();
+    if (pc && cand) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(cand));
+      } catch (e) {
+        console.error("addIceCandidate error", e);
+      }
+    }
+  });
 }
 
 /* מענה לשיחת SOS נכנסת */
 async function acceptCall() {
   hideIncoming();
-  stopRingtone();
+  isCaller = false;
   statusText.textContent = "מחבר וידאו...";
   sosBtn.classList.add("in-call");
 
   try {
-    await setupPeerConnection(false);
+    await setupPeerConnection();
 
     const offerSnap = await db.ref("sosCall/offer").once("value");
     const offer = offerSnap.val();
@@ -556,14 +464,11 @@ async function acceptCall() {
 /* דחיית שיחה נכנסת */
 async function rejectCall() {
   hideIncoming();
-  stopRingtone();
   await db.ref("sosCall/state").set("ended");
 }
 
 /* סיום שיחה */
 async function endCall(forceOnlyLocal=false) {
-  stopRingtone();
-
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
     localStream = null;
@@ -572,27 +477,15 @@ async function endCall(forceOnlyLocal=false) {
     pc.close();
     pc = null;
   }
-  if (remoteCandidatesRef) {
-    remoteCandidatesRef.off();
-    remoteCandidatesRef = null;
-  }
   inCall = false;
-  sosBtn.classList.remove("in-call");
+  isCaller = false;
   hideLiveOverlay();
+  sosBtn.classList.remove("in-call");
 
   if (!forceOnlyLocal) {
     await db.ref("sosCall").set({ state:"ended" });
   }
 }
-
-/* לחיצה על SOS */
-sosBtn.addEventListener("click", () => {
-  if (!inCall) {
-    startCall();
-  } else {
-    endCall();
-  }
-});
 
 /* הצגת/הסתרת שכבות */
 function showLiveOverlay() {
@@ -608,21 +501,11 @@ function hideIncoming() {
   document.getElementById("incomingCall").style.display = "none";
 }
 
-/* אתחול */
-window.addEventListener("load", () => {
-  setPresenceOnline();
-  listenPresence();
-  listenForCall();
-});
-
 /* לפני סגירת הדף – ניקוי */
 window.addEventListener("beforeunload", () => {
   if (inCall) {
     endCall(true);
-  } else {
-    stopRingtone();
   }
-  setPresenceOffline();
 });
 </script>
 
