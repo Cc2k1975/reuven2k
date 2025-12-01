@@ -637,12 +637,22 @@
     let scanLoopRunning = false;
     let barcodeDetector = null;
 
+    // 🔒 דגל לפתיחה חד-פעמית של המצלמה לכל טעינת דף
+    let cameraUnlocked = false;
+
+    // ⏱ סריקה כל 3 שניות + זיכרון של הברקוד האחרון כדי לא לשגע
+    let scanIntervalId = null;
+    let lastScannedValue = null;
+
     async function startCameraScan(){
-      // 🔒 בדיקת קוד לפני פתיחת המצלמה
-      const code = prompt("הכנס קוד לפתיחת המצלמה");
-      if (code !== "39800") {
-        alert("קוד שגוי");
-        return;
+      // בדיקת קוד רק פעם אחת לכל טעינת דף
+      if (!cameraUnlocked) {
+        const code = prompt("הכנס קוד לפתיחת המצלמה");
+        if (code !== "39800") {
+          alert("קוד שגוי");
+          return;
+        }
+        cameraUnlocked = true;
       }
 
       try{
@@ -658,8 +668,14 @@
         });
         videoEl.srcObject = cameraStream;
         scanLoopRunning = true;
+        lastScannedValue = null;
+        if (scanIntervalId) {
+          clearInterval(scanIntervalId);
+          scanIntervalId = null;
+        }
+        // סריקה כל 3 שניות בלי לסגור את המצלמה
+        scanIntervalId = setInterval(scanLoop, 3000);
         playBeep("scan");
-        requestAnimationFrame(scanLoop);
       }catch(e){
         console.error(e);
         alert("לא ניתן לפתוח מצלמה. בדוק הרשאות.");
@@ -667,26 +683,28 @@
     }
 
     async function scanLoop(){
-      if(!scanLoopRunning || !barcodeDetector) return;
+      if(!scanLoopRunning || !barcodeDetector || !videoEl.srcObject) return;
       try{
         const barcodes = await barcodeDetector.detect(videoEl);
         if(barcodes.length > 0){
           const value = barcodes[0].rawValue.trim();
-          if(value){
+          if(value && value !== lastScannedValue){
+            lastScannedValue = value;
             inventoryInput.value = value;
-            stopCameraScan();
-            addInventory();
-            return;
+            addInventory();  // לא סוגר מצלמה – ממשיך סריקה עד שלוחצים 'בטל'
           }
         }
       }catch(e){
         console.error(e);
       }
-      requestAnimationFrame(scanLoop);
     }
 
     function stopCameraScan(){
       scanLoopRunning = false;
+      if (scanIntervalId) {
+        clearInterval(scanIntervalId);
+        scanIntervalId = null;
+      }
       overlay.style.display = "none";
       if(cameraStream){
         cameraStream.getTracks().forEach(t=>t.stop());
