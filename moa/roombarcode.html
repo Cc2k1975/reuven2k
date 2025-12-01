@@ -274,6 +274,7 @@
     });
 
     // הורדה כתמונה – שם קובץ: Site-Room-Building.png (למשל L-6-291.png)
+    // + שוליים לבנים (Quiet Zone) מסביב לברקוד כדי שלא ייחתך ולא תהיה בעיה בסריקה
     downloadBtn.addEventListener('click', () => {
       const fields = getFields();
       if(!fields) return;
@@ -281,6 +282,7 @@
       const data = `${fields.site} ${fields.b} ${fields.r}`;
       const fileBaseName = `${fields.site}-${fields.r}-${fields.b}`; // L-6-291
 
+      // קודם מייצר ברקוד ב-SVG בתצוגה
       renderBarcode(previewSvg, data, false);
 
       const svgData = new XMLSerializer().serializeToString(previewSvg);
@@ -289,13 +291,25 @@
 
       const img = new Image();
       img.onload = function(){
+        // נבנה קנבס עם שוליים לבנים מסביב (Quiet Zone אמיתי)
+        const margin = 20;          // שוליים לבנים מכל צד
+        const innerW = 400;         // אזור הברקוד עצמו
+        const innerH = 120;         // קצת פחות מהגובה הכולל
+        const canvasW = innerW + margin * 2;
+        const canvasH = innerH + margin * 2;
+
         const canvas = document.createElement('canvas');
-        canvas.width  = 400;
-        canvas.height = 160;
+        canvas.width  = canvasW;
+        canvas.height = canvasH;
+
         const ctx = canvas.getContext('2d');
+
+        // רקע לבן לכל המדבקה
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0,0,canvas.width,canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvasW, canvasH);
+
+        // הברקוד מצויר באמצע עם שוליים לבנים מכל הצדדים
+        ctx.drawImage(img, margin, margin, innerW, innerH);
 
         const pngUrl = canvas.toDataURL('image/png');
 
@@ -307,6 +321,7 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       };
+
       img.src = url;
     });
   </script>
