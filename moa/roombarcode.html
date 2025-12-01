@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Barcode Label – Site / Building / Room</title>
+  <title>Barcode Label – Mobile</title>
 
   <!-- JsBarcode -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
@@ -11,85 +11,152 @@
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
 
+    html,body{
+      height:100%;
+    }
+
     body{
       font-family:system-ui,"Heebo","Arial",sans-serif;
-      background:#f2f5f9;
-      color:#111;
-      min-height:100vh;
+      background:#111827;
+      color:#f9fafb;
       display:flex;
-      align-items:center;
       justify-content:center;
-      padding:16px;
+      align-items:center;
     }
 
     .app{
-      background:#fff;
-      border-radius:16px;
-      box-shadow:0 10px 25px rgba(0,0,0,.1);
-      max-width:360px;
       width:100%;
-      padding:18px 16px 16px;
+      max-width:420px;
+      height:100%;
+      max-height:720px;
+      background:#1f2937;
+      border-radius:18px;
+      padding:16px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
     }
 
     h1{
       text-align:center;
       font-size:18px;
-      margin-bottom:10px;
+      margin-bottom:4px;
     }
 
-    .field{margin-bottom:10px;}
-    label{display:block;font-size:14px;margin-bottom:4px;}
+    .field{
+      margin-bottom:8px;
+    }
+
+    label{
+      display:block;
+      font-size:14px;
+      margin-bottom:4px;
+    }
 
     select,input{
       width:100%;
-      padding:7px 9px;
-      font-size:14px;
+      padding:8px 10px;
+      font-size:15px;
       border-radius:10px;
-      border:1px solid #ccd3de;
+      border:1px solid #4b5563;
+      background:#111827;
+      color:#f9fafb;
+    }
+
+    select:focus,input:focus{
       outline:none;
+      border-color:#60a5fa;
     }
 
     .buttons{
-      margin-top:12px;
       display:flex;
       gap:8px;
+      margin-top:8px;
     }
 
     button{
       flex:1;
-      cursor:pointer;
       border:none;
       border-radius:999px;
-      padding:9px;
+      padding:10px;
       font-size:14px;
       font-weight:600;
+      color:#fff;
+      background:#2563eb;
+      text-align:center;
+      cursor:pointer;
     }
 
-    #printBtn{background:#0078ff;color:#fff;}
-    #clearBtn{background:#e9edf4;color:#111;}
+    #clearBtn{
+      background:#4b5563;
+    }
 
-    /* הדפסה – מציג רק את הברקוד */
+    #downloadBtn{
+      background:#10b981;
+    }
+
+    .previewBox{
+      flex:1;
+      margin-top:8px;
+      border-radius:12px;
+      background:#020617;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:10px;
+    }
+
+    #previewSvg{
+      width:90%;
+      height:auto;
+    }
+
+    .hint{
+      font-size:12px;
+      color:#9ca3af;
+      text-align:center;
+      margin-top:4px;
+    }
+
+    /* הדפסה – רק אזור המדבקה, ב-50×20 מ״מ */
+    @page{
+      size:50mm 20mm;
+      margin:0;
+    }
     @media print{
-      body{margin:0;padding:0;background:#fff;}
+      body{
+        margin:0;
+        padding:0;
+        background:#fff;
+      }
       .app{display:none;}
-      #printArea{display:block !important;}
+      #printArea{
+        display:block !important;
+        width:50mm;
+        height:20mm;
+        padding:0;
+      }
+      #printBarcode{
+        width:48mm;
+        height:18mm;
+      }
     }
 
     #printArea{
       display:none;
       text-align:center;
-      padding:8px;
     }
   </style>
 </head>
 <body>
 
-  <!-- מסך ראשי -->
   <div class="app">
-    <h1>Barcode Label</h1>
+    <div>
+      <h1>Barcode Label (Mobile)</h1>
+    </div>
 
     <div class="field">
-      <label for="siteSelect">Site (אות באנגלית)</label>
+      <label for="siteSelect">Site (אות/קוד באנגלית)</label>
       <select id="siteSelect">
         <option value="">בחר אתר...</option>
         <option value="L">L</option>
@@ -103,77 +170,127 @@
 
     <div class="field">
       <label for="buildingInput">Building (מספר בלבד)</label>
-      <input type="number" id="buildingInput" min="0" step="1" placeholder="לדוגמה: 291">
+      <input type="number" id="buildingInput" inputmode="numeric" placeholder="לדוגמה: 291">
     </div>
 
     <div class="field">
       <label for="roomInput">Room (מספר בלבד)</label>
-      <input type="number" id="roomInput" min="0" step="1" placeholder="לדוגמה: 6">
+      <input type="number" id="roomInput" inputmode="numeric" placeholder="לדוגמה: 6">
     </div>
 
     <div class="buttons">
       <button id="clearBtn" type="button">איפוס</button>
-      <button id="printBtn" type="button">הדפס מדבקה</button>
+      <button id="printBtn" type="button">הדפס</button>
+    </div>
+    <div class="buttons">
+      <button id="downloadBtn" type="button">הורד כתמונה</button>
+    </div>
+
+    <div class="previewBox">
+      <svg id="previewSvg"></svg>
+    </div>
+
+    <div class="hint">
+      להדפסה מהסמארטפון:<br>
+      • או לבחור שירות הדפסה מהחלון של אנדרואיד<br>
+      • או ללחוץ "הורד כתמונה" → לפתוח ב-Print Master ולהדפיס על 50×20mm
     </div>
   </div>
 
-  <!-- מה שיודפס בפועל (רק ברקוד) -->
+  <!-- אזור שמודפס בפועל -->
   <div id="printArea">
-    <svg id="barcode"></svg>
+    <svg id="printBarcode"></svg>
   </div>
 
   <script>
     const siteSelect    = document.getElementById('siteSelect');
     const buildingInput = document.getElementById('buildingInput');
     const roomInput     = document.getElementById('roomInput');
-    const printBtn      = document.getElementById('printBtn');
     const clearBtn      = document.getElementById('clearBtn');
-    const barcodeSvg    = document.getElementById('barcode');
+    const printBtn      = document.getElementById('printBtn');
+    const downloadBtn   = document.getElementById('downloadBtn');
+    const previewSvg    = document.getElementById('previewSvg');
+    const printBarcode  = document.getElementById('printBarcode');
 
     clearBtn.addEventListener('click', () => {
+      siteSelect.value = "";
       buildingInput.value = "";
       roomInput.value = "";
-      siteSelect.value = "";
       siteSelect.focus();
+      previewSvg.innerHTML = "";
     });
 
-    printBtn.addEventListener('click', () => {
+    function getData(){
       const site  = siteSelect.value.trim();
-      const build = buildingInput.value.trim();
-      const room  = roomInput.value.trim();
+      const b     = buildingInput.value.trim();
+      const r     = roomInput.value.trim();
 
-      if(!site){ alert("בחר אתר (אות באנגלית)"); return; }
-      if(!build){ alert("הכנס מספר מבנה"); return; }
-      if(!room){ alert("הכנס מספר חדר"); return; }
+      if(!site){ alert("בחר אתר"); return null; }
+      if(!b){ alert("הכנס מספר מבנה"); return null; }
+      if(!r){ alert("הכנס מספר חדר"); return null; }
 
       if(typeof JsBarcode === "undefined"){
         alert("JsBarcode לא נטען (צריך אינטרנט ל-CDN).");
-        return;
+        return null;
       }
 
-      // הפורמט שבתוך הברקוד – בדיוק מה שתרצה שייכנס לאקסל
-      // לדוגמה: L 291 6
-      const data = `${site} ${build} ${room}`;
+      return `${site} ${b} ${r}`;  // מה שנכנס לאקסל
+    }
 
-      try{
-        JsBarcode(barcodeSvg, data, {
-          format: "CODE128",
-          width: 2,
-          height: 60,
-          displayValue: false   // בלי טקסט מתחת, רק ברקוד
-        });
+    function renderBarcode(targetSvg, data){
+      JsBarcode(targetSvg, data, {
+        format:"CODE128",
+        width:2,
+        height:60,
+        displayValue:false,
+        margin:0
+      });
+    }
 
-        // הדפסה מידית – המדפסת/סורק כבר יעשו את שלהם
-        window.print();
+    // יצירת ברקוד להדפסה + חלון print של אנדרואיד
+    printBtn.addEventListener('click', () => {
+      const data = getData();
+      if(!data) return;
 
-        // אחרי הדפסה – איפוס חדר בלבד (אם תרצה גם אחרים, תשנה כאן)
-        roomInput.value = "";
-        roomInput.focus();
+      renderBarcode(previewSvg, data);
+      renderBarcode(printBarcode, data);
 
-      } catch(e){
-        console.error(e);
-        alert("שגיאה ביצירת הברקוד.");
-      }
+      window.print();
+    });
+
+    // הורדה כתמונה (PNG) – לשיתוף ל-Print Master
+    downloadBtn.addEventListener('click', () => {
+      const data = getData();
+      if(!data) return;
+
+      renderBarcode(previewSvg, data);
+
+      // ממירים את ה-SVG לקנבס ואז ל-PNG
+      const svgData = new XMLSerializer().serializeToString(previewSvg);
+      const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = function(){
+        const canvas = document.createElement('canvas');
+        canvas.width  = 400;  // בערך 50 מ״מ ב-203dpi
+        canvas.height = 160;  // בערך 20 מ״מ
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const pngUrl = canvas.toDataURL('image/png');
+
+        const a = document.createElement('a');
+        a.href = pngUrl;
+        a.download = 'label.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
     });
   </script>
 </body>
