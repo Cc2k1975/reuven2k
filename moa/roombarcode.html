@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>מדבקת ברקוד – אתר / מבנה / חדר</title>
 
+  <!-- ספריית JsBarcode -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 
   <style>
@@ -37,8 +38,12 @@
     label{display:block;font-size:14px;margin-bottom:4px;}
 
     select,input[type="text"]{
-      width:100%;padding:8px 10px;font-size:14px;
-      border-radius:10px;border:1px solid #ccd3de;
+      width:100%;
+      padding:8px 10px;
+      font-size:14px;
+      border-radius:10px;
+      border:1px solid #ccd3de;
+      outline:none;
     }
 
     .buttons{
@@ -60,7 +65,7 @@
     #printBtn{background:#0078ff;color:white;}
     #clearRoomBtn{background:#e9edf4;color:#111;}
 
-    /* ---------- מסך תצוגה לפני הדפסה ---------- */
+    /* שכבת תצוגה לפני הדפסה */
     #previewOverlay{
       position:fixed;
       top:0;left:0;right:0;bottom:0;
@@ -71,6 +76,7 @@
       padding:20px;
       z-index:9999;
     }
+
     #previewBox{
       background:white;
       border-radius:16px;
@@ -106,7 +112,11 @@
       #printArea{display:block !important;}
     }
 
-    #printArea{display:none;text-align:center;padding:12px;}
+    #printArea{
+      display:none;
+      text-align:center;
+      padding:12px;
+    }
   </style>
 </head>
 <body>
@@ -138,84 +148,111 @@
     </div>
 
     <div class="buttons">
-      <button id="clearRoomBtn">איפוס חדר</button>
-      <button id="printBtn">הדפס מדבקה</button>
+      <button id="clearRoomBtn" type="button">איפוס חדר</button>
+      <!-- כאן החיבור הישיר לפונקציה -->
+      <button id="printBtn" type="button" onclick="onPrintClick()">הדפס מדבקה</button>
     </div>
   </div>
 
-  <!-- שכבת תצוגה מקדימה -->
+  <!-- תצוגה מקדימה -->
   <div id="previewOverlay">
     <div id="previewBox">
-      <div>תצוגה לפני הדפסה</div>
+      <div style="margin-bottom:6px;">תצוגה לפני הדפסה</div>
       <svg id="previewBarcode"></svg>
       <div id="previewText" style="margin-top:10px;font-size:14px;"></div>
 
       <div id="previewButtons">
-        <button id="cancelPrint">ביטול</button>
-        <button id="confirmPrint">הדפס</button>
+        <button id="cancelPrint" type="button">ביטול</button>
+        <button id="confirmPrint" type="button">הדפס</button>
       </div>
     </div>
   </div>
 
-  <!-- אזור שמודפס בפועל -->
+  <!-- מה שבאמת יודפס -->
   <div id="printArea">
     <svg id="barcode"></svg>
     <div id="printText" style="margin-top:8px;font-size:14px;"></div>
   </div>
 
   <script>
-    const siteSelect = document.getElementById('siteSelect');
-    const buildingInput = document.getElementById('buildingInput');
-    const roomInput = document.getElementById('roomInput');
-    const printBtn = document.getElementById('printBtn');
-    const clearRoomBtn = document.getElementById('clearRoomBtn');
+    const siteSelect       = document.getElementById('siteSelect');
+    const buildingInput    = document.getElementById('buildingInput');
+    const roomInput        = document.getElementById('roomInput');
+    const clearRoomBtn     = document.getElementById('clearRoomBtn');
 
-    const previewOverlay = document.getElementById('previewOverlay');
-    const previewBarcode = document.getElementById('previewBarcode');
-    const previewText = document.getElementById('previewText');
+    const previewOverlay   = document.getElementById('previewOverlay');
+    const previewBarcode   = document.getElementById('previewBarcode');
+    const previewText      = document.getElementById('previewText');
 
     const printAreaBarcode = document.getElementById('barcode');
-    const printText = document.getElementById('printText');
+    const printText        = document.getElementById('printText');
 
-    const confirmPrint = document.getElementById('confirmPrint');
-    const cancelPrint = document.getElementById('cancelPrint');
+    const cancelPrintBtn   = document.getElementById('cancelPrint');
+    const confirmPrintBtn  = document.getElementById('confirmPrint');
 
-    clearRoomBtn.addEventListener('click', ()=> roomInput.value = "");
+    // איפוס חדר
+    clearRoomBtn.addEventListener('click', () => {
+      roomInput.value = "";
+      roomInput.focus();
+    });
 
-    printBtn.addEventListener('click', function(){
-      const site = siteSelect.value.trim();
+    // פונקציה שנקראת בלחיצה על "הדפס מדבקה"
+    function onPrintClick(){
+      const site     = siteSelect.value.trim();
       const building = buildingInput.value.trim();
-      const room = roomInput.value.trim();
+      const room     = roomInput.value.trim();
 
       if(!site){ alert("בחר אתר"); return; }
       if(!building){ alert("הכנס מבנה"); return; }
       if(!room){ alert("הכנס חדר"); return; }
 
+      // בדיקה אם JsBarcode נטען
+      if (typeof JsBarcode === "undefined"){
+        alert("ספריית הברקוד לא נטענה. ודא שיש חיבור לאינטרנט או שתוריד את הספרייה לקובץ מקומי.");
+        return;
+      }
+
       const data = `${site}|${building}|${room}`;
 
-      // תצוגה מקדימה
-      JsBarcode(previewBarcode, data, {format:"CODE128", width:2, height:60});
-      previewText.textContent = `אתר: ${site} | מבנה: ${building} | חדר: ${room}`;
+      try{
+        // תצוגה מקדימה
+        JsBarcode(previewBarcode, data, {
+          format:"CODE128",
+          width:2,
+          height:60,
+          displayValue:false
+        });
+        previewText.textContent = `אתר: ${site} | מבנה: ${building} | חדר: ${room}`;
+        previewOverlay.style.display = "flex";
 
-      previewOverlay.style.display = "flex";
+        // כפתור ביטול סוגר חלון
+        cancelPrintBtn.onclick = () => {
+          previewOverlay.style.display = "none";
+        };
 
-      // כפתור ביטול
-      cancelPrint.onclick = () => {
-        previewOverlay.style.display = "none";
-      };
+        // כפתור הדפס – יוצר שוב ברקוד לאזור ההדפסה ומדפיס
+        confirmPrintBtn.onclick = () => {
+          JsBarcode(printAreaBarcode, data, {
+            format:"CODE128",
+            width:2,
+            height:60,
+            displayValue:false
+          });
+          printText.textContent = `אתר: ${site} | מבנה: ${building} | חדר: ${room}`;
 
-      // כפתור הדפסה
-      confirmPrint.onclick = () => {
-        JsBarcode(printAreaBarcode, data, {format:"CODE128", width:2, height:60});
-        printText.textContent = `אתר: ${site} | מבנה: ${building} | חדר: ${room}`;
+          previewOverlay.style.display = "none";
+          window.print();
 
-        previewOverlay.style.display = "none";
-        window.print();
+          // אחרי ההדפסה – איפוס חדר
+          roomInput.value = "";
+          roomInput.focus();
+        };
 
-        roomInput.value = "";
-      };
-    });
+      }catch(e){
+        console.error(e);
+        alert("אירעה שגיאה ביצירת הברקוד.");
+      }
+    }
   </script>
-
 </body>
 </html>
