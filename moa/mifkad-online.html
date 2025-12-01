@@ -177,6 +177,7 @@
       color:var(--muted);
     }
 
+    /* סורק מצלמה – שכבת וידאו */
     #scannerOverlay{
       position:fixed;
       inset:0;
@@ -200,9 +201,21 @@
 <body>
 
   <h1>מפקד ציוד</h1>
-  <div class="subtitle">סריקת תג עובד ופריטי ציוד, שמירה ישירות לשרת</div>
+  <div class="subtitle">סריקת מיקום, תג עובד ופריטי ציוד, שמירה ישירות לשרת</div>
 
-  <!-- אזור עובד -->
+  <!-- 1. אזור חדר / מיקום (קודם) -->
+  <div class="card">
+    <div class="section-title">סריקת חדר / מיקום עובד</div>
+    <div class="row">
+      <input id="roomLocationInput" type="text"
+             placeholder="סרוק ברקוד חדר (לדוגמה: L 291 6)" />
+    </div>
+    <div class="row wrap">
+      <button class="btn-main" onclick="setRoomLocation()">שמור מיקום</button>
+    </div>
+  </div>
+
+  <!-- 2. אזור עובד -->
   <div class="card">
     <div class="section-title">סריקת תג עובד / הקלדת מספר זהות</div>
     <div class="row">
@@ -231,7 +244,7 @@
     <div class="status-pill" id="onlineStatus">מצב שמירה: ממתין…</div>
   </div>
 
-  <!-- אזור אינוונטר -->
+  <!-- 3. אזור אינוונטר -->
   <div class="card">
     <div class="section-title">סריקת מספר הקלד קוד / מספר אינוונטר</div>
     <div class="row">
@@ -249,19 +262,7 @@
     </div>
   </div>
 
-  <!-- אזור חדר / מיקום -->
-  <div class="card">
-    <div class="section-title">סריקת חדר / מיקום עובד</div>
-    <div class="row">
-      <input id="roomLocationInput" type="text"
-             placeholder="סרוק ברקוד חדר (לדוגמה: L 291 6)" />
-    </div>
-    <div class="row wrap">
-      <button class="btn-main" onclick="setRoomLocation()">שמור מיקום לעובד</button>
-    </div>
-  </div>
-
-  <!-- רשימת עובדים ופריטים -->
+  <!-- 4. רשימת עובדים ופריטים -->
   <div class="card">
     <div class="section-title">אינוונטר לעובד</div>
     <div id="groupsList" class="groups-list"></div>
@@ -272,7 +273,7 @@
     </div>
   </div>
 
-  <!-- חיפוש -->
+  <!-- 5. חיפוש -->
   <div class="card search-area">
     <div class="section-title">חיפוש עובד / אינוונטר</div>
     <div class="row">
@@ -321,15 +322,20 @@
     const db  = getFirestore(app);
     const STATE_DOC = doc(db, "mifkad", "state");
 
+    // ----- מצב אפליקציה -----
     let state = {
-      currentEmployee: null,
+      currentEmployee: null,      // ת.ז נוכחית
       employees: {},              // id -> { id, name, items: [{inv, ts}], location?: {site,building,room} }
       lastInv: null
     };
 
-    let allInvSet = new Set();
+    let allInvSet = new Set();    // לבדיקת כפילויות
     let saving = false;
 
+    // מיקום שנסרק לפני שנבחר עובד
+    let pendingLocation = null;
+
+    // ----- עזרי DOM -----
     const employeeIdInput   = document.getElementById("employeeIdInput");
     const employeeNameInput = document.getElementById("employeeNameInput");
     const inventoryInput    = document.getElementById("inventoryInput");
@@ -347,6 +353,7 @@
     const activeLocationBox = document.getElementById("activeLocationBox");
     const activeLocationVal = document.getElementById("activeLocationValue");
 
+    // ----- צלילים -----
     const audioCtx = (window.AudioContext || window.webkitAudioContext) 
       ? new (window.AudioContext || window.webkitAudioContext)() 
       : null;
@@ -364,6 +371,7 @@
       setTimeout(()=>{o.stop();}, 120);
     }
 
+    // ----- Firestore: טעינה ושמירה -----
     async function loadState(){
       try{
         const snap = await getDoc(STATE_DOC);
@@ -400,41 +408,14 @@
       }
     }
 
-    function setActiveEmployee(){
-      const id = employeeIdInput.value.trim();
-      if(!id){return;}
-      if(!state.employees[id]){
-        state.employees[id] = { id, name:"", items:[] };
-      }
-      state.currentEmployee = id;
-      employeeIdInput.value = "";
-      renderAll();
-      saveState();
-      playBeep("scan");
-    }
+    // ----- לוגיקה עסקית -----
 
-    function saveEmployeeName(){
-      const id = state.currentEmployee;
-      if(!id){
-        alert("בחר קודם עובד פעיל.");
-        return;
-      }
-      const name = employeeNameInput.value.trim();
-      state.employees[id].name = name;
-      renderAll();
-      saveState();
-    }
-
+    // 1. סריקת חדר / מיקום
     function setRoomLocation(){
-      const empId = state.currentEmployee;
-      if(!empId){
-        alert("קודם סרוק/בחר עובד.");
-        playBeep("err");
-        return;
-      }
       const raw = roomLocationInput.value.trim();
       if(!raw){ return; }
 
+      // מנקים מפרידים (- ,) ורווחים כפולים
       const cleaned = raw.replace(/[-,]/g," ");
       const parts = cleaned.trim().split(/\s+/);
       if(parts.length < 3){
@@ -453,15 +434,54 @@
         return;
       }
 
-      if(!state.employees[empId]){
-        state.employees[empId] = { id: empId, name: "", items: [] };
+      const loc = {site, building, room};
+
+      if(state.currentEmployee && state.employees[state.currentEmployee]){
+        // יש עובד פעיל – משייכים אליו
+        state.employees[state.currentEmployee].location = loc;
+        pendingLocation = null;
+      }else{
+        // עדיין אין עובד – נשמור זמנית עד סריקת עובד
+        pendingLocation = loc;
       }
 
-      state.employees[empId].location = { site, building, room };
       roomLocationInput.value = "";
       renderAll();
       saveState();
       playBeep("ok");
+    }
+
+    // 2. עובד פעיל
+    function setActiveEmployee(){
+      const id = employeeIdInput.value.trim();
+      if(!id){return;}
+      if(!state.employees[id]){
+        state.employees[id] = { id, name:"", items:[] };
+      }
+      state.currentEmployee = id;
+
+      // אם יש מיקום שנשמר לפני בחירת העובד – משייכים אותו עכשיו
+      if(pendingLocation){
+        state.employees[id].location = pendingLocation;
+        pendingLocation = null;
+      }
+
+      employeeIdInput.value = "";
+      renderAll();
+      saveState();
+      playBeep("scan");
+    }
+
+    function saveEmployeeName(){
+      const id = state.currentEmployee;
+      if(!id){
+        alert("בחר קודם עובד פעיל.");
+        return;
+      }
+      const name = employeeNameInput.value.trim();
+      state.employees[id].name = name;
+      renderAll();
+      saveState();
     }
 
     function rebuildInvSet(){
@@ -528,6 +548,7 @@
       state.currentEmployee = null;
       state.employees = {};
       state.lastInv = null;
+      pendingLocation = null;
       rebuildInvSet();
       renderAll();
       saveState();
@@ -539,12 +560,13 @@
       state.currentEmployee = null;
       state.employees = {};
       state.lastInv = null;
+      pendingLocation = null;
       rebuildInvSet();
       renderAll();
       saveState();
     }
 
-    // *** ייצוא ל-TSV (לגוגל שיטס, UTF-8 תקין) ***
+    // ----- ייצוא לאקסל (CSV) – לפי הקוד הישן שלך, עם העמודות החדשות -----
     function exportToExcel(){
       const rows = [["Employee Name","Inventory Number","Employee ID","Date Time","Site","Building","Room"]];
       Object.values(state.employees).forEach(emp=>{
@@ -563,25 +585,29 @@
         });
       });
 
-      let tsv = "";
+      let csv = "";
       rows.forEach(r=>{
-        tsv += r.map(v=> String(v).replace(/\t/g," ")).join("\t") + "\r\n";
+        csv += r
+          .map(v => `"${String(v).replace(/"/g,'""')}"`)
+          .join(",") + "\r\n";
       });
 
-      const blob = new Blob(["\uFEFF" + tsv], {
-        type:"text/tab-separated-values;charset=utf-8;"
+      // בדיוק כמו בקוד המקורי – CSV + BOM + UTF-8
+      const blob = new Blob(["\uFEFF" + csv],{
+        type:"text/csv;charset=utf-8;"
       });
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "mifkad_export.tsv";
+      a.download = "mifkad_export.csv";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
 
+    // ----- חיפוש -----
     function runSearch(){
       const q = searchInput.value.trim();
       if(!q){
@@ -625,7 +651,9 @@
       searchResults.innerHTML = html;
     }
 
+    // ----- רינדור -----
     function renderAll(){
+      // עובד פעיל
       if(state.currentEmployee && state.employees[state.currentEmployee]){
         const emp = state.employees[state.currentEmployee];
         activeEmployeeBox.style.display = "block";
@@ -665,8 +693,10 @@
           : "";
 
         const idDiv = document.createElement("div");
-        idDiv.innerHTML = `<span class="group-id"><span class="label">ת.ז</span> ${emp.id}</span>
-                           <div class="group-meta">${emp.name ? emp.name+" · " : ""}${emp.items.length} פריטים${locText}</div>`;
+        idDiv.innerHTML = `
+          <span class="group-id"><span class="label">ת.ז</span> ${emp.id}</span>
+          <div class="group-meta">${emp.name ? emp.name+" · " : ""}${emp.items.length} פריטים${locText}</div>
+        `;
         header.appendChild(idDiv);
 
         const actions = document.createElement("div");
@@ -702,17 +732,28 @@
     function selectEmployee(empId){
       if(!state.employees[empId]) return;
       state.currentEmployee = empId;
+
+      // אם היה מיקום ממתין – משייכים אותו עכשיו
+      if(pendingLocation){
+        state.employees[empId].location = pendingLocation;
+        pendingLocation = null;
+      }
+
       renderAll();
       saveState();
     }
 
+    // ----- סורק מצלמה -----
     const overlay = document.getElementById("scannerOverlay");
     const videoEl = document.getElementById("scannerVideo");
     let cameraStream = null;
     let scanLoopRunning = false;
     let barcodeDetector = null;
 
+    // 🔒 דגל לפתיחה חד-פעמית של המצלמה לכל טעינת דף
     let cameraUnlocked = false;
+
+    // ⏱ סריקה כל 3 שניות + זיכרון של הברקוד האחרון כדי לא לשגע
     let scanIntervalId = null;
     let lastScannedValue = null;
 
@@ -744,6 +785,7 @@
           clearInterval(scanIntervalId);
           scanIntervalId = null;
         }
+        // סריקה כל 3 שניות בלי לסגור את המצלמה
         scanIntervalId = setInterval(scanLoop, 3000);
         playBeep("scan");
       }catch(e){
@@ -761,7 +803,7 @@
           if(value && value !== lastScannedValue){
             lastScannedValue = value;
             inventoryInput.value = value;
-            addInventory();
+            addInventory();  // לא סוגר מצלמה – ממשיך סריקה עד שלוחצים 'בטל'
           }
         }
       }catch(e){
@@ -782,12 +824,14 @@
       }
     }
 
+    // ----- Toast -----
     function showToast(msg){
       toast.textContent = msg;
       toast.style.display = "block";
       setTimeout(()=>{toast.style.display="none";},1000);
     }
 
+    // תמיכה ב־Enter בסורק ברקוד לשדה האינוונטר
     inventoryInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -795,6 +839,7 @@
       }
     });
 
+    // ----- חשיפה לפונקציות גלובליות -----
     window.setActiveEmployee  = setActiveEmployee;
     window.saveEmployeeName   = saveEmployeeName;
     window.addInventory       = addInventory;
@@ -809,6 +854,7 @@
     window.stopCameraScan     = stopCameraScan;
     window.setRoomLocation    = setRoomLocation;
 
+    // טעינה ראשונית
     loadState();
   </script>
 </body>
