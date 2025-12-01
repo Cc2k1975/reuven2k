@@ -118,7 +118,7 @@
       margin-top:4px;
     }
 
-    /* הדפסה – רק אזור המדבקה, ב-50×20 מ״מ */
+    /* הדפסה – רק המדבקה, 50×20 מ"מ */
     @page{
       size:50mm 20mm;
       margin:0;
@@ -138,7 +138,7 @@
       }
       #printBarcode{
         width:48mm;
-        height:18mm;
+        height:14mm;
       }
     }
 
@@ -175,7 +175,7 @@
 
     <div class="field">
       <label for="roomInput">Room (מספר בלבד)</label>
-      <input type="number" id="roomInput" inputmode="numeric" placeholder="לדוגמה: 6">
+      <input type="number" id="roomInput" inputmode="numeric" placeholder="לדוגמה: 456">
     </div>
 
     <div class="buttons">
@@ -192,8 +192,8 @@
 
     <div class="hint">
       להדפסה מהסמארטפון:<br>
-      • או לבחור שירות הדפסה מהחלון של אנדרואיד<br>
-      • או ללחוץ "הורד כתמונה" → לפתוח ב-Print Master ולהדפיס על 50×20mm
+      • הדפס מהחלון של אנדרואיד (אם אפשר)<br>
+      • או "הורד כתמונה" → לפתוח באפליקציית Phomemo / Print Master ולהדפיס 50×20mm
     </div>
   </div>
 
@@ -237,13 +237,27 @@
       return `${site} ${b} ${r}`;  // מה שנכנס לאקסל
     }
 
-    function renderBarcode(targetSvg, data){
+    // חישוב רוחב פס כך שהברקוד ייכנס ל-50×20 מ"מ
+    function computeBarWidth(data){
+      // רוחב פיקטיבי של 380px למדבקה (קצת פחות מ-50 מ"מ)
+      const maxWidthPx = 380;
+      const len = data.length;
+      const approxModules = len * 11 + 35; // הערכה למספר המודולים ב-CODE128
+      let w = maxWidthPx / approxModules;  // px לכל מודול
+
+      if(w > 3) w = 3;      // לא עבה מדי
+      if(w < 0.6) w = 0.6;  // לא דק מדי כדי שסורק יזהה
+      return w;
+    }
+
+    function renderBarcode(targetSvg, data, forPrint){
+      const barWidth = computeBarWidth(data);
       JsBarcode(targetSvg, data, {
         format:"CODE128",
-        width:2,
-        height:60,
+        width:barWidth,
+        height: forPrint ? 50 : 60,
         displayValue:false,
-        margin:0
+        margin:2
       });
     }
 
@@ -252,8 +266,8 @@
       const data = getData();
       if(!data) return;
 
-      renderBarcode(previewSvg, data);
-      renderBarcode(printBarcode, data);
+      renderBarcode(previewSvg, data, false);
+      renderBarcode(printBarcode, data, true);
 
       window.print();
     });
@@ -263,9 +277,8 @@
       const data = getData();
       if(!data) return;
 
-      renderBarcode(previewSvg, data);
+      renderBarcode(previewSvg, data, false);
 
-      // ממירים את ה-SVG לקנבס ואז ל-PNG
       const svgData = new XMLSerializer().serializeToString(previewSvg);
       const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
       const url = URL.createObjectURL(svgBlob);
@@ -273,8 +286,8 @@
       const img = new Image();
       img.onload = function(){
         const canvas = document.createElement('canvas');
-        canvas.width  = 400;  // בערך 50 מ״מ ב-203dpi
-        canvas.height = 160;  // בערך 20 מ״מ
+        canvas.width  = 400;  // כ-50 מ"מ ברזולוציה סבירה
+        canvas.height = 160;  // כ-20 מ"מ
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0,0,canvas.width,canvas.height);
