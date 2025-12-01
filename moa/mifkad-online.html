@@ -177,7 +177,6 @@
       color:var(--muted);
     }
 
-    /* סורק מצלמה – שכבת וידאו */
     #scannerOverlay{
       position:fixed;
       inset:0;
@@ -322,17 +321,15 @@
     const db  = getFirestore(app);
     const STATE_DOC = doc(db, "mifkad", "state");
 
-    // ----- מצב אפליקציה -----
     let state = {
-      currentEmployee: null,      // ת.ז נוכחית
+      currentEmployee: null,
       employees: {},              // id -> { id, name, items: [{inv, ts}], location?: {site,building,room} }
       lastInv: null
     };
 
-    let allInvSet = new Set();    // לבדיקת כפילויות
+    let allInvSet = new Set();
     let saving = false;
 
-    // ----- עזרי DOM -----
     const employeeIdInput   = document.getElementById("employeeIdInput");
     const employeeNameInput = document.getElementById("employeeNameInput");
     const inventoryInput    = document.getElementById("inventoryInput");
@@ -350,7 +347,6 @@
     const activeLocationBox = document.getElementById("activeLocationBox");
     const activeLocationVal = document.getElementById("activeLocationValue");
 
-    // ----- צלילים -----
     const audioCtx = (window.AudioContext || window.webkitAudioContext) 
       ? new (window.AudioContext || window.webkitAudioContext)() 
       : null;
@@ -368,7 +364,6 @@
       setTimeout(()=>{o.stop();}, 120);
     }
 
-    // ----- Firestore: טעינה ושמירה -----
     async function loadState(){
       try{
         const snap = await getDoc(STATE_DOC);
@@ -405,7 +400,6 @@
       }
     }
 
-    // ----- לוגיקה עסקית -----
     function setActiveEmployee(){
       const id = employeeIdInput.value.trim();
       if(!id){return;}
@@ -441,7 +435,6 @@
       const raw = roomLocationInput.value.trim();
       if(!raw){ return; }
 
-      // תומך גם ב־"L 291 6" וגם ב־"L-291-6" וכו'
       const cleaned = raw.replace(/[-,]/g," ");
       const parts = cleaned.trim().split(/\s+/);
       if(parts.length < 3){
@@ -551,7 +544,7 @@
       saveState();
     }
 
-    // ----- ייצוא לאקסל (CSV) -----
+    // *** ייצוא ל-TSV (לגוגל שיטס, UTF-8 תקין) ***
     function exportToExcel(){
       const rows = [["Employee Name","Inventory Number","Employee ID","Date Time","Site","Building","Room"]];
       Object.values(state.employees).forEach(emp=>{
@@ -569,24 +562,26 @@
           ]);
         });
       });
-      let csv = "";
+
+      let tsv = "";
       rows.forEach(r=>{
-        csv += r.map(v=> `"${String(v).replace(/"/g,'""')}"`).join(",") + "\r\n";
+        tsv += r.map(v=> String(v).replace(/\t/g," ")).join("\t") + "\r\n";
       });
 
-      const blob = new Blob(["\uFEFF" + csv],{type:"text/csv;charset=utf-8;"});
+      const blob = new Blob(["\uFEFF" + tsv], {
+        type:"text/tab-separated-values;charset=utf-8;"
+      });
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "mifkad_export.csv";
+      a.download = "mifkad_export.tsv";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
 
-    // ----- חיפוש -----
     function runSearch(){
       const q = searchInput.value.trim();
       if(!q){
@@ -630,7 +625,6 @@
       searchResults.innerHTML = html;
     }
 
-    // ----- רינדור -----
     function renderAll(){
       if(state.currentEmployee && state.employees[state.currentEmployee]){
         const emp = state.employees[state.currentEmployee];
@@ -712,7 +706,6 @@
       saveState();
     }
 
-    // ----- סורק מצלמה -----
     const overlay = document.getElementById("scannerOverlay");
     const videoEl = document.getElementById("scannerVideo");
     let cameraStream = null;
@@ -802,7 +795,6 @@
       }
     });
 
-    // ----- חשיפה לפונקציות גלובליות -----
     window.setActiveEmployee  = setActiveEmployee;
     window.saveEmployeeName   = saveEmployeeName;
     window.addInventory       = addInventory;
