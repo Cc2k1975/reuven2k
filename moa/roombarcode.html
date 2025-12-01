@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>מדבקת ברקוד – אתר / מבנה / חדר</title>
+
+  <!-- ספריית JsBarcode ליצירת ברקוד CODE128 -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+
+    body{
+      font-family:system-ui,"Heebo","Arial",sans-serif;
+      background:#f2f5f9;
+      color:#111;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+
+    .app{
+      background:#fff;
+      border-radius:16px;
+      box-shadow:0 10px 25px rgba(0,0,0,.1);
+      max-width:420px;
+      width:100%;
+      padding:20px 18px 18px;
+    }
+
+    h1{
+      font-size:20px;
+      margin-bottom:8px;
+      text-align:center;
+    }
+
+    .subtitle{
+      font-size:13px;
+      color:#667;
+      text-align:center;
+      margin-bottom:16px;
+    }
+
+    .field{
+      margin-bottom:12px;
+    }
+
+    label{
+      display:block;
+      font-size:14px;
+      margin-bottom:4px;
+    }
+
+    select,
+    input[type="text"]{
+      width:100%;
+      padding:8px 10px;
+      font-size:14px;
+      border-radius:10px;
+      border:1px solid #ccd3de;
+      outline:none;
+      transition:border-color .15s, box-shadow .15s;
+    }
+
+    select:focus,
+    input[type="text"]:focus{
+      border-color:#0078ff;
+      box-shadow:0 0 0 2px rgba(0,120,255,.15);
+    }
+
+    .hint{
+      font-size:12px;
+      color:#8893a3;
+      margin-top:2px;
+    }
+
+    .buttons{
+      margin-top:16px;
+      display:flex;
+      gap:8px;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    button{
+      cursor:pointer;
+      border:none;
+      border-radius:999px;
+      padding:9px 16px;
+      font-size:14px;
+      font-weight:600;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      transition:transform .1s, box-shadow .1s, background .1s;
+      white-space:nowrap;
+    }
+
+    button:active{
+      transform:translateY(1px);
+      box-shadow:none;
+    }
+
+    #printBtn{
+      flex:1;
+      background:#0078ff;
+      color:#fff;
+      box-shadow:0 6px 14px rgba(0,120,255,.35);
+    }
+
+    #printBtn:hover{
+      background:#0063d1;
+    }
+
+    #clearRoomBtn{
+      background:#e9edf4;
+      color:#333;
+    }
+
+    .preview-note{
+      margin-top:10px;
+      font-size:12px;
+      color:#7a8596;
+    }
+
+    /* אזור ההדפסה – ברירת מחדל מוסתר במסך רגיל */
+    #printArea{
+      display:none;
+      text-align:center;
+      padding:12px;
+    }
+
+    #printText{
+      margin-top:8px;
+      font-size:14px;
+    }
+
+    /* מצב הדפסה – מציג רק את המדבקה */
+    @media print{
+      body{
+        background:#fff;
+        padding:0;
+        margin:0;
+      }
+      .app{
+        display:none;
+      }
+      #printArea{
+        display:block;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- מסך ההגדרות -->
+  <div class="app">
+    <h1>יצירת מדבקת ברקוד</h1>
+    <div class="subtitle">
+      אתר + מבנה + חדר → ברקוד למדפסת מדבקות
+    </div>
+
+    <div class="field">
+      <label for="siteSelect">אתר</label>
+      <select id="siteSelect">
+        <option value="">בחר אתר...</option>
+        <!-- תעדכן כאן את רשימת האתרים שלך -->
+        <option value="נהריה">נהריה</option>
+        <option value="עכו">עכו</option>
+        <option value="חיפה">חיפה</option>
+        <option value="משרד ראשי">משרד ראשי</option>
+      </select>
+      <div class="hint">הבחירה נשמרת אוטומטית עד שתשנה.</div>
+    </div>
+
+    <div class="field">
+      <label for="buildingInput">מבנה</label>
+      <input type="text" id="buildingInput" placeholder="לדוגמה: A / בניין 3 / מזרחי" />
+      <div class="hint">נשמר אוטומטית עד שתשנה.</div>
+    </div>
+
+    <div class="field">
+      <label for="roomInput">חדר</label>
+      <input type="text" id="roomInput" placeholder="לדוגמה: 204 / מחסן 7" />
+      <div class="hint">מתאפס אוטומטית אחרי כל הדפסה.</div>
+    </div>
+
+    <div class="buttons">
+      <button id="clearRoomBtn" type="button">איפוס חדר</button>
+      <button id="printBtn" type="button">הדפס מדבקה</button>
+    </div>
+
+    <div class="preview-note">
+      בעתיד אפשר לבנות דף סריקה שיקרא את הברקוד ויזין אוטומטית אתר / מבנה / חדר לטבלה.
+    </div>
+  </div>
+
+  <!-- אזור שמודפס למדבקה בלבד -->
+  <div id="printArea">
+    <!-- הברקוד נוצר כאן -->
+    <svg id="barcode"></svg>
+    <!-- הטקסט הקריא מתחת לברקוד -->
+    <div id="printText"></div>
+  </div>
+
+  <script>
+    const siteSelect = document.getElementById('siteSelect');
+    const buildingInput = document.getElementById('buildingInput');
+    const roomInput = document.getElementById('roomInput');
+    const printBtn = document.getElementById('printBtn');
+    const clearRoomBtn = document.getElementById('clearRoomBtn');
+    const printText = document.getElementById('printText');
+
+    const STORAGE_KEYS = {
+      site: 'label_site',
+      building: 'label_building'
+    };
+
+    // טעינת ערכים שנשמרו לוקלית
+    function loadSavedValues(){
+      const savedSite = localStorage.getItem(STORAGE_KEYS.site);
+      if(savedSite){
+        // אם האתר עדיין קיים ברשימה – בחר אותו
+        const optionExists = [...siteSelect.options].some(opt => opt.value === savedSite);
+        if(optionExists) siteSelect.value = savedSite;
+      }
+
+      const savedBuilding = localStorage.getItem(STORAGE_KEYS.building);
+      if(savedBuilding){
+        buildingInput.value = savedBuilding;
+      }
+    }
+
+    // שמירת שינויים לוקלית
+    siteSelect.addEventListener('change', () => {
+      localStorage.setItem(STORAGE_KEYS.site, siteSelect.value);
+    });
+
+    buildingInput.addEventListener('input', () => {
+      localStorage.setItem(STORAGE_KEYS.building, buildingInput.value.trim());
+    });
+
+    clearRoomBtn.addEventListener('click', () => {
+      roomInput.value = '';
+      roomInput.focus();
+    });
+
+    // בדיקה לפני הדפסה + יצירת ברקוד
+    printBtn.addEventListener('click', () => {
+      const site = siteSelect.value.trim();
+      const building = buildingInput.value.trim();
+      const room = roomInput.value.trim();
+
+      if(!site){
+        alert('אנא בחר אתר לפני הדפסה.');
+        siteSelect.focus();
+        return;
+      }
+      if(!building){
+        alert('אנא הזן מבנה לפני הדפסה.');
+        buildingInput.focus();
+        return;
+      }
+      if(!room){
+        alert('אנא הזן חדר לפני הדפסה.');
+        roomInput.focus();
+        return;
+      }
+
+      // הפורמט של הטקסט בתוך הברקוד
+      // בעתיד, בסריקה, אפשר לפצל לפי "|"
+      const barcodeData = `${site}|${building}|${room}`;
+
+      // יצירת הברקוד בעזרת JsBarcode
+      try{
+        JsBarcode("#barcode", barcodeData, {
+          format: "CODE128",
+          lineColor: "#000000",
+          width: 2,
+          height: 60,
+          displayValue: false,
+          margin: 8
+        });
+
+        // טקסט קריא מתחת לברקוד (לבן אדם)
+        printText.textContent = `אתר: ${site} | מבנה: ${building} | חדר: ${room}`;
+
+        // הדפסה – תודפס רק המדבקה (לפי @media print)
+        window.print();
+
+        // אחרי ההדפסה – אפס את החדר בלבד
+        roomInput.value = '';
+        roomInput.focus();
+      } catch(err){
+        console.error(err);
+        alert('אירעה שגיאה ביצירת הברקוד. בדוק את הנתונים ונסה שוב.');
+      }
+    });
+
+    // טעינת ערכים בהתחלה
+    loadSavedValues();
+  </script>
+</body>
+</html>
