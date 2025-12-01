@@ -212,7 +212,6 @@
     </div>
     <div class="row wrap">
       <button class="btn-main" onclick="setActiveEmployee()">הוסף תג עובד</button>
-      <!-- כפתור 'נקה נתונים' הוסר לפי הבקשה -->
     </div>
 
     <div class="row">
@@ -223,6 +222,11 @@
     <div id="activeEmployeeBox" class="active-employee" style="display:none">
       <span class="label">מספר זהות העובד</span>
       <span class="value" id="activeEmployeeValue"></span>
+    </div>
+
+    <div class="active-inv" id="activeLocationBox" style="display:none">
+      <span class="label">מיקום נוכחי של העובד (אתר · מבנה · חדר)</span>
+      <span class="value" id="activeLocationValue"></span>
     </div>
 
     <div class="status-pill" id="onlineStatus">מצב שמירה: ממתין…</div>
@@ -243,6 +247,18 @@
     <div id="lastInvBox" class="active-inv" style="display:none">
       <span class="label">אינוונטר אחרון שנסרק</span>
       <span class="value" id="lastInvValue"></span>
+    </div>
+  </div>
+
+  <!-- אזור חדר / מיקום -->
+  <div class="card">
+    <div class="section-title">סריקת חדר / מיקום עובד</div>
+    <div class="row">
+      <input id="roomLocationInput" type="text"
+             placeholder="סרוק ברקוד חדר (לדוגמה: L 291 6)" />
+    </div>
+    <div class="row wrap">
+      <button class="btn-main" onclick="setRoomLocation()">שמור מיקום לעובד</button>
     </div>
   </div>
 
@@ -309,7 +325,7 @@
     // ----- מצב אפליקציה -----
     let state = {
       currentEmployee: null,      // ת.ז נוכחית
-      employees: {},              // id -> { id, name, items: [{inv, ts}] }
+      employees: {},              // id -> { id, name, items: [{inv, ts}], location?: {site,building,room} }
       lastInv: null
     };
 
@@ -329,6 +345,10 @@
     const searchInput       = document.getElementById("searchInput");
     const searchResults     = document.getElementById("searchResults");
     const toast             = document.getElementById("toast");
+
+    const roomLocationInput = document.getElementById("roomLocationInput");
+    const activeLocationBox = document.getElementById("activeLocationBox");
+    const activeLocationVal = document.getElementById("activeLocationValue");
 
     // ----- צלילים -----
     const audioCtx = (window.AudioContext || window.webkitAudioContext) 
@@ -354,7 +374,6 @@
         const snap = await getDoc(STATE_DOC);
         if(snap.exists()){
           const data = snap.data();
-          // התאמה לגרסה ישנה אם צריך
           state = {
             currentEmployee: data.currentEmployee || null,
             employees: data.employees || {},
@@ -412,6 +431,46 @@
       saveState();
     }
 
+    function setRoomLocation(){
+      const empId = state.currentEmployee;
+      if(!empId){
+        alert("קודם סרוק/בחר עובד.");
+        playBeep("err");
+        return;
+      }
+      const raw = roomLocationInput.value.trim();
+      if(!raw){ return; }
+
+      // תומך גם ב־"L 291 6" וגם ב־"L-291-6" וכו'
+      const cleaned = raw.replace(/[-,]/g," ");
+      const parts = cleaned.trim().split(/\s+/);
+      if(parts.length < 3){
+        alert("פורמט מיקום לא תקין. צפה ל: אתר מבנה חדר (לדוגמה: L 291 6)");
+        playBeep("err");
+        return;
+      }
+
+      const site     = parts[0].toUpperCase();
+      const building = parts[1].replace(/\D/g,"");
+      const room     = parts[2].replace(/\D/g,"");
+
+      if(!site || !building || !room){
+        alert("לא זוהו אתר / מבנה / חדר מהמחרוזת.");
+        playBeep("err");
+        return;
+      }
+
+      if(!state.employees[empId]){
+        state.employees[empId] = { id: empId, name: "", items: [] };
+      }
+
+      state.employees[empId].location = { site, building, room };
+      roomLocationInput.value = "";
+      renderAll();
+      saveState();
+      playBeep("ok");
+    }
+
     function rebuildInvSet(){
       allInvSet = new Set();
       Object.values(state.employees).forEach(emp=>{
@@ -450,7 +509,6 @@
     }
 
     function deleteItem(empId, index){
-      // אישור לפני מחיקה
       if (!confirm("האם אתה בטוח שברצונך למחוק את הפריט?")) {
         return;
       }
@@ -483,7 +541,6 @@
     }
 
     function hardClearAll(){
-      // שתי שאלות, כמו שביקשת בעבר
       if(!confirm("אזהרה: פעולה זו תמחק את כל הנתונים מהשרת. להמשיך?")) return;
       if(!confirm("ווידוא נוסף: אתה בטוח שאתה רוצה למחוק לצמיתות?")) return;
       state.currentEmployee = null;
@@ -496,15 +553,19 @@
 
     // ----- ייצוא לאקסל (CSV) -----
     function exportToExcel(){
-      const rows = [["Employee Name","Inventory Number","Employee ID","Date Time"]];
+      const rows = [["Employee Name","Inventory Number","Employee ID","Date Time","Site","Building","Room"]];
       Object.values(state.employees).forEach(emp=>{
         emp.items.forEach(it=>{
           const dateStr = new Date(it.ts).toLocaleString("he-IL");
+          const loc = emp.location || {};
           rows.push([
             emp.name || "",
             it.inv,
             emp.id,
-            dateStr
+            dateStr,
+            loc.site || "",
+            loc.building || "",
+            loc.room || ""
           ]);
         });
       });
@@ -513,7 +574,6 @@
         csv += r.map(v=> `"${String(v).replace(/"/g,'""')}"`).join(",") + "\r\n";
       });
 
-      // 🔹 הוספת BOM לתחילת הקובץ כדי שגוגל שיטס יזהה UTF-8 והעברית לא תהיה ג'יבריש
       const blob = new Blob(["\uFEFF" + csv],{type:"text/csv;charset=utf-8;"});
 
       const url = URL.createObjectURL(blob);
@@ -572,13 +632,23 @@
 
     // ----- רינדור -----
     function renderAll(){
-      // עובד פעיל
       if(state.currentEmployee && state.employees[state.currentEmployee]){
+        const emp = state.employees[state.currentEmployee];
         activeEmployeeBox.style.display = "block";
         activeEmployeeVal.textContent = state.currentEmployee;
-        employeeNameInput.value = state.employees[state.currentEmployee].name || "";
+        employeeNameInput.value = emp.name || "";
+
+        if(emp.location){
+          activeLocationBox.style.display = "block";
+          activeLocationVal.textContent = `${emp.location.site} ${emp.location.building} ${emp.location.room}`;
+        }else{
+          activeLocationBox.style.display = "none";
+          activeLocationVal.textContent = "";
+        }
       }else{
         activeEmployeeBox.style.display = "none";
+        activeLocationBox.style.display = "none";
+        activeLocationVal.textContent = "";
       }
 
       if(state.lastInv){
@@ -596,9 +666,13 @@
         const header = document.createElement("div");
         header.className = "group-header";
 
+        const locText = emp.location
+          ? ` · ${emp.location.site} ${emp.location.building} ${emp.location.room}`
+          : "";
+
         const idDiv = document.createElement("div");
         idDiv.innerHTML = `<span class="group-id"><span class="label">ת.ז</span> ${emp.id}</span>
-                           <div class="group-meta">${emp.name ? emp.name+" · " : ""}${emp.items.length} פריטים</div>`;
+                           <div class="group-meta">${emp.name ? emp.name+" · " : ""}${emp.items.length} פריטים${locText}</div>`;
         header.appendChild(idDiv);
 
         const actions = document.createElement("div");
@@ -645,15 +719,11 @@
     let scanLoopRunning = false;
     let barcodeDetector = null;
 
-    // 🔒 דגל לפתיחה חד-פעמית של המצלמה לכל טעינת דף
     let cameraUnlocked = false;
-
-    // ⏱ סריקה כל 3 שניות + זיכרון של הברקוד האחרון כדי לא לשגע
     let scanIntervalId = null;
     let lastScannedValue = null;
 
     async function startCameraScan(){
-      // בדיקת קוד רק פעם אחת לכל טעינת דף
       if (!cameraUnlocked) {
         const code = prompt("הכנס קוד לפתיחת המצלמה");
         if (code !== "39800") {
@@ -681,7 +751,6 @@
           clearInterval(scanIntervalId);
           scanIntervalId = null;
         }
-        // סריקה כל 3 שניות בלי לסגור את המצלמה
         scanIntervalId = setInterval(scanLoop, 3000);
         playBeep("scan");
       }catch(e){
@@ -699,7 +768,7 @@
           if(value && value !== lastScannedValue){
             lastScannedValue = value;
             inventoryInput.value = value;
-            addInventory();  // לא סוגר מצלמה – ממשיך סריקה עד שלוחצים 'בטל'
+            addInventory();
           }
         }
       }catch(e){
@@ -720,14 +789,12 @@
       }
     }
 
-    // ----- Toast -----
     function showToast(msg){
       toast.textContent = msg;
       toast.style.display = "block";
       setTimeout(()=>{toast.style.display="none";},1000);
     }
 
-    // 🔹 הוספה: תמיכה ב־Enter בסורק ברקוד לשדה האינוונטר
     inventoryInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -748,13 +815,9 @@
     window.selectEmployee     = selectEmployee;
     window.startCameraScan    = startCameraScan;
     window.stopCameraScan     = stopCameraScan;
+    window.setRoomLocation    = setRoomLocation;
 
-    // טעינה ראשונית
     loadState();
-
-  </script>
-
-
   </script>
 </body>
 </html>
