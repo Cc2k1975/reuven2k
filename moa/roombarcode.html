@@ -175,7 +175,7 @@
 
     <div class="field">
       <label for="roomInput">Room (מספר בלבד)</label>
-      <input type="number" id="roomInput" inputmode="numeric" placeholder="לדוגמה: 456">
+      <input type="number" id="roomInput" inputmode="numeric" placeholder="לדוגמה: 6">
     </div>
 
     <div class="buttons">
@@ -220,7 +220,7 @@
       previewSvg.innerHTML = "";
     });
 
-    function getData(){
+    function getFields(){
       const site  = siteSelect.value.trim();
       const b     = buildingInput.value.trim();
       const r     = roomInput.value.trim();
@@ -234,19 +234,18 @@
         return null;
       }
 
-      return `${site} ${b} ${r}`;  // מה שנכנס לאקסל
+      return {site, b, r};
     }
 
     // חישוב רוחב פס כך שהברקוד ייכנס ל-50×20 מ"מ
     function computeBarWidth(data){
-      // רוחב פיקטיבי של 380px למדבקה (קצת פחות מ-50 מ"מ)
       const maxWidthPx = 380;
       const len = data.length;
-      const approxModules = len * 11 + 35; // הערכה למספר המודולים ב-CODE128
-      let w = maxWidthPx / approxModules;  // px לכל מודול
+      const approxModules = len * 11 + 35;
+      let w = maxWidthPx / approxModules;
 
-      if(w > 3) w = 3;      // לא עבה מדי
-      if(w < 0.6) w = 0.6;  // לא דק מדי כדי שסורק יזהה
+      if(w > 3) w = 3;
+      if(w < 0.6) w = 0.6;
       return w;
     }
 
@@ -261,10 +260,12 @@
       });
     }
 
-    // יצירת ברקוד להדפסה + חלון print של אנדרואיד
+    // הדפסה
     printBtn.addEventListener('click', () => {
-      const data = getData();
-      if(!data) return;
+      const fields = getFields();
+      if(!fields) return;
+
+      const data = `${fields.site} ${fields.b} ${fields.r}`;
 
       renderBarcode(previewSvg, data, false);
       renderBarcode(printBarcode, data, true);
@@ -272,10 +273,13 @@
       window.print();
     });
 
-    // הורדה כתמונה (PNG) – לשיתוף ל-Print Master
+    // הורדה כתמונה – שם קובץ: Site-Room-Building.png (למשל L-6-291.png)
     downloadBtn.addEventListener('click', () => {
-      const data = getData();
-      if(!data) return;
+      const fields = getFields();
+      if(!fields) return;
+
+      const data = `${fields.site} ${fields.b} ${fields.r}`;
+      const fileBaseName = `${fields.site}-${fields.r}-${fields.b}`; // L-6-291
 
       renderBarcode(previewSvg, data, false);
 
@@ -286,8 +290,8 @@
       const img = new Image();
       img.onload = function(){
         const canvas = document.createElement('canvas');
-        canvas.width  = 400;  // כ-50 מ"מ ברזולוציה סבירה
-        canvas.height = 160;  // כ-20 מ"מ
+        canvas.width  = 400;
+        canvas.height = 160;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -297,7 +301,7 @@
 
         const a = document.createElement('a');
         a.href = pngUrl;
-        a.download = 'label.png';
+        a.download = fileBaseName + '.png';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
