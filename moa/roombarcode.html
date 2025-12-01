@@ -149,7 +149,6 @@
 
     <div class="buttons">
       <button id="clearRoomBtn" type="button">איפוס חדר</button>
-      <!-- כאן החיבור הישיר לפונקציה -->
       <button id="printBtn" type="button" onclick="onPrintClick()">הדפס מדבקה</button>
     </div>
   </div>
@@ -190,13 +189,11 @@
     const cancelPrintBtn   = document.getElementById('cancelPrint');
     const confirmPrintBtn  = document.getElementById('confirmPrint');
 
-    // איפוס חדר
     clearRoomBtn.addEventListener('click', () => {
       roomInput.value = "";
       roomInput.focus();
     });
 
-    // פונקציה שנקראת בלחיצה על "הדפס מדבקה"
     function onPrintClick(){
       const site     = siteSelect.value.trim();
       const building = buildingInput.value.trim();
@@ -206,17 +203,19 @@
       if(!building){ alert("הכנס מבנה"); return; }
       if(!room){ alert("הכנס חדר"); return; }
 
-      // בדיקה אם JsBarcode נטען
       if (typeof JsBarcode === "undefined"){
-        alert("ספריית הברקוד לא נטענה. ודא שיש חיבור לאינטרנט או שתוריד את הספרייה לקובץ מקומי.");
+        alert("ספריית הברקוד לא נטענה. ודא שיש חיבור לאינטרנט או שתעבוד עם קובץ מקומי של JsBarcode.");
         return;
       }
 
-      const data = `${site}|${building}|${room}`;
+      // הטקסט המקורי בעברית (לשימוש בתצוגה ובפענוח עתידי)
+      const rawText  = `${site}|${building}|${room}`;
+      // קידוד ל-ASCII בלבד כדי ש-CODE128 יעבוד בלי שגיאה
+      const encodedData = encodeURIComponent(rawText);
 
       try{
-        // תצוגה מקדימה
-        JsBarcode(previewBarcode, data, {
+        // ברקוד לתצוגה מקדימה
+        JsBarcode(previewBarcode, encodedData, {
           format:"CODE128",
           width:2,
           height:60,
@@ -225,14 +224,15 @@
         previewText.textContent = `אתר: ${site} | מבנה: ${building} | חדר: ${room}`;
         previewOverlay.style.display = "flex";
 
-        // כפתור ביטול סוגר חלון
+        // ביטול
         cancelPrintBtn.onclick = () => {
           previewOverlay.style.display = "none";
         };
 
-        // כפתור הדפס – יוצר שוב ברקוד לאזור ההדפסה ומדפיס
+        // אישור הדפסה
         confirmPrintBtn.onclick = () => {
-          JsBarcode(printAreaBarcode, data, {
+          // ברקוד לאזור ההדפסה
+          JsBarcode(printAreaBarcode, encodedData, {
             format:"CODE128",
             width:2,
             height:60,
@@ -243,14 +243,13 @@
           previewOverlay.style.display = "none";
           window.print();
 
-          // אחרי ההדפסה – איפוס חדר
           roomInput.value = "";
           roomInput.focus();
         };
 
       }catch(e){
         console.error(e);
-        alert("אירעה שגיאה ביצירת הברקוד.");
+        alert("אירעה שגיאה ביצירת הברקוד (כנראה טקסט לא חוקי).");
       }
     }
   </script>
