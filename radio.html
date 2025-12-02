@@ -29,30 +29,39 @@
     .container {
       flex: 1;
       display: grid;
-      grid-template-rows: 1fr auto 1fr; /* תחנה – שעון+אקוולייזר – תחנה */
+      grid-template-rows: 1fr auto 1fr; /* למעלה תחנות, באמצע שעון, למטה תחנות */
+      justify-items: center;
+      align-items: center;
+    }
+
+    .stations-row {
+      width: 100%;
+      display: flex;
+      justify-content: space-evenly;
+      align-items: center;
+      padding: 4px 0;
     }
 
     .station {
-      width: 100%;
-      height: 100%;
       border: none;
       outline: none;
       background: #000;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex: 0 0 45%; /* בערך חצי שורה לכל תחנה */
     }
 
     .station img {
-      width: 70%;
+      width: 100%;
       height: auto;
-      max-height: 75%;
+      max-width: 160px; /* מגבלה מקסימלית – שלא יהיו ענקיים */
       aspect-ratio: 1 / 1;
       object-fit: contain;
       border-radius: 16px;
       box-shadow: 0 8px 20px rgba(255,255,255,0.15);
       background: #000;
-      padding: 10px;
+      padding: 8px;
       transition: 0.15s;
     }
 
@@ -73,7 +82,7 @@
     /* שעון ניאון */
     #clock {
       font-family: "Courier New", monospace;
-      font-size: clamp(3rem, 9vw, 4.2rem);
+      font-size: clamp(2.6rem, 8vw, 3.6rem);
       color: #00e5ff;
       text-shadow:
         0 0 8px  #00e5ff,
@@ -184,12 +193,20 @@
 
 <div class="container">
 
-  <!-- 99.5 -->
-  <button class="station" onclick="playStream('995')">
-    <img src="https://media.radiodeck.com/stations/5f74f75c664ee8400841f6b9/profile/605933e0f197d64e94f5f0a4/xl.jpg" alt="">
-  </button>
+  <!-- שורה עליונה: 99.5 + 101.5 -->
+  <div class="stations-row">
+    <!-- תחנה 1 – 99.5 חם אש -->
+    <button class="station" onclick="playStream('995')">
+      <img src="https://media.radiodeck.com/stations/5f74f75c664ee8400841f6b9/profile/605933e0f197d64e94f5f0a4/xl.jpg" alt="">
+    </button>
 
-  <!-- שעון + אקולייזר -->
+    <!-- תחנה 2 – 101.5 התחנה -->
+    <button class="station" onclick="playStream('1015')">
+      <img src="https://fm1.co.il/assets/stations/radio-darom-1015.png" alt="">
+    </button>
+  </div>
+
+  <!-- שעון + אקולייזר באמצע -->
   <div class="middle">
     <div id="clock">00:00</div>
     <div class="eq" id="eq">
@@ -201,10 +218,18 @@
     </div>
   </div>
 
-  <!-- 101.5 -->
-  <button class="station" onclick="playStream('1015')">
-    <img src="https://fm1.co.il/assets/stations/radio-darom-1015.png" alt="">
-  </button>
+  <!-- שורה תחתונה: mizrahit + mizrahit2 -->
+  <div class="stations-row">
+    <!-- תחנה 3 – נושמים מזרחית -->
+    <button class="station" onclick="playStream('mizrahit')">
+      <img src="https://reuven2k.com/mizrahit.png" alt="">
+    </button>
+
+    <!-- תחנה 4 – קצב/מזרחית נוספת דרך LiveRadio -->
+    <button class="station" onclick="playStream('mizrahit2')">
+      <img src="https://reuven2k.com/mizrahit2.png" alt="">
+    </button>
+  </div>
 
 </div>
 
@@ -213,9 +238,12 @@
 <audio id="player"></audio>
 
 <script>
+  // כתובות סטרים - 4 תחנות
   const streams = {
-    "995":  "https://cdna.streamgates.net/Radios_Radio_App/Ham_Esh/playlist.m3u8",
-    "1015": "https://radio.streamgates.net/stream/hatahana"
+    "995":      "https://cdna.streamgates.net/Radios_Radio_App/Ham_Esh/playlist.m3u8",
+    "1015":     "https://radio.streamgates.net/stream/hatahana",
+    "mizrahit": "https://mzr.mediacast.co.il/mzradio",      // נושמים מזרחית
+    "mizrahit2":"http://liveradio.co.il:1040/;"             // קצב/מזרחית נוספת (זרם ישיר)
   };
 
   const player  = document.getElementById("player");
@@ -241,13 +269,12 @@
       player.src = streams[id];
     }
 
-    player.play().then(updateEqState).catch(err => {
-      if (id === "995") {
-        window.open("https://995.co.il/popup-player", "_blank");
-      } else {
+    player.play()
+      .then(updateEqState)
+      .catch(err => {
         console.log("שגיאה בהפעלה:", err);
-      }
-    });
+        alert("לא הצלחתי להפעיל את התחנה. ייתכן שהדפדפן או האפליקציה חוסמים את הזרם.");
+      });
   }
 
   function toggleMute() {
@@ -275,7 +302,6 @@
   let deferredPrompt = null;
   const installBtn = document.getElementById("installBtn");
 
-  // האם כבר מותקן כאפליקציה? אם כן – אין צורך בכפתור
   function isInStandalone() {
     return window.matchMedia('(display-mode: standalone)').matches ||
            window.navigator.standalone === true;
@@ -286,10 +312,9 @@
   }
 
   window.addEventListener("beforeinstallprompt", (e) => {
-    // מונעים את הבקשה האוטומטית ושומרים את האירוע
     e.preventDefault();
     deferredPrompt = e;
-    installBtn.style.display = "flex"; // מציגים כפתור
+    installBtn.style.display = "flex";
   });
 
   installBtn.addEventListener("click", async () => {
@@ -300,7 +325,6 @@
     }
     deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
-    // אחרי בחירה – מנקים את האירוע
     deferredPrompt = null;
     installBtn.style.display = "none";
     console.log("תוצאת ההתקנה:", choice.outcome);
