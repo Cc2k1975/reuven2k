@@ -167,7 +167,7 @@
       border-radius: 20px;
       border: 1px solid rgba(255,255,255,0.25);
       font-size: 0.9rem;
-      display: none; /* יוצג רק אם הדפדפן מאפשר התקנה */
+      display: flex; /* תמיד קיים, נסתיר רק אם כבר מותקן */
       align-items: center;
       gap: 6px;
       cursor: pointer;
@@ -307,28 +307,41 @@
            window.navigator.standalone === true;
   }
 
-  if (isInStandalone()) {
+  // אם כבר מותקן / רץ כאפליקציה – אין צורך בכפתור
+  if (isInStandalone() && installBtn) {
     installBtn.style.display = "none";
   }
 
+  // כשכרום מוכן לתת beforeinstallprompt (PWA על https עם מניפסט)
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    installBtn.style.display = "flex";
+    if (installBtn && !isInStandalone()) {
+      installBtn.style.display = "flex";
+    }
   });
 
-  installBtn.addEventListener("click", async () => {
-    vibrate();
-    if (!deferredPrompt) {
-      alert("ייתכן שהאפליקציה כבר מותקנת או שהדפדפן לא תומך.");
-      return;
-    }
-    deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    installBtn.style.display = "none";
-    console.log("תוצאת ההתקנה:", choice.outcome);
-  });
+  if (installBtn) {
+    installBtn.addEventListener("click", async () => {
+      vibrate();
+
+      // אם יש אובייקט התקנה – מציג את חלון ההתקנה
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const choice = await deferredPrompt.userChoice;
+        console.log("תוצאת ההתקנה:", choice.outcome);
+        deferredPrompt = null;
+        installBtn.style.display = "none";
+      } else {
+        // אין beforeinstallprompt (למשל file:// או דפדפן לא תומך) – נותן הוראות ידניות
+        alert(
+          "כדי להוסיף את הרדיו למסך הבית:\n\n" +
+          "1. לחץ על שלוש הנקודות למעלה (⋮)\n" +
+          "2. בחר \"הוסף למסך הבית\" / \"Add to Home screen\""
+        );
+      }
+    });
+  }
 </script>
 
 </body>
