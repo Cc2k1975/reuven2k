@@ -10,745 +10,284 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
 <style>
-    body {
-        margin: 0;
-        font-family: Heebo, Arial;
-        background: #f2f2f2;
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-    }
 
-    /* --- מסך סיסמה (מלא, לא שקוף) --- */
-    #passwordScreen {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: #f2f2f2;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 200;
-    }
-    #passwordBox {
-        background: #ffffff;
-        padding: 24px;
-        border-radius: 18px;
-        width: 80%;
-        max-width: 360px;
-        text-align: center;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.25);
-    }
-    #passwordBox h2 {
-        margin-top: 0;
-        margin-bottom: 12px;
-        font-size: 20px;
-    }
-    #passInput {
-        width: 100%;
-        padding: 10px;
-        border-radius: 10px;
-        border: 1px solid #aaa;
-        font-size: 16px;
-        text-align: center;
-    }
-    #passBtn {
-        margin-top: 14px;
-        width: 100%;
-        padding: 10px;
-        border: none;
-        border-radius: 10px;
-        background: #009688;
-        color: #fff;
-        font-size: 16px;
-        cursor: pointer;
-    }
-    #passError {
-        margin-top: 8px;
-        color: #e53935;
-        font-size: 14px;
-        min-height: 18px;
-    }
-
-    /* --- מסך בחירת תפקיד --- */
-    #roleSelect {
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 150;
-    }
-    #roleBox {
-        background: white;
-        padding: 25px;
-        border-radius: 20px;
-        text-align: center;
-        width: 80%;
-        max-width: 400px;
-    }
-    .role-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        margin-top: 15px;
-    }
-    .role-btn {
-        flex: 1;
-        background: white;
-        border: 2px solid #ccc;
-        border-radius: 15px;
-        padding: 12px 5px;
-        cursor: pointer;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-    }
-    .circle {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-    }
-    .circle.male { background:#4fc3f7; }
-    .circle.female { background:#ff80ab; }
-
-    /* --- שורת נוכחות למעלה (סגנון, המיקום נקבע ב-HTML) --- */
-    #presenceBar {
-        display:flex;
-        justify-content:center;
-        gap:16px;
-        padding:6px 10px;
-        font-size:12px;
-        color:#555;
-        background:#e0e0e0;
-        border-bottom:1px solid #ccc;
-    }
-    .presence-side {
-        display:flex;
-        align-items:center;
-        gap:6px;
-    }
-    .presence-dot {
-        width:10px;
-        height:10px;
-        border-radius:50%;
-        background:#9e9e9e; /* אפור ברירת מחדל */
-    }
-    .presence-dot.online {
-        background:#4caf50; /* ירוק כשמחובר */
-    }
-    .presence-text {
-        display:flex;
-        flex-direction:column;
-        line-height:1.2;
-    }
-    .presence-label {
-        font-weight:600;
-        font-size:12px;
-    }
-    .presence-time {
-        font-size:11px;
-        color:#333;
-    }
-
-    /* --- צ'אט --- */
-    #chatBox {
-        flex: 1;
-        overflow-y: auto;
-        padding: 12px;
-    }
-    .msg {
-        display: flex;
-        align-items: center;
-        margin-bottom: 12px;
-        max-width: 80%;
-    }
-    .icon {
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-    .icon.male {
-        background:#4fc3f7;
-        margin-left: 6px;
-        margin-right: -6px;
-    }
-    .icon.female {
-        background:#ff80ab;
-        margin-right: 6px;
-        margin-left: -6px;
-    }
-    .bubble {
-        padding: 9px 12px;
-        background: white;
-        border-radius: 12px;
-        font-size: 15px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.12);
-        word-wrap: break-word;
-    }
-    .me {
-        margin-left: auto;
-        flex-direction: row-reverse;
-    }
-    .me .bubble { background:#d1f5e0; }
-    .friend {
-        margin-right: auto;
-    }
-    .friend .bubble { background:#ffe0f0; }
-
-    /* שעה קטנה בבועה */
-    .msg-text {
-        white-space: pre-wrap;
-    }
-    .msg-time {
-        margin-top:4px;
-        font-size:11px;
-        color:#777;
-        text-align:right;
-    }
-    .me .msg-time {
-        text-align:left;
-    }
-
-    /* חיווי מקליד/ה */
-    #typingIndicator {
-        min-height: 20px;
-        padding: 0 12px 4px;
-        font-size: 13px;
-        color: #777;
-        font-style: italic;
-        visibility: hidden;
-    }
-
-    /* קלט וכפתורים */
-    #inputArea {
-        display: flex;
-        padding: 10px;
-        background: white;
-        border-top: 1px solid #ccc;
-        gap: 8px;
-    }
-    #msgInput {
-        flex: 1;
-        padding: 10px;
-        border: 1px solid #aaa;
-        border-radius: 10px;
-        font-size: 16px;
-    }
-    #sendBtn, #liveBtn, #imageBtn {
-        padding: 10px 12px;
-        background: #009688;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 14px;
-        cursor: pointer;
-        white-space: nowrap;
-    }
-    #liveBtn {
-        background: #e91e63;
-    }
-    #clearBtn {
-        width: 100%;
-        padding: 12px;
-        background: #d9534f;
-        color: white;
-        border: none;
-        font-size: 16px;
-        cursor: pointer;
-    }
-
-    /* תמונות בתוך ההודעה (4x4 ס"מ בערך) */
-    .msg-image {
-        max-width: 150px;
-        max-height: 150px;
-        border-radius: 10px;
-        display: block;
-    }
-
-    /* --- LIVE וידאו --- */
-    #liveOverlay {
-        position: fixed;
-        top:0; left:0;
-        width:100%; height:100%;
-        background:#000;
-        color:#fff;
-        display:none;
-        flex-direction:column;
-        z-index:180;
-    }
-    #liveVideos {
-        flex:1;
-        display:flex;
-        flex-direction:column;
-    }
-    #remoteContainer, #localContainer {
-        height:50%;
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        border-bottom:1px solid #333;
-    }
-    #localContainer {
-        border-bottom:none;
-        border-top:1px solid #333;
-    }
-    video {
-        width:100%;
-        height:100%;
-        object-fit:cover;
-        background:#000;
-    }
-    #liveControls {
-        padding:8px;
-        text-align:center;
-    }
-    #endLiveBtn {
-        padding:10px 18px;
-        background:#f44336;
-        border:none;
-        border-radius:8px;
-        color:#fff;
-        font-size:16px;
-        cursor:pointer;
-    }
-
-    /* פופאפ שיחת LIVE נכנסת */
-    #incomingCall {
-        position: fixed;
-        top:0; left:0;
-        width:100%; height:100%;
-        background:rgba(0,0,0,0.6);
-        display:none;
-        align-items:center;
-        justify-content:center;
-        z-index:185;
-    }
-    #incomingBox {
-        background:white;
-        padding:20px;
-        border-radius:14px;
-        width:80%;
-        max-width:320px;
-        text-align:center;
-    }
-    #incomingBox h3 {
-        margin-top:0;
-        margin-bottom:10px;
-    }
-    .incoming-btn {
-        padding:8px 14px;
-        margin:0 6px;
-        border:none;
-        border-radius:8px;
-        cursor:pointer;
-        font-size:14px;
-    }
-    #acceptBtn { background:#4caf50; color:#fff; }
-    #rejectBtn { background:#f44336; color:#fff; }
-</style>
-</head>
-
-<body>
-
-<!-- מסך סיסמה -->
-<div id="passwordScreen">
-    <div id="passwordBox">
-        <h2>הכנס סיסמה לצ'אט</h2>
-        <input type="password" id="passInput" placeholder="סיסמה" autocomplete="off" autocapitalize="off">
-        <button id="passBtn" onclick="checkPassword()">כניסה</button>
-        <div id="passError"></div>
-    </div>
-</div>
-
-<!-- פופאפ בחירת צד -->
-<div id="roleSelect">
-    <div id="roleBox">
-        <h2>בחר צד בצ'אט</h2>
-        <div class="role-row">
-            <div class="role-btn" onclick="chooseRole('male')">
-                <div class="circle male"></div>
-                <div>C</div>
-            </div>
-            <div class="role-btn" onclick="chooseRole('female')">
-                <div class="circle female"></div>
-                <div>K</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- צ'אט -->
-<div id="chatBox"></div>
-
-<!-- חיווי מקליד/ה -->
-<div id="typingIndicator"></div>
-
-<!-- קלט וכפתורים -->
-<div id="inputArea">
-    <button onclick="onLiveClick()" id="liveBtn">LIVE</button>
-    <button onclick="openImagePicker()" id="imageBtn">תמונה</button>
-    <input type="file" id="imageInput" accept="image/*" style="display:none">
-    <input type="text" id="msgInput" placeholder="הקלד הודעה...">
-    <button onclick="sendMsg()" id="sendBtn">שלח</button>
-</div>
-
-<!-- שורת נוכחות – הועברה לכאן מתחת לשורת ההקלדה -->
-<div id="presenceBar">
-    <div class="presence-side">
-        <span class="presence-dot" id="presenceMale"></span>
-        <div class="presence-text">
-            <div class="presence-label">C</div>
-            <div class="presence-time" id="presenceMaleTime">--:--</div>
-        </div>
-    </div>
-    <div class="presence-side">
-        <span class="presence-dot" id="presenceFemale"></span>
-        <div class="presence-text">
-            <div class="presence-label">K</div>
-            <div class="presence-time" id="presenceFemaleTime">--:--</div>
-        </div>
-    </div>
-</div>
-
-<button id="clearBtn" onclick="clearChat()">מחק צ'אט</button>
-
-<!-- LIVE Overlay -->
-<div id="liveOverlay">
-    <div id="liveVideos">
-        <div id="remoteContainer">
-            <video id="remoteVideo" autoplay playsinline></video>
-        </div>
-        <div id="localContainer">
-            <video id="localVideo" autoplay playsinline muted></video>
-        </div>
-    </div>
-    <div id="liveControls">
-        <button id="endLiveBtn" onclick="endCall()">סיים LIVE</button>
-    </div>
-</div>
-
-<!-- פופאפ שיחת LIVE נכנסת -->
-<div id="incomingCall">
-    <div id="incomingBox">
-        <h3>שיחת וידאו נכנסת</h3>
-        <p>לאשר LIVE?</p>
-        <button class="incoming-btn" id="acceptBtn" onclick="acceptCall()">אישור</button>
-        <button class="incoming-btn" id="rejectBtn" onclick="rejectCall()">דחייה</button>
-    </div>
-</div>
-
-<script>
-/* --- Firebase config שלך --- */
-const firebaseConfig = {
-  apiKey: "AIzaSyBPD1nZQVAdqSP4uS05TYXBeGtJKsjapA",
-  authDomain: "private-chat-b3a36.firebaseapp.com",
-  databaseURL: "https://private-chat-b3a36-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "private-chat-b3a36",
-  storageBucket: "private-chat-b3a36.firebasestorage.app",
-  messagingSenderId: "88424262632",
-  appId: "1:88424262632:web:a38edf362b59703011525d",
-  measurementId: "G-M9SGLXN3TV"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-/* מצב צ'אט */
-let myRole = localStorage.getItem("role") || null;
-let authed = false; // תמיד מתחילים לא מחובר
-let typingListenerStarted = false;
-let typingTimeout = null;
-
-/* נוכחות (presence) */
-let presenceRef = null;
-const presenceMaleDot = document.getElementById("presenceMale");
-const presenceFemaleDot = document.getElementById("presenceFemale");
-const presenceMaleTime = document.getElementById("presenceMaleTime");
-const presenceFemaleTime = document.getElementById("presenceFemaleTime");
-
-/* WebRTC LIVE */
-let pc = null;
-let localStream = null;
-let inCall = false;
-let isCaller = false;
-const servers = {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-};
-
-/* אחרי עליית הדף */
-window.addEventListener("load", () => {
-    // תמיד מסך סיסמה
-    document.getElementById("passwordScreen").style.display = "flex";
-    document.getElementById("roleSelect").style.display = "none";
-
-    document.getElementById("msgInput").addEventListener("input", handleTyping);
-
-    // בחירת תמונה
-    const imageInput = document.getElementById("imageInput");
-    imageInput.addEventListener("change", onImageSelected);
-
-    // יציאה / חזרה לטאב -> אם חוזרים עם auth, נעול שוב
-    document.addEventListener("visibilitychange", () => {
-        if (!document.hidden && authed) {
-            forceReauth();
-        }
-    });
-
-    // מאזין לשיחות LIVE
-    listenForCall();
-
-    // מאזינים לנוכחות של שני הצדדים
-    listenPresence();
-});
-
-/* --- נוכחות --- */
-function listenPresence() {
-    db.ref("presence/male").on("value", snap => {
-        const data = snap.val() || {};
-        updatePresenceUI("male", data);
-    });
-    db.ref("presence/female").on("value", snap => {
-        const data = snap.val() || {};
-        updatePresenceUI("female", data);
-    });
+/* 🔥 תוספת 1 — מניעת בחירת טקסט (כדי שלחיצה ארוכה לא תעתיק) */
+* {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
-function updatePresenceUI(role, data) {
-    const dot = role === "male" ? presenceMaleDot : presenceFemaleDot;
-    const timeEl = role === "male" ? presenceMaleTime : presenceFemaleTime;
-    if (!dot || !timeEl) return;
-
-    const online = data.status === "online";
-    if (online) dot.classList.add("online");
-    else dot.classList.remove("online");
-
-    if (data.lastSeen) {
-        const d = new Date(data.lastSeen);
-        let h = d.getHours();
-        let m = d.getMinutes();
-        const hh = (h < 10 ? "0" + h : "" + h);
-        const mm = (m < 10 ? "0" + m : "" + m);
-        timeEl.textContent = online ? "עכשיו" : hh + ":" + mm;
-    } else {
-        timeEl.textContent = "--:--";
-    }
+/* 🔥 תוספת 2 — החזרת התאמה מושלמת למסך מובייל */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
-function updatePresenceOnline() {
-    if (!myRole) return;
-    presenceRef = db.ref("presence/" + myRole);
-    presenceRef.set({
-        status: "online",
-        lastSeen: firebase.database.ServerValue.TIMESTAMP
-    });
-    presenceRef.onDisconnect().set({
-        status: "offline",
-        lastSeen: firebase.database.ServerValue.TIMESTAMP
-    });
+body {
+    margin: 0;
+    font-family: Heebo, Arial;
+    background: #f2f2f2;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
 }
 
-function updatePresenceOffline() {
-    if (presenceRef) {
-        presenceRef.set({
-            status: "offline",
-            lastSeen: firebase.database.ServerValue.TIMESTAMP
-        });
-    }
+/* --- מסך סיסמה (מלא, לא שקוף) --- */
+#passwordScreen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: #f2f2f2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+#passwordBox {
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 18px;
+    width: 80%;
+    max-width: 360px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+}
+#passwordBox h2 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 20px;
+}
+#passInput {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid #aaa;
+    font-size: 16px;
+    text-align: center;
+}
+#passBtn {
+    margin-top: 14px;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    background: #009688;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+}
+#passError {
+    margin-top: 8px;
+    color: #e53935;
+    font-size: 14px;
+    min-height: 18px;
 }
 
-/* --- סיסמה --- */
-function checkPassword() {
-    const input = document.getElementById("passInput").value.trim();
-    const err = document.getElementById("passError");
+/* --- מסך בחירת תפקיד --- */
+#roleSelect {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 150;
+}
+#roleBox {
+    background: white;
+    padding: 25px;
+    border-radius: 20px;
+    text-align: center;
+    width: 80%;
+    max-width: 400px;
+}
+.role-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 15px;
+}
+.role-btn {
+    flex: 1;
+    background: white;
+    border: 2px solid #ccc;
+    border-radius: 15px;
+    padding: 12px 5px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+}
+.circle.male { background:#4fc3f7; }
+.circle.female { background:#ff80ab; }
 
-    if (input === "2009") {
-        authed = true;
-        document.getElementById("passwordScreen").style.display = "none";
-        err.textContent = "";
-
-        if (myRole) {
-            document.getElementById("roleSelect").style.display = "none";
-            startTypingListener();
-            updatePresenceOnline();
-        } else {
-            document.getElementById("roleSelect").style.display = "flex";
-        }
-    } else {
-        err.textContent = "סיסמה שגויה";
-    }
+/* --- שורת נוכחות למעלה --- */
+#presenceBar {
+    display:flex;
+    justify-content:center;
+    gap:16px;
+    padding:6px 10px;
+    font-size:12px;
+    color:#555;
+    background:#e0e0e0;
+    border-bottom:1px solid #ccc;
+}
+.presence-side {
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+.presence-dot {
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    background:#9e9e9e;
+}
+.presence-dot.online {
+    background:#4caf50;
+}
+.presence-text {
+    display:flex;
+    flex-direction:column;
+    line-height:1.2;
+}
+.presence-label {
+    font-weight:600;
+    font-size:12px;
+}
+.presence-time {
+    font-size:11px;
+    color:#333;
 }
 
-/* כפיית הזנת סיסמה מחדש */
-function forceReauth() {
-    if (!authed) return;
-    authed = false;
-    stopTyping();
-    endCall(true); // אם יש LIVE – לסגור
-    updatePresenceOffline();
-    document.getElementById("passInput").value = "";
-    document.getElementById("passError").textContent = "";
-    document.getElementById("passwordScreen").style.display = "flex";
-    document.getElementById("roleSelect").style.display = "none";
+/* --- צ'אט --- */
+#chatBox {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+.msg {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    max-width: 80%;
+}
+.icon {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.icon.male {
+    background:#4fc3f7;
+    margin-left: 6px;
+    margin-right: -6px;
+}
+.icon.female {
+    background:#ff80ab;
+    margin-right: 6px;
+    margin-left: -6px;
+}
+.bubble {
+    padding: 9px 12px;
+    background: white;
+    border-radius: 12px;
+    font-size: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    word-wrap: break-word;
+}
+.me {
+    margin-left: auto;
+    flex-direction: row-reverse;
+}
+.me .bubble { background:#d1f5e0; }
+.friend {
+    margin-right: auto;
+}
+.friend .bubble { background:#ffe0f0; }
+
+.msg-text {
+    white-space: pre-wrap;
+}
+.msg-time {
+    margin-top:4px;
+    font-size:11px;
+    color:#777;
+    text-align:right;
+}
+.me .msg-time {
+    text-align:left;
 }
 
-/* בחירת תפקיד */
-function chooseRole(role) {
-    myRole = role;
-    localStorage.setItem("role", role);
-    document.getElementById("roleSelect").style.display = "none";
-    startTypingListener();
-    if (authed) {
-        updatePresenceOnline();
-    }
+/* חיווי מקליד */
+#typingIndicator {
+    min-height: 20px;
+    padding: 0 12px 4px;
+    font-size: 13px;
+    color: #777;
+    font-style: italic;
+    visibility: hidden;
 }
 
-/* שליחת הודעת טקסט */
-function sendMsg() {
-    if (!authed) return alert("קודם הזן סיסמה.");
-    if (!myRole) return alert("בחר גבר או אישה קודם.");
-
-    let txt = document.getElementById("msgInput").value.trim();
-    if (!txt) return;
-
-    db.ref("chat/messages").push({
-        text: txt,
-        role: myRole,
-        time: Date.now()
-    });
-
-    stopTyping();
-    document.getElementById("msgInput").value = "";
+/* קלט וכפתורים */
+#inputArea {
+    display: flex;
+    padding: 10px;
+    background: white;
+    border-top: 1px solid #ccc;
+    gap: 8px;
+    max-width: 100%;
 }
 
-/* פתיחת בוחר תמונה */
-function openImagePicker() {
-    if (!authed) return alert("קודם הזן סיסמה.");
-    if (!myRole) return alert("בחר גבר או אישה קודם.");
-    document.getElementById("imageInput").click();
+#msgInput {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #aaa;
+    border-radius: 10px;
+    font-size: 16px;
 }
 
-/* בחירת תמונה ושליחתה כ-Base64 */
-function onImageSelected(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    if (!authed) {
-        alert("קודם הזן סיסמה.");
-        event.target.value = "";
-        return;
-    }
-    if (!myRole) {
-        alert("בחר גבר או אישה קודם.");
-        event.target.value = "";
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const imageData = e.target.result; // data:image/...
-        db.ref("chat/messages").push({
-            type: "image",
-            imageData: imageData,
-            role: myRole,
-            time: Date.now()
-        });
-        event.target.value = "";
-    };
-    reader.readAsDataURL(file);
+#sendBtn, #liveBtn, #imageBtn {
+    padding: 10px 12px;
+    background: #009688;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+#liveBtn {
+    background: #e91e63;
 }
 
-/* קבלת הודעות בזמן אמת (טקסט + תמונות) */
-db.ref("chat/messages").on("child_added", snap => {
-    const data = snap.val();
-    const id = snap.key;
-    if (!data) return;
-    addMessage(id, data);
-});
-
-/* הפיכת טקסט ללינקים (http/https) */
-function linkifyText(text) {
-    const fragment = document.createDocumentFragment();
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    let lastIndex = 0;
-    let match;
-    while ((match = urlRegex.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-            fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-        }
-        const url = match[0];
-        const a = document.createElement("a");
-        a.href = url;
-        a.textContent = url;
-        a.target = "_blank";
-        a.rel = "noopener noreferrer";
-        fragment.appendChild(a);
-        lastIndex = urlRegex.lastIndex;
-    }
-    if (lastIndex < text.length) {
-        fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
-    }
-    return fragment;
+#clearBtn {
+    width: 100%;
+    padding: 12px;
+    background: #d9534f;
+    color: white;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
 }
 
-/* הצגת הודעה (טקסט / תמונה) */
-function addMessage(messageId, data) {
-    const chat = document.getElementById("chatBox");
-
-    const msgDiv = document.createElement("div");
-    msgDiv.className = "msg " + (data.role === "male" ? "me" : "friend");
-    msgDiv.dataset.id = messageId;
-
-    const icon = document.createElement("div");
-    icon.className = "icon " + (data.role === "male" ? "male" : "female");
-
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-
-    const textDiv = document.createElement("div");
-    textDiv.className = "msg-text";
-
-    if (data.type === "image" && data.imageData) {
-        const img = document.createElement("img");
-        img.className = "msg-image";
-        img.src = data.imageData;
-        textDiv.appendChild(img);
-    } else {
-        const txt = data.text || "";
-        textDiv.appendChild(linkifyText(txt));
-    }
-
-    const timeDiv = document.createElement("div");
-    timeDiv.className = "msg-time";
-    timeDiv.textContent = formatTime(data.time);
-
-    bubble.appendChild(textDiv);
-    if (timeDiv.textContent) {
-        bubble.appendChild(timeDiv);
-    }
-
-    msgDiv.appendChild(icon);
-    msgDiv.appendChild(bubble);
-
-    attachLongPressHandler(msgDiv, messageId);
-
-    chat.appendChild(msgDiv);
-    chat.scrollTop = chat.scrollHeight;
+/* תמונות בצ'אט */
+.msg-image {
+    max-width: 150px;
+    max-height: 150px;
+    border-radius: 10px;
+    display: block;
 }
-
-function formatTime(time) {
-    if (!time) return "";
-    const d = new Date(time);
-    let h = d.getHours();
-    let m = d.getMinutes();
-    const hh = (h < 10 ? "0" + h : "" + h);
-    const mm = (m < 10 ? "0" + m : "" + m);
-    return hh + ":" + mm;
-}
-
 /* מחיקת צ'אט */
 function clearChat() {
     if (!confirm("למחוק את כל הצ'אט לכולם?")) return;
@@ -797,35 +336,35 @@ window.addEventListener("beforeunload", () => {
     updatePresenceOffline();
 });
 
-/* --- מחיקת הודעה בלחיצה ארוכה (5 שניות) --- */
+/* --- מחיקה בלחיצה ארוכה אמיתית (5 שניות, ללא "העתקה") --- */
 function attachLongPressHandler(element, messageId) {
-    let pressTimer = null;
-    let isPressing = false;
+    let timer = null;
+    let pressing = false;
 
-    const startPress = (e) => {
-        if (pressTimer !== null) return;
-        isPressing = true;
-        pressTimer = setTimeout(() => {
-            pressTimer = null;
-            if (!isPressing) return;
-            onLongPressMessage(messageId, element);
-        }, 5000); // 5 שניות
+    const start = () => {
+        if (timer) return;
+        pressing = true;
+        timer = setTimeout(() => {
+            timer = null;
+            if (pressing) onLongPressMessage(messageId, element);
+        }, 5000);
     };
 
-    const cancelPress = () => {
-        isPressing = false;
-        if (pressTimer !== null) {
-            clearTimeout(pressTimer);
-            pressTimer = null;
+    const stop = () => {
+        pressing = false;
+        if (timer) {
+            clearTimeout(timer);
+            timer = null;
         }
     };
 
-    element.addEventListener("mousedown", startPress);
-    element.addEventListener("touchstart", startPress);
-    element.addEventListener("mouseup", cancelPress);
-    element.addEventListener("mouseleave", cancelPress);
-    element.addEventListener("touchend", cancelPress);
-    element.addEventListener("touchcancel", cancelPress);
+    element.oncontextmenu = () => false; // ביטול תפריט העתקה
+    element.addEventListener("mousedown", start);
+    element.addEventListener("touchstart", start);
+    element.addEventListener("mouseup", stop);
+    element.addEventListener("mouseleave", stop);
+    element.addEventListener("touchend", stop);
+    element.addEventListener("touchcancel", stop);
 }
 
 function onLongPressMessage(messageId, element) {
@@ -835,13 +374,10 @@ function onLongPressMessage(messageId, element) {
             if (element && element.parentNode) {
                 element.parentNode.removeChild(element);
             }
-        })
-        .catch(err => {
-            console.error("שגיאה במחיקת הודעה:", err);
         });
 }
 
-/* --- LIVE – לוגיקה קיימת עם אישור לפני התחלה --- */
+/* --- LIVE – עם אישור לפני התחלה --- */
 
 function onLiveClick() {
     if (!authed) return alert("קודם הזן סיסמה.");
@@ -855,7 +391,6 @@ function onLiveClick() {
     startCall();
 }
 
-/* התחלת שיחה כקורא */
 async function startCall() {
     isCaller = true;
     await setupPeerConnection();
@@ -872,7 +407,6 @@ async function startCall() {
     showLiveOverlay();
 }
 
-/* הקמת PeerConnection + מצלמה */
 async function setupPeerConnection() {
     pc = new RTCPeerConnection(servers);
 
@@ -906,11 +440,9 @@ async function setupPeerConnection() {
     inCall = true;
 }
 
-/* האזנה לשיחות נכנסות */
 function listenForCall() {
     db.ref("call").on("value", async snap => {
         const data = snap.val();
-
         if (!data) {
             hideIncoming();
             hideLiveOverlay();
@@ -919,9 +451,6 @@ function listenForCall() {
 
         const state = data.state;
         const from = data.from;
-
-        if (!myRole) return;
-
         const otherRole = (myRole === "male") ? "female" : "male";
 
         if (state === "calling" && from === otherRole && !inCall && authed) {
@@ -942,8 +471,8 @@ function listenForCall() {
         }
     });
 
-    const otherRoleForCand = (myRole === "male") ? "female" : "male";
-    db.ref("call/candidates/" + otherRoleForCand).on("child_added", async snap => {
+    const otherCand = (myRole === "male") ? "female" : "male";
+    db.ref("call/candidates/" + otherCand).on("child_added", async snap => {
         const cand = snap.val();
         if (pc && cand) {
             try {
@@ -953,16 +482,13 @@ function listenForCall() {
     });
 }
 
-/* מענה לשיחה נכנסת */
 async function acceptCall() {
     hideIncoming();
     isCaller = false;
 
     const callSnap = await db.ref("call").once("value");
     const callData = callSnap.val();
-    if (!callData || callData.state !== "calling") {
-        return;
-    }
+    if (!callData || callData.state !== "calling") return;
 
     await setupPeerConnection();
 
@@ -979,13 +505,11 @@ async function acceptCall() {
     showLiveOverlay();
 }
 
-/* דחיית שיחה נכנסת */
 async function rejectCall() {
     hideIncoming();
     await db.ref("call/state").set("ended");
 }
 
-/* סיום שיחה */
 async function endCall(forceOnlyLocal=false) {
     if (localStream) {
         localStream.getTracks().forEach(t => t.stop());
@@ -1004,7 +528,6 @@ async function endCall(forceOnlyLocal=false) {
     }
 }
 
-/* הצגת/הסתרת תצוגות LIVE */
 function showIncoming() {
     document.getElementById("incomingCall").style.display = "flex";
 }
@@ -1021,3 +544,4 @@ function hideLiveOverlay() {
 
 </body>
 </html>
+    
