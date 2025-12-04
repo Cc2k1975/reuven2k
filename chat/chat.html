@@ -239,7 +239,7 @@
         border-radius: 10px;
         font-size: 16px;
     }
-    #sendBtn, #liveBtn {
+    #sendBtn, #liveBtn, #imageBtn {
         padding: 10px 12px;
         background: #009688;
         color: white;
@@ -260,6 +260,14 @@
         border: none;
         font-size: 16px;
         cursor: pointer;
+    }
+
+    /* תמונות בתוך ההודעה (4x4 ס"מ בערך) */
+    .msg-image {
+        max-width: 150px;
+        max-height: 150px;
+        border-radius: 10px;
+        display: block;
     }
 
     /* --- LIVE וידאו --- */
@@ -383,6 +391,8 @@
 <!-- קלט וכפתורים -->
 <div id="inputArea">
     <button onclick="onLiveClick()" id="liveBtn">LIVE</button>
+    <button onclick="openImagePicker()" id="imageBtn">תמונה</button>
+    <input type="file" id="imageInput" accept="image/*" style="display:none">
     <input type="text" id="msgInput" placeholder="הקלד הודעה...">
     <button onclick="sendMsg()" id="sendBtn">שלח</button>
 </div>
@@ -477,6 +487,10 @@ window.addEventListener("load", () => {
     document.getElementById("roleSelect").style.display = "none";
 
     document.getElementById("msgInput").addEventListener("input", handleTyping);
+
+    // בחירת תמונה
+    const imageInput = document.getElementById("imageInput");
+    imageInput.addEventListener("change", onImageSelected);
 
     // יציאה / חזרה לטאב -> אם חוזרים עם auth, נעול שוב
     document.addEventListener("visibilitychange", () => {
@@ -593,7 +607,7 @@ function chooseRole(role) {
     }
 }
 
-/* שליחת הודעה */
+/* שליחת הודעת טקסט */
 function sendMsg() {
     if (!authed) return alert("קודם הזן סיסמה.");
     if (!myRole) return alert("בחר גבר או אישה קודם.");
@@ -611,33 +625,105 @@ function sendMsg() {
     document.getElementById("msgInput").value = "";
 }
 
-/* קבלת הודעות בזמן אמת */
+/* פתיחת בוחר תמונה */
+function openImagePicker() {
+    if (!authed) return alert("קודם הזן סיסמה.");
+    if (!myRole) return alert("בחר גבר או אישה קודם.");
+    document.getElementById("imageInput").click();
+}
+
+/* בחירת תמונה ושליחתה כ-Base64 */
+function onImageSelected(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!authed) {
+        alert("קודם הזן סיסמה.");
+        event.target.value = "";
+        return;
+    }
+    if (!myRole) {
+        alert("בחר גבר או אישה קודם.");
+        event.target.value = "";
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const imageData = e.target.result; // data:image/...
+        db.ref("chat/messages").push({
+            type: "image",
+            imageData: imageData,
+            role: myRole,
+            time: Date.now()
+        });
+        event.target.value = "";
+    };
+    reader.readAsDataURL(file);
+}
+
+/* קבלת הודעות בזמן אמת (טקסט + תמונות) */
 db.ref("chat/messages").on("child_added", snap => {
     const data = snap.val();
+    const id = snap.key;
     if (!data) return;
-    addMessage(data.text, data.role, data.time);
+    addMessage(id, data);
 });
 
-/* הצגת הודעה */
-function addMessage(text, role, time) {
+/* הפיכת טקסט ללינקים (http/https) */
+function linkifyText(text) {
+    const fragment = document.createDocumentFragment();
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = urlRegex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+        }
+        const url = match[0];
+        const a = document.createElement("a");
+        a.href = url;
+        a.textContent = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        fragment.appendChild(a);
+        lastIndex = urlRegex.lastIndex;
+    }
+    if (lastIndex < text.length) {
+        fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+    return fragment;
+}
+
+/* הצגת הודעה (טקסט / תמונה) */
+function addMessage(messageId, data) {
     const chat = document.getElementById("chatBox");
 
     const msgDiv = document.createElement("div");
-    msgDiv.className = "msg " + (role === "male" ? "me" : "friend");
+    msgDiv.className = "msg " + (data.role === "male" ? "me" : "friend");
+    msgDiv.dataset.id = messageId;
 
     const icon = document.createElement("div");
-    icon.className = "icon " + (role === "male" ? "male" : "female");
+    icon.className = "icon " + (data.role === "male" ? "male" : "female");
 
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
     const textDiv = document.createElement("div");
     textDiv.className = "msg-text";
-    textDiv.textContent = text;
+
+    if (data.type === "image" && data.imageData) {
+        const img = document.createElement("img");
+        img.className = "msg-image";
+        img.src = data.imageData;
+        textDiv.appendChild(img);
+    } else {
+        const txt = data.text || "";
+        textDiv.appendChild(linkifyText(txt));
+    }
 
     const timeDiv = document.createElement("div");
     timeDiv.className = "msg-time";
-    timeDiv.textContent = formatTime(time);
+    timeDiv.textContent = formatTime(data.time);
 
     bubble.appendChild(textDiv);
     if (timeDiv.textContent) {
@@ -646,6 +732,8 @@ function addMessage(text, role, time) {
 
     msgDiv.appendChild(icon);
     msgDiv.appendChild(bubble);
+
+    attachLongPressHandler(msgDiv, messageId);
 
     chat.appendChild(msgDiv);
     chat.scrollTop = chat.scrollHeight;
@@ -709,7 +797,51 @@ window.addEventListener("beforeunload", () => {
     updatePresenceOffline();
 });
 
-/* --- LIVE – לוגיקה קיימת --- */
+/* --- מחיקת הודעה בלחיצה ארוכה (5 שניות) --- */
+function attachLongPressHandler(element, messageId) {
+    let pressTimer = null;
+    let isPressing = false;
+
+    const startPress = (e) => {
+        if (pressTimer !== null) return;
+        isPressing = true;
+        pressTimer = setTimeout(() => {
+            pressTimer = null;
+            if (!isPressing) return;
+            onLongPressMessage(messageId, element);
+        }, 5000); // 5 שניות
+    };
+
+    const cancelPress = () => {
+        isPressing = false;
+        if (pressTimer !== null) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+        }
+    };
+
+    element.addEventListener("mousedown", startPress);
+    element.addEventListener("touchstart", startPress);
+    element.addEventListener("mouseup", cancelPress);
+    element.addEventListener("mouseleave", cancelPress);
+    element.addEventListener("touchend", cancelPress);
+    element.addEventListener("touchcancel", cancelPress);
+}
+
+function onLongPressMessage(messageId, element) {
+    if (!confirm("למחוק את ההודעה?")) return;
+    db.ref("chat/messages/" + messageId).remove()
+        .then(() => {
+            if (element && element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
+        })
+        .catch(err => {
+            console.error("שגיאה במחיקת הודעה:", err);
+        });
+}
+
+/* --- LIVE – לוגיקה קיימת עם אישור לפני התחלה --- */
 
 function onLiveClick() {
     if (!authed) return alert("קודם הזן סיסמה.");
@@ -718,6 +850,8 @@ function onLiveClick() {
         endCall();
         return;
     }
+    const ok = confirm("האם אתה בטוח שאתה רוצה לקיים שיחת וידאו?");
+    if (!ok) return;
     startCall();
 }
 
