@@ -484,7 +484,7 @@ let myRole = localStorage.getItem("role") || null;
 let authed = false; 
 let typingListenerStarted = false;
 let typingTimeout = null;
-let longPressTimeout = null; // לשימוש בלחיצה ארוכה למחיקה
+let longPressTimeout = null; 
 
 
 /* נוכחות (presence) */
@@ -718,6 +718,27 @@ function deleteMessage(key) {
     }
 }
 
+/* --- פונקציה חדשה: הפיכת טקסט לקישור --- */
+function linkify(text) {
+    // ביטוי רגולרי לזיהוי URL. תופס http/https, או כתובות שמתחילות ב-www, או כתובות עם דומיין (כמו google.com)
+    // ה-g בסוף מאפשר החלפה גלובלית (כל המופעים)
+    const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\bwww\.[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\b[A-Z0-9._%+-]+(?:\.[A-Z0-9._%+-]+)*(?:\.[A-Z]{2,6})\b)/igm;
+
+    return text.replace(urlRegex, function(url) {
+        // ודא שהקישור מתחיל ב-http:// או https://
+        let link = url;
+        if (!link.match(/^(https?|ftp|file):\/\//i)) {
+            link = "http://" + link;
+        }
+
+        // מחזיר תגית HTML של קישור
+        // target="_blank" פותח את הקישור בלשונית חדשה
+        return '<a href="' + link + '" target="_blank">' + url + '</a>';
+    });
+}
+/* -------------------------------------- */
+
+
 /* הצגת הודעה (עודכן לטיפול בתמונה ואירוע לחיצה ארוכה) */
 function addMessage(key, text, role, time) {
     const chat = document.getElementById("chatBox");
@@ -727,21 +748,17 @@ function addMessage(key, text, role, time) {
     msgDiv.id = "msg-" + key; // נותנים ID ייחודי לכל הודעה
 
     // --- לחיצה ארוכה למחיקה (3 שניות) ---
-    // שימוש ב-pointerdown/pointerup כדי לתפוס גם עכבר וגם מגע בצורה עקבית
     msgDiv.onpointerdown = (e) => {
-        // מנע הפעלה חוזרת אם הלחיצה לא שוחררה כראוי
         if (longPressTimeout) return; 
 
         if (authed) {
-            // התחלת ספירה לאחור של 3 שניות
             longPressTimeout = setTimeout(() => {
                 deleteMessage(key);
-                longPressTimeout = null; // איפוס לאחר הפעלה
+                longPressTimeout = null; 
             }, 3000);
         }
     };
 
-    // עצירת הספירה לאחור אם הלחיצה משוחררת מוקדם מדי או עוזבת את האלמנט
     msgDiv.onpointerup = msgDiv.onpointercancel = msgDiv.onmouseleave = () => {
         if (longPressTimeout) {
             clearTimeout(longPressTimeout);
@@ -761,13 +778,17 @@ function addMessage(key, text, role, time) {
 
     if (isImage) {
         const img = document.createElement("img");
-        img.className = "chat-image"; // יחיל את הסגנון 5x5 ס"מ
+        img.className = "chat-image"; 
         img.src = text; 
         bubble.appendChild(img);
     } else {
         const textDiv = document.createElement("div");
         textDiv.className = "msg-text";
-        textDiv.textContent = text;
+        
+        // --- שינוי מרכזי: הפיכת קישור להיפר-לינק ---
+        textDiv.innerHTML = linkify(text);
+        // שימו לב: משתמשים ב-innerHTML במקום textContent כדי שה-HTML שנוצר ע"י linkify יוצג כרכיבים
+        
         bubble.appendChild(textDiv);
     }
 
