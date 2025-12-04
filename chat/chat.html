@@ -9,11 +9,11 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
 <style>
-    /* --- שינוי #1: התאמה למסך מלא בטלפון (מניעת גלילה אופקית) --- */
+    /* --- שינוי #1: התאמה אגרסיבית למסך מלא (מניעת גלילה אופקית) --- */
     html, body {
         margin: 0;
         padding: 0;
-        overflow-x: hidden; /* מונע גלילה ימינה/שמאלה */
+        overflow-x: hidden !important; /* דורס כל גלילה אופקית */
         font-family: Heebo, Arial;
         background: #f2f2f2;
         display: flex;
@@ -22,7 +22,7 @@
         width: 100%; /* מוודא שהגוף לא רחב מדי */
     }
 
-    /* --- מסך סיסמה (מלא, לא שקוף) --- */
+    /* --- מסך סיסמה --- (ללא שינוי) */
     #passwordScreen {
         position: fixed;
         top: 0; left: 0;
@@ -73,7 +73,7 @@
         min-height: 18px;
     }
 
-    /* --- מסך בחירת תפקיד --- */
+    /* --- מסך בחירת תפקיד --- (ללא שינוי) */
     #roleSelect {
         position: fixed;
         top: 0; left: 0;
@@ -118,7 +118,7 @@
     .circle.male { background:#4fc3f7; }
     .circle.female { background:#ff80ab; }
 
-    /* --- שורת נוכחות למעלה (סגנון, המיקום נקבע ב-HTML) --- */
+    /* --- שורת נוכחות למעלה --- (ללא שינוי) */
     #presenceBar {
         display:flex;
         justify-content:center;
@@ -157,7 +157,7 @@
         color:#333;
     }
 
-    /* --- צ'אט --- */
+    /* --- צ'אט --- (ללא שינוי) */
     #chatBox {
         flex: 1;
         overflow-y: auto;
@@ -168,7 +168,6 @@
         align-items: center;
         margin-bottom: 12px;
         max-width: 80%;
-        /* הסרנו cursor:pointer והפכנו את זה לטיפול ב JS */
     }
     .icon {
         width: 14px;
@@ -237,48 +236,47 @@
         visibility: hidden;
     }
 
-    /* --- שינוי #2: סרגל קלט מותאם למובייל --- */
+    /* --- סרגל קלט מותאם למובייל (דחיסה מחודשת) --- */
     #inputArea {
         display: flex;
-        align-items: center; /* ודא שכל האלמנטים בגובה אחד */
-        padding: 8px; /* הקטנת ריפוד */
+        align-items: center; 
+        padding: 6px; /* ריפוד מינימלי */
         background: white;
         border-top: 1px solid #ccc;
-        gap: 4px; /* הקטנת ריווח בין אלמנטים */
+        gap: 3px; /* ריווח מינימלי בין אלמנטים */
     }
     #msgInput {
         flex: 1;
-        padding: 8px; /* הקטנת ריפוד */
+        padding: 6px; /* ריפוד מינימלי */
         border: 1px solid #aaa;
-        border-radius: 8px; /* עיגול קטן יותר */
-        font-size: 14px; /* פונט קטן יותר */
-        min-width: 0; /* מאפשר לקלט להתכווץ */
+        border-radius: 6px; /* עיגול קטן יותר */
+        font-size: 13px; /* פונט קטן יותר */
+        min-width: 30%; /* ודא שיש מקום מינימלי לקלט */
     }
     #sendBtn, #liveBtn {
-        padding: 8px; /* הקטנת ריפוד */
+        padding: 6px 8px; /* דחיסה מקסימלית של כפתורים */
         background: #009688;
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 13px; /* פונט קטן יותר */
+        border-radius: 6px;
+        font-size: 12px; /* פונט קטן מאוד */
         cursor: pointer;
         white-space: nowrap;
     }
     #liveBtn {
         background: #e91e63;
-        padding: 8px 10px; /* מעט יותר רחב לטקסט LIVE */
     }
     #attachmentContainer {
         display: flex;
         align-items: center;
-        margin-right: 0;
+        flex-shrink: 0; /* מונע התכווצות יתר */
     }
     #attachBtn {
-        padding: 8px 10px;
+        padding: 6px 8px;
         background: #e0e0e0;
         color: #333;
         border: none;
-        border-radius: 8px;
+        border-radius: 6px;
         font-size: 14px;
         cursor: pointer;
         display: flex;
@@ -472,7 +470,7 @@ const firebaseConfig = {
   authDomain: "private-chat-b3a36.firebaseapp.com",
   databaseURL: "https://private-chat-b3a36-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "private-chat-b3a36",
-  storageBucket: "private-chat-b3a36.firebasedatabase.app",
+  storageBucket: "private-chat-b3a36.firebasestorage.app",
   messagingSenderId: "88424262632",
   appId: "1:88424262632:web:a38edf362b59703011525d",
   measurementId: "G-M9SGLXN3TV"
@@ -728,18 +726,23 @@ function addMessage(key, text, role, time) {
     msgDiv.className = "msg " + (role === "male" ? "me" : "friend");
     msgDiv.id = "msg-" + key; // נותנים ID ייחודי לכל הודעה
 
-    // --- שינוי #3: לחיצה ארוכה למחיקה (3 שניות) ---
-    msgDiv.onmousedown = msgDiv.ontouchstart = () => {
+    // --- לחיצה ארוכה למחיקה (3 שניות) ---
+    // שימוש ב-pointerdown/pointerup כדי לתפוס גם עכבר וגם מגע בצורה עקבית
+    msgDiv.onpointerdown = (e) => {
+        // מנע הפעלה חוזרת אם הלחיצה לא שוחררה כראוי
+        if (longPressTimeout) return; 
+
         if (authed) {
             // התחלת ספירה לאחור של 3 שניות
             longPressTimeout = setTimeout(() => {
                 deleteMessage(key);
+                longPressTimeout = null; // איפוס לאחר הפעלה
             }, 3000);
         }
     };
 
-    // עצירת הספירה לאחור אם הלחיצה משוחררת מוקדם מדי
-    msgDiv.onmouseup = msgDiv.ontouchend = msgDiv.onmouseleave = () => {
+    // עצירת הספירה לאחור אם הלחיצה משוחררת מוקדם מדי או עוזבת את האלמנט
+    msgDiv.onpointerup = msgDiv.onpointercancel = msgDiv.onmouseleave = () => {
         if (longPressTimeout) {
             clearTimeout(longPressTimeout);
             longPressTimeout = null;
