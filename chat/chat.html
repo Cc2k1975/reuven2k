@@ -168,7 +168,7 @@
         align-items: center;
         margin-bottom: 12px;
         max-width: 80%;
-        cursor: pointer; /* לחיצה למחיקה */
+        /* הסרנו cursor:pointer והפכנו את זה לטיפול ב JS */
     }
     .icon {
         width: 14px;
@@ -204,7 +204,7 @@
     }
     .friend .bubble { background:#ffe0f0; }
 
-    /* --- שינוי #2: גודל תמונה 5x5 ס"מ --- */
+    /* גודל תמונה 5x5 ס"מ */
     .chat-image {
         width: 5cm; 
         height: 5cm; 
@@ -237,33 +237,54 @@
         visibility: hidden;
     }
 
-    /* קלט וכפתורים */
+    /* --- שינוי #2: סרגל קלט מותאם למובייל --- */
     #inputArea {
         display: flex;
-        padding: 10px;
+        align-items: center; /* ודא שכל האלמנטים בגובה אחד */
+        padding: 8px; /* הקטנת ריפוד */
         background: white;
         border-top: 1px solid #ccc;
-        gap: 8px;
+        gap: 4px; /* הקטנת ריווח בין אלמנטים */
     }
     #msgInput {
         flex: 1;
-        padding: 10px;
+        padding: 8px; /* הקטנת ריפוד */
         border: 1px solid #aaa;
-        border-radius: 10px;
-        font-size: 16px;
+        border-radius: 8px; /* עיגול קטן יותר */
+        font-size: 14px; /* פונט קטן יותר */
+        min-width: 0; /* מאפשר לקלט להתכווץ */
     }
     #sendBtn, #liveBtn {
-        padding: 10px 12px;
+        padding: 8px; /* הקטנת ריפוד */
         background: #009688;
         color: white;
         border: none;
-        border-radius: 10px;
-        font-size: 14px;
+        border-radius: 8px;
+        font-size: 13px; /* פונט קטן יותר */
         cursor: pointer;
         white-space: nowrap;
     }
     #liveBtn {
         background: #e91e63;
+        padding: 8px 10px; /* מעט יותר רחב לטקסט LIVE */
+    }
+    #attachmentContainer {
+        display: flex;
+        align-items: center;
+        margin-right: 0;
+    }
+    #attachBtn {
+        padding: 8px 10px;
+        background: #e0e0e0;
+        color: #333;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1; 
     }
     #clearBtn {
         width: 100%;
@@ -275,26 +296,6 @@
         cursor: pointer;
     }
     
-    /* קלט וכפתורים - נוסף סגנון ללחצן האטב */
-    #attachmentContainer {
-        display: flex;
-        align-items: center;
-        margin-right: 4px; 
-    }
-    #attachBtn {
-        padding: 10px 12px;
-        background: #e0e0e0;
-        color: #333;
-        border: none;
-        border-radius: 10px;
-        font-size: 16px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-    }
-
     /* --- LIVE וידאו --- */
     #liveOverlay {
         position: fixed;
@@ -471,7 +472,7 @@ const firebaseConfig = {
   authDomain: "private-chat-b3a36.firebaseapp.com",
   databaseURL: "https://private-chat-b3a36-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "private-chat-b3a36",
-  storageBucket: "private-chat-b3a36.firebasestorage.app",
+  storageBucket: "private-chat-b3a36.firebasedatabase.app",
   messagingSenderId: "88424262632",
   appId: "1:88424262632:web:a38edf362b59703011525d",
   measurementId: "G-M9SGLXN3TV"
@@ -485,6 +486,8 @@ let myRole = localStorage.getItem("role") || null;
 let authed = false; 
 let typingListenerStarted = false;
 let typingTimeout = null;
+let longPressTimeout = null; // לשימוש בלחיצה ארוכה למחיקה
+
 
 /* נוכחות (presence) */
 let presenceRef = null;
@@ -699,7 +702,7 @@ db.ref("chat/messages").on("child_removed", snap => {
 });
 
 
-/* --- שינוי #3: מחיקת הודעה ספציפית --- */
+/* מחיקת הודעה ספציפית */
 function deleteMessage(key) {
     if (!authed) return alert("קודם הזן סיסמה.");
     if (!key) return;
@@ -717,7 +720,7 @@ function deleteMessage(key) {
     }
 }
 
-/* הצגת הודעה (עודכן לטיפול בתמונה ואירוע מחיקה) */
+/* הצגת הודעה (עודכן לטיפול בתמונה ואירוע לחיצה ארוכה) */
 function addMessage(key, text, role, time) {
     const chat = document.getElementById("chatBox");
 
@@ -725,8 +728,25 @@ function addMessage(key, text, role, time) {
     msgDiv.className = "msg " + (role === "male" ? "me" : "friend");
     msgDiv.id = "msg-" + key; // נותנים ID ייחודי לכל הודעה
 
-    // הוספת פונקציית מחיקה בלחיצה
-    msgDiv.onclick = () => deleteMessage(key);
+    // --- שינוי #3: לחיצה ארוכה למחיקה (3 שניות) ---
+    msgDiv.onmousedown = msgDiv.ontouchstart = () => {
+        if (authed) {
+            // התחלת ספירה לאחור של 3 שניות
+            longPressTimeout = setTimeout(() => {
+                deleteMessage(key);
+            }, 3000);
+        }
+    };
+
+    // עצירת הספירה לאחור אם הלחיצה משוחררת מוקדם מדי
+    msgDiv.onmouseup = msgDiv.ontouchend = msgDiv.onmouseleave = () => {
+        if (longPressTimeout) {
+            clearTimeout(longPressTimeout);
+            longPressTimeout = null;
+        }
+    };
+    // ----------------------------------------------------
+
 
     const icon = document.createElement("div");
     icon.className = "icon " + (role === "male" ? "male" : "female");
@@ -821,7 +841,7 @@ window.addEventListener("beforeunload", () => {
     updatePresenceOffline();
 });
 
-/* --- LIVE – לוגיקה קיימת --- */
+/* --- LIVE – לוגיקה קיימת + אישור --- */
 
 function onLiveClick() {
     if (!authed) return alert("קודם הזן סיסמה.");
@@ -830,7 +850,11 @@ function onLiveClick() {
         endCall();
         return;
     }
-    startCall();
+    
+    // אישור לפני התחלת שיחה
+    if (confirm("האם אתה בטוח שברצונך להתחיל שיחת LIVE?")) {
+        startCall();
+    }
 }
 
 /* התחלת שיחה כקורא */
