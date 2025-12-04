@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>צ'אט אישי</title>
 
-<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
@@ -200,6 +199,15 @@
     }
     .friend .bubble { background:#ffe0f0; }
 
+    /* סגנון לתצוגת תמונה בתוך בועת צ'אט (3x3 ס"מ) */
+    .chat-image {
+        width: 3cm;
+        height: 3cm;
+        object-fit: cover; /* יבטיח שהתמונה תמלא את הריבוע בלי להתעוות */
+        border-radius: 8px;
+        display: block;
+    }
+
     /* שעה קטנה בבועה */
     .msg-text {
         white-space: pre-wrap;
@@ -260,6 +268,29 @@
         border: none;
         font-size: 16px;
         cursor: pointer;
+    }
+    
+    /* קלט וכפתורים - נוסף סגנון ללחצן האטב */
+    #attachmentContainer {
+        /* כדי שהלחצן יהיה בגובה זהה לשאר הכפתורים */
+        display: flex;
+        align-items: center;
+        /* רווח קטן מהכפתור LIVE */
+        margin-right: 4px; 
+    }
+    #attachBtn {
+        padding: 10px 12px;
+        background: #e0e0e0; /* צבע אפור נייטרלי */
+        color: #333;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        cursor: pointer;
+        /* הסנטרל את תו האטב בתוך הכפתור */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1; /* לתו יוניקוד */
     }
 
     /* --- LIVE וידאו --- */
@@ -347,7 +378,6 @@
 
 <body>
 
-<!-- מסך סיסמה -->
 <div id="passwordScreen">
     <div id="passwordBox">
         <h2>הכנס סיסמה לצ'אט</h2>
@@ -357,7 +387,6 @@
     </div>
 </div>
 
-<!-- פופאפ בחירת צד -->
 <div id="roleSelect">
     <div id="roleBox">
         <h2>בחר צד בצ'אט</h2>
@@ -374,20 +403,23 @@
     </div>
 </div>
 
-<!-- צ'אט -->
 <div id="chatBox"></div>
 
-<!-- חיווי מקליד/ה -->
 <div id="typingIndicator"></div>
 
-<!-- קלט וכפתורים -->
 <div id="inputArea">
     <button onclick="onLiveClick()" id="liveBtn">LIVE</button>
+
+    <div id="attachmentContainer">
+        <input type="file" id="imageInput" accept="image/jpeg, image/png" style="display: none;">
+        <button id="attachBtn" onclick="document.getElementById('imageInput').click()">
+            &#128206; </button>
+    </div>
+    
     <input type="text" id="msgInput" placeholder="הקלד הודעה...">
     <button onclick="sendMsg()" id="sendBtn">שלח</button>
 </div>
 
-<!-- שורת נוכחות – הועברה לכאן מתחת לשורת ההקלדה -->
 <div id="presenceBar">
     <div class="presence-side">
         <span class="presence-dot" id="presenceMale"></span>
@@ -407,7 +439,6 @@
 
 <button id="clearBtn" onclick="clearChat()">מחק צ'אט</button>
 
-<!-- LIVE Overlay -->
 <div id="liveOverlay">
     <div id="liveVideos">
         <div id="remoteContainer">
@@ -422,7 +453,6 @@
     </div>
 </div>
 
-<!-- פופאפ שיחת LIVE נכנסת -->
 <div id="incomingCall">
     <div id="incomingBox">
         <h3>שיחת וידאו נכנסת</h3>
@@ -477,6 +507,10 @@ window.addEventListener("load", () => {
     document.getElementById("roleSelect").style.display = "none";
 
     document.getElementById("msgInput").addEventListener("input", handleTyping);
+    
+    // --- לוגיקה חדשה: מאזין לבחירת קובץ ---
+    document.getElementById("imageInput").addEventListener("change", handleImageSelection);
+    // ----------------------------------------
 
     // יציאה / חזרה לטאב -> אם חוזרים עם auth, נעול שוב
     document.addEventListener("visibilitychange", () => {
@@ -491,6 +525,49 @@ window.addEventListener("load", () => {
     // מאזינים לנוכחות של שני הצדדים
     listenPresence();
 });
+
+/* --- טיפול בהוספת תמונה (Base64) --- */
+function handleImageSelection(event) {
+    if (!authed) return alert("קודם הזן סיסמה.");
+    if (!myRole) return alert("בחר גבר או אישה קודם.");
+
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // 1. בדיקת סוג הקובץ (JPG או PNG)
+    const allowedTypes = ["image/jpeg", "image/png"];
+    if (!allowedTypes.includes(file.type)) {
+        alert("נא לבחור קובץ בפורמט JPG או PNG בלבד.");
+        event.target.value = null; // איפוס
+        return;
+    }
+
+    // 2. המרה ל-Base64 Data URL (הקוד הבינארי הארוך)
+    const reader = new FileReader();
+    
+    reader.onloadend = function() {
+        const base64Data = reader.result;
+        
+        // 3. שליחת ה-Base64 כהודעה לצ'אט
+        db.ref("chat/messages").push({
+            text: base64Data, 
+            role: myRole,
+            time: Date.now()
+        });
+
+        stopTyping();
+        event.target.value = null; // איפוס הקלט
+    };
+
+    reader.onerror = function(error) {
+        console.error("שגיאה בקריאת קובץ:", error);
+        alert("אירעה שגיאה בטעינת הקובץ.");
+        event.target.value = null; // איפוס הקלט
+    };
+
+    // קורא את הקובץ כ-Data URL (Base64)
+    reader.readAsDataURL(file);
+}
 
 /* --- נוכחות --- */
 function listenPresence() {
@@ -618,7 +695,7 @@ db.ref("chat/messages").on("child_added", snap => {
     addMessage(data.text, data.role, data.time);
 });
 
-/* הצגת הודעה */
+/* הצגת הודעה (עודכן לטיפול בתמונה) */
 function addMessage(text, role, time) {
     const chat = document.getElementById("chatBox");
 
@@ -631,15 +708,28 @@ function addMessage(text, role, time) {
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
-    const textDiv = document.createElement("div");
-    textDiv.className = "msg-text";
-    textDiv.textContent = text;
+    // בדיקה אם תוכן ההודעה הוא Base64 (מתחיל ב-data:image/)
+    const isImage = typeof text === 'string' && text.startsWith('data:image/');
+
+    if (isImage) {
+        // אם זו תמונה, צור תגית <img>
+        const img = document.createElement("img");
+        img.className = "chat-image"; // יחיל את הסגנון 3x3 ס"מ
+        img.src = text; // מכיל את נתוני ה-Base64
+        bubble.appendChild(img);
+    } else {
+        // אם זה טקסט רגיל
+        const textDiv = document.createElement("div");
+        textDiv.className = "msg-text";
+        textDiv.textContent = text;
+        bubble.appendChild(textDiv);
+    }
 
     const timeDiv = document.createElement("div");
     timeDiv.className = "msg-time";
     timeDiv.textContent = formatTime(time);
 
-    bubble.appendChild(textDiv);
+    // מצרפים את השעה
     if (timeDiv.textContent) {
         bubble.appendChild(timeDiv);
     }
