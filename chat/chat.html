@@ -9,13 +9,17 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
 <style>
-    body {
+    /* --- שינוי #1: התאמה למסך מלא בטלפון (מניעת גלילה אופקית) --- */
+    html, body {
         margin: 0;
+        padding: 0;
+        overflow-x: hidden; /* מונע גלילה ימינה/שמאלה */
         font-family: Heebo, Arial;
         background: #f2f2f2;
         display: flex;
         flex-direction: column;
         height: 100vh;
+        width: 100%; /* מוודא שהגוף לא רחב מדי */
     }
 
     /* --- מסך סיסמה (מלא, לא שקוף) --- */
@@ -164,6 +168,7 @@
         align-items: center;
         margin-bottom: 12px;
         max-width: 80%;
+        cursor: pointer; /* לחיצה למחיקה */
     }
     .icon {
         width: 14px;
@@ -199,11 +204,11 @@
     }
     .friend .bubble { background:#ffe0f0; }
 
-    /* סגנון לתצוגת תמונה בתוך בועת צ'אט (3x3 ס"מ) */
+    /* --- שינוי #2: גודל תמונה 5x5 ס"מ --- */
     .chat-image {
-        width: 3cm;
-        height: 3cm;
-        object-fit: cover; /* יבטיח שהתמונה תמלא את הריבוע בלי להתעוות */
+        width: 5cm; 
+        height: 5cm; 
+        object-fit: cover; 
         border-radius: 8px;
         display: block;
     }
@@ -272,25 +277,22 @@
     
     /* קלט וכפתורים - נוסף סגנון ללחצן האטב */
     #attachmentContainer {
-        /* כדי שהלחצן יהיה בגובה זהה לשאר הכפתורים */
         display: flex;
         align-items: center;
-        /* רווח קטן מהכפתור LIVE */
         margin-right: 4px; 
     }
     #attachBtn {
         padding: 10px 12px;
-        background: #e0e0e0; /* צבע אפור נייטרלי */
+        background: #e0e0e0;
         color: #333;
         border: none;
         border-radius: 10px;
         font-size: 16px;
         cursor: pointer;
-        /* הסנטרל את תו האטב בתוך הכפתור */
         display: flex;
         align-items: center;
         justify-content: center;
-        line-height: 1; /* לתו יוניקוד */
+        line-height: 1;
     }
 
     /* --- LIVE וידאו --- */
@@ -480,7 +482,7 @@ const db = firebase.database();
 
 /* מצב צ'אט */
 let myRole = localStorage.getItem("role") || null;
-let authed = false; // תמיד מתחילים לא מחובר
+let authed = false; 
 let typingListenerStarted = false;
 let typingTimeout = null;
 
@@ -502,27 +504,21 @@ const servers = {
 
 /* אחרי עליית הדף */
 window.addEventListener("load", () => {
-    // תמיד מסך סיסמה
     document.getElementById("passwordScreen").style.display = "flex";
     document.getElementById("roleSelect").style.display = "none";
 
     document.getElementById("msgInput").addEventListener("input", handleTyping);
     
-    // --- לוגיקה חדשה: מאזין לבחירת קובץ ---
+    // מאזין לבחירת קובץ
     document.getElementById("imageInput").addEventListener("change", handleImageSelection);
-    // ----------------------------------------
 
-    // יציאה / חזרה לטאב -> אם חוזרים עם auth, נעול שוב
     document.addEventListener("visibilitychange", () => {
         if (!document.hidden && authed) {
             forceReauth();
         }
     });
 
-    // מאזין לשיחות LIVE
     listenForCall();
-
-    // מאזינים לנוכחות של שני הצדדים
     listenPresence();
 });
 
@@ -534,21 +530,20 @@ function handleImageSelection(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // 1. בדיקת סוג הקובץ (JPG או PNG)
+    // בדיקת סוג הקובץ
     const allowedTypes = ["image/jpeg", "image/png"];
     if (!allowedTypes.includes(file.type)) {
         alert("נא לבחור קובץ בפורמט JPG או PNG בלבד.");
-        event.target.value = null; // איפוס
+        event.target.value = null; 
         return;
     }
 
-    // 2. המרה ל-Base64 Data URL (הקוד הבינארי הארוך)
     const reader = new FileReader();
     
     reader.onloadend = function() {
         const base64Data = reader.result;
         
-        // 3. שליחת ה-Base64 כהודעה לצ'אט
+        // שליחת ה-Base64 כהודעה לצ'אט
         db.ref("chat/messages").push({
             text: base64Data, 
             role: myRole,
@@ -562,10 +557,9 @@ function handleImageSelection(event) {
     reader.onerror = function(error) {
         console.error("שגיאה בקריאת קובץ:", error);
         alert("אירעה שגיאה בטעינת הקובץ.");
-        event.target.value = null; // איפוס הקלט
+        event.target.value = null;
     };
 
-    // קורא את הקובץ כ-Data URL (Base64)
     reader.readAsDataURL(file);
 }
 
@@ -651,7 +645,7 @@ function forceReauth() {
     if (!authed) return;
     authed = false;
     stopTyping();
-    endCall(true); // אם יש LIVE – לסגור
+    endCall(true); 
     updatePresenceOffline();
     document.getElementById("passInput").value = "";
     document.getElementById("passError").textContent = "";
@@ -692,15 +686,47 @@ function sendMsg() {
 db.ref("chat/messages").on("child_added", snap => {
     const data = snap.val();
     if (!data) return;
-    addMessage(data.text, data.role, data.time);
+    addMessage(snap.key, data.text, data.role, data.time);
 });
 
-/* הצגת הודעה (עודכן לטיפול בתמונה) */
-function addMessage(text, role, time) {
+/* עדכון: מחיקת הודעה (כאשר מפתח הודעה נמחק) */
+db.ref("chat/messages").on("child_removed", snap => {
+    const key = snap.key;
+    const element = document.getElementById("msg-" + key);
+    if (element) {
+        element.remove();
+    }
+});
+
+
+/* --- שינוי #3: מחיקת הודעה ספציפית --- */
+function deleteMessage(key) {
+    if (!authed) return alert("קודם הזן סיסמה.");
+    if (!key) return;
+
+    if (confirm("האם אתה בטוח שברצונך למחוק הודעה זו?")) {
+        // מוחק את ההודעה מהבסיס נתונים
+        db.ref("chat/messages/" + key).remove()
+            .then(() => {
+                console.log("הודעה נמחקה בהצלחה:", key);
+            })
+            .catch(error => {
+                console.error("שגיאה במחיקת הודעה:", error);
+                alert("אירעה שגיאה במחיקת ההודעה.");
+            });
+    }
+}
+
+/* הצגת הודעה (עודכן לטיפול בתמונה ואירוע מחיקה) */
+function addMessage(key, text, role, time) {
     const chat = document.getElementById("chatBox");
 
     const msgDiv = document.createElement("div");
     msgDiv.className = "msg " + (role === "male" ? "me" : "friend");
+    msgDiv.id = "msg-" + key; // נותנים ID ייחודי לכל הודעה
+
+    // הוספת פונקציית מחיקה בלחיצה
+    msgDiv.onclick = () => deleteMessage(key);
 
     const icon = document.createElement("div");
     icon.className = "icon " + (role === "male" ? "male" : "female");
@@ -708,17 +734,14 @@ function addMessage(text, role, time) {
     const bubble = document.createElement("div");
     bubble.className = "bubble";
 
-    // בדיקה אם תוכן ההודעה הוא Base64 (מתחיל ב-data:image/)
     const isImage = typeof text === 'string' && text.startsWith('data:image/');
 
     if (isImage) {
-        // אם זו תמונה, צור תגית <img>
         const img = document.createElement("img");
-        img.className = "chat-image"; // יחיל את הסגנון 3x3 ס"מ
-        img.src = text; // מכיל את נתוני ה-Base64
+        img.className = "chat-image"; // יחיל את הסגנון 5x5 ס"מ
+        img.src = text; 
         bubble.appendChild(img);
     } else {
-        // אם זה טקסט רגיל
         const textDiv = document.createElement("div");
         textDiv.className = "msg-text";
         textDiv.textContent = text;
@@ -729,7 +752,6 @@ function addMessage(text, role, time) {
     timeDiv.className = "msg-time";
     timeDiv.textContent = formatTime(time);
 
-    // מצרפים את השעה
     if (timeDiv.textContent) {
         bubble.appendChild(timeDiv);
     }
