@@ -42,35 +42,7 @@
       text-align:center;
       font-size:16px;
       font-weight:600;
-      margin-bottom:8px;
-    }
-    .date-row{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      margin-bottom:10px;
-      flex-wrap:wrap;
-    }
-    .date-row label{
-      font-size:14px;
-    }
-    .date-row input[type="date"]{
-      font-size:14px;
-      padding:4px 6px;
-      border-radius:8px;
-      border:1px solid #ccc;
-    }
-    .date-row button{
-      font-size:13px;
-      padding:6px 10px;
-      border-radius:10px;
-      border:none;
-      background:#e0f2f1;
-      cursor:pointer;
-    }
-    .date-row button:active{
-      transform:scale(0.96);
+      margin-bottom:14px;
     }
     .buttons-row{
       display:grid;
@@ -179,20 +151,17 @@
       direction:ltr;
     }
   </style>
+
+  <!-- Firebase (גרסת compat שמתאימה ל-HTML רגיל) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
   <div class="app">
     <h1>רישום הכנסות</h1>
-    <div class="sub">לחץ על הסכום לכל לקוח. הכל נשמר מקומית במכשיר.</div>
+    <div class="sub">לחץ על הסכום לכל לקוח. הכל נשמר מקומית ובענן.</div>
 
     <div class="today-date" id="todayDate"></div>
-
-    <!-- תאריך לרישום (כולל תאריכים שחלפו) -->
-    <div class="date-row">
-      <label for="activeDate">תאריך לרישום:</label>
-      <input type="date" id="activeDate">
-      <button id="setActiveDateBtn">עדכן תאריך שחלף</button>
-    </div>
 
     <div class="buttons-row">
       <button class="btn-amount" data-amount="50">50 ₪</button>
@@ -202,9 +171,9 @@
     </div>
 
     <div class="section">
-      <div class="section-title">רישום לתאריך הנוכחי</div>
+      <div class="section-title">היום</div>
       <div class="list" id="todayList"></div>
-      <div class="today-total" id="todayTotal">סה״כ: 0 ₪</div>
+      <div class="today-total" id="todayTotal">סה״כ היום: 0 ₪</div>
     </div>
 
     <div class="section" style="margin-top:16px;">
@@ -220,10 +189,25 @@
   </div>
 
   <script>
+    // --- Firebase config שלך ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCg7xjTPHeRemfCyz0xG5uoolMR8tvVve8",
+      authDomain: "sikom-2b922.firebaseapp.com",
+      projectId: "sikom-2b922",
+      storageBucket: "sikom-2b922.firebasestorage.app",
+      messagingSenderId: "252762640424",
+      appId: "1:252762640424:web:9485bbe58dc80f46a4651d",
+      measurementId: "G-W5XJBNCJZ0"
+    };
+
+    // אתחול Firebase + Firestore
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // מפתח לשמירה לוקאלית
     const STORAGE_KEY = 'income_log_v1';
 
     let entries = [];
-    let activeDateIso = null; // התאריך שבו רושמים כרגע
 
     function loadFromStorage() {
       try {
@@ -266,58 +250,53 @@
       return `${hh}:${mm}`;
     }
 
-    function ensureActiveDate() {
-      if (!activeDateIso) {
-        activeDateIso = getTodayIso();
-      }
-    }
-
+    // הוספת רשומה חדשה — נשלחת ישר ל-Firestore
     function addEntry(amount) {
-      ensureActiveDate();
       const now = new Date();
       const entry = {
         id: Date.now().toString() + '_' + Math.random().toString(16).slice(2),
-        date: activeDateIso,
+        date: getTodayIso(),
         time: formatTime(now),
-        amount: Number(amount)
+        amount: Number(amount),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-      entries.push(entry);
-      saveToStorage();
-      renderAll();
+
+      db.collection("incomeEntries").doc(entry.id).set(entry).catch(err => {
+        console.error("Firestore save error:", err);
+        // אם נכשל, אפשר לפחות לשמור לוקאלית:
+        entries.push(entry);
+        saveToStorage();
+        renderAll();
+      });
     }
 
     function deleteEntry(id) {
-      entries = entries.filter(e => e.id !== id);
-      saveToStorage();
-      renderAll();
+      db.collection("incomeEntries").doc(id).delete().catch(err => {
+        console.error("Firestore delete error:", err);
+      });
+      // אין צורך למחוק מיידית מ-local, onSnapshot יעדכן.
     }
 
     function renderAll() {
-      ensureActiveDate();
-
+      const todayIso = getTodayIso();
       const todayDateEl = document.getElementById('todayDate');
-      todayDateEl.textContent = 'תאריך לרישום: ' + formatDateHeb(activeDateIso);
+      todayDateEl.textContent = 'היום: ' + formatDateHeb(todayIso);
 
-      const activeInput = document.getElementById('activeDate');
-      if (activeInput && activeInput.value !== activeDateIso) {
-        activeInput.value = activeDateIso;
-      }
-
-      renderToday(activeDateIso);
+      renderToday(todayIso);
       renderHistoryDays();
       renderHistoryMonths();
     }
 
-    function renderToday(dateIso) {
+    function renderToday(todayIso) {
       const todayListEl = document.getElementById('todayList');
       const todayTotalEl = document.getElementById('todayTotal');
 
-      const dateEntries = entries.filter(e => e.date === dateIso);
+      const todayEntries = entries.filter(e => e.date === todayIso);
 
-      if (dateEntries.length === 0) {
-        todayListEl.innerHTML = '<div style="font-size:14px;color:#777;">אין רשומות לתאריך זה.</div>';
+      if (todayEntries.length === 0) {
+        todayListEl.innerHTML = '<div style="font-size:14px;color:#777;">אין עדיין רשומות להיום.</div>';
       } else {
-        todayListEl.innerHTML = dateEntries.map(e => {
+        todayListEl.innerHTML = todayEntries.map(e => {
           return `
             <div class="entry-row">
               <div class="entry-main">
@@ -330,8 +309,8 @@
         }).join('');
       }
 
-      const sum = dateEntries.reduce((acc, e) => acc + e.amount, 0);
-      todayTotalEl.textContent = 'סה״כ לתאריך זה: ' + sum + ' ₪';
+      const sum = todayEntries.reduce((acc, e) => acc + e.amount, 0);
+      todayTotalEl.textContent = 'סה״כ היום: ' + sum + ' ₪';
     }
 
     function renderHistoryDays() {
@@ -405,19 +384,6 @@
       grandTotalEl.textContent = 'סה״כ כל התקופה: ' + grandTotal + ' ₪';
     }
 
-    // שינוי תאריך פעיל
-    function updateActiveDateFromInput() {
-      const input = document.getElementById('activeDate');
-      if (!input) return;
-      const val = input.value;
-      if (!val) {
-        activeDateIso = getTodayIso();
-      } else {
-        activeDateIso = val;
-      }
-      renderAll();
-    }
-
     // האזנה ללחצנים
     document.addEventListener('click', function(ev){
       const btnAmount = ev.target.closest('.btn-amount');
@@ -433,21 +399,34 @@
         deleteEntry(id);
         return;
       }
-
-      if (ev.target.id === 'setActiveDateBtn') {
-        updateActiveDateFromInput();
-        return;
-      }
     });
+
+    // מאזין בזמן אמת ל-Firestore — סנכרון בין כל המכשירים
+    function startRealtimeListener() {
+      db.collection("incomeEntries")
+        .orderBy("createdAt")
+        .onSnapshot(snapshot => {
+          const serverEntries = [];
+          snapshot.forEach(doc => {
+            const data = doc.data();
+            // הגנה קטנה למקרה שיש רשומות ישנות בלי createdAt
+            if (!data.date || !data.amount) return;
+            serverEntries.push(data);
+          });
+          entries = serverEntries;
+          saveToStorage();
+          renderAll();
+        }, err => {
+          console.error("Realtime listener error:", err);
+          // אם יש בעיה בענן, לפחות נשתמש במה שיש מקומית
+          renderAll();
+        });
+    }
 
     // התחלה
     loadFromStorage();
-    activeDateIso = getTodayIso();
-    window.addEventListener('DOMContentLoaded', () => {
-      const input = document.getElementById('activeDate');
-      if (input) input.value = activeDateIso;
-      renderAll();
-    });
+    renderAll();
+    startRealtimeListener();
   </script>
 </body>
 </html>
