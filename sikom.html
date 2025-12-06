@@ -393,6 +393,40 @@
       grandTotalEl.textContent = 'סה״כ כל התקופה: ' + grandTotal + ' ₪';
     }
 
+    // --- טעינה מהענן במכשיר שאין בו נתונים מקומיים ---
+    async function loadFromServerIfNeeded() {
+      try {
+        if (entries.length > 0) {
+          // כבר יש נתונים מקומיים – לא נוגעים
+          return;
+        }
+
+        const snap = await db.collection("incomeEntries")
+          .orderBy("createdAt")
+          .get();
+
+        const serverEntries = [];
+        snap.forEach(doc => {
+          const data = doc.data();
+          if (!data.date || !data.amount) return;
+          serverEntries.push({
+            id: data.id || doc.id,
+            date: data.date,
+            time: data.time || "",
+            amount: Number(data.amount)
+          });
+        });
+
+        if (serverEntries.length > 0) {
+          entries = serverEntries;
+          saveToStorage();
+          renderAll();
+        }
+      } catch (err) {
+        console.error("Load from server failed:", err);
+      }
+    }
+
     // האזנה ללחצנים
     document.addEventListener('click', function(ev){
       const btnAmount = ev.target.closest('.btn-amount');
@@ -413,7 +447,7 @@
     // התחלה
     loadFromStorage();
     renderAll();
-    // שים לב: אין כאן onSnapshot – אין קריאה אוטומטית מהענן, רק כתיבה
+    loadFromServerIfNeeded();  // משיכת נתונים לעננים אם המכשיר חדש
   </script>
 </body>
 </html>
