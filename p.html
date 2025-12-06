@@ -146,6 +146,13 @@
       flex-direction:column;
       gap:8px;
     }
+
+    .toolbar-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-bottom:6px;
+    }
   </style>
 </head>
 
@@ -210,7 +217,10 @@
 
       <div class="divider"></div>
 
-      <button class="btn-primary" id="btnDownloadVault">הורד קובץ כספת מוצפן</button>
+      <div class="toolbar-row">
+        <button class="btn-primary" id="btnDownloadVault">הורד קובץ כספת מוצפן</button>
+        <button class="btn-outline" id="btnChangeMaster">שנה סיסמת מאסטר</button>
+      </div>
 
       <div class="backup-row">
         <button class="btn-outline" id="btnBackup1">גיבוי לדרייב 1</button>
@@ -247,14 +257,15 @@
     const searchBox     = document.getElementById("searchBox");
     const entryList     = document.getElementById("entryList");
 
-    document.getElementById("btnNewVault").onclick      = createNewVault;
-    document.getElementById("btnOpenVault").onclick     = openFromFile;
-    document.getElementById("btnSaveEntry").onclick     = saveEntry;
-    document.getElementById("btnClearForm").onclick     = clearForm;
-    document.getElementById("btnDownloadVault").onclick = downloadVault;
-    document.getElementById("btnLogout").onclick        = logout;
-    document.getElementById("btnBackup1").onclick       = backupDrive1;
-    document.getElementById("btnBackup2").onclick       = backupDrive2;
+    document.getElementById("btnNewVault").onclick       = createNewVault;
+    document.getElementById("btnOpenVault").onclick      = openFromFile;
+    document.getElementById("btnSaveEntry").onclick      = saveEntry;
+    document.getElementById("btnClearForm").onclick      = clearForm;
+    document.getElementById("btnDownloadVault").onclick  = downloadVault;
+    document.getElementById("btnLogout").onclick         = logout;
+    document.getElementById("btnBackup1").onclick        = backupDrive1;
+    document.getElementById("btnBackup2").onclick        = backupDrive2;
+    document.getElementById("btnChangeMaster").onclick   = changeMasterPassword;
     searchBox.oninput = renderList;
 
     // ----------------- פונקציות הצפנה -----------------
@@ -297,7 +308,7 @@
       const decrypted = CryptoJS.AES.decrypt({ciphertext: ct}, key, { iv: iv });
       const txt = decrypted.toString(CryptoJS.enc.Utf8);
       if(!txt){
-        throw "סיסמה שגויה או קובץ פגום.";
+        throw "סיסמת מאסטר שגויה או קובץ פגום.";
       }
       return txt;
     }
@@ -473,7 +484,7 @@
       emailRecovery.value = e.emailRecovery || "";
       phoneRecovery.value = e.phoneRecovery || "";
       notes.value         = e.notes         || "";
-      showVault("מצב עריכה. לאחר שמירה – אל תשכח לעדכן גיבוי.", false);
+      showVault("מצב עריכה: לאחר שמירה – הורד קובץ מוצפן חדש וגבה אותו.", false);
     }
 
     // ----------------- מחיקת פריט -----------------
@@ -523,15 +534,49 @@
       showVault("קובץ מוצפן הורד. עכשיו העלה אותו לדרייבים לגיבוי.", false);
     }
 
+    // ----------------- שינוי סיסמת מאסטר -----------------
+
+    function changeMasterPassword(){
+      if(!masterKey){
+        showVault("אין סיסמת מאסטר פעילה. היכנס מחדש.", true);
+        return;
+      }
+
+      const oldPwd = prompt("הכנס את סיסמת המאסטר הנוכחית:");
+      if(oldPwd === null) return;
+      if(oldPwd !== masterKey){
+        showVault("סיסמת מאסטר נוכחית שגויה.", true);
+        return;
+      }
+
+      const newPwd = prompt("הכנס סיסמת מאסטר חדשה חזקה:");
+      if(newPwd === null || newPwd.trim()===""){
+        showVault("הסיסמה החדשה לא יכולה להיות ריקה.", true);
+        return;
+      }
+
+      const confirmPwd = prompt("אשר את סיסמת המאסטר החדשה:");
+      if(confirmPwd === null){
+        showVault("שינוי סיסמה בוטל.", true);
+        return;
+      }
+
+      if(newPwd !== confirmPwd){
+        showVault("האישור לא תואם לסיסמה החדשה.", true);
+        return;
+      }
+
+      masterKey = newPwd.trim();
+      showVault("סיסמת המאסטר עודכנה. חשוב מאוד להוריד עכשיו קובץ כספת מוצפן חדש ולגבות אותו במקום הישן.", false);
+    }
+
     // ----------------- גיבוי לדרייבים -----------------
 
     function backupDrive1(){
-      // חשבון גוגל ראשון (u/0) – אפשר לשנות אם תרצה
       window.open("https://drive.google.com/drive/u/0/my-drive", "_blank");
     }
 
     function backupDrive2(){
-      // חשבון גוגל שני (u/1)
       window.open("https://drive.google.com/drive/u/1/my-drive", "_blank");
     }
 
