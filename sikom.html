@@ -152,14 +152,14 @@
     }
   </style>
 
-  <!-- Firebase (גרסת compat שמתאימה ל-HTML רגיל) -->
+  <!-- Firebase compat ל-HTML רגיל -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
   <div class="app">
     <h1>רישום הכנסות</h1>
-    <div class="sub">לחץ על הסכום לכל לקוח. הכל נשמר מקומית ובענן.</div>
+    <div class="sub">לחץ על הסכום לכל לקוח. הכל נשמר מקומית ובענן (גיבוי).</div>
 
     <div class="today-date" id="todayDate"></div>
 
@@ -250,31 +250,40 @@
       return `${hh}:${mm}`;
     }
 
-    // הוספת רשומה חדשה — נשלחת ישר ל-Firestore
+    // הוספת רשומה חדשה – המקומי קודם, Firestore כגיבוי
     function addEntry(amount) {
       const now = new Date();
       const entry = {
         id: Date.now().toString() + '_' + Math.random().toString(16).slice(2),
         date: getTodayIso(),
         time: formatTime(now),
-        amount: Number(amount),
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        amount: Number(amount)
       };
 
-      db.collection("incomeEntries").doc(entry.id).set(entry).catch(err => {
+      // קודם מקומי
+      entries.push(entry);
+      saveToStorage();
+      renderAll();
+
+      // גיבוי שקט לענן
+      db.collection("incomeEntries").doc(entry.id).set({
+        ...entry,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(err => {
         console.error("Firestore save error:", err);
-        // אם נכשל, אפשר לפחות לשמור לוקאלית:
-        entries.push(entry);
-        saveToStorage();
-        renderAll();
       });
     }
 
     function deleteEntry(id) {
+      // קודם מחיקה מקומית
+      entries = entries.filter(e => e.id !== id);
+      saveToStorage();
+      renderAll();
+
+      // ניסיון מחיקה גם בענן (לא חובה להצליח)
       db.collection("incomeEntries").doc(id).delete().catch(err => {
         console.error("Firestore delete error:", err);
       });
-      // אין צורך למחוק מיידית מ-local, onSnapshot יעדכן.
     }
 
     function renderAll() {
@@ -401,32 +410,10 @@
       }
     });
 
-    // מאזין בזמן אמת ל-Firestore — סנכרון בין כל המכשירים
-    function startRealtimeListener() {
-      db.collection("incomeEntries")
-        .orderBy("createdAt")
-        .onSnapshot(snapshot => {
-          const serverEntries = [];
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            // הגנה קטנה למקרה שיש רשומות ישנות בלי createdAt
-            if (!data.date || !data.amount) return;
-            serverEntries.push(data);
-          });
-          entries = serverEntries;
-          saveToStorage();
-          renderAll();
-        }, err => {
-          console.error("Realtime listener error:", err);
-          // אם יש בעיה בענן, לפחות נשתמש במה שיש מקומית
-          renderAll();
-        });
-    }
-
     // התחלה
     loadFromStorage();
     renderAll();
-    startRealtimeListener();
+    // שים לב: אין כאן onSnapshot – אין קריאה אוטומטית מהענן, רק כתיבה
   </script>
 </body>
 </html>
