@@ -48,7 +48,7 @@
       display:grid;
       grid-template-columns:repeat(3,1fr); /* 3 כפתורים בכל שורה */
       gap:8px;
-      margin-bottom:14px;
+      margin-bottom:10px;
     }
     button{
       font-family:inherit;
@@ -64,6 +64,16 @@
     }
     .btn-amount:active{
       transform:scale(0.97);
+    }
+    .toggle-details-btn{
+      width:100%;
+      margin-bottom:6px;
+      background:#fff3cd;
+      border:1px solid #ffe08a;
+      font-weight:600;
+    }
+    .toggle-details-btn:active{
+      transform:scale(0.98);
     }
     .section{
       margin-top:12px;
@@ -150,6 +160,18 @@
       text-align:left;
       direction:ltr;
     }
+
+    /* מעטפת הפירוט – מוסתרת עם אנימציה */
+    .details-wrapper{
+      max-height:0;
+      opacity:0;
+      overflow:hidden;
+      transition:max-height 0.4s ease, opacity 0.4s ease;
+    }
+    .details-wrapper.open{
+      max-height:2000px; /* מספיק גדול לכל התוכן */
+      opacity:1;
+    }
   </style>
 
   <!-- Firebase compat ל-HTML רגיל -->
@@ -169,27 +191,33 @@
       <button class="btn-amount" data-amount="60" data-label="פן 60">פן 60</button>
       <button class="btn-amount" data-amount="70" data-label="פן 70">פן 70</button>
 
-      <!-- שורה שנייה: מסכת שיער (70), ספריי לשיער (35), מכשיר פן (150) -->
+      <!-- שורה שנייה: מסכת שיער (70), ספריי לשיער (30), מכשיר פן (150) -->
       <button class="btn-amount" data-amount="70" data-label="מסכת שיער">מסכת שיער</button>
-      <button class="btn-amount" data-amount="35" data-label="ספריי לשיער">ספריי לשיער</button>
+      <button class="btn-amount" data-amount="30" data-label="ספריי לשיער">ספריי לשיער</button>
       <button class="btn-amount" data-amount="150" data-label="מכשיר פן">מכשיר פן</button>
     </div>
 
-    <div class="section">
-      <div class="section-title">היום</div>
-      <div class="list" id="todayList"></div>
-      <div class="today-total" id="todayTotal">סה״כ היום: 0 ₪</div>
-    </div>
+    <!-- כפתור פירוט -->
+    <button id="toggleDetails" class="toggle-details-btn">פירוט</button>
 
-    <div class="section" style="margin-top:16px;">
-      <div class="section-title">היסטוריה יומית</div>
-      <div class="list" id="historyDays"></div>
-    </div>
+    <!-- כל החלק התחתון עטוף – מוסתר/מוצג לפי פירוט -->
+    <div id="detailsWrapper" class="details-wrapper">
+      <div class="section">
+        <div class="section-title">היום</div>
+        <div class="list" id="todayList"></div>
+        <div class="today-total" id="todayTotal">סה״כ היום: 0 ₪</div>
+      </div>
 
-    <div class="section" style="margin-top:16px;">
-      <div class="section-title">סיכום חודשי</div>
-      <div class="list" id="historyMonths"></div>
-      <div class="month-total-all" id="grandTotal"></div>
+      <div class="section" style="margin-top:16px;">
+        <div class="section-title">היסטוריה יומית</div>
+        <div class="list" id="historyDays"></div>
+      </div>
+
+      <div class="section" style="margin-top:16px;">
+        <div class="section-title">סיכום חודשי</div>
+        <div class="list" id="historyMonths"></div>
+        <div class="month-total-all" id="grandTotal"></div>
+      </div>
     </div>
   </div>
 
@@ -230,7 +258,7 @@
       const now = new Date();
       const y = now.getFullYear();
       const m = String(now.getMonth() + 1).padStart(2, '0');
-      const d = String(now.getDate()).toString().padStart(2, '0');
+      const d = String(now.getDate()).toString(2, '0');
       return `${y}-${m}-${d}`;
     }
 
@@ -445,6 +473,15 @@
         deleteEntry(id);
         return;
       }
+    });
+
+    // כפתור פירוט – פתיחה/סגירה עם אפקט
+    const detailsWrapper = document.getElementById('detailsWrapper');
+    const toggleDetailsBtn = document.getElementById('toggleDetails');
+
+    toggleDetailsBtn.addEventListener('click', () => {
+      const isOpen = detailsWrapper.classList.toggle('open');
+      toggleDetailsBtn.textContent = isOpen ? 'הסתר פירוט' : 'פירוט';
     });
 
     (async function init() {
