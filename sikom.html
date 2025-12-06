@@ -225,7 +225,7 @@
       const now = new Date();
       const y = now.getFullYear();
       const m = String(now.getMonth() + 1).padStart(2, '0');
-      const d = String(now.getDate()).padStart(2, '0');
+      const d = String(now.getDate() + 0).toString().padStart(2, '0');
       return `${y}-${m}-${d}`;
     }
 
@@ -259,14 +259,24 @@
       }).catch(err => console.error("Firestore save error:", err));
     }
 
+    // ==== מחיקה עם סיסמה 4451 ====
     function deleteEntry(id) {
+      const pass = prompt("הכנס סיסמה למחיקה:");
+      if (pass !== "4451") {
+        alert("סיסמה שגויה – המחיקה בוטלה.");
+        return;
+      }
+
+      // מחיקה מקומית
       entries = entries.filter(e => e.id !== id);
       saveToStorage();
       renderAll();
 
+      // מחיקה מהשרת
       db.collection("incomeEntries").doc(id).delete()
         .catch(err => console.error("Firestore delete error:", err));
     }
+    // ===============================
 
     function renderAll() {
       const todayIso = getTodayIso();
