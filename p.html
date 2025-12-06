@@ -1,621 +1,207 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>כספת סיסמאות</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>כספת סיסמאות</title>
 
-  <!-- ספריית הצפנה -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-
-  <style>
-    *{
-      box-sizing:border-box;
-      margin:0;
-      padding:0;
-      font-family:system-ui,"Heebo","Arial",sans-serif;
-    }
-    body{
-      background:#e8f1fb;
-      min-height:100vh;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-    }
-    .card{
-      width:100%;
-      max-width:520px;
-      background:#ffffff;
-      border-radius:18px;
-      box-shadow:0 14px 28px rgba(0,0,0,0.12);
-      padding:22px;
-    }
-    h1{
-      text-align:right;
-      font-size:22px;
-      margin-bottom:8px;
-    }
-    .sub{
-      text-align:right;
-      font-size:14px;
-      color:#555;
-      margin-bottom:20px;
-    }
-
-    label{
-      display:block;
-      text-align:right;
-      font-size:15px;
-      margin-bottom:4px;
-    }
-    input,textarea{
-      width:100%;
-      padding:9px 10px;
-      border:1px solid #c7d4e5;
-      border-radius:10px;
-      font-size:15px;
-      margin-bottom:12px;
-    }
-    textarea{
-      resize:vertical;
-      min-height:70px;
-    }
-
-    button{
-      border:none;
-      border-radius:999px;
-      padding:9px 16px;
-      font-size:15px;
-      cursor:pointer;
-      margin:4px 0;
-    }
-    .btn-primary{
-      background:#2563eb;
-      color:#ffffff;
-    }
-    .btn-outline{
-      background:#f4f6fb;
-      border:1px solid #cfd7e7;
-      color:#1e293b;
-    }
-    .btn-danger{
-      background:#e11d48;
-      color:#ffffff;
-    }
-
-    .entry-list{
-      max-height:260px;
-      overflow-y:auto;
-      border:1px solid #dce3f2;
-      border-radius:12px;
-      padding:8px;
-      margin-bottom:14px;
-    }
-    .entry{
-      background:#f6f8ff;
-      border-radius:10px;
-      padding:10px;
-      margin-bottom:8px;
-      position:relative;
-    }
-    .entry-title{
-      font-size:15px;
-      font-weight:600;
-      margin-bottom:4px;
-    }
-    .entry-line{
-      font-size:13px;
-      color:#43536a;
-    }
-
-    .actions{
-      position:absolute;
-      left:8px;
-      top:50%;
-      transform:translateY(-50%);
-      display:flex;
-      gap:6px;
-    }
-    .divider{
-      height:1px;
-      background:#d9e2ef;
-      margin:16px 0;
-    }
-    .hidden{display:none;}
-
-    #searchBox{
-      margin-bottom:16px;
-    }
-
-    .status{
-      text-align:right;
-      font-size:13px;
-      min-height:18px;
-      margin-top:6px;
-    }
-    .ok{color:#166534;}
-    .error{color:#b91c1c;}
-
-    .backup-row{
-      margin-top:20px;
-      border-top:1px solid #dce3f2;
-      padding-top:18px;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
-
-    .toolbar-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      margin-bottom:6px;
-    }
-  </style>
+<style>
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:#e9eef5;
+  padding:20px;
+}
+.card{
+  max-width:450px;
+  margin:0 auto;
+  background:#fff;
+  padding:25px;
+  border-radius:16px;
+  box-shadow:0 8px 18px rgba(0,0,0,0.15);
+}
+h2{margin-top:0;text-align:center;color:#222;}
+input,button,textarea{
+  width:100%;
+  padding:12px;
+  margin-top:12px;
+  border-radius:10px;
+  border:1px solid #bbb;
+  font-size:16px;
+}
+button{
+  background:#007bff;
+  color:white;
+  cursor:pointer;
+  border:none;
+}
+button:hover{background:#005fcc;}
+#addSection,#searchSection{display:none;}
+.result{
+  background:#f4f6fa;
+  padding:12px;
+  margin-top:10px;
+  border-radius:10px;
+}
+.label{font-weight:bold;color:#333;}
+</style>
 </head>
 
 <body>
-  <div class="card">
 
-    <!-- ========================== מסך כניסה ========================== -->
-    <div id="loginView">
-      <h1>כניסה לכספת סיסמאות</h1>
-      <p class="sub">
-        הזן סיסמת מאסטר (נדרשת בכל פתיחה).<br>
-        סיסמה זו לא נשמרת בשום מקום.
-      </p>
+<div class="card" id="loginSection">
+  <h2>כניסה לכספת</h2>
+  <input type="password" id="masterPass" placeholder="סיסמת מאסטר">
+  <button onclick="login()">הכנס</button>
+</div>
 
-      <label for="masterPassword">סיסמת מאסטר</label>
-      <input id="masterPassword" type="password" autocomplete="off" placeholder="הקלד סיסמה חזקה">
+<div class="card" id="mainMenu" style="display:none;">
+  <h2>כספת סיסמאות</h2>
+  <button onclick="showAdd()">➕ הוסף סיסמה</button>
+  <button onclick="showSearch()">🔍 חיפוש</button>
+</div>
 
-      <label for="fileInput">קובץ כספת מוצפן (אם יש)</label>
-      <!-- בלי accept כדי שתוכל לבחור כל קובץ מההורדות -->
-      <input id="fileInput" type="file">
+<div class="card" id="addSection">
+  <h2>הוסף סיסמה</h2>
+  <input id="service" placeholder="שם השירות">
+  <input id="url" placeholder="כתובת אתר">
+  <input id="user" placeholder="שם משתמש">
+  <input id="pass" placeholder="סיסמה">
+  <input id="email" placeholder="אימייל שחזור">
+  <input id="phone" placeholder="טלפון שחזור">
+  <textarea id="notes" placeholder="הערות"></textarea>
+  <button onclick="savePass()">שמור</button>
+  <button onclick="backMenu()">חזור</button>
+</div>
 
-      <button class="btn-primary" id="btnOpenVault">פתח כספת קיימת</button>
-      <button class="btn-outline" id="btnNewVault">צור כספת חדשה</button>
+<div class="card" id="searchSection">
+  <h2>חיפוש</h2>
+  <input id="searchInput" placeholder="הקלד לחיפוש..." oninput="doSearch()">
+  <div id="results"></div>
+  <button onclick="backMenu()">חזור</button>
+</div>
 
-      <div id="loginStatus" class="status"></div>
-    </div>
+<!-- crypto-js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 
-    <!-- ========================== מסך כספת ========================== -->
-    <div id="vaultView" class="hidden">
-      <h1>הכספת שלי</h1>
+<!-- Firebase -->
+<script type="module">
 
-      <input id="searchBox" placeholder="חיפוש לפי שם שירות או שם משתמש">
+// ---------- 1) הכנסת הקונפיגורציה שלך כאן !!! ----------
+const firebaseConfig = {
+  apiKey: "YOUR",
+  authDomain: "YOUR",
+  projectId: "YOUR",
+  storageBucket: "YOUR",
+  messagingSenderId: "YOUR",
+  appId: "YOUR"
+};
+// ----------------------------------------------------------
 
-      <div class="entry-list" id="entryList"></div>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, setDoc, getDocs, collection } 
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-      <div class="divider"></div>
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-      <h2 style="text-align:right;font-size:17px;margin-bottom:8px;">הוספת / עריכת פריט</h2>
+let MASTER = "";
+let DATA = []; // מערך הסיסמאות לאחר פיענוח
 
-      <label for="serviceName">שם השירות</label>
-      <input id="serviceName" placeholder="לדוגמה: Gmail ראשי">
+// כניסה
+window.login = async function(){
+  MASTER = document.getElementById("masterPass").value.trim();
+  if(!MASTER){ alert("הכנס סיסמה"); return; }
 
-      <label for="serviceUrl">כתובת האתר</label>
-      <input id="serviceUrl" placeholder="https://example.com">
+  const q = await getDocs(collection(db, "vault"));
+  DATA = [];
 
-      <label for="username">שם משתמש</label>
-      <input id="username" placeholder="user@example.com">
+  q.forEach(d=>{
+    if(d.id==="init") return; // לדלג על מסמך אתחול
 
-      <label for="passwordField">סיסמה</label>
-      <input id="passwordField" placeholder="••••••••••">
-
-      <label for="emailRecovery">מייל לשחזור</label>
-      <input id="emailRecovery" placeholder="mail@recovery.com">
-
-      <label for="phoneRecovery">טלפון לשחזור</label>
-      <input id="phoneRecovery" placeholder="05x-xxxxxxx">
-
-      <label for="notes">הערות</label>
-      <textarea id="notes" placeholder="כל מידע נוסף שקשור לחשבון"></textarea>
-
-      <button class="btn-primary" id="btnSaveEntry">שמור פריט</button>
-      <button class="btn-outline" id="btnClearForm">נקה טופס</button>
-
-      <div class="divider"></div>
-
-      <div class="toolbar-row">
-        <button class="btn-primary" id="btnDownloadVault">הורד קובץ כספת מוצפן</button>
-        <button class="btn-outline" id="btnChangeMaster">שנה סיסמת מאסטר</button>
-      </div>
-
-      <div class="backup-row">
-        <button class="btn-outline" id="btnBackup1">גיבוי לדרייב 1</button>
-        <button class="btn-outline" id="btnBackup2">גיבוי לדרייב 2</button>
-      </div>
-
-      <button class="btn-danger" id="btnLogout">יציאה</button>
-
-      <div id="vaultStatus" class="status"></div>
-    </div>
-
-  </div>
-
-  <script>
-    // ----------------- משתנים גלובליים -----------------
-    let entries = [];
-    let masterKey = null;
-    let editingIndex = -1;
-
-    const masterInput = document.getElementById("masterPassword");
-    const fileInput   = document.getElementById("fileInput");
-    const loginView   = document.getElementById("loginView");
-    const vaultView   = document.getElementById("vaultView");
-    const loginStatus = document.getElementById("loginStatus");
-    const vaultStatus = document.getElementById("vaultStatus");
-
-    const serviceName   = document.getElementById("serviceName");
-    const serviceUrl    = document.getElementById("serviceUrl");
-    const username      = document.getElementById("username");
-    const passwordField = document.getElementById("passwordField");
-    const emailRecovery = document.getElementById("emailRecovery");
-    const phoneRecovery = document.getElementById("phoneRecovery");
-    const notes         = document.getElementById("notes");
-    const searchBox     = document.getElementById("searchBox");
-    const entryList     = document.getElementById("entryList");
-
-    document.getElementById("btnNewVault").onclick       = createNewVault;
-    document.getElementById("btnOpenVault").onclick      = openFromFile;
-    document.getElementById("btnSaveEntry").onclick      = saveEntry;
-    document.getElementById("btnClearForm").onclick      = clearForm;
-    document.getElementById("btnDownloadVault").onclick  = downloadVault;
-    document.getElementById("btnLogout").onclick         = logout;
-    document.getElementById("btnBackup1").onclick        = backupDrive1;
-    document.getElementById("btnBackup2").onclick        = backupDrive2;
-    document.getElementById("btnChangeMaster").onclick   = changeMasterPassword;
-    searchBox.oninput = renderList;
-
-    // ----------------- פונקציות הצפנה -----------------
-
-    function deriveKey(password, salt){
-      return CryptoJS.PBKDF2(password, salt, {
-        keySize: 256/32,
-        iterations: 100000
-      });
-    }
-
-    function encryptData(plaintext, password){
-      const salt = CryptoJS.lib.WordArray.random(16);
-      const key  = deriveKey(password, salt);
-      const iv   = CryptoJS.lib.WordArray.random(16);
-
-      const encrypted = CryptoJS.AES.encrypt(plaintext, key, { iv: iv });
-
-      const obj = {
-        s: CryptoJS.enc.Base64.stringify(salt),
-        iv: CryptoJS.enc.Base64.stringify(iv),
-        ct: encrypted.ciphertext.toString(CryptoJS.enc.Base64)
-      };
-      return btoa(JSON.stringify(obj));
-    }
-
-    function decryptData(cipher, password){
-      let data;
-      try{
-        data = JSON.parse(atob(cipher));
-      }catch(e){
-        throw "קובץ מוצפן לא תקין.";
+    try{
+      let dec = CryptoJS.AES.decrypt(d.data().blob, MASTER).toString(CryptoJS.enc.Utf8);
+      if(dec){
+        DATA.push(JSON.parse(dec));
       }
+    }catch{}
+  });
 
-      const salt = CryptoJS.enc.Base64.parse(data.s);
-      const iv   = CryptoJS.enc.Base64.parse(data.iv);
-      const key  = deriveKey(password, salt);
-      const ct   = CryptoJS.enc.Base64.parse(data.ct);
+  document.getElementById("loginSection").style.display="none";
+  document.getElementById("mainMenu").style.display="block";
+};
 
-      const decrypted = CryptoJS.AES.decrypt({ciphertext: ct}, key, { iv: iv });
-      const txt = decrypted.toString(CryptoJS.enc.Utf8);
-      if(!txt){
-        throw "סיסמת מאסטר שגויה או קובץ פגום.";
-      }
-      return txt;
+// תצוגות
+window.showAdd = function(){
+  document.getElementById("mainMenu").style.display="none";
+  document.getElementById("addSection").style.display="block";
+};
+
+window.showSearch = function(){
+  document.getElementById("mainMenu").style.display="none";
+  document.getElementById("searchSection").style.display="block";
+};
+
+window.backMenu = function(){
+  document.getElementById("addSection").style.display="none";
+  document.getElementById("searchSection").style.display="none";
+  document.getElementById("mainMenu").style.display="block";
+};
+
+// שמירה
+window.savePass = async function(){
+
+  let obj = {
+    service: service.value.trim(),
+    url: url.value.trim(),
+    user: user.value.trim(),
+    pass: pass.value.trim(),
+    email: email.value.trim(),
+    phone: phone.value.trim(),
+    notes: notes.value.trim()
+  };
+
+  const encrypted = CryptoJS.AES.encrypt(JSON.stringify(obj), MASTER).toString();
+
+  const id = "rec_" + Date.now();
+
+  await setDoc(doc(db,"vault",id),{
+    blob: encrypted
+  });
+
+  alert("נשמר בהצלחה");
+  backMenu();
+};
+
+// חיפוש
+window.doSearch = function(){
+  let q = document.getElementById("searchInput").value.trim();
+  let r = document.getElementById("results");
+  r.innerHTML="";
+
+  if(q==="") return;
+
+  DATA.forEach(item=>{
+    if(
+      item.service.includes(q) ||
+      item.user.includes(q) ||
+      item.url.includes(q) ||
+      item.notes.includes(q)
+    ){
+      r.innerHTML += `
+      <div class="result">
+        <div><span class="label">שירות:</span> ${item.service}</div>
+        <div><span class="label">משתמש:</span> ${item.user}</div>
+        <div><span class="label">סיסמה:</span> ${item.pass}</div>
+        <div><span class="label">מייל:</span> ${item.email}</div>
+        <div><span class="label">טלפון:</span> ${item.phone}</div>
+        <div><span class="label">כתובת:</span> ${item.url}</div>
+        <div><span class="label">הערות:</span> ${item.notes}</div>
+      </div><br>`;
     }
+  });
+};
 
-    // ----------------- יצירת כספת חדשה -----------------
-
-    function createNewVault(){
-      const pwd = masterInput.value.trim();
-      if(!pwd){
-        showLogin("חובה להזין סיסמת מאסטר.", true);
-        return;
-      }
-      masterKey = pwd;
-      entries = [];
-      editingIndex = -1;
-      switchToVault();
-      renderList();
-      showVault("נוצרה כספת חדשה. הוסף פריטים ואל תשכח לשמור קובץ מוצפן.", false);
-    }
-
-    // ----------------- פתיחת כספת מקובץ -----------------
-
-    function openFromFile(){
-      const pwd = masterInput.value.trim();
-      if(!pwd){
-        showLogin("הזן סיסמת מאסטר.", true);
-        return;
-      }
-      const file = fileInput.files[0];
-      if(!file){
-        showLogin("בחר קובץ כספת מוצפן מההורדות.", true);
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = e => {
-        try{
-          const txt = e.target.result;
-          const decrypted = decryptData(txt, pwd);
-          const arr = JSON.parse(decrypted);
-          if(!Array.isArray(arr)) throw "מבנה נתונים שגוי בתוך הקובץ.";
-          entries = arr;
-          masterKey = pwd;
-          editingIndex = -1;
-          switchToVault();
-          renderList();
-          showVault("הכספת נטענה בהצלחה.", false);
-        }catch(err){
-          showLogin(err, true);
-        }
-      };
-      reader.onerror = () => {
-        showLogin("שגיאה בקריאת הקובץ.", true);
-      };
-      reader.readAsText(file);
-    }
-
-    // ----------------- מעבר למסך כספת -----------------
-
-    function switchToVault(){
-      loginView.classList.add("hidden");
-      vaultView.classList.remove("hidden");
-      masterInput.value = "";
-      fileInput.value = "";
-      loginStatus.textContent = "";
-    }
-
-    // ----------------- רינדור רשימה עם חיפוש -----------------
-
-    function renderList(){
-      entryList.innerHTML = "";
-      const q = searchBox.value.trim().toLowerCase();
-
-      let filtered = entries;
-      if(q){
-        filtered = entries
-          .map((e, idx) => ({ e, idx }))
-          .filter(obj =>
-            (obj.e.serviceName || "").toLowerCase().includes(q) ||
-            (obj.e.username    || "").toLowerCase().includes(q)
-          );
-      }else{
-        filtered = entries.map((e, idx)=>({e,idx}));
-      }
-
-      if(filtered.length === 0){
-        entryList.innerHTML = '<div style="padding:8px;font-size:13px;">אין פריטים להצגה.</div>';
-        return;
-      }
-
-      filtered.forEach(obj => {
-        const e   = obj.e;
-        const idx = obj.idx;
-
-        const div = document.createElement("div");
-        div.className = "entry";
-
-        div.innerHTML = `
-          <div class="entry-title">${e.serviceName || "(ללא שם)"}</div>
-          <div class="entry-line">אתר: ${e.serviceUrl || "-"}</div>
-          <div class="entry-line">שם משתמש: ${e.username || "-"}</div>
-          <div class="entry-line">סיסמה: ${e.password || "-"}</div>
-          <div class="entry-line">מייל לשחזור: ${e.emailRecovery || "-"}</div>
-          <div class="entry-line">טלפון לשחזור: ${e.phoneRecovery || "-"}</div>
-          <div class="entry-line">הערות: ${e.notes || ""}</div>
-        `;
-
-        const actions = document.createElement("div");
-        actions.className = "actions";
-
-        const btnEdit = document.createElement("button");
-        btnEdit.className = "btn-outline";
-        btnEdit.style.padding = "4px 8px";
-        btnEdit.style.fontSize = "12px";
-        btnEdit.textContent = "ערוך";
-        btnEdit.onclick = () => editEntry(idx);
-
-        const btnDelete = document.createElement("button");
-        btnDelete.className = "btn-danger";
-        btnDelete.style.padding = "4px 8px";
-        btnDelete.style.fontSize = "12px";
-        btnDelete.textContent = "מחק";
-        btnDelete.onclick = () => deleteEntry(idx);
-
-        actions.appendChild(btnEdit);
-        actions.appendChild(btnDelete);
-        div.appendChild(actions);
-
-        entryList.appendChild(div);
-      });
-    }
-
-    // ----------------- שמירת פריט -----------------
-
-    function saveEntry(){
-      const obj = {
-        serviceName:   serviceName.value.trim(),
-        serviceUrl:    serviceUrl.value.trim(),
-        username:      username.value.trim(),
-        password:      passwordField.value.trim(),
-        emailRecovery: emailRecovery.value.trim(),
-        phoneRecovery: phoneRecovery.value.trim(),
-        notes:         notes.value.trim()
-      };
-
-      if(!obj.serviceName && !obj.username && !obj.password){
-        showVault("מלא לפחות שם שירות, שם משתמש או סיסמה.", true);
-        return;
-      }
-
-      if(editingIndex >= 0){
-        entries[editingIndex] = obj;
-        showVault("הפריט עודכן. זכור לשמור קובץ מוצפן חדש ולגבות.", false);
-      }else{
-        entries.push(obj);
-        showVault("הפריט נוסף. זכור לשמור קובץ מוצפן חדש ולגבות.", false);
-      }
-
-      editingIndex = -1;
-      clearForm();
-      renderList();
-    }
-
-    // ----------------- עריכת פריט -----------------
-
-    function editEntry(index){
-      editingIndex = index;
-      const e = entries[index];
-      serviceName.value   = e.serviceName   || "";
-      serviceUrl.value    = e.serviceUrl    || "";
-      username.value      = e.username      || "";
-      passwordField.value = e.password      || "";
-      emailRecovery.value = e.emailRecovery || "";
-      phoneRecovery.value = e.phoneRecovery || "";
-      notes.value         = e.notes         || "";
-      showVault("מצב עריכה: לאחר שמירה – הורד קובץ מוצפן חדש וגבה אותו.", false);
-    }
-
-    // ----------------- מחיקת פריט -----------------
-
-    function deleteEntry(index){
-      if(!confirm("למחוק את הפריט הזה מהכספת?")) return;
-      entries.splice(index,1);
-      editingIndex = -1;
-      clearForm();
-      renderList();
-      showVault("הפריט נמחק. מומלץ לשמור קובץ מוצפן חדש ולגבות.", false);
-    }
-
-    // ----------------- ניקוי טופס -----------------
-
-    function clearForm(){
-      editingIndex = -1;
-      serviceName.value   = "";
-      serviceUrl.value    = "";
-      username.value      = "";
-      passwordField.value = "";
-      emailRecovery.value = "";
-      phoneRecovery.value = "";
-      notes.value         = "";
-    }
-
-    // ----------------- הורדת קובץ כספת (תאריך+שעה, בלי TXT) -----------------
-
-    function downloadVault(){
-      if(!masterKey){
-        showVault("אין סיסמת מאסטר פעילה. היכנס מחדש.", true);
-        return;
-      }
-      const json = JSON.stringify(entries);
-      const enc  = encryptData(json, masterKey);
-
-      // שם קובץ: passDDMMYYYY_HHMMSS.enc
-      const now = new Date();
-      const dd  = String(now.getDate()).padStart(2, '0');
-      const mm  = String(now.getMonth() + 1).padStart(2, '0');
-      const yyyy = now.getFullYear();
-      const hh  = String(now.getHours()).padStart(2, '0');
-      const min = String(now.getMinutes()).padStart(2, '0');
-      const ss  = String(now.getSeconds()).padStart(2, '0');
-      const fileName = "pass" + dd + mm + yyyy + "_" + hh + min + ss + ".enc";
-
-      const blob = new Blob([enc], {type:"application/octet-stream"});
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      showVault("קובץ מוצפן הורד בשם: " + fileName + ". עכשיו העלה אותו לדרייבים לגיבוי.", false);
-    }
-
-    // ----------------- שינוי סיסמת מאסטר -----------------
-
-    function changeMasterPassword(){
-      if(!masterKey){
-        showVault("אין סיסמת מאסטר פעילה. היכנס מחדש.", true);
-        return;
-      }
-
-      const oldPwd = prompt("הכנס את סיסמת המאסטר הנוכחית:");
-      if(oldPwd === null) return;
-      if(oldPwd !== masterKey){
-        showVault("סיסמת מאסטר נוכחית שגויה.", true);
-        return;
-      }
-
-      const newPwd = prompt("הכנס סיסמת מאסטר חדשה חזקה:");
-      if(newPwd === null || newPwd.trim()===""){
-        showVault("הסיסמה החדשה לא יכולה להיות ריקה.", true);
-        return;
-      }
-
-      const confirmPwd = prompt("אשר את סיסמת המאסטר החדשה:");
-      if(confirmPwd === null){
-        showVault("שינוי סיסמה בוטל.", true);
-        return;
-      }
-
-      if(newPwd !== confirmPwd){
-        showVault("האישור לא תואם לסיסמה החדשה.", true);
-        return;
-      }
-
-      masterKey = newPwd.trim();
-      showVault("סיסמת המאסטר עודכנה. חשוב מאוד להוריד עכשיו קובץ כספת מוצפן חדש ולגבות אותו במקום הישן.", false);
-    }
-
-    // ----------------- גיבוי לדרייבים -----------------
-
-    function backupDrive1(){
-      window.open("https://drive.google.com/drive/u/0/my-drive", "_blank");
-    }
-
-    function backupDrive2(){
-      window.open("https://drive.google.com/drive/u/1/my-drive", "_blank");
-    }
-
-    // ----------------- יציאה -----------------
-
-    function logout(){
-      entries = [];
-      masterKey = null;
-      editingIndex = -1;
-      clearForm();
-      vaultView.classList.add("hidden");
-      loginView.classList.remove("hidden");
-      searchBox.value = "";
-      entryList.innerHTML = "";
-      vaultStatus.textContent = "";
-    }
-
-    // ----------------- הודעות סטטוס -----------------
-
-    function showLogin(msg, isError){
-      loginStatus.textContent = msg || "";
-      loginStatus.className = "status " + (isError ? "error" : "ok");
-    }
-
-    function showVault(msg, isError){
-      vaultStatus.textContent = msg || "";
-      vaultStatus.className = "status " + (isError ? "error" : "ok");
-    }
-  </script>
+</script>
 </body>
 </html>
