@@ -159,7 +159,7 @@
 <body>
   <div class="app">
     <h1>רישום הכנסות</h1>
-    <div class="sub">לחץ על הסכום לכל לקוח. הכל נשמר מקומית ובענן (גיבוי).</div>
+    <div class="sub">לחץ על הסכום לכל לקוח. נשמר מקומית ובענן, וכל טלפון רואה את אותו הדבר.</div>
 
     <div class="today-date" id="todayDate"></div>
 
@@ -200,35 +200,25 @@
       measurementId: "G-W5XJBNCJZ0"
     };
 
-    // אתחול Firebase + Firestore
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // מפתח לשמירה לוקאלית
     const STORAGE_KEY = 'income_log_v1';
-
     let entries = [];
+
+    function saveToStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
 
     function loadFromStorage() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-          entries = [];
-        } else {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            entries = parsed;
-          } else {
-            entries = [];
-          }
-        }
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
       } catch (e) {
-        entries = [];
+        return [];
       }
-    }
-
-    function saveToStorage() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
     }
 
     function getTodayIso() {
@@ -250,7 +240,6 @@
       return `${hh}:${mm}`;
     }
 
-    // הוספת רשומה חדשה – המקומי קודם, Firestore כגיבוי
     function addEntry(amount) {
       const now = new Date();
       const entry = {
@@ -260,37 +249,29 @@
         amount: Number(amount)
       };
 
-      // קודם מקומי
       entries.push(entry);
       saveToStorage();
       renderAll();
 
-      // גיבוי שקט לענן
       db.collection("incomeEntries").doc(entry.id).set({
         ...entry,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      }).catch(err => {
-        console.error("Firestore save error:", err);
-      });
+      }).catch(err => console.error("Firestore save error:", err));
     }
 
     function deleteEntry(id) {
-      // קודם מחיקה מקומית
       entries = entries.filter(e => e.id !== id);
       saveToStorage();
       renderAll();
 
-      // ניסיון מחיקה גם בענן (לא חובה להצליח)
-      db.collection("incomeEntries").doc(id).delete().catch(err => {
-        console.error("Firestore delete error:", err);
-      });
+      db.collection("incomeEntries").doc(id).delete()
+        .catch(err => console.error("Firestore delete error:", err));
     }
 
     function renderAll() {
       const todayIso = getTodayIso();
-      const todayDateEl = document.getElementById('todayDate');
-      todayDateEl.textContent = 'היום: ' + formatDateHeb(todayIso);
-
+      document.getElementById('todayDate').textContent =
+        'היום: ' + formatDateHeb(todayIso);
       renderToday(todayIso);
       renderHistoryDays();
       renderHistoryMonths();
@@ -303,19 +284,18 @@
       const todayEntries = entries.filter(e => e.date === todayIso);
 
       if (todayEntries.length === 0) {
-        todayListEl.innerHTML = '<div style="font-size:14px;color:#777;">אין עדיין רשומות להיום.</div>';
+        todayListEl.innerHTML =
+          '<div style="font-size:14px;color:#777;">אין עדיין רשומות להיום.</div>';
       } else {
-        todayListEl.innerHTML = todayEntries.map(e => {
-          return `
-            <div class="entry-row">
-              <div class="entry-main">
-                <div class="entry-amount">${e.amount} ₪</div>
-                <div class="entry-date">${e.time}</div>
-              </div>
-              <button class="btn-delete" data-delete-id="${e.id}">מחק</button>
+        todayListEl.innerHTML = todayEntries.map(e => `
+          <div class="entry-row">
+            <div class="entry-main">
+              <div class="entry-amount">${e.amount} ₪</div>
+              <div class="entry-date">${e.time}</div>
             </div>
-          `;
-        }).join('');
+            <button class="btn-delete" data-delete-id="${e.id}">מחק</button>
+          </div>
+        `).join('');
       }
 
       const sum = todayEntries.reduce((acc, e) => acc + e.amount, 0);
@@ -326,7 +306,8 @@
       const container = document.getElementById('historyDays');
 
       if (entries.length === 0) {
-        container.innerHTML = '<div style="font-size:14px;color:#777;">אין עדיין היסטוריה.</div>';
+        container.innerHTML =
+          '<div style="font-size:14px;color:#777;">אין עדיין היסטוריה.</div>';
         return;
       }
 
@@ -360,7 +341,8 @@
       const grandTotalEl = document.getElementById('grandTotal');
 
       if (entries.length === 0) {
-        container.innerHTML = '<div style="font-size:14px;color:#777;">אין נתונים לחישוב חודשי.</div>';
+        container.innerHTML =
+          '<div style="font-size:14px;color:#777;">אין נתונים לחישוב חודשי.</div>';
         grandTotalEl.textContent = '';
         return;
       }
@@ -376,7 +358,7 @@
         grandTotal += e.amount;
       });
 
-      const months = Object.keys(byMonth).sort(); // מהישן לחדש
+      const months = Object.keys(byMonth).sort();
 
       container.innerHTML = months.map(mKey => {
         const [y, m] = mKey.split('-');
@@ -393,17 +375,12 @@
       grandTotalEl.textContent = 'סה״כ כל התקופה: ' + grandTotal + ' ₪';
     }
 
-    // --- טעינה מהענן במכשיר שאין בו נתונים מקומיים ---
-    async function loadFromServerIfNeeded() {
+    // --- טעינה מהשרת תמיד, ואח"כ נפילה חזרה ללוקאל אם צריך ---
+    async function loadFromServer() {
       try {
-        if (entries.length > 0) {
-          // כבר יש נתונים מקומיים – לא נוגעים
-          return;
-        }
-
         const snap = await db.collection("incomeEntries")
-          .orderBy("createdAt")
-          .get();
+                             .orderBy("date")
+                             .get();
 
         const serverEntries = [];
         snap.forEach(doc => {
@@ -420,14 +397,16 @@
         if (serverEntries.length > 0) {
           entries = serverEntries;
           saveToStorage();
-          renderAll();
+          return;
         }
       } catch (err) {
         console.error("Load from server failed:", err);
       }
+
+      // אם אין נתונים מהשרת או הייתה בעיה – נשתמש במה שיש מקומית
+      entries = loadFromStorage();
     }
 
-    // האזנה ללחצנים
     document.addEventListener('click', function(ev){
       const btnAmount = ev.target.closest('.btn-amount');
       if (btnAmount) {
@@ -444,10 +423,11 @@
       }
     });
 
-    // התחלה
-    loadFromStorage();
-    renderAll();
-    loadFromServerIfNeeded();  // משיכת נתונים לעננים אם המכשיר חדש
+    // התחלה: קודם מנסה מהשרת, אם לא – מקומי
+    (async function init() {
+      await loadFromServer();
+      renderAll();
+    })();
   </script>
 </body>
 </html>
