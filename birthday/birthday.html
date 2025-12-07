@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>משחק מתנות יום הולדת</title>
 
+  <!-- סורק QR -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- יצירת QR להדפסה -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
     :root{
@@ -13,38 +16,126 @@
       --text:#222; --muted:#666; --radius:18px; --shadow:0 10px 25px rgba(0,0,0,0.12);
     }
     *{box-sizing:border-box}
-    html,body{ margin:0; padding:0; font-family:system-ui,"Heebo","Arial",sans-serif; background:linear-gradient(180deg,#ffeef7,#fff); color:var(--text); }
-    body{ min-height:100vh; display:flex; justify-content:center; align-items:center; padding:12px; }
-    .app{ width:100%; max-width:500px; background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 16px 22px; position:relative; overflow:hidden; }
+    html,body{
+      margin:0; padding:0;
+      font-family:system-ui,"Heebo","Arial",sans-serif;
+      background:linear-gradient(180deg,#ffeef7,#fff);
+      color:var(--text);
+    }
+    body{
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:12px;
+    }
+    .app{
+      width:100%; max-width:500px;
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:18px 16px 22px;
+      position:relative; overflow:hidden;
+    }
     h1,h2,h3{ margin:0 0 12px; text-align:center; }
     h1{ font-size:1.6rem; color:var(--accent-dark); }
     h2{ font-size:1.3rem; }
     p{ margin:0 0 10px; line-height:1.4; }
     .center{text-align:center}
-    .btn{ display:inline-block; padding:10px 18px; border-radius:999px; border:none; font-size:1rem; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:0 6px 14px rgba(233,30,99,0.35); margin:8px 0; }
-    .btn:active{ transform:translateY(1px); box-shadow:0 3px 8px rgba(233,30,99,0.4); }
-    .btn-secondary{ background:#f1f1f1; color:#333; box-shadow:none; }
+    .btn{
+      display:inline-block;
+      padding:10px 18px;
+      border-radius:999px;
+      border:none;
+      font-size:1rem;
+      font-weight:600;
+      cursor:pointer;
+      background:var(--accent);
+      color:#fff;
+      box-shadow:0 6px 14px rgba(233,30,99,0.35);
+      margin:8px 0;
+    }
+    .btn:active{
+      transform:translateY(1px);
+      box-shadow:0 3px 8px rgba(233,30,99,0.4);
+    }
+    .btn-secondary{
+      background:#f1f1f1; color:#333; box-shadow:none;
+    }
     .btn-small{ padding:6px 10px; font-size:0.85rem; }
     .hidden{display:none !important;}
-    .tagline{ font-size:0.95rem; color:var(--muted); text-align:center; margin-bottom:10px; }
-    .progress{ text-align:center; font-size:0.9rem; color:var(--muted); margin-top:6px; }
-    .bubble{ background:#fff3f8; border-radius:14px; padding:10px 12px; margin:10px 0; border:1px dashed #ff8bb3; font-size:0.95rem; }
+    .tagline{
+      font-size:0.95rem; color:var(--muted);
+      text-align:center; margin-bottom:10px;
+    }
+    .progress{
+      text-align:center; font-size:0.9rem;
+      color:var(--muted); margin-top:6px;
+    }
+    .bubble{
+      background:#fff3f8;
+      border-radius:14px;
+      padding:10px 12px;
+      margin:10px 0;
+      border:1px dashed #ff8bb3;
+      font-size:0.95rem;
+    }
     .screen{ display:none; }
     .screen.active{ display:block; }
-    #qr-reader{ width:100%; max-width:360px; margin:0 auto; }
-    #scan-status{ text-align:center; font-size:0.9rem; color:var(--muted); margin-top:8px; min-height:18px; }
-    .station-box{ background:#fff7fb; border-radius:16px; padding:14px; border:1px solid #ffd0e6; }
-    .station-label{ font-size:0.9rem; color:var(--muted); margin-bottom:6px; }
-    .admin-open{ position:absolute; top:8px; left:10px; background:transparent; border:none; color:#bbb; cursor:pointer; font-size:1.2rem; z-index: 100; }
+    #qr-reader{
+      width:100%; max-width:360px; margin:0 auto;
+    }
+    #scan-status{
+      text-align:center; font-size:0.9rem;
+      color:var(--muted); margin-top:8px; min-height:18px;
+    }
+    .station-box{
+      background:#fff7fb;
+      border-radius:16px;
+      padding:14px;
+      border:1px solid #ffd0e6;
+    }
+    .station-label{
+      font-size:0.9rem; color:var(--muted); margin-bottom:6px;
+    }
+    .admin-open{
+      position:absolute; top:8px; left:10px;
+      background:transparent; border:none;
+      color:#bbb; cursor:pointer; font-size:1.2rem; z-index:100;
+    }
     .field-group{ margin-bottom:10px; }
-    label{ display:block; font-size:0.9rem; margin-bottom:3px; color:var(--muted); }
-    input[type="text"], textarea, input[type="number"]{ width:100%; padding:7px 8px; border-radius:10px; border:1px solid #dadada; font-size:0.9rem; font-family:inherit; }
+    label{
+      display:block; font-size:0.9rem;
+      margin-bottom:3px; color:var(--muted);
+    }
+    input[type="text"], textarea, input[type="number"]{
+      width:100%; padding:7px 8px;
+      border-radius:10px;
+      border:1px solid #dadada;
+      font-size:0.9rem; font-family:inherit;
+    }
     textarea{ min-height:50px; resize:vertical; }
-    .stations-grid{ max-height:320px; overflow-y:auto; border-radius:14px; border:1px solid #eee; padding:8px; background:#fafafa; }
-    .station-edit{ margin-bottom:10px; padding:6px 8px; border-radius:10px; background:#ffffff; border:1px solid #e5e5e5; }
-    .station-edit h4{ margin:0 0 6px; font-size:0.9rem; color:var(--accent-dark); }
-    .footer-note{ margin-top:8px; font-size:0.8rem; color:#999; text-align:center; }
-    .loading{ text-align:center; font-size:0.95rem; color:var(--muted); }
+    .stations-grid{
+      max-height:320px; overflow-y:auto;
+      border-radius:14px; border:1px solid #eee;
+      padding:8px; background:#fafafa;
+    }
+    .station-edit{
+      margin-bottom:10px; padding:6px 8px;
+      border-radius:10px; background:#ffffff;
+      border:1px solid #e5e5e5;
+    }
+    .station-edit h4{
+      margin:0 0 6px;
+      font-size:0.9rem; color:var(--accent-dark);
+    }
+    .footer-note{
+      margin-top:8px; font-size:0.8rem;
+      color:#999; text-align:center;
+    }
+    .loading{
+      text-align:center; font-size:0.95rem; color:var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -112,18 +203,20 @@
       </div>
       <div class="center" style="margin-top:10px;">
         <button class="btn" id="saveAdminBtn">שמירה ל־Firebase</button>
+        <button class="btn-secondary btn-small" id="showBarcodesBtn">הצג ברקודים</button>
         <button class="btn-secondary btn-small" id="exitAdminBtn">יציאה</button>
       </div>
+
+      <div id="barcode-preview" class="stations-grid" style="margin-top:10px; display:none;"></div>
+
       <p class="footer-note">עריכה נשמרת בזמן אמת ב־Firebase.</p>
     </section>
   </div>
 
   <script type="module">
-    // -------- Firebase SDK --------
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
-    // הקונפיגורציה שלך (וודא שהיא נכונה ושב-Console המסד פתוח)
     const firebaseConfig = {
       apiKey: "AIzaSyBxh37gdksnvKyGZhKzcMEliRuRZaqFyRs",
       authDomain: "birthday-6673d.firebaseapp.com",
@@ -132,82 +225,88 @@
       messagingSenderId: "815278978626",
       appId: "1:815278978626:web:2f5821014c768ee32d5fdb",
       measurementId: "G-295LG2HNQ8",
-     // בתוך firebaseConfig:
-databaseURL: "https://birthday-6673d-default-rtdb.europe-west1.firebasedatabase.app"
+      databaseURL: "https://birthday-6673d-default-rtdb.europe-west1.firebasedatabase.app"
     };
 
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
 
-    // -------- ברירת מחדל --------
+    // --- ברירת מחדל: 5 תחנות עם BARCODE1..5, חידות/פרסים ריקים ---
     const DEFAULT_CONFIG = {
       playerName: "דנה",
-      stations: [
-        { code: "DANA-1", riddle: "המתנה הראשונה במקום הכי מתוק בבית...", reward: "שוקולד וברכה" },
-        { code: "DANA-2", riddle: "היכן שיש מים חמים בבוקר...", reward: "סבון מפנק" }
-      ]
+      stations: Array.from({length:5}, (_,i) => ({
+        code: `BARCODE${i+1}`,
+        riddle: "",
+        reward: ""
+      }))
     };
 
     let gameConfig = null;
     let scannerInstance = null;
 
-    // -------- פונקציות מסך --------
+    // מבטיח שלכל תחנה יש code מהצורה BARCODE1..N אם חסר
+    function ensureBarcodeCodes(){
+      if (!gameConfig.stations) gameConfig.stations = [];
+      for (let i = 0; i < gameConfig.stations.length; i++){
+        if (!gameConfig.stations[i].code){
+          gameConfig.stations[i].code = `BARCODE${i+1}`;
+        }
+      }
+    }
+
     function showScreen(name){
       document.querySelectorAll(".screen").forEach(sec => sec.classList.remove("active"));
       document.getElementById("screen-" + name).classList.add("active");
-      
-      if (name === "scan") startScanner();
-      else stopScanner();
+      if (name === "scan") startScanner(); else stopScanner();
     }
 
     function updateWelcomeScreen(){
       if (!gameConfig) return;
-      document.getElementById("player-name-display").textContent = gameConfig.playerName || "דנה";
+      document.getElementById("player-name-display").textContent =
+        gameConfig.playerName || "דנה";
       document.getElementById("stations-count-label").textContent =
         "במשחק מחכות לך " + (gameConfig.stations ? gameConfig.stations.length : 0) + " תחנות 🎁";
     }
 
-    // -------- Firebase Logic --------
     async function loadConfigFromFirebase(){
       const configRef = ref(db, "config");
       try {
         const snapshot = await get(configRef);
         if (snapshot.exists()){
-          const data = snapshot.val();
-          gameConfig = data;
+          gameConfig = snapshot.val();
         } else {
           gameConfig = DEFAULT_CONFIG;
-          await set(configRef, gameConfig); // ניסיון שמירה ראשוני
+          await set(configRef, gameConfig);
         }
+        ensureBarcodeCodes();
       } catch(err) {
         console.error("Firebase Error:", err);
-        // אם נכשל, נשתמש בברירת מחדל כדי שהמשחק יעבוד בכל זאת
         gameConfig = DEFAULT_CONFIG;
-        document.getElementById("error-msg").textContent = "שגיאת חיבור (בדוק הרשאות Rules). המשחק במצב אופליין.";
-        document.getElementById("error-msg").style.display = "block";
+        ensureBarcodeCodes();
+        const errEl = document.getElementById("error-msg");
+        errEl.textContent = "שגיאת חיבור (בדוק Rules). המשחק עובד במצב אופליין.";
+        errEl.style.display = "block";
       }
     }
 
     async function saveConfigToFirebase(){
       const configRef = ref(db, "config");
+      ensureBarcodeCodes();
       await set(configRef, gameConfig);
     }
 
-    // -------- סורק --------
     function startScanner(){
-      // וידוא שהספרייה נטענה
       if (!window.Html5QrcodeScanner) {
         alert("שגיאה: ספריית הסורק לא נטענה.");
         return;
       }
       stopScanner();
       scannerInstance = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: 250 }, false);
-      scannerInstance.render(onScanSuccess, (err)=>{});
+      scannerInstance.render(onScanSuccess, () => {});
     }
 
     function onScanSuccess(decodedText){
-      // עצירת סריקה כדי למנוע כפילויות
-      stopScanner(); 
+      stopScanner();
       handleScannedCode(decodedText.trim());
     }
 
@@ -222,7 +321,7 @@ databaseURL: "https://birthday-6673d-default-rtdb.europe-west1.firebasedatabase.
       const station = gameConfig.stations.find(s => (s.code || "").trim() === codeText);
       if (!station){
         alert("ברקוד לא מוכר: " + codeText);
-        showScreen("scan"); // חזרה לסריקה
+        showScreen("scan");
         return;
       }
       showStationScreen(station);
@@ -231,13 +330,13 @@ databaseURL: "https://birthday-6673d-default-rtdb.europe-west1.firebasedatabase.
     function showStationScreen(station){
       const idx = gameConfig.stations.indexOf(station);
       document.getElementById("station-title").textContent = "תחנה " + (idx + 1) + " 🎉";
-      document.getElementById("station-index-label").textContent = "מתוך " + gameConfig.stations.length;
-      document.getElementById("station-riddle").textContent = station.riddle;
-      document.getElementById("station-reward").textContent = station.reward;
+      document.getElementById("station-index-label").textContent =
+        "מתוך " + gameConfig.stations.length;
+      document.getElementById("station-riddle").textContent = station.riddle || "";
+      document.getElementById("station-reward").textContent = station.reward || "";
       showScreen("station");
     }
 
-    // -------- ניהול --------
     function openAdmin(){
       const p = prompt("סיסמה (2580):");
       if(p==="2580"){
@@ -247,9 +346,11 @@ databaseURL: "https://birthday-6673d-default-rtdb.europe-west1.firebasedatabase.
     }
 
     function populateAdmin(){
+      ensureBarcodeCodes();
       document.getElementById("player-name-input").value = gameConfig.playerName;
       document.getElementById("stations-number-input").value = gameConfig.stations.length;
       renderStationsEdit();
+      document.getElementById("barcode-preview").style.display = "none";
     }
 
     function renderStationsEdit(){
@@ -259,7 +360,7 @@ databaseURL: "https://birthday-6673d-default-rtdb.europe-west1.firebasedatabase.
         const div = document.createElement("div");
         div.className = "station-edit";
         div.innerHTML = `
-          <h4>תחנה ${i+1}</h4>
+          <h4>תחנה ${i+1} (קוד: ${st.code || ''})</h4>
           <input type="text" class="inp-code" placeholder="קוד ברקוד" value="${st.code||''}" style="margin-bottom:5px;">
           <textarea class="inp-riddle" placeholder="חידה">${st.riddle||''}</textarea>
           <textarea class="inp-reward" placeholder="פרס">${st.reward||''}</textarea>
@@ -269,14 +370,16 @@ databaseURL: "https://birthday-6673d-default-rtdb.europe-west1.firebasedatabase.
     }
 
     async function saveAdmin(){
-      const newName = document.getElementById("player-name-input").value;
+      const newName = document.getElementById("player-name-input").value || "דנה";
       const container = document.getElementById("stations-edit-container");
       const blocks = container.querySelectorAll(".station-edit");
       const newStations = [];
-      
-      blocks.forEach(blk => {
+
+      blocks.forEach((blk, index) => {
+        let code = blk.querySelector(".inp-code").value.trim();
+        if (!code) code = `BARCODE${index+1}`;
         newStations.push({
-          code: blk.querySelector(".inp-code").value,
+          code,
           riddle: blk.querySelector(".inp-riddle").value,
           reward: blk.querySelector(".inp-reward").value
         });
@@ -284,7 +387,8 @@ databaseURL: "https://birthday-6673d-default-rtdb.europe-west1.firebasedatabase.
 
       gameConfig.playerName = newName;
       gameConfig.stations = newStations;
-      
+      ensureBarcodeCodes();
+
       try {
         await saveConfigToFirebase();
         alert("נשמר בהצלחה!");
@@ -295,35 +399,84 @@ databaseURL: "https://birthday-6673d-default-rtdb.europe-west1.firebasedatabase.
       }
     }
 
-    // -------- אתחול (Main) --------
-    // כאן התיקון הגדול: פונקציית init שרצה ישירות
+    // יצירת QRים לכל התחנות במסך ההגדרות
+    function showBarcodes(){
+      ensureBarcodeCodes();
+      const preview = document.getElementById("barcode-preview");
+      preview.innerHTML = "";
+
+      if (!gameConfig.stations.length){
+        preview.textContent = "אין תחנות מוגדרות.";
+        preview.style.display = "block";
+        return;
+      }
+
+      gameConfig.stations.forEach((st, index) => {
+        const wrap = document.createElement("div");
+        wrap.style.textAlign = "center";
+        wrap.style.marginBottom = "12px";
+
+        const title = document.createElement("div");
+        title.textContent = `תחנה ${index+1} – ${st.code}`;
+        title.style.marginBottom = "4px";
+        title.style.fontSize = "0.9rem";
+
+        const qrDiv = document.createElement("div");
+        qrDiv.style.display = "inline-block";
+
+        wrap.appendChild(title);
+        wrap.appendChild(qrDiv);
+        preview.appendChild(wrap);
+
+        // יצירת QR בפועל
+        new QRCode(qrDiv, {
+          text: st.code,
+          width: 128,
+          height: 128
+        });
+      });
+
+      preview.style.display = "block";
+    }
+
     async function initGame(){
-      // חיבור כפתורים
-      document.getElementById("startGameBtn").onclick = () => showScreen("scan");
-      document.getElementById("backToWelcomeBtn").onclick = () => showScreen("welcome");
-      document.getElementById("continueScanBtn").onclick = () => showScreen("scan");
-      document.getElementById("backToScanBtn").onclick = () => showScreen("scan");
-      document.getElementById("adminOpenBtn").onclick = openAdmin;
-      document.getElementById("saveAdminBtn").onclick = saveAdmin;
-      document.getElementById("exitAdminBtn").onclick = () => showScreen("welcome");
-      
+      document.getElementById("startGameBtn").onclick      = () => showScreen("scan");
+      document.getElementById("backToWelcomeBtn").onclick  = () => showScreen("welcome");
+      document.getElementById("continueScanBtn").onclick   = () => showScreen("scan");
+      document.getElementById("backToScanBtn").onclick     = () => showScreen("scan");
+      document.getElementById("adminOpenBtn").onclick      = openAdmin;
+      document.getElementById("saveAdminBtn").onclick      = saveAdmin;
+      document.getElementById("exitAdminBtn").onclick      = () => showScreen("welcome");
+      document.getElementById("showBarcodesBtn").onclick   = showBarcodes;
+
       document.getElementById("stations-number-input").onchange = (e) => {
-        const num = parseInt(e.target.value) || 1;
-        // התאמת גודל המערך
-        while(gameConfig.stations.length < num) gameConfig.stations.push({code:"",riddle:"",reward:""});
-        while(gameConfig.stations.length > num) gameConfig.stations.pop();
+        let num = parseInt(e.target.value,10) || 1;
+        if (num < 1) num = 1;
+        if (num > 30) num = 30;
+        e.target.value = num;
+
+        // התאמת גודל המערך + יצירת BARCODE1..N אוטומטית לחדשים
+        while(gameConfig.stations.length < num){
+          const nextIndex = gameConfig.stations.length;
+          gameConfig.stations.push({
+            code: `BARCODE${nextIndex+1}`,
+            riddle: "",
+            reward: ""
+          });
+        }
+        while(gameConfig.stations.length > num){
+          gameConfig.stations.pop();
+        }
+        ensureBarcodeCodes();
         renderStationsEdit();
       };
 
-      // טעינה
       await loadConfigFromFirebase();
       updateWelcomeScreen();
       showScreen("welcome");
     }
 
-    // הפעלה
     initGame();
-
   </script>
 </body>
 </html>
