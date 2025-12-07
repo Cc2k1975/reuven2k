@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>מי מכיר את מי? – משחק זוגות</title>
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --accent:#ff6a00;
+      --accent-soft:#ffe4cc;
+      --accent-dark:#e65c00;
+      --ink:#1f2933;
+      --muted:#6b7280;
+      --border:1px solid rgba(0,0,0,.08);
+      --radius:16px;
+      --shadow:0 10px 25px rgba(0,0,0,0.08);
+    }
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      padding:0;
+      font-family:system-ui,"Heebo","Alef","Arial",sans-serif;
+      background:linear-gradient(180deg,#eef2ff,#ffffff);
+      color:var(--ink);
+    }
+    body{
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      min-height:100vh;
+      padding:16px;
+    }
+    .app{
+      width:100%;
+      max-width:900px;
+      background:var(--card);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+      padding:16px 16px 24px;
+    }
+    h1{
+      margin:0 0 4px;
+      font-size:1.6rem;
+      text-align:center;
+    }
+    .subtitle{
+      margin:0 0 16px;
+      text-align:center;
+      color:var(--muted);
+      font-size:.9rem;
+    }
+    h2{
+      margin:16px 0 8px;
+      font-size:1.2rem;
+    }
+    section{
+      margin-top:10px;
+      padding:12px;
+      border-radius:var(--radius);
+      border:var(--border);
+      background:#fafbff;
+    }
+    .hidden{display:none}
+
+    .teams-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+      gap:8px;
+      margin:8px 0 8px;
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      font-size:.9rem;
+    }
+    .field label{font-weight:600;}
+    input[type="text"]{
+      padding:6px 8px;
+      border-radius:10px;
+      border:1px solid #d1d5db;
+      font-size:.9rem;
+    }
+    input[type="text"]:focus{
+      outline:none;
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px rgba(255,106,0,.35);
+    }
+    .btn{
+      border:none;
+      border-radius:999px;
+      padding:8px 16px;
+      font-size:.95rem;
+      font-weight:600;
+      cursor:pointer;
+      background:var(--accent);
+      color:white;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      box-shadow:0 4px 10px rgba(255,106,0,.35);
+      transition:.15s transform,.15s box-shadow,.15s background;
+    }
+    .btn:hover{
+      transform:translateY(-1px);
+      background:var(--accent-dark);
+      box-shadow:0 6px 14px rgba(255,106,0,.45);
+    }
+    .btn:active{
+      transform:translateY(0);
+      box-shadow:0 2px 6px rgba(0,0,0,.25);
+    }
+    .btn.secondary{
+      background:#e5e7eb;
+      color:#111827;
+      box-shadow:none;
+    }
+    .btn.secondary:hover{
+      background:#d1d5db;
+      box-shadow:none;
+    }
+    .btn.small{
+      padding:6px 10px;
+      font-size:.8rem;
+    }
+    .error{
+      color:#b91c1c;
+      font-size:.85rem;
+      margin-top:6px;
+    }
+    .hint{
+      font-size:.85rem;
+      color:var(--muted);
+      margin-top:4px;
+    }
+
+    .teams-table{
+      width:100%;
+      border-collapse:collapse;
+      margin-top:6px;
+      font-size:.9rem;
+    }
+    .teams-table th,
+    .teams-table td{
+      padding:6px 4px;
+      text-align:center;
+      border-bottom:1px solid #e5e7eb;
+    }
+    .teams-table th{
+      background:#eef2ff;
+      font-weight:700;
+    }
+    .status-badge{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:.75rem;
+      font-weight:600;
+    }
+    .status-new{background:#e0f2fe;color:#0369a1;}
+    .status-active{background:#fef9c3;color:#854d0e;}
+    .status-done{background:#dcfce7;color:#166534;}
+
+    #quizCard{
+      margin-top:8px;
+      padding:12px;
+      border-radius:var(--radius);
+      background:linear-gradient(135deg,#fff7ed,#fff);
+      border:var(--border);
+    }
+    #currentTeamTitle{
+      margin:0 0 4px;
+      font-size:1.1rem;
+    }
+    #questionMeta{
+      font-size:.85rem;
+      color:var(--muted);
+      margin-bottom:4px;
+    }
+    #questionTimer{
+      font-size:.8rem;
+      color:#b45309;
+      margin-bottom:6px;
+    }
+    #questionText{
+      font-size:1.05rem;
+      font-weight:600;
+      margin-bottom:10px;
+      min-height:48px;
+    }
+    .buttons-row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    #finalSummaryList{
+      margin-top:8px;
+      font-size:.95rem;
+    }
+    #finalSummaryList li{
+      margin-bottom:4px;
+    }
+    .winner{
+      font-weight:800;
+      color:var(--accent-dark);
+    }
+    .badge-winner{
+      display:inline-block;
+      margin-right:6px;
+      padding:2px 8px;
+      border-radius:999px;
+      background:var(--accent-soft);
+      font-size:.75rem;
+      font-weight:700;
+      color:var(--accent-dark);
+    }
+
+    @media (min-width:700px){
+      .app{padding:20px 22px 26px;}
+      h1{font-size:1.8rem;}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>מי מכיר את מי?</h1>
+  <p class="subtitle">משחק זוגות מצחיק – שאלות על בני הזוג, נקודות, ומנצח אחד.</p>
+
+  <!-- צליל באזר -->
+  <audio id="buzzerSound" preload="auto">
+    <source src="https://litter.catbox.moe/ilog5nhg2deefwuq.mp3" type="audio/mpeg">
+  </audio>
+
+  <!-- הגדרת קבוצות -->
+  <section id="setupSection">
+    <h2>1. הגדרת קבוצות</h2>
+    <p class="hint">
+      הכניסו לפחות שתי משפחות. אפשר להוסיף עד 10 משפחות בלחיצה על "הוסף קבוצה".
+    </p>
+    <div id="teamsContainer" class="teams-grid">
+      <div class="field team-row">
+        <label>קבוצה 1</label>
+        <input type="text" class="team-name-input" placeholder="למשל: שיין">
+      </div>
+      <div class="field team-row">
+        <label>קבוצה 2</label>
+        <input type="text" class="team-name-input" placeholder="למשל: מלול">
+      </div>
+      <div class="field team-row">
+        <label>קבוצה 3</label>
+        <input type="text" class="team-name-input" placeholder="אופציונלי">
+      </div>
+      <div class="field team-row">
+        <label>קבוצה 4</label>
+        <input type="text" class="team-name-input" placeholder="אופציונלי">
+      </div>
+    </div>
+    <button class="btn small secondary" id="btnAddTeam">+ הוסף קבוצה</button>
+    <br><br>
+    <button class="btn" id="btnSaveTeams">שמור קבוצות והתחל משחק</button>
+    <div id="setupError" class="error"></div>
+  </section>
+
+  <!-- ניהול המשחק -->
+  <section id="controlSection" class="hidden">
+    <h2>2. בחירת קבוצה לשאלון</h2>
+    <p class="hint">
+      בחרו משפחה. המנחה קורא את השאלה, בן/בת הזוג עונים,
+      והמנחה לוחץ "תשובה נכונה" או "תשובה לא נכונה".
+      אם תוך 10 שניות לא לוחצים – נספר אוטומטית כלא נכון.
+    </p>
+    <div id="teamsTableWrapper"></div>
+    <p class="hint">לחצו "התחל"/"המשך" ליד המשפחה שבתור.</p>
+  </section>
+
+  <!-- כרטיס השאלון הפעיל -->
+  <section id="quizSection" class="hidden">
+    <div id="quizCard">
+      <h2 id="currentTeamTitle"></h2>
+      <div id="questionMeta"></div>
+      <div id="questionTimer"></div>
+      <div id="questionText"></div>
+      <div class="buttons-row">
+        <button class="btn" id="btnCorrect">תשובה נכונה ✔</button>
+        <button class="btn secondary" id="btnWrong">תשובה לא נכונה ✖</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- סיכום סופי -->
+  <section id="finalSection" class="hidden">
+    <h2>3. סיכום המשחק</h2>
+    <p class="hint">הדירוג למטה מסודר לפי כמות התשובות הנכונות.</p>
+    <ul id="finalSummaryList"></ul>
+    <button class="btn secondary" id="btnReset">איפוס למשחק חדש</button>
+  </section>
+</div>
+
+<script>
+  // ===== הגדרות משחק =====
+  const QUESTIONS_PER_TEAM = 15;
+  const MAX_TEAMS = 10;
+  const QUESTION_TIME_MS = 10000; // 10 שניות
+
+  // 🔹 בנק שאלות מצחיקות על בני זוג
+  const QUESTION_BANK = [
+    "מי נוחר יותר חזק בלילה – והוא מודה בזה או מכחיש?",
+    "אם מתקשרים מהבנק – מי נכנס ראשון ללחץ?",
+    "מי יותר מתעצבן כשמישהו יושב לו על הכורסה הקבועה?",
+    "מי שוכח איפה המשקפיים – למרות שהם על הראש?",
+    "מי שולט בשלט של הטלוויזיה בבית – ברמה של דיקטטור קטן?",
+    "אם יש ריח שרוף במטבח – של מי זה ניסוי בישול?",
+    "מי אומר 'אין לי מה ללבוש' כשהארון מתפוצץ?",
+    "מי גרוע בלזכור להטעין טלפון?",
+    "מי תמיד אומר 'עוד 5 דקות אני קם' ואז לא קם?",
+    "מי צועק על הטלוויזיה כאילו היא שומעת?",
+    "מי מתארגן הכי לאט לצאת מהבית?",
+    "מי תמיד אומר 'תפתח אתה' כשיש דפיקה בדלת?",
+    "מי זוכר ימי הולדת – ומי חי על מזל?",
+    "מי אומר 'לא רעב' ואז גונב חצי מהצלחת שלך?",
+    "מי מפעיל מזגן ראשון – זה שתמיד חם לו או זה שתמיד קר לו?",
+    "מי מתרגז יותר מפקקים?",
+    "מי אומר 'ממחר דיאטה' כבר 20 שנה?",
+    "מי מדבר עם הטלוויזיה במשחקים?",
+    "מי משוכנע שתמיד הצד השני אשם כשהמשהו בבית נשבר?",
+    "מי ממלא את העגלה בסופר בדברים שלא ברשימה?",
+    "מי נרדם מול הטלוויזיה עם שלט ביד?",
+    "מי עושה רעש בבוקר כש'מנסה להיות בשקט'?",
+    "מי מתלונן כל היום על הגב אבל לא הולך לרופא?",
+    "מי אומר 'לא צריך שקית' אבל מפזר דברים בדרך?",
+    "מי מחובר יותר לקבוצות ווטסאפ חופרות?",
+    "מי יותר שוטר קניות שמסתכל על מחירים?",
+    "מי לעולם לא קורא הוראות הפעלה?",
+    "מי מחליט איזה מוזיקה שומעים ברכב?",
+    "מי יותר פולני/ת בבית?",
+    "מי הראשון שאומר 'בוא נלך כבר' אצל חברים?",
+    "מי מנקה את השולחן – ומי בורח לספה?",
+    "מי מחסל חטיף ומשאיר עטיפה ריקה בארון?",
+    "מי משאיר אורות דולקים בכל הבית?",
+    "מי זוכר איפה החניה – ומי מסתובב כמו תייר?",
+    "מי מנהל את הנהיגה של השני מהצד?",
+    "מי עושה דרמות על כאב קטן?",
+    "מי מתמקח על מחיר בכל מקום?",
+    "מי שוכח חצי מהדברים שאמר שיעשה?",
+    "מי מאשים את הווטסאפ בזה שאיחר?",
+    "מי מזמין מבחוץ במקום לבשל?",
+    "מי מתעצבן כשהאוכל מתקרר כי כולם מאחרים לשולחן?",
+    "מי נעלב כשלא מציעים לו קפה?",
+    "מי אומר 'עזוב אני אעשה זה מהר יותר'?",
+    "מי לוקח אוכל לכל מקרה?",
+    "מי מתרגש מהנחות וקופונים?",
+    "מי אומר 'בסדר, סתם עייף' כשהוא בעצבים?",
+    "מי הכי הרבה אומר 'אמרתי לך!'?",
+    "מי מנסה למצוא את השלט זמן ארוך מדי – כשהוא לידו?",
+    "מי מזהה כל בעיה קטנה בבית?",
+    "מי מסרב לזרוק חולצות מ־1998?",
+    "מי מבקש כיבוי אורות – אבל לא מכבה?",
+    "מי מחליט שהוא 'אינסטלטור' בלי שום ידע?",
+    "מי אומר 'שים את הטלפון כבר!!'?",
+    "מי בודק 3 פעמים הדלת בלילה?",
+    "מי נלחץ מבלגן לפני שאורחים מגיעים?",
+    "מי דוחף אוכל למקפיא שאי אפשר לסגור?",
+    "מי טוען שיודע קיצור דרך בווייז?",
+    "מי אומר שהטלוויזיה חזקה מדי/חלשה מדי?",
+    "מי אומר 'אנחנו לא ילדים' ואז עושה שטויות?",
+    "מי ישרוד באי בודד – ומי יחפש ווטסאפ?",
+    "מי מארגן חופשות – ולמי אין מושג לאן נוסעים?",
+    "מי מצלם אוכל לפני שאוכלים?",
+    "מי מתעצבן מכרסומים/עקשקושים?",
+    "מי מתווכח עם ה־GPS?",
+    "מי זוכר ריבים מלפני 5 שנים?",
+    "מי אומר 'אני לא רעב' ואז גונב אוכל?",
+    "מי מפחד יותר מחרקים?",
+    "מי הופך ניקיון קטן לשיפוץ?",
+    "מי נותן בדיחות בזמן הלא נכון?",
+    "מי מסתבך עם טכנולוגיה?",
+    "מי מבשל – אבל מלכלך פי 3?",
+    "מי לוקח מעיל בקיץ 'לכל מקרה'?",
+    "מי מאבד מפתחות כל יומיים?",
+    "מי נרדם באמצע סרט?",
+    "מי אומר 'אין כסף' אבל קונה שטויות?",
+    "מי צועק על הילדים על בלגן – אבל גם עושה בעצמו?",
+    "מי מבקש 'ביס קטן' ואז חוטף חצי?",
+    "מי נלחץ לפני טיול?",
+    "מי אומר 'תנשום עמוק' כשהשני עצבני?",
+    "מי חושב שיודע את כל המילים לשיר – ולא יודע?",
+    "מי צועק 'אני זוכר איפה שמתי!' ואז לא מוצא?",
+    "מי מתווכח במסעדות על רוטב/קרח?",
+    "מי קונה אונליין בלי הכרה?",
+    "מי מקשיב לחדשות ומי בורח מזה?",
+    "מי מסתכל בחנויות אבל לא קונה?",
+    "מי אומר 'בוא נסיים עם זה' אבל נמרח?",
+    "מי משאיר מים ליד הכיור?",
+    "מי מסדר בארון לפי צבעים – ומי לא?",
+    "מי רוצה לפתור בעיות שלא ביקשו ממנו?",
+    "מי שוכח כביסה במכונה?",
+    "מי אומר 'עזוב, אני אסע!' למרות שהוא הכי עצבני בדרך?",
+    "מי מדבר עם שכנים בלי סוף?",
+    "מי אומר 'פעם היה יותר טוב'?",
+    "מי מתלונן שקר לו/חם לו כל היום?",
+    "מי עושה רעש עם שקיות בסלון?",
+    "מי שומר סודות – ומי מספר הכול?",
+    "מי עושה את הצעד הראשון בריב?",
+    "מי ייתן הכי הרבה תשובות מצחיקות במשחק?"
+  ];
+
+  // ===== מצב משחק =====
+  let teams = []; // {name, score, answered, done, questions, currentIndex}
+  let activeTeamIndex = null;
+  let questionTimeoutId = null;
+  let timerIntervalId = null;
+  let remainingSeconds = 0;
+
+  // ===== אלמנטים מה־DOM =====
+  const setupSection = document.getElementById("setupSection");
+  const controlSection = document.getElementById("controlSection");
+  const quizSection = document.getElementById("quizSection");
+  const finalSection = document.getElementById("finalSection");
+
+  const teamsContainer = document.getElementById("teamsContainer");
+  const btnAddTeam = document.getElementById("btnAddTeam");
+  const btnSaveTeams = document.getElementById("btnSaveTeams");
+  const setupError = document.getElementById("setupError");
+
+  const teamsTableWrapper = document.getElementById("teamsTableWrapper");
+
+  const currentTeamTitle = document.getElementById("currentTeamTitle");
+  const questionMeta = document.getElementById("questionMeta");
+  const questionText = document.getElementById("questionText");
+  const questionTimer = document.getElementById("questionTimer");
+  const btnCorrect = document.getElementById("btnCorrect");
+  const btnWrong = document.getElementById("btnWrong");
+
+  const finalSummaryList = document.getElementById("finalSummaryList");
+  const btnReset = document.getElementById("btnReset");
+
+  const buzzerSound = document.getElementById("buzzerSound");
+
+  let currentTeamInputsCount = 4;
+
+  // ===== פונקציות עזר =====
+  function playBuzzer(){
+    try{
+      buzzerSound.currentTime = 0;
+      buzzerSound.play().catch(()=>{});
+    }catch(e){}
+  }
+
+  function shuffleArray(arr){
+    const copy = arr.slice();
+    for(let i = copy.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  function allTeamsDone(){
+    return teams.length > 0 && teams.every(t => t.done);
+  }
+
+  function clearQuestionTimers(){
+    if(questionTimeoutId !== null){
+      clearTimeout(questionTimeoutId);
+      questionTimeoutId = null;
+    }
+    if(timerIntervalId !== null){
+      clearInterval(timerIntervalId);
+      timerIntervalId = null;
+    }
+  }
+
+  // ===== הוספת קבוצה =====
+  btnAddTeam.addEventListener("click", () => {
+    if(currentTeamInputsCount >= MAX_TEAMS){
+      alert("מקסימום " + MAX_TEAMS + " קבוצות.");
+      return;
+    }
+    currentTeamInputsCount++;
+    const div = document.createElement("div");
+    div.className = "field team-row";
+    const label = document.createElement("label");
+    label.textContent = "קבוצה " + currentTeamInputsCount;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "team-name-input";
+    input.placeholder = "אופציונלי";
+    div.appendChild(label);
+    div.appendChild(input);
+    teamsContainer.appendChild(div);
+  });
+
+  // ===== שמירת קבוצות =====
+  btnSaveTeams.addEventListener("click", () => {
+    const inputs = teamsContainer.querySelectorAll(".team-name-input");
+    const names = [];
+    inputs.forEach(inp => {
+      const v = inp.value.trim();
+      if(v !== ""){
+        names.push(v);
+      }
+    });
+
+    if(names.length < 2){
+      setupError.textContent = "צריך לפחות שתי קבוצות.";
+      return;
+    }
+    if(names.length > MAX_TEAMS){
+      setupError.textContent = "לא ניתן יותר מ-" + MAX_TEAMS + " קבוצות.";
+      return;
+    }
+    setupError.textContent = "";
+
+    teams = names.map(name => ({
+      name,
+      score: 0,
+      answered: 0,
+      done: false,
+      questions: [],
+      currentIndex: 0
+    }));
+
+    setupSection.classList.add("hidden");
+    controlSection.classList.remove("hidden");
+    renderTeamsTable();
+  });
+
+  // ===== טבלת הקבוצות =====
+  function renderTeamsTable(){
+    if(teams.length === 0){
+      teamsTableWrapper.innerHTML = "";
+      return;
+    }
+
+    let html = '<table class="teams-table"><thead><tr>' +
+      '<th>משפחה</th>' +
+      '<th>סטטוס</th>' +
+      '<th>ניקוד</th>' +
+      '<th>ענו</th>' +
+      '<th>פעולה</th>' +
+      '</tr></thead><tbody>';
+
+    teams.forEach((team, index) => {
+      let statusLabel = "לא התחילו";
+      let statusClass = "status-new";
+      if(team.done){
+        statusLabel = "סיימו";
+        statusClass = "status-done";
+      } else if(team.answered > 0){
+        statusLabel = "באמצע";
+        statusClass = "status-active";
+      }
+
+      const btnDisabled = team.done ? "disabled" : "";
+      const btnText = team.answered === 0 ? "התחל" : "המשך";
+
+      html += `<tr>
+        <td>${team.name}</td>
+        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+        <td>${team.score}</td>
+        <td>${team.answered}/${QUESTIONS_PER_TEAM}</td>
+        <td><button class="btn small" data-team-index="${index}" ${btnDisabled}>${btnText}</button></td>
+      </tr>`;
+    });
+
+    html += "</tbody></table>";
+    teamsTableWrapper.innerHTML = html;
+
+    teamsTableWrapper.querySelectorAll("button[data-team-index]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const index = parseInt(btn.getAttribute("data-team-index"),10);
+        startQuizForTeam(index);
+      });
+    });
+
+    if(allTeamsDone()){
+      showFinalSummary();
+    }
+  }
+
+  // ===== ניהול השאלון =====
+  function startQuizForTeam(teamIndex){
+    activeTeamIndex = teamIndex;
+    const team = teams[teamIndex];
+
+    if(team.done) return;
+
+    if(team.questions.length === 0){
+      const shuffled = shuffleArray(QUESTION_BANK);
+      const count = Math.min(QUESTIONS_PER_TEAM, shuffled.length);
+      team.questions = shuffled.slice(0, count);
+      team.currentIndex = 0;
+      team.score = 0;
+      team.answered = 0;
+    }
+
+    quizSection.classList.remove("hidden");
+    updateQuestionView();
+  }
+
+  function startQuestionTimer(){
+    clearQuestionTimers();
+    remainingSeconds = QUESTION_TIME_MS / 1000;
+    questionTimer.textContent = "זמן: " + remainingSeconds + " שניות";
+
+    timerIntervalId = setInterval(() => {
+      remainingSeconds--;
+      if(remainingSeconds < 0) remainingSeconds = 0;
+      questionTimer.textContent = "זמן: " + remainingSeconds + " שניות";
+    }, 1000);
+
+    questionTimeoutId = setTimeout(() => {
+      handleAnswer(false); // אוטומטית לא נכון
+    }, QUESTION_TIME_MS);
+  }
+
+  function updateQuestionView(){
+    const team = teams[activeTeamIndex];
+    if(team.currentIndex >= team.questions.length){
+      team.done = true;
+      quizSection.classList.add("hidden");
+      clearQuestionTimers();
+      renderTeamsTable();
+      if(allTeamsDone()){
+        showFinalSummary();
+      }
+      return;
+    }
+
+    currentTeamTitle.textContent = "תור משפחת " + team.name;
+    questionMeta.textContent = "שאלה " + (team.currentIndex + 1) + " מתוך " + team.questions.length;
+    questionText.textContent = team.questions[team.currentIndex];
+
+    playBuzzer(); // 🔔 באזר בכל מעבר שאלה
+    startQuestionTimer();
+    renderTeamsTable();
+  }
+
+  function handleAnswer(isCorrect){
+    if(activeTeamIndex === null) return;
+    clearQuestionTimers();
+
+    const team = teams[activeTeamIndex];
+
+    if(isCorrect){
+      team.score += 1;
+    }
+    team.answered += 1;
+    team.currentIndex += 1;
+
+    if(team.currentIndex >= team.questions.length){
+      team.done = true;
+      quizSection.classList.add("hidden");
+      renderTeamsTable();
+      if(allTeamsDone()){
+        showFinalSummary();
+      }
+    } else {
+      updateQuestionView();
+    }
+  }
+
+  btnCorrect.addEventListener("click", () => handleAnswer(true));
+  btnWrong.addEventListener("click", () => handleAnswer(false));
+
+  // ===== סיכום סופי =====
+  function showFinalSummary(){
+    finalSection.classList.remove("hidden");
+
+    const sorted = teams.slice().sort((a,b) => b.score - a.score);
+    const maxScore = sorted[0] ? sorted[0].score : 0;
+
+    finalSummaryList.innerHTML = "";
+    sorted.forEach((team, idx) => {
+      const li = document.createElement("li");
+      const isWinner = team.score === maxScore && maxScore > 0;
+      li.innerHTML =
+        (isWinner ? '<span class="badge-winner">מנצחים</span> ' : '') +
+        `<span class="${isWinner ? 'winner' : ''}">מקום ${idx+1}: משפחת ${team.name} – ${team.score} נקודות מתוך ${team.answered}</span>`;
+      finalSummaryList.appendChild(li);
+    });
+  }
+
+  // ===== איפוס משחק =====
+  btnReset.addEventListener("click", () => {
+    location.reload();
+  });
+</script>
+</body>
+</html>
