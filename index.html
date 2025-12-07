@@ -331,41 +331,41 @@
   </div>
 
   <script>
-    const $ = s=>document.querySelector(s);
+    const $ = s => document.querySelector(s);
 
-    const cards=$("#cards"),
-          empty=$("#empty"),
-          inpName=$("#name"),
-          inpUrl=$("#url"),
-          btnSave=$("#saveAll"),
-          err=$("#err"),
-          refreshBtn=$("#refreshBtn"),
-          titleToggle=$("#titleToggle"),
-          addBar=$("#addBar");
+    const cards = $("#cards"),
+          empty = $("#empty"),
+          inpName = $("#name"),
+          inpUrl = $("#url"),
+          btnSave = $("#saveAll"),
+          err = $("#err"),
+          refreshBtn = $("#refreshBtn"),
+          titleToggle = $("#titleToggle"),
+          addBar = $("#addBar");
 
-    const JSON_PATH="data/links.json";
-    const GH_EDIT_URL="https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
+    const JSON_PATH = "data/links.json";
+    const GH_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
 
-    let list=[];
+    let list = [];
 
     const editVisibleState = new Map();
 
     async function loadJson(){
       try{
-        const r=await fetch(`${JSON_PATH}?v=${Date.now()}`,{cache:"no-store"});
+        const r = await fetch(`${JSON_PATH}?v=${Date.now()}`, { cache:"no-store" });
         if(!r.ok) throw 0;
-        list=await r.json();
-        if(!Array.isArray(list)) list=[];
+        list = await r.json();
+        if(!Array.isArray(list)) list = [];
       }catch{
-        list=[];
+        list = [];
       }
       render();
     }
 
     function normalizeUrl(raw){
-      let s=(raw||"").trim();
+      let s = (raw || "").trim();
       if(!s) throw new Error("נא למלא קישור");
-      if(!/^https?:\/\//i.test(s)) s="https://"+s;
+      if(!/^https?:\/\//i.test(s)) s = "https://" + s;
       try{ return new URL(s).toString(); }
       catch{ throw new Error("כתובת לא תקינה"); }
     }
@@ -401,21 +401,21 @@
     }
 
     function render(){
-      cards.innerHTML="";
+      cards.innerHTML = "";
       if(!list.length){
-        empty.hidden=false;
+        empty.hidden = false;
         return;
       }
-      empty.hidden=true;
+      empty.hidden = true;
 
-      list.forEach((item, i)=>{
-        const card=document.createElement("a");
-        card.className="card";
-        card.href=item.url;
-        card.target="_blank";
-        card.rel="noopener";
+      list.forEach((item, i) => {
+        const card = document.createElement("a");
+        card.className = "card";
+        card.href = item.url;
+        card.target = "_blank";
+        card.rel = "noopener";
 
-        const showActions = editVisibleState.get(i)===true;
+        const showActions = editVisibleState.get(i) === true;
 
         card.innerHTML =
           buildActionsHtml(i, showActions) +
@@ -425,105 +425,120 @@
         cards.appendChild(card);
       });
 
-      cards.querySelectorAll(".fav").forEach(fav=>{
-        fav.addEventListener("click", e=>{
+      cards.querySelectorAll(".fav").forEach(fav => {
+        fav.addEventListener("click", e => {
           e.preventDefault();
           e.stopPropagation();
           const idx = Number(fav.getAttribute("data-toggle-actions"));
-          const now = editVisibleState.get(idx)===true;
+          const now = editVisibleState.get(idx) === true;
           editVisibleState.set(idx, !now);
           render();
         });
       });
 
-      cards.querySelectorAll(".iconbtn").forEach(btn=>{
+      cards.querySelectorAll(".iconbtn").forEach(btn => {
         btn.addEventListener("click", onActionClick);
       });
     }
 
     function addAndSave(){
-      err.hidden=true;
-      err.textContent="";
+      err.hidden = true;
+      err.textContent = "";
 
-      const name=(inpName.value||"").trim();
-      const raw=(inpUrl.value||"").trim();
+      const name = (inpName.value || "").trim();
+      const raw = (inpUrl.value || "").trim();
       if(!name || !raw){
-        err.textContent="נא למלא את שני השדות";
-        err.hidden=false;
+        err.textContent = "נא למלא את שני השדות";
+        err.hidden = false;
         return;
       }
 
       let url;
       try{
-        url=normalizeUrl(raw);
+        url = normalizeUrl(raw);
       }catch(e){
-        err.textContent=e.message;
-        err.hidden=false;
+        err.textContent = e.message;
+        err.hidden = false;
         return;
       }
 
-      const i=list.findIndex(x=>x.url?.toLowerCase()===url.toLowerCase());
-      if(i>-1){
-        list.splice(i,1);
+      const i = list.findIndex(x => x.url?.toLowerCase() === url.toLowerCase());
+      if(i > -1){
+        list.splice(i, 1);
       }
 
-      list.unshift({name, url, ts: Date.now()});
+      list.unshift({ name, url, ts: Date.now() });
 
-      inpName.value="";
-      inpUrl.value="";
+      inpName.value = "";
+      inpUrl.value = "";
       render();
 
       copyAndOpen();
     }
 
-   function copyAndOpen(){
-  const txt = JSON.stringify(list, null, 2);
-  const openEdit = () => window.open(GH_EDIT_URL, "_blank");
+    function copyAndOpen(){
+      const txt = JSON.stringify(list, null, 2);
 
-  // ניסיון העתקה
-  if(navigator.clipboard?.writeText){
-    navigator.clipboard.writeText(txt).then(() => {
-      alert("התוכן הועתק ללוח. אם זה לא עבד, תוכל להעתיק ידנית בחלון הבא.");
-      prompt("העתק מכאן את ה-JSON:", txt);
-      openEdit();
-    }, () => {
-      prompt("העתק מכאן את ה־JSON (ההעתקה האוטומטית נכשלה):", txt);
-      openEdit();
-    });
-  } else {
-    prompt("העתק מכאן את ה־JSON:", txt);
-    openEdit();
-  }
-}
+      // חלון עם ה-JSON המלא להעתקה
+      const w = window.open("", "_blank");
+      if (w) {
+        w.document.write(`
+          <!doctype html>
+          <html lang="he">
+          <head>
+            <meta charset="utf-8">
+            <title>links.json</title>
+            <style>
+              body{
+                margin:0;
+                padding:16px;
+                font-family:Consolas,Menlo,monospace;
+                white-space:pre;
+                direction:ltr;
+                font-size:13px;
+              }
+            </style>
+          </head>
+          <body></body>
+          </html>
+        `);
+        w.document.body.textContent = txt;
+        w.document.close();
+      } else {
+        alert("הדפדפן חסם פתיחת חלון חדש. צריך לאפשר פופאפים ל-reuven2k.com");
+      }
 
+      // דף העריכה בגיטהאב
+      window.open(GH_EDIT_URL, "_blank");
+    }
 
     function onActionClick(e){
       e.preventDefault();
       e.stopPropagation();
 
-      const btn=e.currentTarget;
-      const idx=Number(btn.getAttribute("data-index"));
-      const action=btn.getAttribute("data-action");
+      const btn = e.currentTarget;
+      const idx = Number(btn.getAttribute("data-index"));
+      const action = btn.getAttribute("data-action");
       if(Number.isNaN(idx) || !list[idx]) return;
 
-      if(action==="delete"){
+      if(action === "delete"){
         if(confirm(`למחוק את "${list[idx].name}"?`)){
-          list.splice(idx,1);
+          list.splice(idx, 1);
           render();
           copyAndOpen();
         }
-      }else if(action==="edit"){
-        const curr=list[idx];
-        const newName=prompt("שם חדש לקישור:", curr.name ?? "");
-        if(newName===null) return;
-        const newUrlRaw=prompt("קישור חדש (URL):", curr.url ?? "");
-        if(newUrlRaw===null) return;
+      }else if(action === "edit"){
+        const curr = list[idx];
+        const newName = prompt("שם חדש לקישור:", curr.name ?? "");
+        if(newName === null) return;
+        const newUrlRaw = prompt("קישור חדש (URL):", curr.url ?? "");
+        if(newUrlRaw === null) return;
 
         try{
-          const newUrl=normalizeUrl(newUrlRaw);
-          list[idx]={
+          const newUrl = normalizeUrl(newUrlRaw);
+          list[idx] = {
             ...curr,
-            name:(newName||"").trim() || curr.name,
+            name:(newName || "").trim() || curr.name,
             url:newUrl,
             ts:Date.now()
           };
@@ -536,33 +551,34 @@
     }
 
     function refreshData(){
-      const url=new URL(window.location.href);
-      url.searchParams.set('v',Date.now().toString());
+      const url = new URL(window.location.href);
+      url.searchParams.set("v", Date.now().toString());
       window.location.replace(url.toString());
     }
 
-    // ====== טריגר נסתר על "מועדפים" לפתיחת/סגירת החלון ======
-    titleToggle.addEventListener("click", ()=>{
+    // טריגר על "מועדפים" לפתיחה/סגירה
+    titleToggle.addEventListener("click", () => {
       addBar.classList.toggle("hidden");
       if(!addBar.classList.contains("hidden")){
-        // פוקוס נוח לשדה הראשון
-        setTimeout(()=>inpName.focus(), 0);
+        setTimeout(() => inpName.focus(), 0);
       }
     });
-    // ESC לסגירה מהירה, לא חובה אבל נוח
-    window.addEventListener("keydown", (e)=>{
+
+    // ESC לסגירה
+    window.addEventListener("keydown", (e) => {
       if(e.key === "Escape" && !addBar.classList.contains("hidden")){
         addBar.classList.add("hidden");
       }
     });
 
-    btnSave.addEventListener("click",addAndSave);
-    [inpName,inpUrl].forEach(el=>{
-      el.addEventListener("keydown", e=>{
-        if(e.key==="Enter") addAndSave();
+    btnSave.addEventListener("click", addAndSave);
+    [inpName, inpUrl].forEach(el => {
+      el.addEventListener("keydown", e => {
+        if(e.key === "Enter") addAndSave();
       });
     });
-    refreshBtn.addEventListener("click",refreshData);
+
+    refreshBtn.addEventListener("click", refreshData);
 
     loadJson();
   </script>
