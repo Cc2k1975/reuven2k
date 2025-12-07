@@ -5,224 +5,58 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>משחק מתנות יום הולדת</title>
 
-  <!-- ספריית סריקת QR/Barcode -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
   <style>
     :root{
-      --bg:#ffeef7;
-      --card:#ffffff;
-      --accent:#ff4081;
-      --accent-dark:#e91e63;
-      --text:#222;
-      --muted:#666;
-      --radius:18px;
-      --shadow:0 10px 25px rgba(0,0,0,0.12);
+      --bg:#ffeef7; --card:#ffffff; --accent:#ff4081; --accent-dark:#e91e63;
+      --text:#222; --muted:#666; --radius:18px; --shadow:0 10px 25px rgba(0,0,0,0.12);
     }
     *{box-sizing:border-box}
-    html,body{
-      margin:0;
-      padding:0;
-      font-family:system-ui,"Heebo","Arial",sans-serif;
-      background:linear-gradient(180deg,#ffeef7,#fff);
-      color:var(--text);
-    }
-    body{
-      min-height:100vh;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      padding:12px;
-    }
-    .app{
-      width:100%;
-      max-width:500px;
-      background:var(--card);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      padding:18px 16px 22px;
-      position:relative;
-      overflow:hidden;
-    }
-    h1,h2,h3{
-      margin:0 0 12px;
-      text-align:center;
-    }
-    h1{
-      font-size:1.6rem;
-      color:var(--accent-dark);
-    }
-    h2{
-      font-size:1.3rem;
-    }
-    p{
-      margin:0 0 10px;
-      line-height:1.4;
-    }
+    html,body{ margin:0; padding:0; font-family:system-ui,"Heebo","Arial",sans-serif; background:linear-gradient(180deg,#ffeef7,#fff); color:var(--text); }
+    body{ min-height:100vh; display:flex; justify-content:center; align-items:center; padding:12px; }
+    .app{ width:100%; max-width:500px; background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 16px 22px; position:relative; overflow:hidden; }
+    h1,h2,h3{ margin:0 0 12px; text-align:center; }
+    h1{ font-size:1.6rem; color:var(--accent-dark); }
+    h2{ font-size:1.3rem; }
+    p{ margin:0 0 10px; line-height:1.4; }
     .center{text-align:center}
-    .btn{
-      display:inline-block;
-      padding:10px 18px;
-      border-radius:999px;
-      border:none;
-      font-size:1rem;
-      font-weight:600;
-      cursor:pointer;
-      background:var(--accent);
-      color:#fff;
-      box-shadow:0 6px 14px rgba(233,30,99,0.35);
-      margin:8px 0;
-    }
-    .btn:active{
-      transform:translateY(1px);
-      box-shadow:0 3px 8px rgba(233,30,99,0.4);
-    }
-    .btn-secondary{
-      background:#f1f1f1;
-      color:#333;
-      box-shadow:none;
-    }
-    .btn-small{
-      padding:6px 10px;
-      font-size:0.85rem;
-    }
+    .btn{ display:inline-block; padding:10px 18px; border-radius:999px; border:none; font-size:1rem; font-weight:600; cursor:pointer; background:var(--accent); color:#fff; box-shadow:0 6px 14px rgba(233,30,99,0.35); margin:8px 0; }
+    .btn:active{ transform:translateY(1px); box-shadow:0 3px 8px rgba(233,30,99,0.4); }
+    .btn-secondary{ background:#f1f1f1; color:#333; box-shadow:none; }
+    .btn-small{ padding:6px 10px; font-size:0.85rem; }
     .hidden{display:none !important;}
-
-    .tagline{
-      font-size:0.95rem;
-      color:var(--muted);
-      text-align:center;
-      margin-bottom:10px;
-    }
-    .progress{
-      text-align:center;
-      font-size:0.9rem;
-      color:var(--muted);
-      margin-top:6px;
-    }
-    .bubble{
-      background:#fff3f8;
-      border-radius:14px;
-      padding:10px 12px;
-      margin:10px 0;
-      border:1px dashed #ff8bb3;
-      font-size:0.95rem;
-    }
-
-    /* מסכים */
-    .screen{
-      display:none;
-    }
-    .screen.active{
-      display:block;
-    }
-
-    /* סריקה */
-    #qr-reader{
-      width:100%;
-      max-width:360px;
-      margin:0 auto;
-    }
-    #scan-status{
-      text-align:center;
-      font-size:0.9rem;
-      color:var(--muted);
-      margin-top:8px;
-      min-height:18px;
-    }
-
-    /* מסך תחנה */
-    .station-box{
-      background:#fff7fb;
-      border-radius:16px;
-      padding:14px;
-      border:1px solid #ffd0e6;
-    }
-    .station-label{
-      font-size:0.9rem;
-      color:var(--muted);
-      margin-bottom:6px;
-    }
-
-    /* כפתור ניהול סודי */
-    .admin-open{
-      position:absolute;
-      top:8px;
-      left:10px;
-      background:transparent;
-      border:none;
-      color:#bbb;
-      cursor:pointer;
-      font-size:1.2rem;
-    }
-
-    .field-group{
-      margin-bottom:10px;
-    }
-    label{
-      display:block;
-      font-size:0.9rem;
-      margin-bottom:3px;
-      color:var(--muted);
-    }
-    input[type="text"], textarea, input[type="number"]{
-      width:100%;
-      padding:7px 8px;
-      border-radius:10px;
-      border:1px solid #dadada;
-      font-size:0.9rem;
-      font-family:inherit;
-    }
-    textarea{
-      min-height:50px;
-      resize:vertical;
-    }
-    .stations-grid{
-      max-height:320px;
-      overflow-y:auto;
-      border-radius:14px;
-      border:1px solid #eee;
-      padding:8px;
-      background:#fafafa;
-    }
-    .station-edit{
-      margin-bottom:10px;
-      padding:6px 8px;
-      border-radius:10px;
-      background:#ffffff;
-      border:1px solid #e5e5e5;
-    }
-    .station-edit h4{
-      margin:0 0 6px;
-      font-size:0.9rem;
-      color:var(--accent-dark);
-    }
-    .footer-note{
-      margin-top:8px;
-      font-size:0.8rem;
-      color:#999;
-      text-align:center;
-    }
-
-    .loading{
-      text-align:center;
-      font-size:0.95rem;
-      color:var(--muted);
-    }
+    .tagline{ font-size:0.95rem; color:var(--muted); text-align:center; margin-bottom:10px; }
+    .progress{ text-align:center; font-size:0.9rem; color:var(--muted); margin-top:6px; }
+    .bubble{ background:#fff3f8; border-radius:14px; padding:10px 12px; margin:10px 0; border:1px dashed #ff8bb3; font-size:0.95rem; }
+    .screen{ display:none; }
+    .screen.active{ display:block; }
+    #qr-reader{ width:100%; max-width:360px; margin:0 auto; }
+    #scan-status{ text-align:center; font-size:0.9rem; color:var(--muted); margin-top:8px; min-height:18px; }
+    .station-box{ background:#fff7fb; border-radius:16px; padding:14px; border:1px solid #ffd0e6; }
+    .station-label{ font-size:0.9rem; color:var(--muted); margin-bottom:6px; }
+    .admin-open{ position:absolute; top:8px; left:10px; background:transparent; border:none; color:#bbb; cursor:pointer; font-size:1.2rem; z-index: 100; }
+    .field-group{ margin-bottom:10px; }
+    label{ display:block; font-size:0.9rem; margin-bottom:3px; color:var(--muted); }
+    input[type="text"], textarea, input[type="number"]{ width:100%; padding:7px 8px; border-radius:10px; border:1px solid #dadada; font-size:0.9rem; font-family:inherit; }
+    textarea{ min-height:50px; resize:vertical; }
+    .stations-grid{ max-height:320px; overflow-y:auto; border-radius:14px; border:1px solid #eee; padding:8px; background:#fafafa; }
+    .station-edit{ margin-bottom:10px; padding:6px 8px; border-radius:10px; background:#ffffff; border:1px solid #e5e5e5; }
+    .station-edit h4{ margin:0 0 6px; font-size:0.9rem; color:var(--accent-dark); }
+    .footer-note{ margin-top:8px; font-size:0.8rem; color:#999; text-align:center; }
+    .loading{ text-align:center; font-size:0.95rem; color:var(--muted); }
   </style>
 </head>
 <body>
   <div class="app">
-    <!-- כפתור ניהול סודי -->
     <button class="admin-open" id="adminOpenBtn" title="ניהול">⚙</button>
 
-    <!-- מסך טעינה קצר לפני שה-config מגיע מ־Firebase -->
     <section id="screen-loading" class="screen active">
       <h2>טוען משחק…</h2>
       <p class="loading">מתחבר ל־Firebase, רגע…</p>
+      <p id="error-msg" style="color:red; font-size:0.8rem; text-align:center; display:none;"></p>
     </section>
 
-    <!-- מסך פתיחה -->
     <section id="screen-welcome" class="screen">
       <h1>מזל טוב <span id="player-name-display">לדנה</span>! 🎉</h1>
       <p class="tagline">היום אנחנו יוצאים למסלול מפתיע עם מתנות נסתרות…</p>
@@ -238,7 +72,6 @@
       <p class="progress" id="stations-count-label"></p>
     </section>
 
-    <!-- מסך סריקה -->
     <section id="screen-scan" class="screen">
       <h2>סרקי את הברקוד הבא 📷</h2>
       <p class="tagline">כווני את המצלמה אל הברקוד המצורף</p>
@@ -249,7 +82,6 @@
       </div>
     </section>
 
-    <!-- מסך תחנה (משימה/מתנה) -->
     <section id="screen-station" class="screen">
       <h2 id="station-title">כל הכבוד! 🎁</h2>
       <div class="station-box">
@@ -264,47 +96,34 @@
       </div>
     </section>
 
-    <!-- מסך ניהול סודי -->
     <section id="screen-admin" class="screen">
       <h2>מסך ניהול (סודי)</h2>
-
       <div class="field-group">
-        <label for="player-name-input">שם מקבל/ת המתנות (מוצג במסך הראשי):</label>
+        <label for="player-name-input">שם מקבל/ת המתנות:</label>
         <input type="text" id="player-name-input" placeholder="למשל: דנה">
       </div>
-
       <div class="field-group">
-        <label for="stations-number-input">כמה תחנות / מתנות?</label>
+        <label for="stations-number-input">מספר תחנות:</label>
         <input type="number" id="stations-number-input" min="1" max="30" value="5">
       </div>
-
       <div class="field-group">
-        <p style="font-size:0.9rem;margin-bottom:4px;">
-          הגדרת התחנות (קוד ברקוד + חידה + הודעת מתנה):
-        </p>
-        <div class="stations-grid" id="stations-edit-container">
-          <!-- כאן ייוצרו שורות עריכה דינמיות -->
-        </div>
+        <p style="font-size:0.9rem;margin-bottom:4px;">הגדרת התחנות:</p>
+        <div class="stations-grid" id="stations-edit-container"></div>
       </div>
-
       <div class="center" style="margin-top:10px;">
         <button class="btn" id="saveAdminBtn">שמירה ל־Firebase</button>
         <button class="btn-secondary btn-small" id="exitAdminBtn">יציאה</button>
       </div>
-
-      <p class="footer-note">
-        ההגדרות נשמרות ב־Firebase Realtime Database תחת הצומת <code>config</code>.<br>
-        אפשר לערוך מכל מכשיר, לא צריך לגעת בטלפון של דנה.
-      </p>
+      <p class="footer-note">עריכה נשמרת בזמן אמת ב־Firebase.</p>
     </section>
   </div>
 
-  <!-- קוד JS מודולרי עם Firebase -->
   <script type="module">
     // -------- Firebase SDK --------
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
     import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
 
+    // הקונפיגורציה שלך (וודא שהיא נכונה ושב-Console המסד פתוח)
     const firebaseConfig = {
       apiKey: "AIzaSyBxh37gdksnvKyGZhKzcMEliRuRZaqFyRs",
       authDomain: "birthday-6673d.firebaseapp.com",
@@ -319,81 +138,52 @@
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
 
-    // -------- לוגיקת המשחק --------
+    // -------- ברירת מחדל --------
     const DEFAULT_CONFIG = {
       playerName: "דנה",
       stations: [
-        {
-          code: "DANA-1",
-          riddle: "המתנה הראשונה מחכה במקום שבו שומרים את כל המתוקים…",
-          reward: "מתנה 1: שוקולד אהוב ופתק אישי ❤️"
-        },
-        {
-          code: "DANA-2",
-          riddle: "עכשיו לכי למקום שבו את מתחילה את הבוקר עם מים חמים…",
-          reward: "מתנה 2: מוצר טיפוח מפנק 🚿"
-        },
-        {
-          code: "DANA-3",
-          riddle: "איפה את הכי אוהבת לנוח ולצפות בסדרה טובה?",
-          reward: "מתנה 3: שמיכה רכה לנטפליקס 🛋️"
-        },
-        {
-          code: "DANA-4",
-          riddle: "המקום שבו את חולמת על כל הטיולים הבאים…",
-          reward: "מתנה 4: מחברת חלומות ועט ✈️"
-        },
-        {
-          code: "DANA-5",
-          riddle: "התחנה האחרונה – המקום שבו שומרים זיכרונות…",
-          reward: "מתנה 5: אלבום תמונות מיוחד 🎁"
-        }
+        { code: "DANA-1", riddle: "המתנה הראשונה במקום הכי מתוק בבית...", reward: "שוקולד וברכה" },
+        { code: "DANA-2", riddle: "היכן שיש מים חמים בבוקר...", reward: "סבון מפנק" }
       ]
     };
 
-    let gameConfig     = null;
-    let currentStation = null;
-    let currentScreen  = "loading";
+    let gameConfig = null;
     let scannerInstance = null;
 
-    // -------- עזר למסכים --------
+    // -------- פונקציות מסך --------
     function showScreen(name){
-      currentScreen = name;
       document.querySelectorAll(".screen").forEach(sec => sec.classList.remove("active"));
       document.getElementById("screen-" + name).classList.add("active");
-
-      if (name === "scan"){
-        startScanner();
-      } else {
-        stopScanner();
-      }
+      
+      if (name === "scan") startScanner();
+      else stopScanner();
     }
 
     function updateWelcomeScreen(){
       if (!gameConfig) return;
       document.getElementById("player-name-display").textContent = gameConfig.playerName || "דנה";
       document.getElementById("stations-count-label").textContent =
-        "במשחק מחכות לך " + gameConfig.stations.length + " תחנות עם מתנות 🎁";
+        "במשחק מחכות לך " + (gameConfig.stations ? gameConfig.stations.length : 0) + " תחנות 🎁";
     }
 
-    // -------- טעינה ושמירה מ־Firebase --------
+    // -------- Firebase Logic --------
     async function loadConfigFromFirebase(){
       const configRef = ref(db, "config");
-      try{
+      try {
         const snapshot = await get(configRef);
         if (snapshot.exists()){
           const data = snapshot.val();
-          if (data.playerName && Array.isArray(data.stations)){
-            gameConfig = data;
-            return;
-          }
+          gameConfig = data;
+        } else {
+          gameConfig = DEFAULT_CONFIG;
+          await set(configRef, gameConfig); // ניסיון שמירה ראשוני
         }
-        // אם אין נתונים תקינים – דחיפה של ברירת מחדל
+      } catch(err) {
+        console.error("Firebase Error:", err);
+        // אם נכשל, נשתמש בברירת מחדל כדי שהמשחק יעבוד בכל זאת
         gameConfig = DEFAULT_CONFIG;
-        await set(configRef, gameConfig);
-      }catch(err){
-        console.error("שגיאה בקריאת config מ־Firebase:", err);
-        gameConfig = DEFAULT_CONFIG;
+        document.getElementById("error-msg").textContent = "שגיאת חיבור (בדוק הרשאות Rules). המשחק במצב אופליין.";
+        document.getElementById("error-msg").style.display = "block";
       }
     }
 
@@ -402,201 +192,137 @@
       await set(configRef, gameConfig);
     }
 
-    // -------- סריקת ברקוד --------
+    // -------- סורק --------
     function startScanner(){
-      const statusEl = document.getElementById("scan-status");
-      statusEl.textContent = "מאתחל מצלמה…";
-
-      if (!window.Html5QrcodeScanner){
-        statusEl.textContent = "שגיאה: ספריית הסריקה לא נטענה.";
+      // וידוא שהספרייה נטענה
+      if (!window.Html5QrcodeScanner) {
+        alert("שגיאה: ספריית הסורק לא נטענה.");
         return;
       }
+      stopScanner();
+      scannerInstance = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: 250 }, false);
+      scannerInstance.render(onScanSuccess, (err)=>{});
+    }
 
-      stopScanner(); // ליתר ביטחון
-
-      scannerInstance = new Html5QrcodeScanner(
-        "qr-reader",
-        { fps: 10, qrbox: 250, rememberLastUsedCamera: true },
-        false
-      );
-
-      scannerInstance.render(onScanSuccess, onScanFailure);
-
-      function onScanSuccess(decodedText, decodedResult){
-        statusEl.textContent = "נסרק: " + decodedText;
-        handleScannedCode(decodedText.trim());
-      }
-
-      function onScanFailure(errorMsg){
-        // שגיאות סריקה שוטפות – מתעלמים
-      }
+    function onScanSuccess(decodedText){
+      // עצירת סריקה כדי למנוע כפילויות
+      stopScanner(); 
+      handleScannedCode(decodedText.trim());
     }
 
     function stopScanner(){
-      const statusEl = document.getElementById("scan-status");
       if (scannerInstance){
-        scannerInstance.clear().catch(err => {
-          console.warn("Failed to clear scanner", err);
-        });
+        scannerInstance.clear().catch(console.error);
         scannerInstance = null;
       }
-      const readerEl = document.getElementById("qr-reader");
-      if (readerEl) readerEl.innerHTML = "";
-      if (statusEl) statusEl.textContent = "";
     }
 
     function handleScannedCode(codeText){
       const station = gameConfig.stations.find(s => (s.code || "").trim() === codeText);
       if (!station){
-        alert("הברקוד שנסרק לא מוכר למשחק הזה.\n\nקוד שנסרק: " + codeText);
+        alert("ברקוד לא מוכר: " + codeText);
+        showScreen("scan"); // חזרה לסריקה
         return;
       }
-      currentStation = station;
       showStationScreen(station);
     }
 
     function showStationScreen(station){
       const idx = gameConfig.stations.indexOf(station);
-      document.getElementById("station-title").textContent = "כל הכבוד, התחנה " + (idx + 1) + " 🎁";
-      document.getElementById("station-index-label").textContent =
-        "תחנה " + (idx + 1) + " מתוך " + gameConfig.stations.length;
-      document.getElementById("station-riddle").textContent = station.riddle || "";
-      document.getElementById("station-reward").textContent = station.reward || "";
+      document.getElementById("station-title").textContent = "תחנה " + (idx + 1) + " 🎉";
+      document.getElementById("station-index-label").textContent = "מתוך " + gameConfig.stations.length;
+      document.getElementById("station-riddle").textContent = station.riddle;
+      document.getElementById("station-reward").textContent = station.reward;
       showScreen("station");
     }
 
-    // -------- מסך ניהול --------
-    function openAdminWithPassword(){
-      const pass = prompt("הכנס סיסמת ניהול (ברירת מחדל: 2580):");
-      if (pass === null) return;
-      if (pass === "2580"){
-        populateAdminForm();
+    // -------- ניהול --------
+    function openAdmin(){
+      const p = prompt("סיסמה (2580):");
+      if(p==="2580"){
+        populateAdmin();
         showScreen("admin");
-      }else{
-        alert("סיסמה שגויה");
       }
     }
 
-    function populateAdminForm(){
-      if (!gameConfig) return;
-      document.getElementById("player-name-input").value = gameConfig.playerName || "";
+    function populateAdmin(){
+      document.getElementById("player-name-input").value = gameConfig.playerName;
       document.getElementById("stations-number-input").value = gameConfig.stations.length;
+      renderStationsEdit();
+    }
 
+    function renderStationsEdit(){
       const container = document.getElementById("stations-edit-container");
       container.innerHTML = "";
-      const count = gameConfig.stations.length;
-
-      for (let i = 0; i < count; i++){
-        const st = gameConfig.stations[i] || {code:"",riddle:"",reward:""};
-        const box = document.createElement("div");
-        box.className = "station-edit";
-        box.innerHTML = `
+      gameConfig.stations.forEach((st, i) => {
+        const div = document.createElement("div");
+        div.className = "station-edit";
+        div.innerHTML = `
           <h4>תחנה ${i+1}</h4>
-          <div class="field-group">
-            <label>קוד ברקוד (מה כתוב ב-QR / ברקוד):</label>
-            <input type="text" data-field="code" data-index="${i}" value="${(st.code || "").replace(/"/g,'&quot;')}">
-          </div>
-          <div class="field-group">
-            <label>חידה / המשימה המוצגת לאחר הסריקה:</label>
-            <textarea data-field="riddle" data-index="${i}">${st.riddle || ""}</textarea>
-          </div>
-          <div class="field-group">
-            <label>טקסט מתנה / ברכות בתחנה זו:</label>
-            <textarea data-field="reward" data-index="${i}">${st.reward || ""}</textarea>
-          </div>
+          <input type="text" class="inp-code" placeholder="קוד ברקוד" value="${st.code||''}" style="margin-bottom:5px;">
+          <textarea class="inp-riddle" placeholder="חידה">${st.riddle||''}</textarea>
+          <textarea class="inp-reward" placeholder="פרס">${st.reward||''}</textarea>
         `;
-        container.appendChild(box);
-      }
+        container.appendChild(div);
+      });
     }
 
-    async function applyAdminChanges(){
-      if (!gameConfig) return;
-
-      let newName = (document.getElementById("player-name-input").value || "").trim();
-      if (!newName) newName = "דנה";
-
-      let newCount = parseInt(document.getElementById("stations-number-input").value,10);
-      if (isNaN(newCount) || newCount < 1) newCount = 1;
-      if (newCount > 30) newCount = 30;
-
+    async function saveAdmin(){
+      const newName = document.getElementById("player-name-input").value;
       const container = document.getElementById("stations-edit-container");
+      const blocks = container.querySelectorAll(".station-edit");
       const newStations = [];
-
-      for (let i = 0; i < newCount; i++){
-        const st = {code:"",riddle:"",reward:""};
-        const codeEl   = container.querySelector(`input[data-field="code"][data-index="${i}"]`);
-        const riddleEl = container.querySelector(`textarea[data-field="riddle"][data-index="${i}"]`);
-        const rewardEl = container.querySelector(`textarea[data-field="reward"][data-index="${i}"]`);
-        if (codeEl)   st.code   = (codeEl.value || "").trim();
-        if (riddleEl) st.riddle = (riddleEl.value || "").trim();
-        if (rewardEl) st.reward = (rewardEl.value || "").trim();
-        newStations.push(st);
-      }
+      
+      blocks.forEach(blk => {
+        newStations.push({
+          code: blk.querySelector(".inp-code").value,
+          riddle: blk.querySelector(".inp-riddle").value,
+          reward: blk.querySelector(".inp-reward").value
+        });
+      });
 
       gameConfig.playerName = newName;
-      gameConfig.stations   = newStations;
-
-      try{
+      gameConfig.stations = newStations;
+      
+      try {
         await saveConfigToFirebase();
+        alert("נשמר בהצלחה!");
         updateWelcomeScreen();
-        alert("ההגדרות נשמרו ב־Firebase בהצלחה 🎉");
         showScreen("welcome");
-      }catch(err){
-        console.error("שגיאה בשמירת config ל־Firebase:", err);
-        alert("אירעה שגיאה בשמירה ל־Firebase. בדוק קונסול בדפדפן.");
+      } catch(e) {
+        alert("שגיאה בשמירה: " + e.message);
       }
     }
 
-    // -------- האזנת אירועים --------
-    document.addEventListener("DOMContentLoaded", async () => {
-      // טוען config מ־Firebase
+    // -------- אתחול (Main) --------
+    // כאן התיקון הגדול: פונקציית init שרצה ישירות
+    async function initGame(){
+      // חיבור כפתורים
+      document.getElementById("startGameBtn").onclick = () => showScreen("scan");
+      document.getElementById("backToWelcomeBtn").onclick = () => showScreen("welcome");
+      document.getElementById("continueScanBtn").onclick = () => showScreen("scan");
+      document.getElementById("backToScanBtn").onclick = () => showScreen("scan");
+      document.getElementById("adminOpenBtn").onclick = openAdmin;
+      document.getElementById("saveAdminBtn").onclick = saveAdmin;
+      document.getElementById("exitAdminBtn").onclick = () => showScreen("welcome");
+      
+      document.getElementById("stations-number-input").onchange = (e) => {
+        const num = parseInt(e.target.value) || 1;
+        // התאמת גודל המערך
+        while(gameConfig.stations.length < num) gameConfig.stations.push({code:"",riddle:"",reward:""});
+        while(gameConfig.stations.length > num) gameConfig.stations.pop();
+        renderStationsEdit();
+      };
+
+      // טעינה
       await loadConfigFromFirebase();
       updateWelcomeScreen();
       showScreen("welcome");
+    }
 
-      document.getElementById("startGameBtn").addEventListener("click", () => {
-        showScreen("scan");
-      });
+    // הפעלה
+    initGame();
 
-      document.getElementById("backToWelcomeBtn").addEventListener("click", () => {
-        showScreen("welcome");
-      });
-
-      document.getElementById("continueScanBtn").addEventListener("click", () => {
-        showScreen("scan");
-      });
-
-      document.getElementById("backToScanBtn").addEventListener("click", () => {
-        showScreen("scan");
-      });
-
-      document.getElementById("adminOpenBtn").addEventListener("click", () => {
-        openAdminWithPassword();
-      });
-
-      document.getElementById("saveAdminBtn").addEventListener("click", () => {
-        applyAdminChanges();
-      });
-
-      document.getElementById("exitAdminBtn").addEventListener("click", () => {
-        showScreen("welcome");
-      });
-
-      document.getElementById("stations-number-input").addEventListener("change", () => {
-        if (!gameConfig) return;
-        let newCount = parseInt(document.getElementById("stations-number-input").value,10) || 1;
-        if (newCount < 1) newCount = 1;
-        if (newCount > 30) newCount = 30;
-        const oldStations = gameConfig.stations || [];
-        const arr = [];
-        for (let i = 0; i < newCount; i++){
-          arr.push(oldStations[i] || {code:"",riddle:"",reward:""});
-        }
-        gameConfig.stations = arr;
-        populateAdminForm();
-      });
-    });
   </script>
 </body>
 </html>
-
