@@ -204,6 +204,7 @@
       <div class="center" style="margin-top:10px;">
         <button class="btn" id="saveAdminBtn">שמירה ל־Firebase</button>
         <button class="btn-secondary btn-small" id="showBarcodesBtn">הצג ברקודים</button>
+        <button class="btn-secondary btn-small" id="printBarcodesBtn">הדפס ברקודים</button>
         <button class="btn-secondary btn-small" id="exitAdminBtn">יציאה</button>
       </div>
 
@@ -399,7 +400,7 @@
       }
     }
 
-    // יצירת QRים לכל התחנות במסך ההגדרות
+    // הצגת QRים במסך ההגדרות
     function showBarcodes(){
       ensureBarcodeCodes();
       const preview = document.getElementById("barcode-preview");
@@ -428,7 +429,6 @@
         wrap.appendChild(qrDiv);
         preview.appendChild(wrap);
 
-        // יצירת QR בפועל
         new QRCode(qrDiv, {
           text: st.code,
           width: 128,
@@ -437,6 +437,95 @@
       });
 
       preview.style.display = "block";
+    }
+
+    // חלון נקי להדפסה
+    function printBarcodes(){
+      ensureBarcodeCodes();
+      const codes = gameConfig.stations
+        .map(s => (s.code || "").trim())
+        .filter(c => c);
+
+      if (!codes.length){
+        alert("אין תחנות עם קוד ברקוד.");
+        return;
+      }
+
+      const w = window.open("", "_blank");
+      if (!w){
+        alert("הדפדפן חסם חלון קופץ. בטל חסימה ונסה שוב.");
+        return;
+      }
+
+      const doc = w.document;
+      doc.open();
+      doc.write(`
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>הדפסת ברקודים</title>
+  <style>
+    body{
+      font-family:system-ui,"Heebo","Arial",sans-serif;
+      direction:rtl;
+      text-align:center;
+      margin:20px;
+    }
+    h2{margin-bottom:16px;}
+    .page{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+    }
+    .item{
+      margin:12px;
+      padding:6px;
+      border:1px dashed #ccc;
+      border-radius:8px;
+    }
+    .item-title{
+      margin-bottom:4px;
+      font-size:0.9rem;
+    }
+    @media print{
+      body{margin:0;}
+      .item{border:none;}
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <h2>ברקודים למשחק מתנות</h2>
+  <div class="page" id="codes-container"></div>
+  <script>
+    const codes = ${JSON.stringify(codes)};
+    const cont = document.getElementById('codes-container');
+    codes.forEach(function(code, idx){
+      var wrap = document.createElement('div');
+      wrap.className = 'item';
+      var title = document.createElement('div');
+      title.className = 'item-title';
+      title.textContent = 'תחנה ' + (idx+1) + ' – ' + code;
+      var qrDiv = document.createElement('div');
+      wrap.appendChild(title);
+      wrap.appendChild(qrDiv);
+      cont.appendChild(wrap);
+      new QRCode(qrDiv, {
+        text: code,
+        width: 128,
+        height: 128
+      });
+    });
+    window.onload = function(){
+      window.focus();
+      window.print();
+    };
+  <\/script>
+</body>
+</html>
+      `);
+      doc.close();
     }
 
     async function initGame(){
@@ -448,6 +537,7 @@
       document.getElementById("saveAdminBtn").onclick      = saveAdmin;
       document.getElementById("exitAdminBtn").onclick      = () => showScreen("welcome");
       document.getElementById("showBarcodesBtn").onclick   = showBarcodes;
+      document.getElementById("printBarcodesBtn").onclick  = printBarcodes;
 
       document.getElementById("stations-number-input").onchange = (e) => {
         let num = parseInt(e.target.value,10) || 1;
@@ -455,7 +545,6 @@
         if (num > 30) num = 30;
         e.target.value = num;
 
-        // התאמת גודל המערך + יצירת BARCODE1..N אוטומטית לחדשים
         while(gameConfig.stations.length < num){
           const nextIndex = gameConfig.stations.length;
           gameConfig.stations.push({
