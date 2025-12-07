@@ -476,22 +476,26 @@
       copyAndOpen();
     }
 
-    function copyAndOpen(){
-      const txt=JSON.stringify(list,null,2);
-      const openEdit=()=>window.open(GH_EDIT_URL,"_blank");
+   function copyAndOpen(){
+  const txt = JSON.stringify(list, null, 2);
+  const openEdit = () => window.open(GH_EDIT_URL, "_blank");
 
-      if(navigator.clipboard?.writeText){
-        navigator.clipboard.writeText(txt).then(openEdit,openEdit);
-      }else{
-        const ta=document.createElement("textarea");
-        ta.value=txt;
-        document.body.appendChild(ta);
-        ta.select();
-        try{ document.execCommand("copy"); }catch{}
-        ta.remove();
-        openEdit();
-      }
-    }
+  // ניסיון העתקה
+  if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(txt).then(() => {
+      alert("התוכן הועתק ללוח. אם זה לא עבד, תוכל להעתיק ידנית בחלון הבא.");
+      prompt("העתק מכאן את ה-JSON:", txt);
+      openEdit();
+    }, () => {
+      prompt("העתק מכאן את ה־JSON (ההעתקה האוטומטית נכשלה):", txt);
+      openEdit();
+    });
+  } else {
+    prompt("העתק מכאן את ה־JSON:", txt);
+    openEdit();
+  }
+}
+
 
     function onActionClick(e){
       e.preventDefault();
