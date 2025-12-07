@@ -12,14 +12,21 @@
 
   <style>
     :root{
-      --bg:#ffeef7; --card:#ffffff; --accent:#ff4081; --accent-dark:#e91e63;
-      --text:#222; --muted:#666; --radius:18px; --shadow:0 10px 25px rgba(0,0,0,0.12);
+      /* ערכי ברירת מחדל – יעודכנו לפי gender בקוד */
+      --bg:#ffeef7;
+      --card:#ffffff;
+      --accent:#ff4081;
+      --accent-dark:#e91e63;
+      --text:#222;
+      --muted:#666;
+      --radius:18px;
+      --shadow:0 10px 25px rgba(0,0,0,0.12);
     }
     *{box-sizing:border-box}
     html,body{
       margin:0; padding:0;
       font-family:system-ui,"Heebo","Arial",sans-serif;
-      background:linear-gradient(180deg,#ffeef7,#fff);
+      background:linear-gradient(180deg,var(--bg),#fff);
       color:var(--text);
     }
     body{
@@ -152,7 +159,7 @@
       <h1>מזל טוב <span id="player-name-display">לדנה</span>! 🎉</h1>
       <p class="tagline">היום אנחנו יוצאים למסלול מפתיע עם מתנות נסתרות…</p>
       <div class="bubble">
-        <p class="center">
+        <p class="center" id="welcome-bubble-text">
           בכל תחנה תמצאי ברקוד,<br>
           תסרקי אותו ותקבלי חידה שתוביל למתנה הבאה 🎁
         </p>
@@ -187,10 +194,34 @@
       </div>
     </section>
 
+    <!-- מסך סוף משחק -->
+    <section id="screen-end" class="screen">
+      <h2>סוף המשחק 🎉</h2>
+      <p class="center" id="end-main-text"></p>
+      <p class="center" id="end-sub-text"></p>
+      <div class="center" style="margin-top:16px;">
+        <button class="btn" id="endExitBtn">יציאה</button>
+      </div>
+    </section>
+
     <section id="screen-admin" class="screen">
       <h2>מסך ניהול (סודי)</h2>
+
+      <!-- מין -->
       <div class="field-group">
-        <label for="player-name-input">שם מקבל/ת המתנות:</label>
+        <label>מין מקבל/ת המתנות:</label>
+        <div style="font-size:0.9rem;color:#555;">
+          <label style="margin-left:10px;">
+            <input type="radio" name="gender" value="female" id="gender-female" checked> נקבה
+          </label>
+          <label>
+            <input type="radio" name="gender" value="male" id="gender-male"> זכר
+          </label>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label id="player-name-label" for="player-name-input">שם מקבל/ת המתנות:</label>
         <input type="text" id="player-name-input" placeholder="למשל: דנה">
       </div>
       <div class="field-group">
@@ -204,7 +235,6 @@
       <div class="center" style="margin-top:10px;">
         <button class="btn" id="saveAdminBtn">שמירה ל־Firebase</button>
         <button class="btn-secondary btn-small" id="showBarcodesBtn">הצג ברקודים</button>
-        <!-- כפתור חדש -->
         <button class="btn-secondary btn-small" id="printBarcodesBtn">הדפס ברקודים</button>
         <button class="btn-secondary btn-small" id="exitAdminBtn">יציאה</button>
       </div>
@@ -236,6 +266,7 @@
     // --- ברירת מחדל: 5 תחנות עם BARCODE1..5, חידות/פרסים ריקים ---
     const DEFAULT_CONFIG = {
       playerName: "דנה",
+      gender: "female",
       stations: Array.from({length:5}, (_,i) => ({
         code: `BARCODE${i+1}`,
         riddle: "",
@@ -245,6 +276,7 @@
 
     let gameConfig = null;
     let scannerInstance = null;
+    let visitedCodes = new Set();
 
     // מבטיח שלכל תחנה יש code מהצורה BARCODE1..N אם חסר
     function ensureBarcodeCodes(){
@@ -252,6 +284,40 @@
       for (let i = 0; i < gameConfig.stations.length; i++){
         if (!gameConfig.stations[i].code){
           gameConfig.stations[i].code = `BARCODE${i+1}`;
+        }
+      }
+    }
+
+    // עדכון צבעים וטקסטים לפי gender
+    function applyGenderUI(){
+      if (!gameConfig) return;
+      const gender = gameConfig.gender || "female";
+      const root = document.documentElement;
+
+      if (gender === "male"){
+        root.style.setProperty("--bg","#e5f4ff");
+        root.style.setProperty("--accent","#2196f3");
+        root.style.setProperty("--accent-dark","#1976d2");
+      } else {
+        root.style.setProperty("--bg","#ffeef7");
+        root.style.setProperty("--accent","#ff4081");
+        root.style.setProperty("--accent-dark","#e91e63");
+      }
+
+      const nameLabel = document.getElementById("player-name-label");
+      const bubble = document.getElementById("welcome-bubble-text");
+
+      if (nameLabel){
+        nameLabel.textContent = (gender === "male")
+          ? "שם מקבל המתנות:"
+          : "שם מקבלת המתנות:";
+      }
+
+      if (bubble){
+        if (gender === "male"){
+          bubble.innerHTML = "בכל תחנה תמצא ברקוד,<br>תסרוק אותו ותקבל חידה שתוביל למתנה הבאה 🎁";
+        } else {
+          bubble.innerHTML = "בכל תחנה תמצאי ברקוד,<br>תסרקי אותו ותקבלי חידה שתוביל למתנה הבאה 🎁";
         }
       }
     }
@@ -268,6 +334,7 @@
         gameConfig.playerName || "דנה";
       document.getElementById("stations-count-label").textContent =
         "במשחק מחכות לך " + (gameConfig.stations ? gameConfig.stations.length : 0) + " תחנות 🎁";
+      applyGenderUI();
     }
 
     async function loadConfigFromFirebase(){
@@ -280,6 +347,7 @@
           gameConfig = DEFAULT_CONFIG;
           await set(configRef, gameConfig);
         }
+        if (!gameConfig.gender) gameConfig.gender = "female";
         ensureBarcodeCodes();
       } catch(err) {
         console.error("Firebase Error:", err);
@@ -326,7 +394,15 @@
         showScreen("scan");
         return;
       }
-      showStationScreen(station);
+
+      visitedCodes.add((station.code || "").trim());
+
+      // אם סרקנו את כל התחנות – מעבר למסך סוף
+      if (visitedCodes.size >= gameConfig.stations.length){
+        showEndScreen();
+      } else {
+        showStationScreen(station);
+      }
     }
 
     function showStationScreen(station){
@@ -337,6 +413,20 @@
       document.getElementById("station-riddle").textContent = station.riddle || "";
       document.getElementById("station-reward").textContent = station.reward || "";
       showScreen("station");
+    }
+
+    // מסך סיום
+    function showEndScreen(){
+      const name = gameConfig.playerName || "";
+      const mainEl = document.getElementById("end-main-text");
+      const subEl  = document.getElementById("end-sub-text");
+
+      mainEl.textContent = name
+        ? `שוב מזל טוב ${name}!`
+        : "שוב מזל טוב!";
+      subEl.textContent = "מקווים שנהנית מהמשחק ומהמתנות 🎁";
+
+      showScreen("end");
     }
 
     function openAdmin(){
@@ -351,8 +441,14 @@
       ensureBarcodeCodes();
       document.getElementById("player-name-input").value = gameConfig.playerName;
       document.getElementById("stations-number-input").value = gameConfig.stations.length;
+
+      const gender = gameConfig.gender || "female";
+      document.getElementById("gender-female").checked = (gender !== "male");
+      document.getElementById("gender-male").checked   = (gender === "male");
+
       renderStationsEdit();
       document.getElementById("barcode-preview").style.display = "none";
+      applyGenderUI();
     }
 
     function renderStationsEdit(){
@@ -373,6 +469,8 @@
 
     async function saveAdmin(){
       const newName = document.getElementById("player-name-input").value || "דנה";
+      const gender = document.getElementById("gender-male").checked ? "male" : "female";
+
       const container = document.getElementById("stations-edit-container");
       const blocks = container.querySelectorAll(".station-edit");
       const newStations = [];
@@ -388,7 +486,8 @@
       });
 
       gameConfig.playerName = newName;
-      gameConfig.stations = newStations;
+      gameConfig.gender    = gender;
+      gameConfig.stations  = newStations;
       ensureBarcodeCodes();
 
       try {
@@ -530,10 +629,12 @@
     }
 
     async function initGame(){
-      document.getElementById("startGameBtn").onclick      = () => showScreen("scan");
+      document.getElementById("startGameBtn").onclick      = () => { visitedCodes = new Set(); showScreen("scan"); };
       document.getElementById("backToWelcomeBtn").onclick  = () => showScreen("welcome");
       document.getElementById("continueScanBtn").onclick   = () => showScreen("scan");
       document.getElementById("backToScanBtn").onclick     = () => showScreen("scan");
+      document.getElementById("endExitBtn").onclick        = () => { visitedCodes = new Set(); showScreen("welcome"); };
+
       document.getElementById("adminOpenBtn").onclick      = openAdmin;
       document.getElementById("saveAdminBtn").onclick      = saveAdmin;
       document.getElementById("exitAdminBtn").onclick      = () => showScreen("welcome");
