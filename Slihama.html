@@ -105,6 +105,57 @@
         border-radius:16px;
         cursor:pointer;
     }
+
+    /* חלון הגדרות נסתר */
+    #setupBox{
+        position:fixed;
+        top:0;
+        left:0;
+        width:100%;
+        height:100%;
+        background:rgba(0,0,0,0.6);
+        display:none;
+        align-items:center;
+        justify-content:center;
+        z-index:9999;
+    }
+    #setupInner{
+        background:white;
+        padding:30px;
+        width:80%;
+        max-width:350px;
+        border-radius:18px;
+        text-align:center;
+        box-shadow:0 6px 20px rgba(0,0,0,0.4);
+    }
+    #setupInner h2{
+        margin-top:0;
+        font-size:24px;
+    }
+    #setupInner label{
+        display:block;
+        margin-top:10px;
+        font-size:18px;
+    }
+    #cardTimeInput{
+        width:120px;
+        padding:10px;
+        font-size:20px;
+        margin-top:10px;
+        border-radius:10px;
+        border:1px solid #ccc;
+        text-align:center;
+    }
+    #saveSetupBtn{
+        margin-top:20px;
+        padding:12px 26px;
+        font-size:20px;
+        background:#2196f3;
+        color:white;
+        border:none;
+        border-radius:12px;
+        cursor:pointer;
+    }
 </style>
 </head>
 
@@ -134,6 +185,16 @@
         <p id="sumFail"></p>
         <p id="sumTotal"></p>
         <button id="againBtn">🔁 שחק שוב</button>
+    </div>
+</div>
+
+<!-- חלון הגדרות נסתר -->
+<div id="setupBox">
+    <div id="setupInner">
+        <h2>⚙️ הגדרות משחק</h2>
+        <label for="cardTimeInput">זמן לכל קלף (בשניות):</label>
+        <input id="cardTimeInput" type="number" min="5" max="60" value="20">
+        <button id="saveSetupBtn">💾 שמור</button>
     </div>
 </div>
 
@@ -179,7 +240,16 @@ let success = 0;
 let fail = 0;
 
 let mainTimer = 120;
-let cardTimer = 20;
+
+// זמן ברירת מחדל לקלף
+const defaultCardTime = 20;
+// נטען זמן מותאם אם קיים
+let storedTime = parseInt(localStorage.getItem("cardTime") || defaultCardTime);
+if(isNaN(storedTime) || storedTime < 5 || storedTime > 60){
+    storedTime = defaultCardTime;
+}
+let perCardTime = storedTime;
+let cardTimer = perCardTime;
 
 let mainInterval = null;
 let cardInterval = null;
@@ -192,6 +262,66 @@ const yesBtn = document.getElementById("yesBtn");
 const noBtn = document.getElementById("noBtn");
 const sumBox = document.getElementById("summaryBox");
 const audio = document.getElementById("gameAudio");
+
+const setupBox = document.getElementById("setupBox");
+const cardTimeInput = document.getElementById("cardTimeInput");
+const saveSetupBtn = document.getElementById("saveSetupBtn");
+const titleEl = document.querySelector("h1");
+
+// ---------------------------------------------------
+// הגדרות — זמן קלף מותאם אישית
+// ---------------------------------------------------
+cardTimeInput.value = perCardTime;
+
+saveSetupBtn.onclick = ()=>{
+    const newTime = parseInt(cardTimeInput.value);
+    if(!isNaN(newTime) && newTime >= 5 && newTime <= 60){
+        perCardTime = newTime;
+        localStorage.setItem("cardTime", newTime);
+        alert("ההגדרה נשמרה! (זמן לכל קלף: " + newTime + " שניות)");
+        setupBox.style.display = "none";
+    } else {
+        alert("ערך לא חוקי — בחר בין 5 ל־60 שניות.");
+    }
+};
+
+function openSetup(){
+    cardTimeInput.value = perCardTime;
+    setupBox.style.display = "flex";
+}
+
+// לחיצה ארוכה 5 שניות על הכותרת
+let pressTimer = null;
+
+function startPressTimer(e){
+    e.preventDefault();
+    if(pressTimer === null){
+        pressTimer = setTimeout(()=>{
+            openSetup();
+        }, 5000); // 5 שניות
+    }
+}
+
+function cancelPressTimer(){
+    if(pressTimer !== null){
+        clearTimeout(pressTimer);
+        pressTimer = null;
+    }
+}
+
+titleEl.addEventListener("mousedown", startPressTimer);
+titleEl.addEventListener("mouseup", cancelPressTimer);
+titleEl.addEventListener("mouseleave", cancelPressTimer);
+titleEl.addEventListener("touchstart", startPressTimer);
+titleEl.addEventListener("touchend", cancelPressTimer);
+titleEl.addEventListener("touchcancel", cancelPressTimer);
+
+// לחיצה על הרקע של ההגדרות סוגרת (לא חובה, אבל נוח)
+setupBox.addEventListener("click", (e)=>{
+    if(e.target === setupBox){
+        setupBox.style.display = "none";
+    }
+});
 
 // ---------------------------------------------------
 // טעינת קלף חדש
@@ -207,7 +337,7 @@ function loadCard(){
 }
 
 function resetCardTimer(){
-    cardTimer = 20;
+    cardTimer = perCardTime;
     smallTimer.innerText = "⏱️ " + cardTimer;
     clearInterval(cardInterval);
     cardInterval = setInterval(()=>{
