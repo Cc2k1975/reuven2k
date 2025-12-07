@@ -184,11 +184,10 @@
       <h2 id="station-title">כל הכבוד! 🎁</h2>
       <div class="station-box">
         <div class="station-label" id="station-index-label"></div>
-        <!-- כאן מופיעה השאלה שאתה כתבת -->
         <p id="station-riddle"></p>
         <hr style="margin:10px 0;border:none;border-top:1px dashed #ffc0dd;">
-        <!-- כאן מופיע רק הטקסט האוטומטי "מקווה שאהבת..." (לא עורך את זה בניהול) -->
-        <p id="station-reward" style="font-weight:600;"></p>
+        <!-- כאן השינוי הקטן: white-space:pre-line כדי ששורות יישמרו יפה -->
+        <p id="station-reward" style="font-weight:600; white-space:pre-line;"></p>
       </div>
       <div class="center" style="margin-top:14px;">
         <button class="btn" id="continueScanBtn">המשך לסריקה הבאה</button>
@@ -228,7 +227,7 @@
       </div>
       <div class="field-group">
         <label for="stations-number-input">מספר תחנות:</label>
-        <!-- בלי value ברירת מחדל -->
+        <!-- הוסר value="5" -->
         <input type="number" id="stations-number-input" min="1" max="30">
       </div>
       <div class="field-group">
@@ -266,14 +265,14 @@
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
 
-    // --- ברירת מחדל: 5 תחנות עם BARCODE1..5, טקסטים ריקים ---
+    // --- ברירת מחדל: 5 תחנות עם BARCODE1..5, חידות/פרסים ריקים ---
     const DEFAULT_CONFIG = {
       playerName: "דנה",
       gender: "female",
       stations: Array.from({length:5}, (_,i) => ({
         code: `BARCODE${i+1}`,
         riddle: "",
-        reward: ""   // לא בשימוש בפועל, אבל נשמר לשקיפות
+        reward: ""
       }))
     };
 
@@ -400,7 +399,7 @@
 
       visitedCodes.add((station.code || "").trim());
 
-      // אם זה ה-QR האחרון – קופצים ישר למסך סיום
+      // אם סרקנו את כל התחנות – מעבר למסך סוף
       if (visitedCodes.size >= gameConfig.stations.length){
         showEndScreen();
       } else {
@@ -408,29 +407,26 @@
       }
     }
 
-    // כאן מוצגת השאלה + הטקסט הקבוע "מקווה שאהבת..." (עד לפני ה־אחרון)
+    // === כאן השינוי העיקרי: הוספת "מקווה שאהבת את המתנה..." לכל תחנה אחרי הראשונה ===
     function showStationScreen(station){
       const idx = gameConfig.stations.indexOf(station);
-      const total = gameConfig.stations.length;
-
-      document.getElementById("station-title").textContent =
-        "תחנה " + (idx + 1) + " 🎉";
+      document.getElementById("station-title").textContent = "תחנה " + (idx + 1) + " 🎉";
       document.getElementById("station-index-label").textContent =
-        "מתוך " + total;
+        "מתוך " + gameConfig.stations.length;
+      document.getElementById("station-riddle").textContent = station.riddle || "";
 
-      // השאלה שאתה כתבת בתא היחיד
-      const question = station.riddle || "";
-      document.getElementById("station-riddle").textContent = question;
+      // טקסט בסיסי מהשדה reward (אם כתבת משהו שם)
+      let rewardText = station.reward || "";
 
-      // אם זו לא התחנה האחרונה – נוסיף טקסט קבוע
-      const rewardEl = document.getElementById("station-reward");
-      if (idx < total - 1){
-        rewardEl.textContent = "מקווה שאהבת את המתנה! לחץ לסריקה לשאלה הבאה 🎁";
-      } else {
-        // במקרה שנגיע לפה בתחנה האחרונה – נשאיר ריק
-        rewardEl.textContent = "";
+      // לכל תחנה אחרי הראשונה (2,3,4...) נוסיף את המשפט האוטומטי
+      if (idx > 0){
+        const autoText = "מקווה שאהבת את המתנה! גש למתנה הבאה 🎁";
+        rewardText = rewardText
+          ? rewardText + "\n\n" + autoText
+          : autoText;
       }
 
+      document.getElementById("station-reward").textContent = rewardText;
       showScreen("station");
     }
 
@@ -460,7 +456,7 @@
     function populateAdmin(){
       ensureBarcodeCodes();
       document.getElementById("player-name-input").value = gameConfig.playerName;
-      // נשאיר ריק, שתכניס ידנית
+      // במקום לשים מספר – נשאיר ריק, שתכתוב לבד
       document.getElementById("stations-number-input").value = "";
 
       const gender = gameConfig.gender || "female";
@@ -481,7 +477,8 @@
         div.innerHTML = `
           <h4>תחנה ${i+1} (קוד: ${st.code || ''})</h4>
           <input type="text" class="inp-code" placeholder="קוד ברקוד" value="${st.code||''}" style="margin-bottom:5px;">
-          <textarea class="inp-riddle" placeholder="שאלה / חידה">${st.riddle||''}</textarea>
+          <textarea class="inp-riddle" placeholder="חידה">${st.riddle||''}</textarea>
+          <textarea class="inp-reward" placeholder="פרס">${st.reward||''}</textarea>
         `;
         container.appendChild(div);
       });
@@ -498,12 +495,10 @@
       blocks.forEach((blk, index) => {
         let code = blk.querySelector(".inp-code").value.trim();
         if (!code) code = `BARCODE${index+1}`;
-        const riddle = blk.querySelector(".inp-riddle").value;
-
         newStations.push({
           code,
-          riddle,
-          reward: ""  // לא בשימוש (הטקסט האוטומטי מגיע מהקוד)
+          riddle: blk.querySelector(".inp-riddle").value,
+          reward: blk.querySelector(".inp-reward").value
         });
       });
 
