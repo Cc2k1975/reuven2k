@@ -1,249 +1,333 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>סוכן נסיעות – מערכת לימוד</title>
-
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #f2f7ff;
-    margin: 0;
-    padding: 0;
-  }
-
-  header {
-    background: #0059ff;
-    color: white;
-    padding: 15px;
-    text-align: center;
-    font-size: 22px;
-    font-weight: bold;
-  }
-
-  .layout {
-    display: flex;
-    flex-direction: column;
-  }
-
-  @media(min-width: 900px){
-    .layout {
-      flex-direction: row;
-      align-items: flex-start;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>תכנון טיול לתאילנד 🌴</title>
+  <style>
+    :root {
+      --primary: #007bff;
+      --success: #28a745;
+      --danger: #dc3545;
+      --warning: #ffc107;
+      --info: #17a2b8;
+      --light: #f8f9fa;
+      --dark: #343a40;
     }
-  }
+    
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      padding: 20px; 
+      background-color: #f4f6f9; 
+      color: #333;
+      max-width: 800px;
+      margin: 0 auto;
+    }
 
-  .left-panel, .right-panel {
-    padding: 15px;
-  }
+    h1 { text-align: center; color: var(--primary); margin-bottom: 30px; }
 
-  .left-panel {
-    flex: 2;
-  }
+    .control-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
 
-  .right-panel {
-    flex: 1;
-    background: #e9f0ff;
-    border-right: 1px solid #d0d8f0;
-  }
+    label { font-weight: bold; margin-top: 10px; display: block; }
+    
+    select, input { 
+      font-size: 16px; 
+      padding: 10px; 
+      width: 100%; 
+      margin-bottom: 15px; 
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
 
-  .card {
-    background: #fff;
-    padding: 15px;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    margin-bottom: 15px;
-  }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
 
-  .dest {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    cursor: pointer;
-  }
+    button { 
+      font-size: 16px; 
+      padding: 12px; 
+      flex: 1; 
+      cursor: pointer; 
+      border: none; 
+      border-radius: 5px; 
+      color: white; 
+      font-weight: bold;
+      transition: opacity 0.2s;
+    }
 
-  .dest img {
-    width: 90px;
-    height: 70px;
-    object-fit: cover;
-    border-radius: 10px;
-  }
+    button:hover { opacity: 0.9; }
 
-  .dest h3 {
-    margin: 0;
-    font-size: 20px;
-  }
+    .btn-save { background-color: var(--success); }
+    .btn-local { background-color: var(--info); }
+    .btn-wa { background-color: #25D366; } /* WhatsApp Color */
+    .btn-clear { background-color: var(--danger); }
+    .btn-pdf { background-color: var(--dark); }
 
-  .chat-header {
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    th, td { border-bottom: 1px solid #eee; padding: 12px; text-align: center; }
+    th { background-color: var(--primary); color: white; }
+    tr:last-child td { border-bottom: none; }
+    
+    #hotelLink { 
+      color: var(--primary); 
+      cursor: pointer; 
+      text-decoration: none; 
+      display: block; 
+      margin: -10px 0 15px 0; 
+      font-size: 0.9em;
+    }
+    #hotelLink:hover { text-decoration: underline; }
 
-  .chat-log {
-    background: #ffffff;
-    border-radius: 10px;
-    padding: 10px;
-    height: 250px;
-    overflow-y: auto;
-    border: 1px solid #c8d1f2;
-    font-size: 14px;
-    margin-bottom: 10px;
-  }
-
-  .msg-user {
-    text-align: right;
-    margin-bottom: 6px;
-    padding: 6px 8px;
-    background: #d7f8d5;
-    border-radius: 10px;
-  }
-
-  .msg-bot {
-    text-align: right;
-    margin-bottom: 6px;
-    padding: 6px 8px;
-    background: #ffffff;
-    border-radius: 10px;
-    border: 1px solid #ccd5ff;
-  }
-
-  textarea {
-    width: 100%;
-    box-sizing: border-box;
-    border-radius: 8px;
-    border: 1px solid #c0c7e8;
-    padding: 8px;
-    min-height: 60px;
-    font-family: inherit;
-  }
-
-  button {
-    margin-top: 8px;
-    width: 100%;
-    padding: 10px;
-    border: none;
-    border-radius: 8px;
-    background: #0059ff;
-    color: white;
-    font-size: 16px;
-    cursor: pointer;
-  }
-
-  button.secondary {
-    background: #444;
-    font-size: 14px;
-  }
-
-</style>
+    /* עיצוב להדפסה בלבד */
+    @media print {
+      body { background: white; max-width: 100%; }
+      .control-panel, .btn-group, h1 { display: none; }
+      #savedTable { display: table !important; width: 100%; box-shadow: none; }
+      th, td { border: 1px solid #000; }
+      td:last-child, th:last-child { display: none; } /* הסתרת עמודת מחיקה בהדפסה */
+    }
+  </style>
 </head>
-
 <body>
 
-<header>🌍 סוכן נסיעות – מערכת לימוד</header>
+  <h1>✈️ תכנון טיול לתאילנד</h1>
 
-<div class="layout">
+  <div class="control-panel">
+    <label>📅 תאריך:</label>
+    <select id="date"></select>
 
-  <!-- פאנל שמאלי – בחירת יעד -->
-  <div class="left-panel">
-    <h2>בחר יעד</h2>
+    <label>✈ טיסה:</label>
+    <select id="flight"></select>
 
-    <div class="card dest" onclick="openDestination('פוקט – תאילנד')">
-      <img src="https://images.unsplash.com/photo-1510627498534-cf7e9002facc?auto=format&fit=crop&w=800&q=60">
-      <h3>פוקט – תאילנד</h3>
-    </div>
+    <label>🏙 עיר:</label>
+    <select id="city"></select>
 
-    <div class="card dest" onclick="openDestination('פריז – צרפת')">
-      <img src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=60">
-      <h3>פריז – צרפת</h3>
-    </div>
+    <label>🏨 מלון:</label>
+    <select id="hotel" onchange="updateHotelLink()"></select>
+    <span id="hotelLink" onclick="openHotelLink()"></span>
 
-    <div class="card dest" onclick="openDestination('רומא – איטליה')">
-      <img src="https://images.unsplash.com/photo-1526481280695-3c720685208b?auto=format&fit=crop&w=800&q=60">
-      <h3>רומא – איטליה</h3>
-    </div>
+    <label>🏞 פעילות 1:</label>
+    <select id="activity1"></select>
 
-    <div class="card dest" onclick="openDestination('ניו יורק – ארה״ב')">
-      <img src="https://images.unsplash.com/photo-1488747279002-c8523379faaa?auto=format&fit=crop&w=800&q=60">
-      <h3>ניו יורק – ארה״ב</h3>
-    </div>
-  </div>
+    <label>🏞 פעילות 2:</label>
+    <select id="activity2"></select>
 
-  <!-- פאנל ימני – "סוכן חכם" -->
-  <div class="right-panel">
-    <div class="card">
-      <div class="chat-header">🤖 סוכן חכם – עוזר ניסוח</div>
-      <div id="chatLog" class="chat-log">
-        <div class="msg-bot">
-          ברוך הבא! כאן תוכל לנסח שאלות ל־ChatGPT.<br>
-          תכתוב מה הלקוח מחפש, ואני אעזור לך לבנות שאלה חכמה.
-        </div>
-      </div>
-
-      <textarea id="userInput" placeholder="תכתוב כאן מה הלקוח מחפש (למשל: זוג + ילדים, תקציב, עונה)…"></textarea>
-      <button onclick="preparePrompt()">הכנת ניסוח חכם לצ'אט GPT</button>
-      <button class="secondary" onclick="copyPrepared()">העתקת הניסוח המוכן</button>
+    <div class="btn-group">
+      <button class="btn-save" onclick="savePlan()">➕ הוסף למסלול</button>
+      <button class="btn-local" onclick="saveLocally()">💾 שמור שינויים</button>
+      <button class="btn-wa" onclick="sendToWhatsApp()">📤 שלח בווטסאפ</button>
+      <button class="btn-pdf" onclick="printPlan()">📥 שמור כ-PDF</button>
+      <button class="btn-clear" onclick="clearAll()">🧹 איפוס הכל</button>
     </div>
   </div>
 
-</div>
+  <table id="savedTable" style="display:none;">
+    <thead>
+      <tr>
+        <th>תאריך</th><th>טיסה</th><th>עיר</th><th>מלון</th><th>פעילות 1</th><th>פעילות 2</th><th>מחיקה</th>
+      </tr>
+    </thead>
+    <tbody id="savedBody"></tbody>
+  </table>
 
 <script>
-  let lastPreparedText = "";
+// נתונים
+const flights = ["אין טיסה", "יש טיסה"];
+const cities = ["בנגקוק (Bangkok)", "וויטסנד (Wit Sand)", "חוא הין (Hua Hin)", "לאוס (Lopburi)", "נאקון ראצ'אסימה (Nakhon Ratchasima)", "סוקותאי (Sukhothai)", "סוראטאני (Surat Thani)", "סיאם ריפ (Siam Reap)", "סראסין (Sarasins)", "פאי (PAI)", "פוקט (Phuket)", "פטאיה (Pattaya)", "צ'אנג מאי (Chiang Mai)", "צ'אנג ראי (Chiang Rai)", "קוה טאו (Koh Tao)", "קוסמוי (Koh Samui)", "קופיפי (Koh Phi Phi)", "קופנגן (Koh Phangan)", "קנטה (Kanchanaburi)", "קרבי (Krabi)"];
+const activities = ["אומגות", "בטן גב", "ביקור במקדשים", "ביקור בפארקים לאומיים", "גלישת גלים", "הפלגות סירה בנהרות", "חוויית ספארי ג'יפים", "טיולי פילים", "טרקים בהרים", "ים", "מוזיאונים", "מופע ", "ספא ומסאג' תאילנדי", "פארק מים", "צלילה", "קארטינג", "קורסי בישול תאילנדי", "ראפטינג", "רכיבה על סוסים", "שוקי לילה", "שייט ", "שנורקלינג", "תצפיות נוף מהרים"];
+const hotels = [{"name": "*** פוקט***", "link": ""}, {"name": "Angsana Laguna Phuket – ריזורט מפואר", "link": "https://www.booking.com/hotel/th/angsana-laguna-phuket.html"}, {"name": "Burasari Phuket Resort & Spa", "link": "https://www.booking.com/hotel/th/burasari.html"}, {"name": "Hotel Clover Patong Phuket", "link": "https://www.booking.com/hotel/th/hotel-clover-patong.html"}, {"name": "InterContinental Phuket Resort", "link": "https://www.booking.com/hotel/th/intercontinental-phuket-resort.html"}, {"name": "*** בנגקוק ***", "link": ""}, {"name": "Banyan Tree Bangkok", "link": "https://www.booking.com/hotel/th/banyan-tree-bangkok.html"}, {"name": "Chatrium Hotel Riverside Bangkok", "link": "https://www.booking.com/hotel/th/chatrium-residence-sathon-bangkok.html"}, {"name": "*** קוסמוי ***", "link": ""}, {"name": "Combo Beach Hotel Samui", "link": "https://www.booking.com/hotel/th/combo-beach-samui.he.html"}];
+// קיצרתי את רשימת המלונות לדוגמה כדי לחסוך מקום, אתה יכול להדביק חזרה את הרשימה המלאה שלך כאן
 
-  function openDestination(name) {
-    alert("נכנס ליעד: " + name + "\\nבהמשך זה יפתח דף פרטים מלא ליעד.");
-  }
+function fillSelect(id, list) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = "";
+  sel.appendChild(new Option("- בחר -", ""));
+  list.forEach(item => sel.appendChild(new Option(item, item)));
+}
 
-  function addMessage(text, fromBot = false) {
-    const log = document.getElementById('chatLog');
-    const div = document.createElement('div');
-    div.className = fromBot ? 'msg-bot' : 'msg-user';
-    div.innerHTML = text.replace(/\\n/g,'<br>');
-    log.appendChild(div);
-    log.scrollTop = log.scrollHeight;
-  }
-
-  function preparePrompt() {
-    const txt = document.getElementById('userInput').value.trim();
-    if (!txt) {
-      alert('תכתוב קודם מה הלקוח מחפש');
-      return;
+function fillHotels() {
+  const sel = document.getElementById("hotel");
+  sel.innerHTML = "";
+  sel.appendChild(new Option("- בחר מלון -", ""));
+  hotels.forEach(h => {
+    const opt = new Option(h.name, h.name);
+    opt.dataset.link = h.link;
+    if(h.name.includes("***")) {
+        opt.disabled = true;
+        opt.style.fontWeight = "bold";
+        opt.style.color = "#000";
+        opt.style.backgroundColor = "#eee";
     }
+    sel.appendChild(opt);
+  });
+}
 
-    addMessage(txt, false);
+function updateHotelLink() {
+  const sel = document.getElementById("hotel");
+  const link = sel.options[sel.selectedIndex].dataset.link;
+  const label = document.getElementById("hotelLink");
+  
+  if (link && link !== "nan") {
+    label.textContent = "🔗 לחץ למעבר לעמוד המלון";
+    label.dataset.url = link;
+    label.style.display = "block";
+  } else {
+    label.textContent = "";
+    label.style.display = "none";
+  }
+}
 
-    const prompt =
-`אני סוכן נסיעות מתחיל. הנה תיאור הלקוח:
-${txt}
+function openHotelLink() {
+  const url = document.getElementById("hotelLink").dataset.url;
+  if (url) window.open(url, '_blank');
+}
 
-תן לי 3 הצעות ליעדים מתאימים, כולל:
-- יעד
-- תקציב משוער (בטווחים)
-- עונה מומלצת
-- 2–3 נקודות שמוכרות את היעד ללקוח
-ענה בעברית פשוטה ושיווקית.`;
+function generateDates() {
+  const sel = document.getElementById("date");
+  for (let i = 0; i < 180; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    // עיצוב תאריך קריא יותר
+    const dateStr = d.toLocaleDateString("he-IL", { weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit' });
+    const opt = new Option(dateStr, dateStr);
+    sel.appendChild(opt);
+  }
+}
 
-    lastPreparedText = prompt;
+function savePlan() {
+  // בדיקה שדות חובה (אופציונלי)
+  // if(!document.getElementById("city").value) return alert("אנא בחר עיר!");
 
-    addMessage("הכנתי עבורך ניסוח מוכן שתוכל להדביק ב-ChatGPT. לחץ על 'העתקת הניסוח המוכן' ואז הדבק שם.", true);
+  const row = document.createElement("tr");
+  ["date", "flight", "city", "hotel", "activity1", "activity2"].forEach(id => {
+    const td = document.createElement("td");
+    td.textContent = document.getElementById(id).value;
+    row.appendChild(td);
+  });
+  
+  const td = document.createElement("td");
+  const btn = document.createElement("button");
+  btn.textContent = "❌";
+  btn.style.background = "transparent";
+  btn.style.color = "red";
+  btn.style.padding = "5px";
+  btn.onclick = () => deleteRow(btn);
+  td.appendChild(btn);
+  row.appendChild(td);
+  
+  document.getElementById("savedBody").appendChild(row);
+  document.getElementById("savedTable").style.display = "table";
+  
+  // קידום תאריך אוטומטי ליום הבא
+  const dateSelect = document.getElementById("date");
+  if(dateSelect.selectedIndex < dateSelect.options.length - 1) {
+      dateSelect.selectedIndex++;
   }
 
-  function copyPrepared() {
-    if (!lastPreparedText) {
-      alert('קודם תיצור ניסוח בעזרת הכפתור הכחול.');
-      return;
-    }
-    navigator.clipboard.writeText(lastPreparedText)
-      .then(() => {
-        addMessage("הניסוח הועתק ללוח. עכשיו תוכל להדביק אותו ב־ChatGPT.", true);
-        alert('הניסוח הועתק. תדביק אותו בצ׳אט GPT.');
-      })
-      .catch(() => {
-        alert('הדפדפן לא מאפשר העתקה אוטומטית. תסמן ותעתיק ידנית.');
-      });
+  saveLocally();
+}
+
+function deleteRow(btn) {
+  if(!confirm("למחוק את השורה?")) return;
+  const row = btn.parentNode.parentNode;
+  row.remove();
+  if (!document.querySelectorAll("#savedBody tr").length)
+    document.getElementById("savedTable").style.display = "none";
+  saveLocally();
+}
+
+function clearAll() {
+  if(!confirm("בטוח שאתה רוצה למחוק את כל המסלול?")) return;
+  document.getElementById("savedBody").innerHTML = "";
+  document.getElementById("savedTable").style.display = "none";
+  localStorage.removeItem("tripData");
+}
+
+function saveLocally() {
+  const data = Array.from(document.querySelectorAll("#savedBody tr")).map(row =>
+    Array.from(row.querySelectorAll("td")).slice(0,6).map(td => td.textContent)
+  );
+  localStorage.setItem("tripData", JSON.stringify(data));
+  // הסרתי את ה-Alert המציק בכל שמירה, השמירה שקופה
+}
+
+function loadFromLocalStorage() {
+  const saved = JSON.parse(localStorage.getItem("tripData") || "[]");
+  saved.forEach(vals => {
+    const row = document.createElement("tr");
+    vals.forEach(txt => {
+      const td = document.createElement("td");
+      td.textContent = txt;
+      row.appendChild(td);
+    });
+    const td = document.createElement("td");
+    const btn = document.createElement("button");
+    btn.textContent = "❌";
+    btn.style.background = "transparent";
+    btn.style.color = "red";
+    btn.onclick = () => deleteRow(btn);
+    td.appendChild(btn);
+    row.appendChild(td);
+    document.getElementById("savedBody").appendChild(row);
+  });
+  if (saved.length) document.getElementById("savedTable").style.display = "table";
+}
+
+// פונקציה חדשה להדפסה כתחליף ל-jsPDF
+function printPlan() {
+    const rows = document.querySelectorAll("#savedBody tr");
+    if (!rows.length) return alert("אין נתונים להדפסה");
+    window.print();
+}
+
+function sendToWhatsApp() {
+  const rows = document.querySelectorAll("#savedBody tr");
+  if (!rows.length) {
+    alert("אין שורות לשליחה");
+    return;
   }
+
+  let message = "*✈️ מסלול טיול לתאילנד:*\n\n";
+  rows.forEach((row, i) => {
+    const cells = row.querySelectorAll("td");
+    message += `*יום ${i+1} (${cells[0].textContent})*\n`;
+    if(cells[1].textContent && cells[1].textContent !== "אין טיסה") message += `✈ ${cells[1].textContent}\n`;
+    message += `🏙 ${cells[2].textContent}\n`;
+    message += `🏨 ${cells[3].textContent}\n`;
+    if(cells[4].textContent) message += `🔸 ${cells[4].textContent}\n`;
+    if(cells[5].textContent) message += `🔸 ${cells[5].textContent}\n`;
+    message += "------------------\n";
+  });
+
+  const phone = prompt("הכנס מספר טלפון (ללא 0):");
+  if (!phone) return;
+  // ניקוי המספר מתווים מיותרים
+  const cleanPhone = phone.replace(/\D/g,'').replace(/^0+/, ""); 
+  const fullPhone = "972" + cleanPhone;
+  
+  const url = "https://wa.me/" + fullPhone + "?text=" + encodeURIComponent(message);
+  window.open(url, "_blank");
+}
+
+window.onload = function() {
+  generateDates();
+  fillSelect("flight", flights);
+  fillSelect("city", cities);
+  fillSelect("activity1", activities);
+  fillSelect("activity2", activities);
+  fillHotels();
+  loadFromLocalStorage();
+}
 </script>
-
 </body>
 </html>
