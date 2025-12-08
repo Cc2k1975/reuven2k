@@ -22,8 +22,30 @@
     font-weight: bold;
   }
 
-  .container {
+  .layout {
+    display: flex;
+    flex-direction: column;
+  }
+
+  @media(min-width: 900px){
+    .layout {
+      flex-direction: row;
+      align-items: flex-start;
+    }
+  }
+
+  .left-panel, .right-panel {
     padding: 15px;
+  }
+
+  .left-panel {
+    flex: 2;
+  }
+
+  .right-panel {
+    flex: 1;
+    background: #e9f0ff;
+    border-right: 1px solid #d0d8f0;
   }
 
   .card {
@@ -53,42 +75,173 @@
     font-size: 20px;
   }
 
+  .chat-header {
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+
+  .chat-log {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 10px;
+    height: 250px;
+    overflow-y: auto;
+    border: 1px solid #c8d1f2;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+
+  .msg-user {
+    text-align: right;
+    margin-bottom: 6px;
+    padding: 6px 8px;
+    background: #d7f8d5;
+    border-radius: 10px;
+  }
+
+  .msg-bot {
+    text-align: right;
+    margin-bottom: 6px;
+    padding: 6px 8px;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #ccd5ff;
+  }
+
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 1px solid #c0c7e8;
+    padding: 8px;
+    min-height: 60px;
+    font-family: inherit;
+  }
+
+  button {
+    margin-top: 8px;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #0059ff;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  button.secondary {
+    background: #444;
+    font-size: 14px;
+  }
+
 </style>
 </head>
 
 <body>
 
-<header>🌍 סוכן נסיעות – לימוד לבת</header>
+<header>🌍 סוכן נסיעות – מערכת לימוד</header>
 
-<div class="container">
-  <h2>בחר יעד</h2>
+<div class="layout">
 
-  <div class="card dest" onclick="openDestination('פוקט')">
-    <img src="https://images.unsplash.com/photo-1510627498534-cf7e9002facc?auto=format&fit=crop&w=800&q=60">
-    <h3>פוקט – תאילנד</h3>
+  <!-- פאנל שמאלי – בחירת יעד -->
+  <div class="left-panel">
+    <h2>בחר יעד</h2>
+
+    <div class="card dest" onclick="openDestination('פוקט – תאילנד')">
+      <img src="https://images.unsplash.com/photo-1510627498534-cf7e9002facc?auto=format&fit=crop&w=800&q=60">
+      <h3>פוקט – תאילנד</h3>
+    </div>
+
+    <div class="card dest" onclick="openDestination('פריז – צרפת')">
+      <img src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=60">
+      <h3>פריז – צרפת</h3>
+    </div>
+
+    <div class="card dest" onclick="openDestination('רומא – איטליה')">
+      <img src="https://images.unsplash.com/photo-1526481280695-3c720685208b?auto=format&fit=crop&w=800&q=60">
+      <h3>רומא – איטליה</h3>
+    </div>
+
+    <div class="card dest" onclick="openDestination('ניו יורק – ארה״ב')">
+      <img src="https://images.unsplash.com/photo-1488747279002-c8523379faaa?auto=format&fit=crop&w=800&q=60">
+      <h3>ניו יורק – ארה״ב</h3>
+    </div>
   </div>
 
-  <div class="card dest" onclick="openDestination('פריז')">
-    <img src="https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=60">
-    <h3>פריז – צרפת</h3>
-  </div>
+  <!-- פאנל ימני – "סוכן חכם" -->
+  <div class="right-panel">
+    <div class="card">
+      <div class="chat-header">🤖 סוכן חכם – עוזר ניסוח</div>
+      <div id="chatLog" class="chat-log">
+        <div class="msg-bot">
+          ברוך הבא! כאן תוכל לנסח שאלות ל־ChatGPT.<br>
+          תכתוב מה הלקוח מחפש, ואני אעזור לך לבנות שאלה חכמה.
+        </div>
+      </div>
 
-  <div class="card dest" onclick="openDestination('רומא')">
-    <img src="https://images.unsplash.com/photo-1526481280695-3c720685208b?auto=format&fit=crop&w=800&q=60">
-    <h3>רומא – איטליה</h3>
-  </div>
-
-  <div class="card dest" onclick="openDestination('ניו יורק')">
-    <img src="https://images.unsplash.com/photo-1488747279002-c8523379faaa?auto=format&fit=crop&w=800&q=60">
-    <h3>ניו יורק – ארה״ב</h3>
+      <textarea id="userInput" placeholder="תכתוב כאן מה הלקוח מחפש (למשל: זוג + ילדים, תקציב, עונה)…"></textarea>
+      <button onclick="preparePrompt()">הכנת ניסוח חכם לצ'אט GPT</button>
+      <button class="secondary" onclick="copyPrepared()">העתקת הניסוח המוכן</button>
+    </div>
   </div>
 
 </div>
 
 <script>
+  let lastPreparedText = "";
+
   function openDestination(name) {
-    alert("נכנס ליעד: " + name);
-    // בשלב הבא זה יוביל לדף מפורט של היעד
+    alert("נכנס ליעד: " + name + "\\nבהמשך זה יפתח דף פרטים מלא ליעד.");
+  }
+
+  function addMessage(text, fromBot = false) {
+    const log = document.getElementById('chatLog');
+    const div = document.createElement('div');
+    div.className = fromBot ? 'msg-bot' : 'msg-user';
+    div.innerHTML = text.replace(/\\n/g,'<br>');
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function preparePrompt() {
+    const txt = document.getElementById('userInput').value.trim();
+    if (!txt) {
+      alert('תכתוב קודם מה הלקוח מחפש');
+      return;
+    }
+
+    addMessage(txt, false);
+
+    const prompt =
+`אני סוכן נסיעות מתחיל. הנה תיאור הלקוח:
+${txt}
+
+תן לי 3 הצעות ליעדים מתאימים, כולל:
+- יעד
+- תקציב משוער (בטווחים)
+- עונה מומלצת
+- 2–3 נקודות שמוכרות את היעד ללקוח
+ענה בעברית פשוטה ושיווקית.`;
+
+    lastPreparedText = prompt;
+
+    addMessage("הכנתי עבורך ניסוח מוכן שתוכל להדביק ב-ChatGPT. לחץ על 'העתקת הניסוח המוכן' ואז הדבק שם.", true);
+  }
+
+  function copyPrepared() {
+    if (!lastPreparedText) {
+      alert('קודם תיצור ניסוח בעזרת הכפתור הכחול.');
+      return;
+    }
+    navigator.clipboard.writeText(lastPreparedText)
+      .then(() => {
+        addMessage("הניסוח הועתק ללוח. עכשיו תוכל להדביק אותו ב־ChatGPT.", true);
+        alert('הניסוח הועתק. תדביק אותו בצ׳אט GPT.');
+      })
+      .catch(() => {
+        alert('הדפדפן לא מאפשר העתקה אוטומטית. תסמן ותעתיק ידנית.');
+      });
   }
 </script>
 
