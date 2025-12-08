@@ -2,118 +2,151 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TrackMap – מסלול רכיבה</title>
+  <title>TrackMap – מסלול</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
     html, body {
       margin: 0;
       padding: 0;
       height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     #map {
       width: 100%;
-      height: 100%;
+      height: calc(100% - 50px);
+    }
+    #top-bar {
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 10px;
+      box-sizing: border-box;
+      background: #f5f5f5;
+      border-bottom: 1px solid #ddd;
+    }
+    button {
+      padding: 6px 10px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      background: #ffffff;
+    }
+    button:hover {
+      background:#f0f0f0;
+    }
+
+    /* אייקון צהוב עם השעה בפנים */
+    .time-marker {
+      position: relative;
+      transform: translate(-50%, -50%);
+    }
+    .time-marker .dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #ffe600;
+      border: 2px solid #000;
+      box-shadow: 0 0 4px rgba(0,0,0,.4);
+    }
+    .time-marker .label {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 10px;
+      font-weight: bold;
+      color: #000;
     }
   </style>
 </head>
 <body>
 
+<div id="top-bar">
+  <div>TrackMap – מסלול יומי</div>
+  <div>
+    <button onclick="loadPoints()">רענן מסלול</button>
+    <button onclick="clearAllPoints()">מחק נתונים מהשרת</button>
+  </div>
+</div>
+
 <div id="map"></div>
 
-<!-- Leaflet JS -->
-<script
-  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-  crossorigin="">
-</script>
-
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// כתובת ה-Firebase Realtime Database שלך
-const DB_URL = "https://trackmap-96950-default-rtdb.europe-west1.firebasedatabase.app/points.json";
+  // כתובת ה-DB – להתאים אם צריך
+  const DB_URL = "https://trackmap-96950-default-rtdb.europe-west1.firebasedatabase.app/points.json";
 
-let map;
-let polyline;
-let markers = [];
-
-// אתחול מפה
-function initMap() {
-  map = L.map('map').setView([32.9, 35.09], 12); // אפשר לשנות אם בא לך
+  const map = L.map('map').setView([32.99, 35.09], 13);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '&copy; OpenStreetMap contributors'
+    attribution: '&copy; OpenStreetMap'
   }).addTo(map);
 
-  polyline = L.polyline([], { color: 'black', weight: 3 }).addTo(map);
+  const pointsLayer = L.layerGroup().addTo(map);
+  let polyline = L.polyline([], {color: 'black', weight: 3}).addTo(map);
 
-  loadPoints();
-  // ריענון אוטומטי כל 10 שניות
-  setInterval(loadPoints, 10000);
-}
-
-async function loadPoints() {
-  try {
-    const res = await fetch(DB_URL);
-    if (!res.ok) {
-      console.error("שגיאת HTTP:", res.status);
-      return;
-    }
-    const data = await res.json();
-    if (!data) {
-      console.log("אין נקודות עדיין");
-      return;
-    }
-
-    // ניקוי ישן
-    markers.forEach(m => map.removeLayer(m));
-    markers = [];
-    polyline.setLatLngs([]);
-
-    const pointsArray = Object.keys(data).map(key => data[key]);
-
-    // מיון לפי זמן אם תרצה בעתיד – כרגע מניחים שהסדר ב-Firebase כבר נכון
-    const path = [];
-
-    pointsArray.forEach(p => {
-      if (typeof p.lat !== "number" || typeof p.lng !== "number") return;
-
-      const latLng = [p.lat, p.lng];
-      path.push(latLng);
-
-      const marker = L.circleMarker(latLng, {
-        radius: 7,
-        color: 'yellow',
-        weight: 2,
-        fillColor: 'yellow',
-        fillOpacity: 0.9
-      }).addTo(map);
-
-      const label = (p.time || "") + (p.user ? " (" + p.user + ")" : "");
-      marker.bindTooltip(label, { permanent: true, direction: 'top', offset: [0, -10] });
-
-      markers.push(marker);
+  function createTimeMarker(lat, lng, time) {
+    const icon = L.divIcon({
+      className: 'time-marker',
+      html: '<div class="dot"></div><div class="label">' + time + '</div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
     });
-
-    if (path.length > 0) {
-      polyline.setLatLngs(path);
-      map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
-    }
-
-  } catch (e) {
-    console.error("שגיאת רשת:", e);
+    return L.marker([lat, lng], { icon });
   }
-}
 
-initMap();
+  async function loadPoints() {
+    try {
+      const res = await fetch(DB_URL);
+      const data = await res.json() || {};
+
+      pointsLayer.clearLayers();
+      polyline.setLatLngs([]);
+
+      const latlngs = [];
+
+      Object.values(data).forEach(p => {
+        if (typeof p.lat !== "number" || typeof p.lng !== "number" || !p.time) return;
+        const lat = p.lat;
+        const lng = p.lng;
+        const time = p.time;
+
+        const m = createTimeMarker(lat, lng, time);
+        m.addTo(pointsLayer);
+        latlngs.push([lat, lng]);
+      });
+
+      if (latlngs.length > 0) {
+        polyline.setLatLngs(latlngs);
+        map.fitBounds(polyline.getBounds(), {padding: [30, 30]});
+      }
+    } catch (e) {
+      console.error(e);
+      alert("שגיאה בטעינת הנתונים");
+    }
+  }
+
+  async function clearAllPoints() {
+    if (!confirm("למחוק את כל הנתונים מהשרת?")) return;
+    try {
+      await fetch(DB_URL, { method: "DELETE" });
+      pointsLayer.clearLayers();
+      polyline.setLatLngs([]);
+    } catch (e) {
+      console.error(e);
+      alert("שגיאה במחיקת הנתונים");
+    }
+  }
+
+  // טעינה ראשונית
+  loadPoints();
 </script>
 
 </body>
