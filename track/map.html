@@ -1,49 +1,44 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TrackMap – מפה חיה</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrackMap – מסלול רכיבה</title>
 
-<style>
-  body, html {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-  }
-  #map {
-    height: 100%;
-    width: 100%;
-  }
-</style>
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
 
-<!-- טעינת ספריית מפות של גוגל -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB1sWHV6X7l9LFmOw5KpCHl44J2s2Aq3S8"></script>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
-
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<script>
-// === Firebase config שלך ===
-const firebaseConfig = {
-  apiKey: "AIzaSyCCQzlqviXTYm1U7AbxT8XuISDTZhvwa9E",
-  authDomain: "trackmap-96950.firebaseapp.com",
-  databaseURL: "https://trackmap-96950-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "trackmap-96950",
-  storageBucket: "trackmap-96950.appspot.com",
-  messagingSenderId: "559465981207",
-  appId: "1:559465981207:web:2d72a5b7cb47040cfa9e65"
-};
+<!-- Leaflet JS -->
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin="">
+</script>
 
-// אתחול פיירבייס
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+<script>
+// כתובת ה-Firebase Realtime Database שלך
+const DB_URL = "https://trackmap-96950-default-rtdb.europe-west1.firebasedatabase.app/points.json";
 
 let map;
 let polyline;
@@ -51,63 +46,75 @@ let markers = [];
 
 // אתחול מפה
 function initMap() {
-  map = new google.maps.Map(document.getElementById("map"), {
-    center: { lat: 32.08, lng: 34.78 }, // מרכז ישראל
-    zoom: 12
-  });
+  map = L.map('map').setView([32.9, 35.09], 12); // אפשר לשנות אם בא לך
 
-  polyline = new google.maps.Polyline({
-    map: map,
-    strokeColor: "#FF0000",
-    strokeOpacity: 1.0,
-    strokeWeight: 3,
-    path: []
-  });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  polyline = L.polyline([], { color: 'black', weight: 3 }).addTo(map);
 
   loadPoints();
+  // ריענון אוטומטי כל 10 שניות
+  setInterval(loadPoints, 10000);
 }
 
-// טעינת נקודות מפיירבייס
-function loadPoints() {
-  const ref = db.ref("points");
+async function loadPoints() {
+  try {
+    const res = await fetch(DB_URL);
+    if (!res.ok) {
+      console.error("שגיאת HTTP:", res.status);
+      return;
+    }
+    const data = await res.json();
+    if (!data) {
+      console.log("אין נקודות עדיין");
+      return;
+    }
 
-  ref.on("value", (snapshot) => {
-    const points = snapshot.val();
-
-    // ניקוי מפה
-    markers.forEach(m => m.setMap(null));
+    // ניקוי ישן
+    markers.forEach(m => map.removeLayer(m));
     markers = [];
-    polyline.setPath([]);
+    polyline.setLatLngs([]);
 
-    if (!points) return;
+    const pointsArray = Object.keys(data).map(key => data[key]);
 
-    let path = [];
+    // מיון לפי זמן אם תרצה בעתיד – כרגע מניחים שהסדר ב-Firebase כבר נכון
+    const path = [];
 
-    Object.keys(points).forEach(key => {
-      const p = points[key];
-      const latLng = { lat: p.lat, lng: p.lng };
+    pointsArray.forEach(p => {
+      if (typeof p.lat !== "number" || typeof p.lng !== "number") return;
 
-      // יצירת מרקר
-      const marker = new google.maps.Marker({
-        position: latLng,
-        map: map,
-        title: p.user + " " + p.time
-      });
+      const latLng = [p.lat, p.lng];
+      path.push(latLng);
+
+      const marker = L.circleMarker(latLng, {
+        radius: 7,
+        color: 'yellow',
+        weight: 2,
+        fillColor: 'yellow',
+        fillOpacity: 0.9
+      }).addTo(map);
+
+      const label = (p.time || "") + (p.user ? " (" + p.user + ")" : "");
+      marker.bindTooltip(label, { permanent: true, direction: 'top', offset: [0, -10] });
 
       markers.push(marker);
-      path.push(latLng);
     });
 
-    polyline.setPath(path);
-
-    // הזזת המפה לנקודה האחרונה
     if (path.length > 0) {
-      map.panTo(path[path.length - 1]);
+      polyline.setLatLngs(path);
+      map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
     }
-  });
+
+  } catch (e) {
+    console.error("שגיאת רשת:", e);
+  }
 }
 
 initMap();
 </script>
+
 </body>
 </html>
