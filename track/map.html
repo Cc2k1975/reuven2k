@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrackMap – מפה חיה</title>
+
+<style>
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+  #map {
+    height: 100%;
+    width: 100%;
+  }
+</style>
+
+<!-- טעינת ספריית מפות של גוגל -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB1sWHV6X7l9LFmOw5KpCHl44J2s2Aq3S8"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+
+</head>
+<body>
+
+<div id="map"></div>
+
+<script>
+// === Firebase config שלך ===
+const firebaseConfig = {
+  apiKey: "AIzaSyCCQzlqviXTYm1U7AbxT8XuISDTZhvwa9E",
+  authDomain: "trackmap-96950.firebaseapp.com",
+  databaseURL: "https://trackmap-96950-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "trackmap-96950",
+  storageBucket: "trackmap-96950.appspot.com",
+  messagingSenderId: "559465981207",
+  appId: "1:559465981207:web:2d72a5b7cb47040cfa9e65"
+};
+
+// אתחול פיירבייס
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let map;
+let polyline;
+let markers = [];
+
+// אתחול מפה
+function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 32.08, lng: 34.78 }, // מרכז ישראל
+    zoom: 12
+  });
+
+  polyline = new google.maps.Polyline({
+    map: map,
+    strokeColor: "#FF0000",
+    strokeOpacity: 1.0,
+    strokeWeight: 3,
+    path: []
+  });
+
+  loadPoints();
+}
+
+// טעינת נקודות מפיירבייס
+function loadPoints() {
+  const ref = db.ref("points");
+
+  ref.on("value", (snapshot) => {
+    const points = snapshot.val();
+
+    // ניקוי מפה
+    markers.forEach(m => m.setMap(null));
+    markers = [];
+    polyline.setPath([]);
+
+    if (!points) return;
+
+    let path = [];
+
+    Object.keys(points).forEach(key => {
+      const p = points[key];
+      const latLng = { lat: p.lat, lng: p.lng };
+
+      // יצירת מרקר
+      const marker = new google.maps.Marker({
+        position: latLng,
+        map: map,
+        title: p.user + " " + p.time
+      });
+
+      markers.push(marker);
+      path.push(latLng);
+    });
+
+    polyline.setPath(path);
+
+    // הזזת המפה לנקודה האחרונה
+    if (path.length > 0) {
+      map.panTo(path[path.length - 1]);
+    }
+  });
+}
+
+initMap();
+</script>
+</body>
+</html>
