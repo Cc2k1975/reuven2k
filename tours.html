@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>תכנון טיול משודרג 2.0</title>
+  <title>תכנון טיול משודרג 3.0</title>
   <style>
     /* הגדרות בסיס ועיצוב מובייל משופר (21) */
     :root {
@@ -15,13 +15,14 @@
       --success: #34c759;
       --danger: #ff3b30;
       --edit: #ff9500;
+      --secondary: #5856d6;
     }
 
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; background-color: var(--bg); color: var(--text); margin: 0; }
     
     h1 { text-align: center; margin-bottom: 20px; font-weight: 700; }
 
-    /* דשבורד סטטיסטיקות (30, 68, 122) */
+    /* דשבורד סטטיסטיקות (30, 68, 122) - עודכן ל-5 עמודות */
     .dashboard {
       background: var(--card);
       padding: 15px;
@@ -35,10 +36,24 @@
       border: 1px solid var(--border);
       text-align: center;
     }
-    .stat-box { flex: 1; min-width: 150px; }
+    .stat-box { 
+      flex: 1 1 18%; /* 5 עמודות ברוחב מלא */
+      min-width: 120px; 
+      padding: 5px;
+    }
     .stat-title { font-size: 0.85em; color: #86868b; display: block; margin-bottom: 3px; }
     .stat-value { font-size: 1.2em; font-weight: bold; color: var(--primary); }
     .countdown { color: var(--danger); }
+    .fill-needed { color: var(--edit); }
+
+    /* קלט ימים מתוכננים */
+    #totalTripDays {
+      width: 80px; 
+      text-align: center; 
+      margin: 5px auto 0; 
+      font-size: 1em;
+      padding: 5px;
+    }
 
     /* טופס (46, 95) */
     .form-container {
@@ -87,7 +102,6 @@
     
     button { flex: 1; cursor: pointer; font-weight: 600; color: white; border: none; min-width: 120px; }
     .btn-save { background-color: var(--primary); }
-    .btn-clear { background-color: var(--danger); }
 
     #hotelLink { color: var(--primary); cursor: pointer; text-decoration: none; display: block; margin-top: 5px; font-size: 0.9em; }
 
@@ -118,7 +132,6 @@
     .table-actions .delete-btn { color: var(--danger); font-size: 1.2em; }
     .table-actions .edit-btn { color: var(--edit); font-size: 1em; font-weight: bold; }
 
-
     /* מובייל */
     @media (max-width: 768px) {
       .form-container { grid-template-columns: 1fr; }
@@ -139,12 +152,20 @@
       <span class="stat-value countdown" id="daysToTrip">...</span>
     </div>
     <div class="stat-box">
-      <span class="stat-title">📅 סה"כ ימי טיול</span>
+      <span class="stat-title">📅 סה"כ ימי טיול במסלול</span>
       <span class="stat-value" id="totalDays">0</span>
     </div>
     <div class="stat-box">
+      <span class="stat-title">🗓️ ימים מתוכננים לטיול</span>
+      <input type="number" id="totalTripDays" min="1" placeholder="סהכ ימים" oninput="updateSummary()">
+    </div>
+    <div class="stat-box">
+      <span class="stat-title">📝 ימים נדרשים למילוי</span>
+      <span class="stat-value fill-needed" id="daysToFill">...</span>
+    </div>
+    <div class="stat-box">
       <span class="stat-title">🏨 חלוקת לילות לפי עיר</span>
-      <span class="stat-value" id="cityBreakdown" style="font-size: 0.9em; font-weight: normal;">-</span>
+      <span class="stat-value" id="cityBreakdown" style="font-size: 0.8em; font-weight: normal;">-</span>
     </div>
   </div>
 
@@ -156,21 +177,35 @@
     <input type="hidden" id="dateDisplay">
 
     <div class="form-group">
-      <label>✈ סטטוס טיסה / מעבר (36):</label>
-      <select id="flight" onchange="toggleFlightTimes()"></select>
+      <label>✈ סטטוס טיסה / מעבר 1:</label>
+      <select id="flight1" onchange="toggleFlightTimes(1)"></select>
     </div>
-    
     <div class="form-group flight-times-group">
         <div>
-            <label>🛫 שעת המראה (46):</label>
-            <input type="time" id="flightDep" value="">
+            <label>🛫 שעת המראה 1 (46):</label>
+            <input type="time" id="flightDep1" value="">
         </div>
         <div>
-            <label>🛬 שעת נחיתה (46):</label>
-            <input type="time" id="flightArr" value="">
+            <label>🛬 שעת נחיתה 1 (46):</label>
+            <input type="time" id="flightArr1" value="">
         </div>
     </div>
 
+    <div class="form-group">
+      <label>✈ סטטוס טיסה / מעבר 2 (אופציונלי):</label>
+      <select id="flight2" onchange="toggleFlightTimes(2)"></select>
+    </div>
+    <div class="form-group flight-times-group">
+        <div>
+            <label>🛫 שעת המראה 2:</label>
+            <input type="time" id="flightDep2" value="">
+        </div>
+        <div>
+            <label>🛬 שעת נחיתה 2:</label>
+            <input type="time" id="flightArr2" value="">
+        </div>
+    </div>
+    
     <div class="form-group">
       <label>🏙 עיר:</label>
       <select id="city" onchange="filterHotels()"></select>
@@ -197,9 +232,9 @@
 
   <div class="actions">
     <button class="btn-save" onclick="savePlan()">💾 שמור / עדכן מסלול</button>
-    <button class="btn-local" style="background-color: #5856d6;" onclick="saveLocally()">☁ שמור נתונים מקומית</button>
+    <button class="btn-local" style="background-color: var(--secondary);" onclick="saveLocally()">☁ שמור נתונים מקומית</button>
     <button class="btn-wa" style="background-color: #25D366;" onclick="sendToWhatsApp()">📤 שלח בווטסאפ</button>
-    <button class="btn-pdf" style="background-color: #ff9500;" onclick="downloadPDF()">📄 צור PDF</button>
+    <button class="btn-pdf" style="background-color: var(--edit);" onclick="downloadPDF()">📄 צור PDF</button>
     <button class="btn-clear" onclick="clearAll()">🧹 מחק את כל המסלול</button>
   </div>
 
@@ -208,7 +243,7 @@
       <thead>
         <tr>
           <th>תאריך</th>
-          <th>מעבר/טיסה</th>
+          <th>מעברים/טיסות</th>
           <th>עיר</th>
           <th>מלון</th>
           <th>פעילויות</th>
@@ -221,36 +256,96 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-// --- נתונים מקוריים (שונה לפורמט קריא יותר לסינון) ---
+// --- נתונים מקוריים (שוחזרו לרשימה מלאה) ---
 const flights = ["ללא מעבר", "טיסה בינלאומית", "טיסת פנים", "מעבורת", "אוטובוס/וואן", "רכבת"];
 const cities = ["בנגקוק (Bangkok)", "וויטסנד (Wit Sand)", "חוא הין (Hua Hin)", "לאוס (Lopburi)", "נאקון ראצ'אסימה (Nakhon Ratchasima)", "סוקותאי (Sukhothai)", "סוראטאני (Surat Thani)", "סיאם ריפ (Siam Reap)", "סראסין (Sarasins)", "פאי (PAI)", "פוקט (Phuket)", "פטאיה (Pattaya)", "צ'אנג מאי (Chiang Mai)", "צ'אנג ראי (Chiang Rai)", "קוה טאו (Koh Tao)", "קוסמוי (Koh Samui)", "קופיפי (Koh Phi Phi)", "קופנגן (Koh Phangan)", "קנטה (Kanchanaburi)", "קרבי (Krabi)"];
 const allActivities = ["--- ללא פעילות ---", "אומגות", "בטן גב", "ביקור במקדשים", "ביקור בפארקים לאומיים", "גלישת גלים", "הפלגות סירה בנהרות", "חוויית ספארי ג'יפים", "טיולי פילים", "טרקים בהרים", "ים", "מוזיאונים", "מופע ", "ספא ומסאג' תאילנדי", "פארק מים", "צלילה", "קארטינג", "קורסי בישול תאילנדי", "ראפטינג", "רכיבה על סוסים", "שוקי לילה", "שייט ", "שנורקלינג", "תצפיות נוף מהרים"];
-// מבנה המלונות שונה כדי לאפשר סינון קל יותר
+// רשימת המלונות המלאה שוחזרה, כולל סינון לפי עיר
 const allHotels = [
     { name: "*** פוקט ***", link: "nan", city: "פוקט" },
-    { name: "Angsana Laguna Phuket – ריזורט מפואר בחוף באנג טאו...", link: "https://www.booking.com/hotel/th/angsana-laguna-phuket.html", city: "פוקט" },
-    { name: "Burasari Phuket Resort & Spa – ריזורט טרופי מפנק בלב פטונג ביץ'...", link: "https://www.booking.com/hotel/th/burasari.html", city: "פוקט" },
-    { name: "The Slate Phuket – ריזורט יוקרתי עם עיצוב תעשייתי ייחודי...", link: "https://www.booking.com/hotel/th/the-slate.html", city: "פוקט" },
+    { name: "Angsana Laguna Phuket – ריזורט מפואר בחוף באנג טאו, עם בריכה ענקית ומתקנים למשפחות.", link: "https://www.booking.com/hotel/th/angsana-laguna-phuket.html", city: "פוקט" },
+    { name: "Burasari Phuket Resort & Spa – ריזורט טרופי מפנק בלב פטונג ביץ', עם ספא ובריכה.", link: "https://www.booking.com/hotel/th/burasari.html", city: "פוקט" },
+    { name: "Hotel Clover Patong Phuket – מלון מודרני במיקום מרכזי בלב פטונג, עם בריכה ושירות מצוין", link: "https://www.booking.com/hotel/th/hotel-clover-patong.html", city: "פוקט" },
+    { name: "InterContinental Phuket Resort – מלון יוקרתי בחוף קמלה, עם נוף לים ושירות מעולה.", link: "https://www.booking.com/hotel/th/intercontinental-phuket-resort.html", city: "פוקט" },
+    { name: "JW Marriott Phuket Resort & Spa – מלון חמישה כוכבים עם חוף פרטי, ספא מפנק ושירות יוצא דופן.", link: "https://www.booking.com/hotel/th/jw-marriott-phuket-resort-and-spa.html", city: "פוקט" },
+    { name: "Katathani Phuket Beach Resort – מלון על חוף קאטה, עם בריכות, מסעדות ונוף לים.", link: "https://www.booking.com/hotel/th/katathani-phuket-beach-resort.html", city: "פוקט" },
+    { name: "Novotel Phuket Karon Beach Resort – מלון מודרני עם בריכות, מועדון ילדים ומיקום שקט.", link: "https://www.booking.com/hotel/th/novotel-phuket-karon-beach-resort-and-spa.html", city: "פוקט" },
+    { name: "Phuket Marriott Resort & Spa, Merlin Beach – מלון עם חוף פרטי, בריכות וספא ברמה גבוהה.", link: "https://www.booking.com/hotel/th/phuket-marriott-resort-and-spa-merlin-beach.html", city: "פוקט" },
+    { name: "$$The Lantern Resorts Patong$$", link: "https://www.booking.com/hotel/th/the-lantern-resort-patong.html", city: "פוקט" },
+    { name: "The Slate Phuket – ריזורט יוקרתי עם עיצוב תעשייתי ייחודי, חוף פרטי ושירות ברמה גבוהה.", link: "https://www.booking.com/hotel/th/the-slate.html", city: "פוקט" },
+    
     { name: "*** פאטיה ***", link: "nan", city: "פטאיה" },
-    { name: "Amari Pattaya – מלון נעים ומודרני במרכז פאטיה...", link: "https://www.booking.com/hotel/th/amari-pattaya.html", city: "פטאיה" },
-    { name: "Hilton Pattaya – מלון יוקרתי עם נוף פנורמי לים...", link: "https://www.booking.com/hotel/th/hilton-pattaya.html", city: "פטאיה" },
+    { name: "$$The Whisper Hotel$$", link: "https://www.booking.com/hotel/th/the-whisper.html", city: "פטאיה" },
+    { name: "Amari Pattaya – מלון נעים ומודרני במרכז פאטיה, קרוב למסעדות ושווקים.", link: "https://www.booking.com/hotel/th/amari-pattaya.html", city: "פטאיה" },
+    { name: "Avani Pattaya Resort – ריזורט טרופי בלב פאטיה, עם בריכה גדולה, מסעדות ושירות מצוין.", link: "https://www.booking.com/hotel/th/avani-pattaya-resort.html", city: "פטאיה" },
+    { name: "Hilton Pattaya – מלון יוקרתי עם נוף פנורמי לים, בריכת גג ומסעדות גורמה.", link: "https://www.booking.com/hotel/th/hilton-pattaya.html", city: "פטאיה" },
+    { name: "Holiday Inn Pattaya – מלון מודרני עם נוף לים, בריכות ומסעדות מגוונות.", link: "https://www.booking.com/hotel/th/holiday-inn-pattaya.html", city: "פטאיה" },
+    { name: "InterContinental Pattaya Resort – מלון יוקרתי עם חוף פרטי, ספא ושירות ברמה גבוהה.", link: "https://www.booking.com/hotel/th/inter-continental-pattaya-resort.html", city: "פטאיה" },
+    { name: "Mercure Pattaya Ocean Resort – מלון משפחתי עם פארק מים קטן, בריכות ומיקום נוח.", link: "https://www.booking.com/hotel/th/mercure-pattaya-ocean-resort.html", city: "פטאיה" },
+    { name: "Pattaya Discovery Beach Hotel – מלון קרוב לחוף, עם חדרים מרווחים ובריכה.", link: "https://www.booking.com/hotel/th/pattaya-discovery-beach.html", city: "פטאיה" },
+    { name: "Royal Cliff Beach Hotel – מלון יוקרתי עם נוף לים, מסעדות ושירות מצוין.", link: "https://www.booking.com/hotel/th/royal-cliff-beach.html", city: "פטאיה" },
+    { name: "The Zign Hotel – מלון עם עיצוב מודרני, בריכה גדולה ומסעדות טובות.", link: "https://www.booking.com/hotel/th/the-zign.html", city: "פטאיה" },
+
     { name: "*** בנגקוק ***", link: "nan", city: "בנגקוק" },
-    { name: "Banyan Tree Bangkok – מלון יוקרתי עם ספא, מסעדות ובר על הגג...", link: "https://www.booking.com/hotel/th/banyan-tree-bangkok.html", city: "בנגקוק" },
-    { name: " SO Sofitel Bangkok – מלון מודרני עם עיצוב ייחודי...", link: "https://www.booking.com/hotel/th/so-sofitel-bangkok.html", city: "בנגקוק" },
-    { name: "The Peninsula Bangkok – מלון יוקרתי עם נוף לנהר...", link: "https://www.booking.com/hotel/th/the-peninsula-bangkok.html", city: "בנגקוק" },
+    { name: "$$Sleepstation at Pratunam$$", link: "https://www.booking.com/hotel/th/sleepstation-pratu-nam.html", city: "בנגקוק" },
+    { name: "Banyan Tree Bangkok – מלון יוקרתי עם ספא, מסעדות ובר על הגג.", link: "https://www.booking.com/hotel/th/banyan-tree-bangkok.html", city: "בנגקוק" },
+    { name: " Chatrium Hotel Riverside Bangkok – מלון עם נוף לנהר, בריכה גדולה ושירות מצוין.", link: "https://www.booking.com/hotel/th/chatrium-residence-sathon-bangkok.html", city: "בנגקוק" },
+    { name: " Novotel Bangkok Sukhumvit 20 – מלון מודרני במיקום מרכזי, קרוב לקניונים ולמסעדות.", link: "https://www.booking.com/hotel/th/novotel-bangkok-sukhumvit-20.html", city: "בנגקוק" },
+    { name: " Shangri-La Hotel Bangkok – מלון על גדות הנהר, עם שירות מעולה ומסעדות מגוונות.", link: "https://www.booking.com/hotel/th/shangri-la-bangkok.html", city: "בנגקוק" },
+    { name: " SO Sofitel Bangkok – מלון מודרני עם עיצוב ייחודי, בריכה על הגג ונוף לעיר.", link: "https://www.booking.com/hotel/th/so-sofitel-bangkok.html", city: "בנגקוק" },
+    { name: " The Peninsula Bangkok – מלון יוקרתי עם נוף לנהר, ספא ושירות ברמה גבוהה.", link: "https://www.booking.com/hotel/th/the-peninsula-bangkok.html", city: "בנגקוק" },
+    { name: "$$Baiyoke Sky Hotel$$", link: "https://www.booking.com/hotel/th/baiyoke-sky.html", city: "בנגקוק" },
+    { name: "$$Miloft Sathorn Hotel - SHA Plus Certified$$", link: "https://www.booking.com/hotel/th/miloft-sathorn.html", city: "בנגקוק" },
+    { name: "$$Spenza Hotel$$", link: "https://www.booking.com/hotel/th/spenza.html", city: "בנגקוק" },
+    { name: "$$The Berkeley Hotel Pratunam$$", link: "https://www.booking.com/hotel/th/the-berkeley-pratunam-bangkok.html", city: "בנגקוק" },
+    { name: "$$The Victory Residences Bangkok$$", link: "https://www.booking.com/hotel/th/the-victory-executive-residences.html", city: "בנגקוק" },
+    { name: "$$Top High Airport Link Hotel, Bangkok$$", link: "https://www.booking.com/hotel/th/top-high-airport-link-bangkok.html", city: "בנגקוק" },
+    { name: "Mandarin Oriental Bangkok – מלון מפואר עם שירות יוצא דופן, מסעדות גורמה ונוף לנהר.", link: "https://www.booking.com/hotel/th/mandarin-oriental-bangkok.html", city: "בנגקוק" },
+
     { name: "*** קארבי ***", link: "nan", city: "קרבי" },
-    { name: " Holiday Inn Resort Krabi Ao Nang Beach – מלון נהדר למשפחות...", link: "https://www.booking.com/hotel/th/holiday-inn-resort-krabi-ao-nang-beach.html", city: "קרבי" },
-    { name: "Rayavadee – מלון יוקרתי ובלעדי על חוף פרטי...", link: "https://www.booking.com/hotel/th/rayavadee.html", city: "קרבי" },
+    { name: "$$Panan Krabi Resort$$", link: "https://www.booking.com/hotel/th/panan-krabi-resort.html", city: "קרבי" },
+    { name: " Holiday Inn Resort Krabi Ao Nang Beach – מלון נהדר למשפחות, עם בריכה גדולה.", link: "https://www.booking.com/hotel/th/holiday-inn-resort-krabi-ao-nang-beach.html", city: "קרבי" },
+    { name: " Krabi Heritage Hotel – מלון מפנק במרכז קראבי, עם גישה קלה לאטרקציות.", link: "https://www.booking.com/hotel/th/krabi-heritage.html", city: "קרבי" },
+    { name: " Krabi Resort – מלון נעים וקרוב לחוף, מתאים לכל סוגי התיירים.", link: "https://www.booking.com/hotel/th/krabi-resort.html", city: "קרבי" },
+    { name: " Krabi Sands Resort – מלון קטן ונעים עם גישה לחוף ושירות אישי.", link: "https://www.booking.com/hotel/th/krabi-sands-resort.html", city: "קרבי" },
+    { name: " Noppharat Resort – מלון קרוב לחוף נופאראט, עם חדרים נוחים ובריכה.", link: "https://www.booking.com/hotel/th/noppharat-resort.html", city: "קרבי" },
+    { name: "Krabi Palm Beach Resort – מלון עם בריכה, מסעדה וגישה נוחה לחוף.", link: "https://www.booking.com/hotel/th/krabi-palm-beach-resort.html", city: "קרבי" },
+    { name: "Phulay Bay, A Ritz-Carlton Reserve – אתר נופש יוקרתי ושקט עם שירות אישי.", link: "https://www.booking.com/hotel/th/phulay-bay-a-ritz-carlton-reserve.html", city: "קרבי" },
+    { name: "Rayavadee – מלון יוקרתי ובלעדי על חוף פרטי, מתאים לנופש רגוע.", link: "https://www.booking.com/hotel/th/rayavadee.html", city: "קרבי" },
+
     { name: "*** צ'אנג מאי ***", link: "nan", city: "צ'אנג מאי" },
-    { name: "137 Pillars House – מלון בוטיק יוקרתי עם עיצוב קולוניאלי...", link: "https://www.booking.com/hotel/th/137-pillars-house.he.html", city: "צ'אנג מאי" },
-    { name: "Four Seasons Resort Chiang Mai – אתר נופש מפואר בלב שדות אורז...", link: "https://www.booking.com/hotel/th/four-seasons-resort-chiang-mai.he.html", city: "צ'אנג מאי" },
-    { name: "*** קוסמוי ***", link: "nan", city: "קוסמוי" },
-    { name: "Muang Samui Spa Resort - SHA Extra Plus", link: "https://www.booking.com/hotel/th/muang-samui-spa-resort.he.html", city: "קוסמוי" },
-    { name: "*** קופנגן ***", link: "nan", city: "קופנגן" },
-    { name: "Vannee Golden Sands Beachfront Resort", link: "https://www.booking.com/hotel/th/vannee-golden-sands-beachfront-resort.he.html", city: "קופנגן" },
-    // מלונות נוספים ללא סיווג עיר ספציפי (יוצגו תמיד)
-    { name: "מלון ללא סיווג 1", link: "nan", city: "כללי" },
-    { name: "מלון ללא סיווג 2", link: "nan", city: "כללי" },
+    { name: "Anantara Chiang Mai Resort – מלון יוקרתי על גדות נהר הפינג, עם עיצוב מודרני ושירות מעולה.", link: "https://www.booking.com/hotel/th/anantara-chiang-mai-resort.he.html", city: "צ'אנג מאי" },
+    { name: " U Nimman Chiang Mai – מלון מודרני באזור נימאן, קרוב לבתי קפה וחנויות.", link: "https://www.booking.com/hotel/th/u-nimman-chiang-mai.he.html", city: "צ'אנג מאי" },
+    { name: " Yaang Come Village – מלון בסגנון תאילנדי מסורתי, עם גנים טרופיים ובריכה.", link: "https://www.booking.com/hotel/th/yaang-come-village-hotel.he.html", city: "צ'אנג מאי" },
+    { name: "137 Pillars House – מלון בוטיק יוקרתי עם עיצוב קולוניאלי, שירות אישי ובריכה יפהפייה.", link: "https://www.booking.com/hotel/th/137-pillars-house.he.html", city: "צ'אנג מאי" },
+    { name: "De Naga Hotel Chiang Mai – מלון בוטיק במרכז העיר, עם עיצוב ייחודי ושירות מצוין.", link: "https://www.booking.com/hotel/th/de-naga-hotel.he.html", city: "צ'אנג מאי" },
+    { name: "Four Seasons Resort Chiang Mai – אתר נופש מפואר בלב שדות אורז, עם נוף עוצר נשימה ואווירה רגועה.", link: "https://www.booking.com/hotel/th/four-seasons-resort-chiang-mai.he.html", city: "צ'אנג מאי" },
+    { name: "Le Meridien Chiang Mai – מלון מודרני במרכז העיר, קרוב לשוק הלילה ולמסעדות.", link: "https://www.booking.com/hotel/th/le-meridien-chiang-mai.he.html", city: "צ'אנג מאי" },
+    { name: "Rachamankha Hotel – מלון בוטיק עם עיצוב מסורתי, אווירה שקטה וקרבה למקדשים.", link: "https://www.booking.com/hotel/th/rachamankha.he.html", city: "צ'אנג מאי" },
+    { name: "Shangri-La Hotel Chiang Mai – מלון יוקרתי עם מתקנים מצוינים, כולל ספא ובריכה גדולה.", link: "https://www.booking.com/hotel/th/shangri-la-chiang-mai.he.html", city: "צ'אנג מאי" },
+    { name: "Tamarind Village – מלון בוטיק בלב העיר העתיקה, עם עיצוב לנה מסורתי ושירות חם.", link: "https://www.booking.com/hotel/th/tamarind-village.he.html", city: "צ'אנג מאי" },
+
+    { name: "*** צ'אנג ראי ***", link: "nan", city: "צ'אנג ראי" },
+    { name: " Le Meridien Chiang Rai Resort – מלון יוקרתי על גדות נהר קוק...", link: "https://www.booking.com/hotel/th/le-meridien-chiang-rai-resort.he.html", city: "צ'אנג ראי" },
+    { name: " Anantara Golden Triangle Elephant Camp & Resort – אתר נופש יוקרתי עם מחנה פילים...", link: "https://www.booking.com/hotel/th/anantara-golden-triangle-elephant-camp-resort.he.html", city: "צ'אנג ראי" },
+    { name: " Bura Resort Chiang Rai – אתר נופש בטבע, עם בקתות עץ ונוף להרים.", link: "https://www.booking.com/hotel/th/bura-resort-chiang-rai.he.html", city: "צ'אנג ראי" },
+    { name: " Dusit Island Resort – מלון על אי קטן בנהר, עם נוף יפהפה ומתקנים מצוינים.", link: "https://www.booking.com/hotel/th/dusit-island-resort-chiang-rai.he.html", city: "צ'אנג ראי" },
+    { name: " Laluna Hotel and Resort – מלון עם בונגלוס בגנים טרופיים...", link: "https://www.booking.com/hotel/th/laluna-hotel-resort-chiangrai.he.html", city: "צ'אנג ראי" },
+    { name: " Le Patta Hotel Chiang Rai – מלון מודרני במרכז העיר...", link: "https://www.booking.com/hotel/th/le-patta-hotel-chiang-rai.he.html", city: "צ'אנג ראי" },
+    { name: " Mora Boutique Hotel – מלון בוטיק עם עיצוב אלגנטי...", link: "https://www.booking.com/hotel/th/mora-boutique.he.html", city: "צ'אנג ראי" },
+    { name: " The Imperial River House Resort – מלון על גדות הנהר...", link: "https://www.booking.com/hotel/th/the-imperial-river-house-resort.he.html", city: "צ'אנג ראי" },
+    { name: " The Legend Chiang Rai Boutique River Resort & Spa – אתר נופש בוטיק על גדות הנהר...", link: "https://www.booking.com/hotel/th/the-legend-chiang-rai-river-resort-spa.he.html", city: "צ'אנג ראי" },
+    { name: " The Riverie by Katathani – מלון מודרני בלב העיר...", link: "https://www.booking.com/hotel/th/the-riverie-by-katathani.he.html", city: "צ'אנג ראי" },
+
+    { name: "***קוסמוי***", link: "nan", city: "קוסמוי" },
+    { name: "$$Combo Beach Hotel Samui$$", link: "https://www.booking.com/hotel/th/combo-beach-samui.he.html", city: "קוסמוי" },
+    { name: "$$Arkbar Beach Club$$", link: "https://www.booking.com/hotel/th/arkbar-beach-club.he.html", city: "קוסמוי" },
+    { name: "$$Chaweng Villawee Hotel$$", link: "https://www.booking.com/hotel/th/chaweng-villawee-hotel.he.html", city: "קוסמוי" },
+    { name: "$$Muang Samui Spa Resort - SHA Extra Plus$$", link: "https://www.booking.com/hotel/th/muang-samui-spa-resort.he.html", city: "קוסמוי" },
+
+    { name: "***קופנגן***", link: "nan", city: "קופנגן" },
+    { name: "$$Vannee Golden Sands Beachfront Resort$$", link: "https://www.booking.com/hotel/th/vannee-golden-sands-beachfront-resort.he.html", city: "קופנגן" },
+    { name: "$$The Cabin Beach Resort$$", link: "https://www.booking.com/hotel/th/the-cabin-beach-resort.he.html", city: "קופנגן" },
 ];
 
 
@@ -260,26 +355,28 @@ const allHotels = [
 function fillSelect(id, list) {
   const sel = document.getElementById(id);
   sel.innerHTML = "";
-  if(id === "activity1" || id === "activity2") {
+  if(id.startsWith("activity")) {
       sel.appendChild(new Option(list[0], list[0]));
       list = list.slice(1);
   } else {
-      sel.appendChild(new Option("", ""));
+      sel.appendChild(new Option("--- ללא מעבר ---", "ללא מעבר"));
   }
   list.forEach(item => sel.appendChild(new Option(item, item)));
 }
 
-// 🏨 סינון מלונות לפי עיר שנבחרה (חדש)
+// 🏨 סינון מלונות לפי עיר שנבחרה (משופר)
 function filterHotels() {
     const selectedCity = document.getElementById("city").value;
-    const cleanCityName = selectedCity.split(" (")[0]; // לוקח רק את שם העיר בעברית
+    // הסרת סוגריים וטקסט לועזי לסינון
+    const cleanCityName = selectedCity.split(" (")[0].trim(); 
     const sel = document.getElementById("hotel");
     sel.innerHTML = "";
     sel.appendChild(new Option("", "")); // אופציה ריקה
 
-    // מציג מלונות שתואמים לעיר או מלונות ללא סיווג (כללי)
+    // מציג מלונות שתואמים לעיר שנבחרה
     const filtered = allHotels.filter(h => 
-        h.city === cleanCityName || h.city === "כללי"
+        // בודק אם שם העיר נכלל בשדה ה-city של המלון
+        h.city.includes(cleanCityName)
     );
 
     filtered.forEach(h => {
@@ -292,7 +389,14 @@ function filterHotels() {
         }
         sel.appendChild(opt);
     });
-    updateHotelLink(); // מאפס/מעדכן את הלינק
+    
+    // מנסה לבחור את המלון האחרון שנבחר, אם קיים
+    const currentData = JSON.parse(document.getElementById("savedTable").dataset.currentEdit || "{}");
+    if (currentData.hotel) {
+        sel.value = currentData.hotel;
+    }
+
+    updateHotelLink(); 
 }
 
 function updateHotelLink() {
@@ -321,6 +425,8 @@ function updateDateDisplay() {
         return;
     }
     const d = new Date(dateInput);
+    // הוספתי +1 ליום כדי לתקן בעיות UTC קלות
+    d.setDate(d.getDate() + 1);
     const displayDate = d.toLocaleDateString("he-IL", { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
     document.getElementById("dateDisplay").value = displayDate;
 }
@@ -328,7 +434,7 @@ function updateDateDisplay() {
 // אייקוני פעילות חכמים (27, 158)
 function getSmartEmoji(text) {
     if(!text || text.includes("ללא")) return "▪️";
-    if(text.includes("טיסה") || text.includes("מעבר") || text.includes("מעבורת")) return "✈️";
+    if(text.includes("טיסה") || text.includes("מעבורת") || text.includes("אוטובוס") || text.includes("רכבת")) return "✈️";
     if(text.includes("ים") || text.includes("בטן גב") || text.includes("חוף")) return "🏖️";
     if(text.includes("צלילה") || text.includes("שנורקלינג")) return "🤿";
     if(text.includes("מקדש") || text.includes("מוזיאון")) return "🏛️";
@@ -357,15 +463,18 @@ function savePlan() {
   const data = {
     date: document.getElementById("dateDisplay").value, // התאריך המעוצב
     dateRaw: document.getElementById("date").value, // התאריך הגולמי למיון (YYYY-MM-DD)
-    flight: document.getElementById("flight").value,
-    flightDep: document.getElementById("flightDep").value,
-    flightArr: document.getElementById("flightArr").value,
+    flight1: document.getElementById("flight1").value,
+    flightDep1: document.getElementById("flightDep1").value,
+    flightArr1: document.getElementById("flightArr1").value,
+    flight2: document.getElementById("flight2").value,
+    flightDep2: document.getElementById("flightDep2").value,
+    flightArr2: document.getElementById("flightArr2").value,
     city: document.getElementById("city").value,
     hotel: document.getElementById("hotel").value,
     act1: document.getElementById("activity1").value,
-    act1Time: document.getElementById("act1Time").value, // 95
+    act1Time: document.getElementById("act1Time").value,
     act2: document.getElementById("activity2").value,
-    act2Time: document.getElementById("act2Time").value  // 95
+    act2Time: document.getElementById("act2Time").value
   };
 
   createRow(data);
@@ -385,14 +494,25 @@ function createRow(data) {
     row.dataset.rawDate = data.dateRaw;
     row.dataset.json = JSON.stringify(data); // שמירת כל הנתונים ב-JSON נסתר
 
-    // יצירת תא מעבר/טיסה
-    let flightStatusHTML = `<span class="flight-status ${data.flight.includes("ללא") ? 'status-no-fly' : 'status-fly'}">${getSmartEmoji(data.flight)} ${data.flight}</span>`; // 36
-    if (data.flightDep || data.flightArr) {
-        flightStatusHTML += '<div style="margin-top: 5px;">';
-        if (data.flightDep) flightStatusHTML += `<span class="time-badge">🛫 ${data.flightDep}</span>`;
-        if (data.flightArr) flightStatusHTML += `<span class="time-badge">🛬 ${data.flightArr}</span>`;
-        flightStatusHTML += '</div>';
-    }
+    // פונקציית עזר להצגת טיסה
+    const renderFlight = (flightType, depTime, arrTime) => {
+        if (flightType.includes("ללא מעבר")) return "";
+        let html = `<span class="flight-status ${flightType.includes("ללא") ? 'status-no-fly' : 'status-fly'}">${getSmartEmoji(flightType)} ${flightType}</span>`; // 36
+        if (depTime || arrTime) {
+            html += '<div style="margin-top: 5px;">';
+            if (depTime) html += `<span class="time-badge">🛫 ${depTime}</span>`;
+            if (arrTime) html += `<span class="time-badge">🛬 ${arrTime}</span>`;
+            html += '</div>';
+        }
+        return html;
+    };
+
+    // יצירת תא מעברים/טיסות (משופר לשתי טיסות)
+    let flightsHtml = "";
+    flightsHtml += renderFlight(data.flight1, data.flightDep1, data.flightArr1);
+    flightsHtml += renderFlight(data.flight2, data.flightDep2, data.flightArr2);
+    if (!flightsHtml) flightsHtml = "ללא מעברים";
+
 
     // יצירת תא פעילויות
     let activitiesHtml = "";
@@ -410,7 +530,7 @@ function createRow(data) {
 
     row.innerHTML = `
         <td>${data.date}</td>
-        <td>${flightStatusHTML}</td>
+        <td>${flightsHtml}</td>
         <td>${data.city}</td>
         <td>${data.hotel}</td>
         <td>${activitiesHtml}</td>
@@ -427,32 +547,38 @@ function createRow(data) {
     document.getElementById("savedTable").style.display = "table";
     sortRowsByDate(); // 156: מיון אוטומטי מאפשר "הוספה באמצע"
     clearForm(); // מנקה את הטופס לאחר שמירה/עדכון
+    document.getElementById("savedTable").dataset.currentEdit = ""; // מאפס נתון עריכה
 }
 
-// פונקציית עריכת שורה (חדש)
+// פונקציית עריכת שורה
 function editRow(btn) {
     const row = btn.parentNode.parentNode;
     const data = JSON.parse(row.dataset.json);
 
+    // שמירת הנתונים שאותם עורכים כרגע לצורך טעינת המלון הנכון לאחר הסינון
+    document.getElementById("savedTable").dataset.currentEdit = JSON.stringify(data);
+
     // טעינת הנתונים לטופס
-    document.getElementById("date").value = data.dateRaw; // טוען את התאריך הגולמי
-    updateDateDisplay(); // מעדכן את ה-dateDisplay
-    document.getElementById("flight").value = data.flight;
-    document.getElementById("flightDep").value = data.flightDep;
-    document.getElementById("flightArr").value = data.flightArr;
+    document.getElementById("date").value = data.dateRaw; 
+    updateDateDisplay(); 
+    document.getElementById("flight1").value = data.flight1;
+    document.getElementById("flightDep1").value = data.flightDep1;
+    document.getElementById("flightArr1").value = data.flightArr1;
+    document.getElementById("flight2").value = data.flight2 || flights[0]; // ברירת מחדל ל"ללא מעבר" אם ריק
+    document.getElementById("flightDep2").value = data.flightDep2;
+    document.getElementById("flightArr2").value = data.flightArr2;
     document.getElementById("city").value = data.city;
     
-    // מעדכן את רשימת המלונות ואז בוחר את המלון הרצוי
+    // מעדכן את רשימת המלונות (ישתמש ב-currentEdit כדי לבחור את המלון)
     filterHotels(); 
-    document.getElementById("hotel").value = data.hotel; 
-    updateHotelLink();
     
     document.getElementById("activity1").value = data.act1;
     document.getElementById("act1Time").value = data.act1Time;
     document.getElementById("activity2").value = data.act2;
     document.getElementById("act2Time").value = data.act2Time;
     
-    toggleFlightTimes(); // מציג/מסתיר זמני טיסה אם צריך
+    toggleFlightTimes(1);
+    toggleFlightTimes(2);
     
     alert(`💡 נתוני יום ${data.date} נטענו לעריכה. לחץ שוב על "שמור/עדכן מסלול" כדי לשמור את השינויים.`);
 }
@@ -460,9 +586,12 @@ function editRow(btn) {
 function clearForm() {
     document.getElementById("date").value = "";
     document.getElementById("dateDisplay").value = "";
-    document.getElementById("flight").value = flights[0];
-    document.getElementById("flightDep").value = "";
-    document.getElementById("flightArr").value = "";
+    document.getElementById("flight1").value = flights[0];
+    document.getElementById("flightDep1").value = "";
+    document.getElementById("flightArr1").value = "";
+    document.getElementById("flight2").value = flights[0];
+    document.getElementById("flightDep2").value = "";
+    document.getElementById("flightArr2").value = "";
     document.getElementById("city").value = "";
     document.getElementById("hotel").innerHTML = '<option value="">בחר מלון</option>';
     document.getElementById("activity1").value = allActivities[0];
@@ -470,7 +599,9 @@ function clearForm() {
     document.getElementById("activity2").value = allActivities[0];
     document.getElementById("act2Time").value = "";
     document.getElementById("hotelLink").textContent = "";
-    toggleFlightTimes(); // מסתיר את שדות הזמן
+    document.getElementById("savedTable").dataset.currentEdit = "";
+    toggleFlightTimes(1); 
+    toggleFlightTimes(2); 
 }
 
 
@@ -489,7 +620,6 @@ function sortRowsByDate() {
 
 
 function deleteRow(btn) {
-  // אזהרת מחיקה (פשוט, לא שובר כלום)
   if(confirm("⚠️ האם אתה בטוח שברצונך למחוק יום זה מהמסלול?")) {
       const row = btn.parentNode.parentNode;
       row.remove();
@@ -504,75 +634,101 @@ function clearAll() {
       document.getElementById("savedBody").innerHTML = "";
       document.getElementById("savedTable").style.display = "none";
       localStorage.removeItem("tripDataFull");
+      localStorage.removeItem("totalTripDays");
+      document.getElementById("totalTripDays").value = "";
       updateSummary();
   }
 }
 
+// שמירה מקומית (כולל ימים מתוכננים)
 function saveLocally() {
   const rows = document.querySelectorAll("#savedBody tr");
-  // שומרים את האובייקטים המלאים המוסתרים
   const data = Array.from(rows).map(row => JSON.parse(row.dataset.json));
   localStorage.setItem("tripDataFull", JSON.stringify(data));
+  localStorage.setItem("totalTripDays", document.getElementById("totalTripDays").value || "");
 }
 
+// טעינה מקומית (כולל ימים מתוכננים)
 function loadFromLocalStorage() {
   const data = JSON.parse(localStorage.getItem("tripDataFull") || "[]");
   data.forEach(item => createRow(item));
+  
+  const plannedDays = localStorage.getItem("totalTripDays");
+  document.getElementById("totalTripDays").value = plannedDays;
 }
 
 // --- לוגיקת דשבורד (30, 68, 122) ---
 
 function updateSummary() {
     const rows = document.querySelectorAll("#savedBody tr");
-    document.getElementById("totalDays").textContent = rows.length;
+    const totalDaysInItinerary = rows.length;
+    document.getElementById("totalDays").textContent = totalDaysInItinerary;
 
-    if(rows.length === 0) {
+    if(totalDaysInItinerary === 0) {
         document.getElementById("daysToTrip").textContent = "טרם נקבע";
         document.getElementById("cityBreakdown").textContent = "-";
-        return;
+    } else {
+        // ספירת לילות לפי עיר
+        const cityCounts = {};
+        rows.forEach(row => {
+            const data = JSON.parse(row.dataset.json);
+            const cityName = data.city.split("(")[0].trim();
+            cityCounts[cityName] = (cityCounts[cityName] || 0) + 1;
+        });
+
+        let breakdownText = Object.entries(cityCounts)
+            .map(([city, count]) => `${city}: ${count} ל`)
+            .join(" | ");
+            
+        document.getElementById("cityBreakdown").textContent = breakdownText;
+
+        // ספירת ימים עד הטיסה (122)
+        const firstRowDateRaw = rows[0].dataset.rawDate;
+        const firstDate = new Date(firstRowDateRaw);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); 
+        firstDate.setHours(0, 0, 0, 0);
+
+        const diffTime = firstDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        const countDiv = document.getElementById("daysToTrip");
+        if(diffDays > 0) countDiv.textContent = `עוד ${diffDays} ימים!`;
+        else if (diffDays === 0) countDiv.textContent = "היום!!!";
+        else countDiv.textContent = "הטיול התחיל";
     }
 
-    // ספירת לילות לפי עיר
-    const cityCounts = {};
-    rows.forEach(row => {
-        const data = JSON.parse(row.dataset.json);
-        // ניקוי שם העיר מהאנגלית
-        const cityName = data.city.split("(")[0].trim();
-        cityCounts[cityName] = (cityCounts[cityName] || 0) + 1;
-    });
-
-    let breakdownText = Object.entries(cityCounts)
-        .map(([city, count]) => `${city}: ${count} לילות`)
-        .join(" | ");
-        
-    document.getElementById("cityBreakdown").textContent = breakdownText;
-
-    // ספירת ימים עד הטיסה (122)
-    const firstRowDateRaw = rows[0].dataset.rawDate;
-    const firstDate = new Date(firstRowDateRaw);
-    const today = new Date();
-    // מאפסים שעה כדי לחשב ימים שלמים
-    today.setHours(0, 0, 0, 0); 
-    firstDate.setHours(0, 0, 0, 0);
-
-    const diffTime = firstDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // חישוב ימים נדרשים למילוי
+    const totalPlannedDays = parseInt(document.getElementById("totalTripDays").value);
+    const daysToFillDiv = document.getElementById("daysToFill");
     
-    const countDiv = document.getElementById("daysToTrip");
-    if(diffDays > 0) countDiv.textContent = `עוד ${diffDays} ימים!`;
-    else if (diffDays === 0) countDiv.textContent = "היום!!!";
-    else countDiv.textContent = "הטיול התחיל";
+    if (isNaN(totalPlannedDays) || totalPlannedDays <= 0) {
+        daysToFillDiv.textContent = "הזן ימים";
+        daysToFillDiv.style.color = 'var(--secondary)';
+    } else {
+        const remainingDays = totalPlannedDays - totalDaysInItinerary;
+        if (remainingDays > 0) {
+            daysToFillDiv.textContent = remainingDays;
+            daysToFillDiv.style.color = 'var(--danger)';
+        } else if (remainingDays < 0) {
+            daysToFillDiv.textContent = "✔ בוצע (+)";
+            daysToFillDiv.style.color = 'var(--success)';
+        } else {
+            daysToFillDiv.textContent = "✔ בוצע";
+            daysToFillDiv.style.color = 'var(--success)';
+        }
+    }
 }
 
-// הצגת/הסתרת שדות זמן אם הסטטוס הוא טיסה
-function toggleFlightTimes() {
-    const flightType = document.getElementById("flight").value;
-    const isFlight = flightType.includes("טיסה") || flightType.includes("מעבורת");
+// הצגת/הסתרת שדות זמן אם הסטטוס הוא טיסה (משופר ל-2 טיסות)
+function toggleFlightTimes(num) {
+    const flightType = document.getElementById(`flight${num}`).value;
+    const isFlight = flightType.includes("טיסה") || flightType.includes("מעבורת") || flightType.includes("אוטובוס") || flightType.includes("רכבת");
     
-    const depInput = document.getElementById("flightDep");
-    const arrInput = document.getElementById("flightArr");
+    const depInput = document.getElementById(`flightDep${num}`);
+    const arrInput = document.getElementById(`flightArr${num}`);
 
-    // אם אין טיסה, נאפס את השעות כדי שלא ישמרו
+    // אם אין מעבר/טיסה, נאפס את השעות כדי שלא ישמרו
     if (!isFlight) {
         depInput.value = "";
         arrInput.value = "";
@@ -580,15 +736,9 @@ function toggleFlightTimes() {
 }
 
 // --- פונקציות שמירת קבצים ---
+// (השארתי את ההודעה על PDF כי תמיכת עברית מובנית ב-jsPDF מורכבת)
 
 async function downloadPDF() {
-    // השתמשנו ב-jspdf שהכנסנו בראש הקוד
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const rows = document.querySelectorAll("#savedBody tr");
-    if (!rows.length) return alert("אין שורות לשמירה");
-    
-    // בגלל בעיות תמיכה בעברית ב-jsPDF, עדיף להשתמש בפונקציית ההדפסה של הדפדפן (Print to PDF)
     alert("הכלי הזה אינו תומך באופן מלא בעברית ב-PDF. אנא השתמש באפשרות 'הדפסה' של הדפדפן ושמור כקובץ PDF.");
     window.print();
 }
@@ -606,10 +756,16 @@ function sendToWhatsApp() {
         message += `🏙 *עיר:* ${data.city}\n`;
         if(data.hotel) message += `🏨 *מלון:* ${data.hotel}\n`;
         
-        // סטטוס טיסה/מעבר
-        if(!data.flight.includes("ללא מעבר")) {
-            message += `${getSmartEmoji(data.flight)} *מעבר/טיסה:* ${data.flight}`;
-            if(data.flightDep) message += ` | 🛫 ${data.flightDep} 🛬 ${data.flightArr}`;
+        // סטטוס טיסה/מעבר 1
+        if(!data.flight1.includes("ללא מעבר")) {
+            message += `${getSmartEmoji(data.flight1)} *מעבר 1:* ${data.flight1}`;
+            if(data.flightDep1) message += ` | 🛫 ${data.flightDep1} 🛬 ${data.flightArr1}`;
+            message += `\n`;
+        }
+         // סטטוס טיסה/מעבר 2
+        if(data.flight2 && !data.flight2.includes("ללא מעבר")) {
+            message += `${getSmartEmoji(data.flight2)} *מעבר 2:* ${data.flight2}`;
+            if(data.flightDep2) message += ` | 🛫 ${data.flightDep2} 🛬 ${data.flightArr2}`;
             message += `\n`;
         }
         
@@ -640,14 +796,17 @@ function sendToWhatsApp() {
 
 // --- טעינה ראשונית ---
 window.onload = function() {
-  fillSelect("flight", flights);
+  fillSelect("flight1", flights);
+  fillSelect("flight2", flights);
   fillSelect("city", cities);
   fillSelect("activity1", allActivities);
   fillSelect("activity2", allActivities);
-  // אין צורך למלא מלונות כי זה קורה אוטומטית עם בחירת עיר, אבל נפעיל פונקציה לבחירה ראשונית (כללי)
-  filterHotels(); 
+  
+  // טוען נתונים ושומרים אוטומטית אם הטעינה מציגה משהו
   loadFromLocalStorage();
   updateSummary();
+  filterHotels(); // טוען את כל המלונות כברירת מחדל אם לא נבחרה עיר
+  clearForm(); // מנקה את הטופס לאחר טעינה
 }
 </script>
 </body>
