@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>תכנון טיול משודרג - JSON Hotels</title>
+  <title>תכנון טיול משודרג - טעינת JSON חיצוני</title>
   <style>
     /* הגדרות בסיס ועיצוב מובייל משופר */
     :root {
@@ -145,8 +145,9 @@
 <body>
 
   <h1>✈️ תכנון טיול</h1>
+  <p id="loadingStatus" style="text-align:center; color: var(--danger);">...טוען נתוני מלונות מהשרת. אנא המתן.</p>
 
-  <div class="dashboard" id="dashboard">
+  <div class="dashboard" id="dashboard" style="display: none;">
     <div class="stat-box">
       <span class="stat-title">⏳ ימים עד הטיסה</span>
       <span class="stat-value countdown" id="daysToTrip">...</span>
@@ -169,7 +170,7 @@
     </div>
   </div>
 
-  <div class="form-container">
+  <div class="form-container" id="formContainer" style="display: none;">
     <div class="form-group">
       <label>📅 תאריך:</label>
       <input type="date" id="date" onchange="updateDateDisplay()">
@@ -240,7 +241,7 @@
     </div>
   </div>
 
-  <div class="actions">
+  <div class="actions" id="actionsContainer" style="display: none;">
     <button class="btn-save" onclick="savePlan()">💾 שמור / עדכן מסלול</button>
     <button class="btn-local" style="background-color: var(--secondary);" onclick="saveLocally()">☁ שמור נתונים מקומית</button>
     <button class="btn-wa" style="background-color: #25D366;" onclick="sendToWhatsApp()">📤 שלח בווטסאפ</button>
@@ -266,87 +267,61 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+// --- הגדרת קובץ JSON חיצוני ---
+const EXTERNAL_JSON_URL = "https://reuven2k.com/data/hotels.json";
+let allHotels = []; // המשתנה יתמלא על ידי טעינת ה-JSON החיצוני
+
 // --- נתונים קבועים ---
 const flights = ["ללא מעבר", "טיסה בינלאומית", "טיסת פנים", "מעבורת", "אוטובוס/וואן", "רכבת"];
-const cities = ["פוקט", "פטאיה", "בנגקוק", "קרבי", "צ'אנג מאי", "קוסמוי", "קאולק", "קופנגן", "צ'אנג ראי"];
+const cities = ["פוקט", "פטאיה", "בנגקוק", "קרבי", "צ'אנג מאי", "קוסמוי", "קופנגן", "קאולק", "צ'אנג ראי"];
 const allActivities = ["--- ללא פעילות ---", "אומגות", "בטן גב", "ביקור במקדשים", "ביקור בפארקים לאומיים", "גלישת גלים", "הפלגות סירה בנהרות", "חוויית ספארי ג'יפים", "טיולי פילים", "טרקים בהרים", "ים", "מוזיאונים", "מופע ", "ספא ומסאג' תאילנדי", "פארק מים", "צלילה", "קארטינג", "קורסי בישול תאילנדי", "ראפטינג", "רכיבה על סוסים", "שוקי לילה", "שייט ", "שנורקלינג", "תצפיות נוף מהרים"];
 
-// --- נתוני מלונות בפורמט JSON חדש (אנגלית + 3,4,5 כוכבים) ---
-const allHotels = [
-  // PHUKET (פוקט)
-  {"name": "Trisara Phuket", "city_he": "פוקט", "stars": 5, "link": "https://www.booking.com/hotel/th/trisara.html"},
-  {"name": "Angsana Laguna Phuket", "city_he": "פוקט", "stars": 5, "link": "https://www.booking.com/hotel/th/angsana-laguna.html"},
-  {"name": "The Slate, Phuket", "city_he": "פוקט", "stars": 5, "link": "https://www.booking.com/hotel/th/the-slate.html"},
-  {"name": "Katathani Phuket Beach Resort", "city_he": "פוקט", "stars": 4, "link": "https://www.booking.com/hotel/th/katathani.html"},
-  {"name": "Novotel Phuket Karon Beach Resort", "city_he": "פוקט", "stars": 4, "link": "https://www.booking.com/hotel/th/novotel-karon.html"},
-  {"name": "Burasari Phuket Resort & Spa", "city_he": "פוקט", "stars": 4, "link": "https://www.booking.com/hotel/th/burasari.html"},
-  {"name": "Hotel Clover Patong Phuket", "city_he": "פוקט", "stars": 3, "link": "https://www.booking.com/hotel/th/hotel-clover-patong.html"},
-  {"name": "Ibis Phuket Patong", "city_he": "פוקט", "stars": 3, "link": "https://www.booking.com/hotel/th/ibis-patong.html"},
-  {"name": "Patong Lodge Hotel", "city_he": "פוקט", "stars": 3, "link": "https://www.booking.com/hotel/th/patong-lodge.html"},
+// ----------------------------------------------------
+// --- פונקציות טעינת JSON חיצונית ואיפוס אתחול ---
+// ----------------------------------------------------
 
-  // BANGKOK (בנגקוק)
-  {"name": "Mandarin Oriental, Bangkok", "city_he": "בנגקוק", "stars": 5, "link": "https://www.booking.com/hotel/th/mandarin-oriental-bangkok.html"},
-  {"name": "The Peninsula Bangkok", "city_he": "בנגקוק", "stars": 5, "link": "https://www.booking.com/hotel/th/peninsula-bangkok.html"},
-  {"name": "Banyan Tree Bangkok", "city_he": "בנגקוק", "stars": 5, "link": "https://www.booking.com/hotel/th/banyan-tree-bangkok.html"},
-  {"name": "Novotel Bangkok Sukhumvit 20", "city_he": "בנגקוק", "stars": 4, "link": "https://www.booking.com/hotel/th/novotel-sukhumvit-20.html"},
-  {"name": "Chatrium Hotel Riverside Bangkok", "city_he": "בנגקוק", "stars": 4, "link": "https://www.booking.com/hotel/th/chatrium-riverside.html"},
-  {"name": "SO Sofitel Bangkok", "city_he": "בנגקוק", "stars": 4, "link": "https://www.booking.com/hotel/th/so-sofitel-bangkok.html"},
-  {"name": "The Berkeley Hotel Pratunam", "city_he": "בנגקוק", "stars": 3, "link": "https://www.booking.com/hotel/th/the-berkeley.html"},
-  {"name": "Spenza Hotel", "city_he": "בנגקוק", "stars": 3, "link": "https://www.booking.com/hotel/th/spenza.html"},
-  {"name": "Miloft Sathorn Hotel", "city_he": "בנגקוק", "stars": 3, "link": "https://www.booking.com/hotel/th/miloft-sathorn.html"},
+async function loadExternalData() {
+    const statusElement = document.getElementById('loadingStatus');
+    try {
+        const response = await fetch(EXTERNAL_JSON_URL);
+        if (!response.ok) {
+            throw new Error(`שגיאת HTTP: ${response.status}`);
+        }
+        allHotels = await response.json();
+        
+        statusElement.textContent = "✅ נתוני מלונות נטענו בהצלחה. סה״כ מלונות: " + allHotels.length;
+        statusElement.style.color = 'var(--success)';
+        
+        // הצגת ה-UI לאחר טעינה
+        document.getElementById('dashboard').style.display = 'flex';
+        document.getElementById('formContainer').style.display = 'grid';
+        document.getElementById('actionsContainer').style.display = 'flex';
+        
+        // אתחול UI
+        initializeUI();
 
-  // KOH SAMUI (קוסמוי)
-  {"name": "SALA Samui Chaweng Beach Resort", "city_he": "קוסמוי", "stars": 5, "link": "https://www.booking.com/hotel/th/sala-chaweng.html"},
-  {"name": "Six Senses Samui", "city_he": "קוסמוי", "stars": 5, "link": "https://www.booking.com/hotel/th/six-senses-samui.html"},
-  {"name": "Muang Samui Spa Resort", "city_he": "קוסמוי", "stars": 4, "link": "https://www.booking.com/hotel/th/muang-samui-spa-resort.html"},
-  {"name": "Chaweng Villawee Hotel", "city_he": "קוסמוי", "stars": 4, "link": "https://www.booking.com/hotel/th/chaweng-villawee.html"},
-  {"name": "Combo Beach Hotel Samui", "city_he": "קוסמוי", "stars": 3, "link": "https://www.booking.com/hotel/th/combo-beach-samui.html"},
-  {"name": "Arkbar Beach Club", "city_he": "קוסמוי", "stars": 3, "link": "https://www.booking.com/hotel/th/arkbar-beach-club.html"},
+    } catch (error) {
+        statusElement.textContent = `❌ שגיאה בטעינת קובץ המלונות (${EXTERNAL_JSON_URL}): ${error.message}. בדוק את הנתיב והרשאות CORS.`;
+        statusElement.style.color = 'var(--danger)';
+    }
+}
 
-  // KRABI (קרבי)
-  {"name": "Phulay Bay, A Ritz-Carlton Reserve", "city_he": "קרבי", "stars": 5, "link": "https://www.booking.com/hotel/th/phulay-bay.html"},
-  {"name": "Rayavadee", "city_he": "קרבי", "stars": 5, "link": "https://www.booking.com/hotel/th/rayavadee.html"},
-  {"name": "Panan Krabi Resort", "city_he": "קרבי", "stars": 4, "link": "https://www.booking.com/hotel/th/panan-krabi-resort.html"},
-  {"name": "Holiday Inn Resort Krabi Ao Nang Beach", "city_he": "קרבי", "stars": 4, "link": "https://www.booking.com/hotel/th/holiday-inn-krabi.html"},
-  {"name": "Krabi Resort", "city_he": "קרבי", "stars": 3, "link": "https://www.booking.com/hotel/th/krabi-resort.html"},
-  {"name": "Krabi Heritage Hotel", "city_he": "קרבי", "stars": 3, "link": "https://www.booking.com/hotel/th/krabi-heritage.html"},
-
-  // CHIANG MAI (צ'אנג מאי)
-  {"name": "Four Seasons Resort Chiang Mai", "city_he": "צ'אנג מאי", "stars": 5, "link": "https://www.booking.com/hotel/th/four-seasons-chiang-mai.html"},
-  {"name": "137 Pillars House", "city_he": "צ'אנג מאי", "stars": 5, "link": "https://www.booking.com/hotel/th/137-pillars-house.html"},
-  {"name": "Le Meridien Chiang Mai", "city_he": "צ'אנג מאי", "stars": 4, "link": "https://www.booking.com/hotel/th/le-meridien-chiang-mai.html"},
-  {"name": "Anantara Chiang Mai Resort", "city_he": "צ'אנג מאי", "stars": 4, "link": "https://www.booking.com/hotel/th/anantara-chiang-mai.html"},
-  {"name": "Tamarind Village", "city_he": "צ'אנג מאי", "stars": 3, "link": "https://www.booking.com/hotel/th/tamarind-village.html"},
-  {"name": "Yaang Come Village", "city_he": "צ'אנג מאי", "stars": 3, "link": "https://www.booking.com/hotel/th/yaang-come-village.html"},
+function initializeUI() {
+  fillSelect("flight1", flights);
+  fillSelect("flight2", flights);
+  fillSelect("city", cities);
+  fillSelect("activity1", allActivities);
+  fillSelect("activity2", allActivities);
   
-  // PATTAYA (פטאיה)
-  {"name": "Hilton Pattaya", "city_he": "פטאיה", "stars": 5, "link": "https://www.booking.com/hotel/th/hilton-pattaya.html"},
-  {"name": "Royal Cliff Beach Hotel", "city_he": "פטאיה", "stars": 5, "link": "https://www.booking.com/hotel/th/royal-cliff-beach.html"},
-  {"name": "Avani Pattaya Resort", "city_he": "פטאיה", "stars": 4, "link": "https://www.booking.com/hotel/th/avani-pattaya.html"},
-  {"name": "Mercure Pattaya Ocean Resort", "city_he": "פטאיה", "stars": 4, "link": "https://www.booking.com/hotel/th/mercure-pattaya.html"},
-  {"name": "Holiday Inn Pattaya", "city_he": "פטאיה", "stars": 3, "link": "https://www.booking.com/hotel/th/holiday-inn-pattaya.html"},
-  {"name": "Pattaya Discovery Beach Hotel", "city_he": "פטאיה", "stars": 3, "link": "https://www.booking.com/hotel/th/pattaya-discovery-beach.html"},
+  loadFromLocalStorage();
+  updateSummary();
+  filterHotels(); 
+  clearForm(); 
+}
 
-  // KHAO LAK (קאולק)
-  {"name": "JW Marriott Khao Lak Resort & Spa", "city_he": "קאולק", "stars": 5, "link": "https://www.booking.com/hotel/th/jw-marriott-khaolak.html"},
-  {"name": "The Sands Khao Lak by Katathani", "city_he": "קאולק", "stars": 4, "link": "https://www.booking.com/hotel/th/the-sands-khaolak.html"},
-  {"name": "Khaolak Blue Lagoon Resort", "city_he": "קאולק", "stars": 3, "link": "https://www.booking.com/hotel/th/khaolak-blue-lagoon.html"},
-  
-  // KOH PHANGAN (קופנגן)
-  {"name": "Anantara Rasananda Koh Phangan Villas", "city_he": "קופנגן", "stars": 5, "link": "https://www.booking.com/hotel/th/rasananda.html"},
-  {"name": "Santhiya Koh Phangan Resort & Spa", "city_he": "קופנגן", "stars": 5, "link": "https://www.booking.com/hotel/th/santhiya-koh-phangan.html"},
-  {"name": "Vannee Golden Sands Beachfront Resort", "city_he": "קופנגן", "stars": 4, "link": "https://www.booking.com/hotel/th/vannee-golden-sands.html"},
-  {"name": "The Cabin Beach Resort", "city_he": "קופנגן", "stars": 3, "link": "https://www.booking.com/hotel/th/the-cabin-beach.html"},
-  
-  // CHIANG RAI (צ'אנג ראי)
-  {"name": "Anantara Golden Triangle Elephant Camp & Resort", "city_he": "צ'אנג ראי", "stars": 5, "link": "https://www.booking.com/hotel/th/anantara-golden-triangle.html"},
-  {"name": "Le Meridien Chiang Rai Resort", "city_he": "צ'אנג ראי", "stars": 5, "link": "https://www.booking.com/hotel/th/le-meridien-chiang-rai.html"},
-  {"name": "Bura Resort Chiang Rai", "city_he": "צ'אנג ראי", "stars": 4, "link": "https://www.booking.com/hotel/th/bura-resort-chiang-rai.html"},
-  {"name": "The Imperial River House Resort", "city_he": "צ'אנג ראי", "stars": 3, "link": "https://www.booking.com/hotel/th/imperial-river-house.html"}
-];
-
-
-// --- פונקציות עזר ו-UI ---
+// ----------------------------------------------------
+// --- פונקציות עזר ו-UI (נשארו זהות) ---
+// ----------------------------------------------------
 
 // מילוי רשימות בחירה
 function fillSelect(id, list) {
@@ -363,39 +338,34 @@ function fillSelect(id, list) {
   list.forEach(item => sel.appendChild(new Option(item, item)));
 }
 
-// 🏨 סינון מלונות לפי עיר ודירוג כוכבים (משופר)
+// 🏨 סינון מלונות לפי עיר ודירוג כוכבים
 function filterHotels() {
     const selectedCity = document.getElementById("city").value;
     const selectedStars = document.getElementById("starFilter").value;
     const sel = document.getElementById("hotel");
     sel.innerHTML = "";
-    sel.appendChild(new Option("", "")); // אופציה ריקה
+    sel.appendChild(new Option("בחר מלון", "")); 
     
-    // אם לא נבחרה עיר, לא מציגים מלונות
     if (!selectedCity) {
         updateHotelLink(); 
         return;
     }
 
-    // סינון הנתונים
     const filtered = allHotels.filter(h => {
         const cityMatch = h.city_he === selectedCity;
         const starsMatch = selectedStars === "All" || h.stars === parseInt(selectedStars);
         return cityMatch && starsMatch;
     });
     
-    // פונקציית עזר לדירוג כוכבים
     const getStarDisplay = (stars) => "⭐️".repeat(stars);
 
-    // מילוי רשימת המלונות לאחר סינון
     filtered.forEach(h => {
         const optionText = `${h.name} (${getStarDisplay(h.stars)})`;
-        const opt = new Option(optionText, h.name); // ה-Value הוא שם המלון באנגלית
+        const opt = new Option(optionText, h.name); 
         opt.dataset.link = h.link;
         sel.appendChild(opt);
     });
     
-    // מנסה לבחור את המלון האחרון שנבחר, אם קיים
     const currentData = JSON.parse(document.getElementById("savedTable").dataset.currentEdit || "{}");
     if (currentData.hotel) {
         sel.value = currentData.hotel;
@@ -406,7 +376,6 @@ function filterHotels() {
 
 function updateHotelLink() {
   const sel = document.getElementById("hotel");
-  const selectedHotelName = sel.value;
   const label = document.getElementById("hotelLink");
   
   let link = "";
@@ -428,7 +397,6 @@ function openHotelLink() {
   if (url) window.open(url, '_blank');
 }
 
-// מעדכן את שדה הטקסט הנסתר עבור הטבלה
 function updateDateDisplay() {
     const dateInput = document.getElementById("date").value;
     if (!dateInput) {
@@ -436,13 +404,11 @@ function updateDateDisplay() {
         return;
     }
     const d = new Date(dateInput);
-    // הוספתי +1 ליום כדי לתקן בעיות UTC קלות
     d.setDate(d.getDate() + 1);
     const displayDate = d.toLocaleDateString("he-IL", { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
     document.getElementById("dateDisplay").value = displayDate;
 }
 
-// אייקוני פעילות חכמים
 function getSmartEmoji(text) {
     if(!text || text.includes("ללא")) return "▪️";
     if(text.includes("טיסה") || text.includes("מעבורת") || text.includes("אוטובוס") || text.includes("רכבת")) return "✈️";
@@ -457,9 +423,10 @@ function getSmartEmoji(text) {
     return "🔹";
 }
 
-// --- לוגיקת שמירה וטבלה ---
+// ----------------------------------------------------
+// --- לוגיקת שמירה, טבלה ודשבורד (נשארו זהים) ---
+// ----------------------------------------------------
 
-// בדיקת טעויות
 function validateForm() {
     const date = document.getElementById("date").value;
     const city = document.getElementById("city").value;
@@ -475,8 +442,8 @@ function savePlan() {
   const selectedOption = hotelSelect.options[hotelSelect.selectedIndex];
   
   const data = {
-    date: document.getElementById("dateDisplay").value, // התאריך המעוצב
-    dateRaw: document.getElementById("date").value, // התאריך הגולמי למיון (YYYY-MM-DD)
+    date: document.getElementById("dateDisplay").value, 
+    dateRaw: document.getElementById("date").value, 
     flight1: document.getElementById("flight1").value,
     flightDep1: document.getElementById("flightDep1").value,
     flightArr1: document.getElementById("flightArr1").value,
@@ -484,8 +451,8 @@ function savePlan() {
     flightDep2: document.getElementById("flightDep2").value,
     flightArr2: document.getElementById("flightArr2").value,
     city: document.getElementById("city").value,
-    hotel: hotelSelect.value, // שם המלון באנגלית
-    hotelLink: selectedOption ? selectedOption.dataset.link : "", // שמירת הקישור
+    hotel: hotelSelect.value, 
+    hotelLink: selectedOption ? selectedOption.dataset.link : "", 
     act1: document.getElementById("activity1").value,
     act1Time: document.getElementById("act1Time").value,
     act2: document.getElementById("activity2").value,
@@ -496,20 +463,16 @@ function savePlan() {
   saveLocally();
 }
 
-// יצירת שורה חדשה בטבלה
 function createRow(data) {
     const tableBody = document.getElementById("savedBody");
-    
-    // ניסיון למצוא שורה קיימת לפי תאריך גולמי (למקרה של עריכה)
     let existingRow = Array.from(tableBody.querySelectorAll("tr")).find(row => 
         row.dataset.rawDate === data.dateRaw
     );
 
     const row = existingRow || document.createElement("tr");
     row.dataset.rawDate = data.dateRaw;
-    row.dataset.json = JSON.stringify(data); // שמירת כל הנתונים ב-JSON נסתר
+    row.dataset.json = JSON.stringify(data); 
 
-    // פונקציית עזר להצגת טיסה
     const renderFlight = (flightType, depTime, arrTime) => {
         if (flightType.includes("ללא מעבר")) return "";
         let html = `<span class="flight-status ${flightType.includes("ללא") ? 'status-no-fly' : 'status-fly'}">${getSmartEmoji(flightType)} ${flightType}</span>`; 
@@ -522,14 +485,11 @@ function createRow(data) {
         return html;
     };
 
-    // יצירת תא מעברים/טיסות (משופר לשתי טיסות)
     let flightsHtml = "";
     flightsHtml += renderFlight(data.flight1, data.flightDep1, data.flightArr1);
     flightsHtml += renderFlight(data.flight2, data.flightDep2, data.flightArr2);
     if (!flightsHtml) flightsHtml = "ללא מעברים";
 
-
-    // יצירת תא פעילויות
     let activitiesHtml = "";
     if(!data.act1.includes("ללא פעילות")) {
         activitiesHtml += `<div>${getSmartEmoji(data.act1)} ${data.act1}`;
@@ -543,7 +503,6 @@ function createRow(data) {
     }
     if (activitiesHtml === "") activitiesHtml = "אין פעילויות מתוכננות";
     
-    // הוספת דירוג כוכבים לתצוגה בטבלה
     const hotelData = allHotels.find(h => h.name === data.hotel);
     const starDisplay = hotelData ? ` (${'⭐️'.repeat(hotelData.stars)})` : '';
     const hotelDisplay = data.hotel ? `${data.hotel}${starDisplay}` : '-';
@@ -570,15 +529,12 @@ function createRow(data) {
     document.getElementById("savedTable").dataset.currentEdit = ""; 
 }
 
-// פונקציית עריכת שורה
 function editRow(btn) {
     const row = btn.parentNode.parentNode;
     const data = JSON.parse(row.dataset.json);
 
-    // שמירת הנתונים שאותם עורכים כרגע לצורך טעינת המלון הנכון לאחר הסינון
     document.getElementById("savedTable").dataset.currentEdit = JSON.stringify(data);
 
-    // טעינת הנתונים לטופס
     document.getElementById("date").value = data.dateRaw; 
     updateDateDisplay(); 
     document.getElementById("flight1").value = data.flight1;
@@ -589,12 +545,10 @@ function editRow(btn) {
     document.getElementById("flightArr2").value = data.flightArr2;
     document.getElementById("city").value = data.city;
     
-    // מוצאים את דירוג הכוכבים של המלון כדי לבחור את המסנן הנכון
     const hotelData = allHotels.find(h => h.name === data.hotel);
     const stars = hotelData ? String(hotelData.stars) : "All";
     document.getElementById("starFilter").value = stars;
     
-    // מעדכן את רשימת המלונות (ישתמש ב-currentEdit כדי לבחור את המלון)
     filterHotels(); 
     
     document.getElementById("activity1").value = data.act1;
@@ -618,7 +572,7 @@ function clearForm() {
     document.getElementById("flightDep2").value = "";
     document.getElementById("flightArr2").value = "";
     document.getElementById("city").value = "";
-    document.getElementById("starFilter").value = "All"; // איפוס סינון כוכבים
+    document.getElementById("starFilter").value = "All"; 
     document.getElementById("hotel").innerHTML = '<option value="">בחר מלון</option>';
     document.getElementById("activity1").value = allActivities[0];
     document.getElementById("act1Time").value = "";
@@ -630,8 +584,6 @@ function clearForm() {
     toggleFlightTimes(2); 
 }
 
-
-// מיון שורות לפי תאריך גולמי
 function sortRowsByDate() {
     const tbody = document.getElementById("savedBody");
     const rows = Array.from(tbody.querySelectorAll("tr"));
@@ -643,7 +595,6 @@ function sortRowsByDate() {
     rows.forEach(row => tbody.appendChild(row));
     updateSummary();
 }
-
 
 function deleteRow(btn) {
   if(confirm("⚠️ האם אתה בטוח שברצונך למחוק יום זה מהמסלול?")) {
@@ -666,7 +617,6 @@ function clearAll() {
   }
 }
 
-// שמירה מקומית
 function saveLocally() {
   const rows = document.querySelectorAll("#savedBody tr");
   const data = Array.from(rows).map(row => JSON.parse(row.dataset.json));
@@ -674,7 +624,6 @@ function saveLocally() {
   localStorage.setItem("totalTripDays", document.getElementById("totalTripDays").value || "");
 }
 
-// טעינה מקומית
 function loadFromLocalStorage() {
   const data = JSON.parse(localStorage.getItem("tripDataFull") || "[]");
   data.forEach(item => createRow(item));
@@ -682,8 +631,6 @@ function loadFromLocalStorage() {
   const plannedDays = localStorage.getItem("totalTripDays");
   document.getElementById("totalTripDays").value = plannedDays;
 }
-
-// --- לוגיקת דשבורד ---
 
 function updateSummary() {
     const rows = document.querySelectorAll("#savedBody tr");
@@ -694,7 +641,6 @@ function updateSummary() {
         document.getElementById("daysToTrip").textContent = "טרם נקבע";
         document.getElementById("cityBreakdown").textContent = "-";
     } else {
-        // ספירת לילות לפי עיר
         const cityCounts = {};
         rows.forEach(row => {
             const data = JSON.parse(row.dataset.json);
@@ -708,7 +654,6 @@ function updateSummary() {
             
         document.getElementById("cityBreakdown").textContent = breakdownText;
 
-        // ספירת ימים עד הטיסה
         const firstRowDateRaw = rows[0].dataset.rawDate;
         const firstDate = new Date(firstRowDateRaw);
         const today = new Date();
@@ -724,7 +669,6 @@ function updateSummary() {
         else countDiv.textContent = "הטיול התחיל";
     }
 
-    // חישוב ימים נדרשים למילוי
     const totalPlannedDays = parseInt(document.getElementById("totalTripDays").value);
     const daysToFillDiv = document.getElementById("daysToFill");
     
@@ -746,7 +690,6 @@ function updateSummary() {
     }
 }
 
-// הצגת/הסתרת שדות זמן אם הסטטוס הוא טיסה
 function toggleFlightTimes(num) {
     const flightType = document.getElementById(`flight${num}`).value;
     const isFlight = flightType.includes("טיסה") || flightType.includes("מעבורת") || flightType.includes("אוטובוס") || flightType.includes("רכבת");
@@ -754,16 +697,13 @@ function toggleFlightTimes(num) {
     const depInput = document.getElementById(`flightDep${num}`);
     const arrInput = document.getElementById(`flightArr${num}`);
 
-    // אם אין מעבר/טיסה, נאפס את השעות כדי שלא ישמרו
     if (!isFlight) {
         depInput.value = "";
         arrInput.value = "";
     }
 }
 
-// --- פונקציות שמירת קבצים ---
-
-async function downloadPDF() {
+function downloadPDF() {
     alert("הכלי הזה אינו תומך באופן מלא בעברית ב-PDF. אנא השתמש באפשרות 'הדפסה' של הדפדפן ושמור כקובץ PDF.");
     window.print();
 }
@@ -777,7 +717,6 @@ function sendToWhatsApp() {
     rows.forEach((row, i) => {
         const data = JSON.parse(row.dataset.json);
         
-        // מציאת דירוג הכוכבים לשליחה
         const hotelData = allHotels.find(h => h.name === data.hotel);
         const starDisplay = hotelData ? ` (${'⭐️'.repeat(hotelData.stars)})` : '';
 
@@ -785,20 +724,17 @@ function sendToWhatsApp() {
         message += `🏙 *עיר:* ${data.city}\n`;
         if(data.hotel) message += `🏨 *מלון:* ${data.hotel}${starDisplay}\n`;
         
-        // סטטוס טיסה/מעבר 1
         if(!data.flight1.includes("ללא מעבר")) {
             message += `${getSmartEmoji(data.flight1)} *מעבר 1:* ${data.flight1}`;
             if(data.flightDep1) message += ` | 🛫 ${data.flightDep1} 🛬 ${data.flightArr1}`;
             message += `\n`;
         }
-         // סטטוס טיסה/מעבר 2
         if(data.flight2 && !data.flight2.includes("ללא מעבר")) {
             message += `${getSmartEmoji(data.flight2)} *מעבר 2:* ${data.flight2}`;
             if(data.flightDep2) message += ` | 🛫 ${data.flightDep2} 🛬 ${data.flightArr2}`;
             message += `\n`;
         }
         
-        // פעילויות
         if(!data.act1.includes("ללא פעילות")) {
             message += `${getSmartEmoji(data.act1)} בוקר: ${data.act1}`;
             if(data.act1Time) message += ` (${data.act1Time})`;
@@ -823,20 +759,8 @@ function sendToWhatsApp() {
     window.open(url, "_blank");
 }
 
-// --- טעינה ראשונית ---
-window.onload = function() {
-  fillSelect("flight1", flights);
-  fillSelect("flight2", flights);
-  fillSelect("city", cities);
-  fillSelect("activity1", allActivities);
-  fillSelect("activity2", allActivities);
-  
-  // טוען נתונים ושומרים אוטומטית אם הטעינה מציגה משהו
-  loadFromLocalStorage();
-  updateSummary();
-  filterHotels(); // טוען מלונות ראשוני
-  clearForm(); // מנקה את הטופס לאחר טעינה
-}
+// --- טעינה ראשונית: מתחיל בטעינת ה-JSON החיצוני ---
+window.onload = loadExternalData;
 </script>
 </body>
 </html>
