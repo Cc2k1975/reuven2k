@@ -37,7 +37,7 @@ body{
     margin:0 auto;
 }
 
-/* כותרת עליונה – CHARLES BBQ כמו שהיה יפה */
+/* כותרת עליונה – CHARLES BBQ */
 .hero{
     text-align:center;
     margin-bottom:18px;
@@ -62,6 +62,7 @@ body{
     font-size:26px;
     font-weight:800;
     letter-spacing:.08em;
+    cursor:pointer; /* כדי שתרגיש שלחיץ */
 }
 .hero-sub{
     font-size:14px;
@@ -182,6 +183,7 @@ body{
     grid-template-columns:repeat(3,1fr);
     gap:8px;
     box-shadow:0 -6px 16px rgba(0,0,0,0.4);
+    z-index:20;
 }
 
 button{
@@ -217,19 +219,94 @@ button{
     .footer-buttons{display:none !important;}
     .hero-badge{display:none;}
 }
+
+/* --- חלון סודי להגדרת מחירים --- */
+.admin-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,0.85);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+}
+.admin-panel{
+    background:#ffffff;
+    color:var(--text-main);
+    border-radius:16px;
+    padding:16px;
+    width:90%;
+    max-width:500px;
+    max-height:80vh;
+    box-shadow:0 18px 40px rgba(0,0,0,0.6);
+    display:flex;
+    flex-direction:column;
+}
+.admin-title{
+    font-size:18px;
+    font-weight:700;
+    margin-bottom:4px;
+}
+.admin-sub{
+    font-size:12px;
+    color:var(--text-muted);
+    margin-bottom:10px;
+}
+.admin-list{
+    flex:1;
+    overflow-y:auto;
+    border-top:1px solid #e5e7eb;
+    border-bottom:1px solid #e5e7eb;
+    margin:8px 0;
+}
+.admin-row{
+    display:grid;
+    grid-template-columns:1.5fr auto auto;
+    gap:6px;
+    align-items:center;
+    padding:6px 0;
+    border-bottom:1px solid #f3f4f6;
+    font-size:14px;
+}
+.admin-row:last-child{border-bottom:none;}
+.admin-name{font-weight:600;}
+.admin-row input{
+    width:80px;
+    padding:4px 6px;
+    border-radius:999px;
+    border:1px solid #cbd5e1;
+    text-align:center;
+}
+.admin-unit{font-size:13px;color:var(--text-muted);}
+.admin-buttons{
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+    margin-top:6px;
+}
+.admin-btn{
+    padding:7px 12px;
+    border-radius:999px;
+    border:none;
+    cursor:pointer;
+    font-size:13px;
+    font-weight:600;
+}
+.admin-cancel{background:#e5e7eb;color:#374151;}
+.admin-save{background:#22c55e;color:#052e16;}
 </style>
 </head>
 
 <body>
 <div class="app-shell">
 
-    <!-- HEADER יפה כמו שאהבת -->
+    <!-- HEADER יפה + טריגר ללחיצה ארוכה -->
     <div class="hero">
         <div class="hero-badge">
             <span class="hero-badge-dot"></span>
             <span>מחשבון על האש – CHARLES BBQ</span>
         </div>
-        <div class="hero-title">CHARLES BBQ</div>
+        <div id="heroTitle" class="hero-title">CHARLES BBQ</div>
         <div class="hero-sub">מכניסים מספר סועדים, מסמנים מה קונים – והמחשבון עושה את כל החישובים</div>
     </div>
 
@@ -298,7 +375,7 @@ button{
         <div id="otherList"></div>
     </div>
 
-    <!-- לא לשכוח לקחת – אחרי חד"פ כמו שביקשת -->
+    <!-- לא לשכוח לקחת -->
     <div class="card">
         <div class="card-header">
             <div class="card-title">לא לשכוח לקחת</div>
@@ -316,12 +393,25 @@ button{
     <button class="btn-whatsapp" onclick="sendWhatsapp()">🟢 ווצאפ</button>
 </div>
 
+<!-- חלון סודי להגדרת מחירים -->
+<div id="adminOverlay" class="admin-overlay">
+    <div class="admin-panel">
+        <div class="admin-title">הגדרת מחירים – מצב מנהל</div>
+        <div class="admin-sub">לחצת 3 שניות על CHARLES BBQ – כאן אפשר לעדכן מחירי מוצרים. הנתונים נשמרים בדפדפן.</div>
+        <div id="adminList" class="admin-list"></div>
+        <div class="admin-buttons">
+            <button class="admin-btn admin-cancel" onclick="closeAdmin()">ביטול</button>
+            <button class="admin-btn admin-save" onclick="saveAdmin()">שמירת מחירים</button>
+        </div>
+    </div>
+</div>
+
 <script>
 /////////////////////////////////////////////////////////////
-// DATA – לפי בשר2, לא משנה כלום
+// DATA – לפי בשר2, לא משנה כלום בערכים הראשוניים
 /////////////////////////////////////////////////////////////
 
-const DATA = [
+let DATA = [
     // בשרים
     {name:"אנטריקוט", price:100, perPerson:0.25, category:"meat"},
     {name:"מרגז", price:60, perPerson:0.125, category:"meat"},
@@ -364,6 +454,28 @@ const NO_FORGET = [
     "מפצל חשמל","מאריך חשמל","כיסאות","מקרן",
     "ערכת עזרה ראשונה","מפת שולחן","צידניות","קרחונים","גזיות","רכב גדול"
 ];
+
+/////////////////////////////////////////////////////////////
+// טעינת מחירים מותאמים מ-localStorage (אם קיימים)
+/////////////////////////////////////////////////////////////
+
+function loadPricesFromStorage(){
+    try{
+        const raw = localStorage.getItem("charlesBBQPrices");
+        if(!raw) return;
+        const map = JSON.parse(raw);
+        DATA = DATA.map(item=>{
+            if(map[item.name] != null && !isNaN(map[item.name])){
+                return {...item, price:Number(map[item.name])};
+            }
+            return item;
+        });
+    }catch(e){
+        console.log("cannot load prices", e);
+    }
+}
+
+loadPricesFromStorage();
 
 /////////////////////////////////////////////////////////////
 // יצירת שורות – עם כותרת משקל/מחיר לכל פריט
@@ -473,6 +585,85 @@ function sendWhatsapp(){
     const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(msg);
     window.open(url, "_blank");
 }
+
+/////////////////////////////////////////////////////////////
+// חלון סודי – לחיצה ארוכה 3 שניות על CHARLES BBQ
+/////////////////////////////////////////////////////////////
+
+let longPressTimer = null;
+
+function setupLongPress(){
+    const title = document.getElementById("heroTitle");
+    if(!title) return;
+
+    const start = (e)=>{
+        e.preventDefault();
+        longPressTimer = setTimeout(()=>{
+            openAdmin();
+        }, 3000); // 3 שניות
+    };
+    const cancel = ()=>{
+        if(longPressTimer){
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    };
+
+    title.addEventListener("mousedown", start);
+    title.addEventListener("touchstart", start);
+    ["mouseup","mouseleave","touchend","touchcancel"].forEach(ev=>{
+        title.addEventListener(ev, cancel);
+    });
+}
+
+function openAdmin(){
+    const overlay = document.getElementById("adminOverlay");
+    const listDiv = document.getElementById("adminList");
+    listDiv.innerHTML = "";
+
+    DATA.forEach((item,idx)=>{
+        listDiv.insertAdjacentHTML(
+            'beforeend',
+            `<div class="admin-row">
+                <span class="admin-name">${item.name}</span>
+                <input type="number" step="0.1" min="0" value="${item.price}" data-idx="${idx}">
+                <span class="admin-unit">₪ ליחידה</span>
+             </div>`
+        );
+    });
+
+    overlay.style.display = "flex";
+}
+
+function closeAdmin(){
+    document.getElementById("adminOverlay").style.display = "none";
+}
+
+function saveAdmin(){
+    const inputs = document.querySelectorAll("#adminList input[data-idx]");
+    const priceMap = {};
+    inputs.forEach(inp=>{
+        const idx = Number(inp.getAttribute("data-idx"));
+        const val = parseFloat(inp.value);
+        if(!isNaN(val) && val >= 0){
+            DATA[idx].price = val;
+            priceMap[DATA[idx].name] = val;
+        }
+    });
+
+    // שמירה ל-localStorage כדי שישאר אחרי רענון
+    try{
+        localStorage.setItem("charlesBBQPrices", JSON.stringify(priceMap));
+    }catch(e){
+        console.log("cannot save prices", e);
+    }
+
+    closeAdmin();
+    calc();
+}
+
+// להגדיר את הלחיצה הארוכה
+setupLongPress();
 </script>
 
 </body>
