@@ -6,6 +6,10 @@
 
 <title>Charles BBQ – רשימת קניות על האש</title>
 
+<!-- Firebase v8 – טעינה דרך CDN -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 <style>
 :root{
     --bg-top:#0f172a;
@@ -133,13 +137,24 @@ body{
     font-weight:800;
 }
 
-/* קלט משתתפים */
+/* קלט משתתפים – גברים/נשים/ילדים */
 .people-input{
     margin-top:4px;
 }
+.people-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+}
+.people-input label{
+    display:block;
+    font-size:12px;
+    color:var(--text-muted);
+    margin-bottom:2px;
+}
 .people-input input{
-    width:120px;
-    padding:7px 10px;
+    width:100%;
+    padding:7px 8px;
     font-size:16px;
     border-radius:999px;
     border:1px solid #cbd5e1;
@@ -220,7 +235,7 @@ button{
     .hero-badge{display:none;}
 }
 
-/* --- חלון סודי להגדרת מחירים --- */
+/* --- חלון סודי להגדרת מחירים (נשאר – נעדכן לפיירבייס) --- */
 .admin-overlay{
     position:fixed;
     inset:0;
@@ -294,6 +309,67 @@ button{
 }
 .admin-cancel{background:#e5e7eb;color:#374151;}
 .admin-save{background:#22c55e;color:#052e16;}
+
+/* חלון עריכת מוצר בודד (לחיצה ארוכה על שם המוצר) */
+#editPopup{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.55);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:60;
+}
+#editBox{
+    background:#ffffff;
+    color:#111827;
+    padding:18px;
+    width:90%;
+    max-width:380px;
+    border-radius:14px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.45);
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial;
+}
+#editBox h3{
+    margin:0 0 10px;
+    font-size:18px;
+}
+#editBox label{
+    display:block;
+    font-size:13px;
+    margin-top:8px;
+    margin-bottom:2px;
+}
+#editBox input{
+    width:100%;
+    padding:7px 8px;
+    border-radius:8px;
+    border:1px solid #cbd5e1;
+    font-size:14px;
+}
+#editButtons{
+    display:flex;
+    justify-content:space-between;
+    margin-top:12px;
+}
+#editButtons button{
+    flex:1;
+    margin:0 4px;
+    padding:9px 0;
+    border-radius:999px;
+    border:none;
+    cursor:pointer;
+    font-weight:600;
+    font-size:14px;
+}
+#btnCancel{background:#e5e7eb;color:#374151;}
+#btnSave{background:#22c55e;color:#052e16;}
+
+.item-name{
+    cursor:pointer;
+    text-decoration:underline;
+    text-decoration-style:dotted;
+}
 </style>
 </head>
 
@@ -310,14 +386,27 @@ button{
         <div class="hero-sub">מכניסים מספר סועדים, מסמנים מה קונים – והמחשבון עושה את כל החישובים</div>
     </div>
 
-    <!-- כמות משתתפים – ברירת מחדל 1 -->
+    <!-- כמות משתתפים – גברים / נשים / ילדים -->
     <div class="card">
         <div class="card-header">
             <div class="card-title">כמות משתתפים</div>
             <div class="card-tag">שלב 1</div>
         </div>
         <div class="people-input">
-            <input id="people" type="number" value="1" min="1" oninput="calc()">
+            <div class="people-grid">
+                <div>
+                    <label for="menCount">גברים</label>
+                    <input id="menCount" type="number" value="0" min="0" oninput="calc()">
+                </div>
+                <div>
+                    <label for="womenCount">נשים</label>
+                    <input id="womenCount" type="number" value="0" min="0" oninput="calc()">
+                </div>
+                <div>
+                    <label for="kidsCount">ילדים</label>
+                    <input id="kidsCount" type="number" value="0" min="0" oninput="calc()">
+                </div>
+            </div>
         </div>
     </div>
 
@@ -397,11 +486,11 @@ button{
     <button class="btn-whatsapp" onclick="sendWhatsapp()">🟢 ווצאפ</button>
 </div>
 
-<!-- חלון סודי להגדרת מחירים -->
+<!-- חלון סודי להגדרת מחירים (לכל המוצרים בבת אחת) -->
 <div id="adminOverlay" class="admin-overlay">
     <div class="admin-panel">
         <div class="admin-title">הגדרת מחירים – מצב מנהל</div>
-        <div class="admin-sub">לחצת 3 שניות על CHARLES BBQ – כאן אפשר לעדכן מחירי מוצרים. הנתונים נשמרים בדפדפן.</div>
+        <div class="admin-sub">לחצת 3 שניות על CHARLES BBQ – כאן אפשר לעדכן מחירי מוצרים (נשמר בפיירבייס).</div>
         <div id="adminList" class="admin-list"></div>
         <div class="admin-buttons">
             <button class="admin-btn admin-cancel" onclick="closeAdmin()">ביטול</button>
@@ -410,13 +499,49 @@ button{
     </div>
 </div>
 
+<!-- חלון עריכת מוצר בודד – לחיצה ארוכה על שם המוצר -->
+<div id="editPopup">
+  <div id="editBox">
+    <h3 id="editTitle"></h3>
+
+    <label>מחיר (₪):</label>
+    <input id="inputPrice" type="number" step="0.1" min="0">
+
+    <label>כמות לגבר (יחידות / ק״ג):</label>
+    <input id="inputMen" type="number" step="0.001" min="0">
+
+    <label>כמות לאישה (יחידות / ק״ג):</label>
+    <input id="inputWomen" type="number" step="0.001" min="0">
+
+    <label>כמות לילד (יחידות / ק״ג):</label>
+    <input id="inputKids" type="number" step="0.001" min="0">
+
+    <div id="editButtons">
+      <button id="btnCancel">ביטול</button>
+      <button id="btnSave">שמור</button>
+    </div>
+  </div>
+</div>
+
 <script>
+// === Firebase init (v8) ===
+var firebaseConfig = {
+  apiKey: "AIzaSyD22egEOUQVw6gni9GdBEsRV8xeFxS8LC4",
+  authDomain: "basar-22170.firebaseapp.com",
+  databaseURL: "https://basar-22170-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "basar-22170",
+  storageBucket: "basar-22170.firebasestorage.app",
+  messagingSenderId: "263079371932",
+  appId: "1:263079371932:web:e83390dad2915e6be67959"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+
 /////////////////////////////////////////////////////////////
-// DATA – עכשיו נטען מ-meat.json במקום להיות קשיח
+// DATA – עכשיו נטען מ-Firebase (products) במקום מ-meat.json
 /////////////////////////////////////////////////////////////
 
 let DATA = [];
-const JSON_URL = "https://reuven2k.com/data/meat.json";
 
 const NO_FORGET = [
     "מנגל","מלקחיים","גנרטור","קובית כוח","גרילנדה","פרוזקטור",
@@ -460,26 +585,6 @@ const FIXED_ITEMS = new Set([
 ]);
 
 /////////////////////////////////////////////////////////////
-// טעינת מחירים מותאמים מ-localStorage (אם קיימים)
-/////////////////////////////////////////////////////////////
-
-function loadPricesFromStorage(){
-    try{
-        const raw = localStorage.getItem("charlesBBQPrices");
-        if(!raw) return;
-        const map = JSON.parse(raw);
-        DATA = DATA.map(item=>{
-            if(map[item.name] != null && !isNaN(map[item.name])){
-                return {...item, price:Number(map[item.name])};
-            }
-            return item;
-        });
-    }catch(e){
-        console.log("cannot load prices", e);
-    }
-}
-
-/////////////////////////////////////////////////////////////
 // יצירת שורות – עם "משקל (ק״ג)" או "יחידות" לפי סוג המוצר
 /////////////////////////////////////////////////////////////
 
@@ -490,7 +595,7 @@ function buildRow(item){
         <div class="row">
             <label>
                 <input type="checkbox" data-name="${id}" onchange="calc()">
-                ${item.name}
+                <span class="item-name" data-name="${id}">${item.name}</span>
             </label>
             <div class="row-amount">
                 <div class="amount-label">${labelText}</div>
@@ -505,6 +610,13 @@ function buildRow(item){
 }
 
 function renderLists(){
+    // לנקות לפני בניה מחדש
+    document.getElementById("meatList").innerHTML   = "";
+    document.getElementById("sidesList").innerHTML  = "";
+    document.getElementById("drinksList").innerHTML = "";
+    document.getElementById("otherList").innerHTML  = "";
+    document.getElementById("noForgetList").innerHTML = "";
+
     DATA.forEach(item=>{
         const html = buildRow(item);
 
@@ -520,16 +632,21 @@ function renderLists(){
             `<div class="row"><label><input type="checkbox"> ${n}</label></div>`
         );
     });
+
+    attachNameLongPressHandlers();
 }
 
 /////////////////////////////////////////////////////////////
-// חישוב – כמו באקסל, עם:
-// * FIXED_ITEMS = תמיד כמות 1
-// * meatPerPerson = גרם בשר לסועד
+// חישוב לפי גברים / נשים / ילדים
 /////////////////////////////////////////////////////////////
 
 function calc(){
-    const people = Number(document.getElementById("people").value) || 1;
+    const men   = Number(document.getElementById("menCount").value)   || 0;
+    const women = Number(document.getElementById("womenCount").value) || 0;
+    const kids  = Number(document.getElementById("kidsCount").value)  || 0;
+
+    const totalPeople = men + women + kids || 1;
+
     let total = 0;
     let meatTotalKg = 0; // סה"כ בשר ודגים בק"ג
 
@@ -537,18 +654,30 @@ function calc(){
         const id = item.name.replace(/\s+/g,'_').replace(/[()]/g,'');
         const cb = document.querySelector(`input[data-name="${id}"]`);
 
+        const amountEl = document.getElementById(`amount-${id}`);
+        const costEl   = document.getElementById(`cost-${id}`);
+
+        if(!amountEl || !costEl) return;
+
         if(cb && cb.checked){
             let amount;
+
             if(FIXED_ITEMS.has(item.name)){
-                amount = 1; // לא תלוי במס' סועדים
+                // פריטים קבועים – תמיד 1
+                amount = 1;
             }else{
-                amount = item.perPerson * people;
+                const perMen   = typeof item.perMen   === "number" ? item.perMen   : 0;
+                const perWomen = typeof item.perWomen === "number" ? item.perWomen : 0;
+                const perKids  = typeof item.perKids  === "number" ? item.perKids  : 0;
+
+                amount = perMen * men + perWomen * women + perKids * kids;
             }
 
-            const cost = amount * item.price;
+            const price = Number(item.price) || 0;
+            const cost  = amount * price;
 
-            document.getElementById(`amount-${id}`).textContent = amount.toFixed(2);
-            document.getElementById(`cost-${id}`).textContent   = cost.toFixed(1);
+            amountEl.textContent = amount.toFixed(2);
+            costEl.textContent   = cost.toFixed(1);
 
             total += cost;
 
@@ -556,34 +685,38 @@ function calc(){
                 meatTotalKg += amount;
             }
         } else {
-            document.getElementById(`amount-${id}`).textContent = "0.00";
-            document.getElementById(`cost-${id}`).textContent   = "0.0";
+            amountEl.textContent = "0.00";
+            costEl.textContent   = "0.0";
         }
     });
 
     document.getElementById("totalCost").textContent = total.toFixed(2);
-    document.getElementById("perPerson").textContent = (total / people).toFixed(2);
+    document.getElementById("perPerson").textContent = (total / (totalPeople || 1)).toFixed(2);
 
     // כמות בשר לסועד בגרמים
     let meatPerPersonGrams = 0;
-    if(people > 0){
-        meatPerPersonGrams = (meatTotalKg / people) * 1000;
+    if(totalPeople > 0){
+        meatPerPersonGrams = (meatTotalKg / totalPeople) * 1000;
     }
     document.getElementById("meatPerPerson").textContent = meatPerPersonGrams.toFixed(0);
 }
 
 /////////////////////////////////////////////////////////////
-// ווצאפ – נשאר כמו שהיה, עם הטקסט של יחידות/ק"ג
+// ווצאפ – מעודכן לגברים/נשים/ילדים
 /////////////////////////////////////////////////////////////
 
 function sendWhatsapp(){
     const total = document.getElementById("totalCost").textContent;
-    const per = document.getElementById("perPerson").textContent;
+    const per   = document.getElementById("perPerson").textContent;
     const meatPer = document.getElementById("meatPerPerson").textContent;
-    const people = document.getElementById("people").value;
+
+    const men   = Number(document.getElementById("menCount").value)   || 0;
+    const women = Number(document.getElementById("womenCount").value) || 0;
+    const kids  = Number(document.getElementById("kidsCount").value)  || 0;
+    const totalPeople = men + women + kids;
 
     let msg = `🔥 Charles BBQ – רשימת קניות למנגל\n`;
-    msg += `משתתפים: ${people}\n`;
+    msg += `משתתפים: ${totalPeople} (גברים: ${men}, נשים: ${women}, ילדים: ${kids})\n`;
     msg += `סה\"כ הוצאה: ${total} ₪\n`;
     msg += `לכל משתתף: ${per} ₪\n`;
     msg += `כמות בשר לסועד: ${meatPer} גרם\n\n`;
@@ -608,7 +741,7 @@ function sendWhatsapp(){
 }
 
 /////////////////////////////////////////////////////////////
-// חלון סודי – לחיצה ארוכה 3 שניות על CHARLES BBQ
+// חלון סודי – לחיצה ארוכה 3 שניות על CHARLES BBQ (עדכון מחירים)
 /////////////////////////////////////////////////////////////
 
 let longPressTimer = null;
@@ -662,48 +795,140 @@ function closeAdmin(){
 
 function saveAdmin(){
     const inputs = document.querySelectorAll("#adminList input[data-idx]");
-    const priceMap = {};
     inputs.forEach(inp=>{
         const idx = Number(inp.getAttribute("data-idx"));
         const val = parseFloat(inp.value);
         if(!isNaN(val) && val >= 0){
-            DATA[idx].price = val;
-            priceMap[DATA[idx].name] = val;
+            const item = DATA[idx];
+            item.price = val;
+            // עדכון בפיירבייס
+            db.ref("products/" + item.name + "/price").set(val);
         }
     });
-
-    try{
-        localStorage.setItem("charlesBBQPrices", JSON.stringify(priceMap));
-    }catch(e){
-        console.log("cannot save prices", e);
-    }
 
     closeAdmin();
     calc();
 }
 
-// להגדיר את הלחיצה הארוכה
-setupLongPress();
-
 /////////////////////////////////////////////////////////////
-// אתחול – טעינת JSON ואז בנייה וחישוב
+// חלון עריכת מוצר בודד – לחיצה ארוכה על שם המוצר
 /////////////////////////////////////////////////////////////
 
-async function initFromJson(){
-    try{
-        const res = await fetch(JSON_URL);
-        const json = await res.json();
-        DATA = json;                 // נטען מהשרת
-        loadPricesFromStorage();     // דריסה אם יש מחירים מקומיים
-        renderLists();               // בניית השורות
-        calc();                      // חישוב ראשוני
-    }catch(e){
-        console.log("cannot load meat.json", e);
-        alert("לא ניתן לטעון את רשימת המוצרים מהשרת.");
-    }
+let currentEditItem = null;
+
+function attachNameLongPressHandlers(){
+    DATA.forEach(item=>{
+        const id = item.name.replace(/\s+/g,'_').replace(/[()]/g,'');
+        const el = document.querySelector(`.item-name[data-name="${id}"]`);
+        if(!el) return;
+        attachLongPressToName(el, item);
+    });
 }
 
-initFromJson();
+function attachLongPressToName(el, item){
+    let timer = null;
+
+    const start = (e)=>{
+        e.preventDefault();
+        timer = setTimeout(()=>{
+            openEditor(item);
+        }, 1500); // 1.5 שניות
+    };
+
+    const cancel = ()=>{
+        if(timer){
+            clearTimeout(timer);
+            timer = null;
+        }
+    };
+
+    el.addEventListener("mousedown", start);
+    el.addEventListener("touchstart", start);
+    ["mouseup","mouseleave","touchend","touchcancel"].forEach(ev=>{
+        el.addEventListener(ev, cancel);
+    });
+}
+
+function openEditor(item){
+    currentEditItem = item;
+    document.getElementById("editTitle").textContent = item.name;
+
+    document.getElementById("inputPrice").value  = (item.price   != null ? item.price   : "");
+    document.getElementById("inputMen").value    = (item.perMen  != null ? item.perMen  : "");
+    document.getElementById("inputWomen").value  = (item.perWomen!= null ? item.perWomen: "");
+    document.getElementById("inputKids").value   = (item.perKids != null ? item.perKids : "");
+
+    document.getElementById("editPopup").style.display = "flex";
+}
+
+document.getElementById("btnCancel").onclick = function(){
+    document.getElementById("editPopup").style.display = "none";
+};
+
+document.getElementById("btnSave").onclick = function(){
+    if(!currentEditItem) return;
+
+    const priceVal = parseFloat(document.getElementById("inputPrice").value);
+    const menVal   = parseFloat(document.getElementById("inputMen").value);
+    const womenStr = document.getElementById("inputWomen").value;
+    const kidsStr  = document.getElementById("inputKids").value;
+
+    const womenVal = womenStr === "" ? null : parseFloat(womenStr);
+    const kidsVal  = kidsStr  === "" ? null : parseFloat(kidsStr);
+
+    const updateObj = {
+        price:  !isNaN(priceVal) ? priceVal : 0,
+        perMen: !isNaN(menVal)   ? menVal   : 0,
+        perWomen: womenVal,
+        perKids:  kidsVal
+    };
+
+    const name = currentEditItem.name;
+
+    db.ref("products/" + name).update(updateObj).then(()=>{
+        // לעדכן גם בזיכרון
+        currentEditItem.price   = updateObj.price;
+        currentEditItem.perMen  = updateObj.perMen;
+        currentEditItem.perWomen= updateObj.perWomen;
+        currentEditItem.perKids = updateObj.perKids;
+
+        document.getElementById("editPopup").style.display = "none";
+        calc();
+        alert("הפריט נשמר בהצלחה בפיירבייס");
+    }).catch(err=>{
+        console.log(err);
+        alert("שגיאה בשמירה לפיירבייס");
+    });
+};
+
+/////////////////////////////////////////////////////////////
+// אתחול – טעינת נתונים מפיירבייס ואז בנייה וחישוב
+/////////////////////////////////////////////////////////////
+
+function initFromFirebase(){
+    db.ref("products").once("value").then(snap=>{
+        const obj = snap.val() || {};
+        DATA = Object.keys(obj).map(name=>({
+            name,
+            price: obj[name].price,
+            category: obj[name].category,
+            perMen: obj[name].perMen,
+            perWomen: obj[name].perWomen,
+            perKids: obj[name].perKids
+        }));
+        renderLists();
+        calc();
+    }).catch(e=>{
+        console.log("cannot load products from firebase", e);
+        alert("לא ניתן לטעון את רשימת המוצרים מפיירבייס.");
+    });
+}
+
+// להגדיר את הלחיצה הארוכה על כותרת CHARLES
+setupLongPress();
+
+// הפעלה ראשונית
+initFromFirebase();
 </script>
 
 </body>
