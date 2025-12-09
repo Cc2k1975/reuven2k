@@ -62,7 +62,7 @@ body{
     font-size:26px;
     font-weight:800;
     letter-spacing:.08em;
-    cursor:pointer; /* כדי שתרגיש שלחיץ */
+    cursor:pointer;
 }
 .hero-sub{
     font-size:14px;
@@ -114,7 +114,7 @@ body{
     color:var(--text-main);
 }
 
-/* עמודות משקל ומחיר */
+/* עמודות משקל/יחידות ומחיר */
 .row-amount, .row-cost{
     text-align:center;
     color:var(--text-main);
@@ -339,9 +339,9 @@ button{
     <div class="card">
         <div class="card-header">
             <div class="card-title">בשרים ודגים</div>
-            <div class="card-tag">כמות ומשקל מחושבים לפי סועדים</div>
+            <div class="card-tag">כמות מחושבת לפי סועדים</div>
         </div>
-        <div class="section-title">פריט · משקל · מחיר</div>
+        <div class="section-title">פריט · כמות · מחיר</div>
         <div id="meatList"></div>
     </div>
 
@@ -351,7 +351,7 @@ button{
             <div class="card-title">סלטים, תוספות ולחמים</div>
             <div class="card-tag">כולל סלטים, פיתות, ירקות</div>
         </div>
-        <div class="section-title">פריט · משקל · מחיר</div>
+        <div class="section-title">פריט · כמות · מחיר</div>
         <div id="sidesList"></div>
     </div>
 
@@ -361,7 +361,7 @@ button{
             <div class="card-title">שתייה וקינוחים</div>
             <div class="card-tag">שתייה מתוקה, מים, בירה, יין, קינוח</div>
         </div>
-        <div class="section-title">פריט · משקל · מחיר</div>
+        <div class="section-title">פריט · כמות · מחיר</div>
         <div id="drinksList"></div>
     </div>
 
@@ -371,7 +371,7 @@ button{
             <div class="card-title">חד״פ, ניקיון ותפעול</div>
             <div class="card-tag">פחמים, גז, חד״פ, דלק ועוד</div>
         </div>
-        <div class="section-title">פריט · משקל · מחיר</div>
+        <div class="section-title">פריט · כמות · מחיר</div>
         <div id="otherList"></div>
     </div>
 
@@ -408,7 +408,7 @@ button{
 
 <script>
 /////////////////////////////////////////////////////////////
-// DATA – לפי בשר2, לא משנה כלום בערכים הראשוניים
+// DATA – לפי בשר2, עם קריאה מה-localStorage
 /////////////////////////////////////////////////////////////
 
 let DATA = [
@@ -456,6 +456,26 @@ const NO_FORGET = [
 ];
 
 /////////////////////////////////////////////////////////////
+// מוצרים שמוצגים כ"יחידות" במקום "משקל (ק״ג)"
+/////////////////////////////////////////////////////////////
+
+const UNIT_ITEMS = new Set([
+    "סלט",
+    "פיתה",
+    "נענע",
+    "בקבוק שתיה מתוקה",
+    "בירה",
+    "יין",
+    "מים",
+    "פחמים",
+    "שמן",
+    "נייר ניגוב (חבילה של 6)",
+    "סכום + צלחות",
+    "תבניות אלומיניום",
+    "מיכל גז"
+]);
+
+/////////////////////////////////////////////////////////////
 // טעינת מחירים מותאמים מ-localStorage (אם קיימים)
 /////////////////////////////////////////////////////////////
 
@@ -478,11 +498,12 @@ function loadPricesFromStorage(){
 loadPricesFromStorage();
 
 /////////////////////////////////////////////////////////////
-// יצירת שורות – עם כותרת משקל/מחיר לכל פריט
+// יצירת שורות – עם "משקל (ק״ג)" או "יחידות" לפי סוג המוצר
 /////////////////////////////////////////////////////////////
 
 function buildRow(item){
     const id = item.name.replace(/\s+/g,'_').replace(/[()]/g,'');
+    const labelText = UNIT_ITEMS.has(item.name) ? "יחידות" : "משקל (ק״ג)";
     return `
         <div class="row">
             <label>
@@ -490,7 +511,7 @@ function buildRow(item){
                 ${item.name}
             </label>
             <div class="row-amount">
-                <div class="amount-label">משקל (ק״ג)</div>
+                <div class="amount-label">${labelText}</div>
                 <div class="amount-value" id="amount-${id}">0.00</div>
             </div>
             <div class="row-cost">
@@ -534,7 +555,7 @@ function calc(){
         const cb = document.querySelector(`input[data-name="${id}"]`);
 
         if(cb && cb.checked){
-            const amount = item.perPerson * people;   // משקל בק״ג
+            const amount = item.perPerson * people;   // כמות (ק״ג או יחידות)
             const cost   = amount * item.price;       // מחיר כולל
 
             document.getElementById(`amount-${id}`).textContent = amount.toFixed(2);
@@ -555,7 +576,7 @@ function calc(){
 calc();
 
 /////////////////////////////////////////////////////////////
-// ווצאפ – נשאר כמו שהיה, רק משתמש בפורמט החדש
+// ווצאפ – נשאר כמו שהיה
 /////////////////////////////////////////////////////////////
 
 function sendWhatsapp(){
@@ -578,7 +599,8 @@ function sendWhatsapp(){
         if(cb && cb.checked){
             const amount = amountEl ? amountEl.textContent : "0.00";
             const cost   = costEl ? costEl.textContent : "0.0";
-            msg += `• ${item.name} – משקל ${amount} ק\"ג – מחיר ${cost} ₪\n`;
+            const labelText = UNIT_ITEMS.has(item.name) ? "יחידות" : "ק\"ג";
+            msg += `• ${item.name} – ${amount} ${labelText} – מחיר ${cost} ₪\n`;
         }
     });
 
@@ -651,7 +673,6 @@ function saveAdmin(){
         }
     });
 
-    // שמירה ל-localStorage כדי שישאר אחרי רענון
     try{
         localStorage.setItem("charlesBBQPrices", JSON.stringify(priceMap));
     }catch(e){
