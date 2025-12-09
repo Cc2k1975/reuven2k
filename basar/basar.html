@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Charles BBQ – רשימת קניות</title>
+
+<style>
+    body {
+        font-family: Arial;
+        background: #eef2f7;
+        padding: 15px;
+        margin: 0;
+    }
+
+    h2 {
+        background: #3b82f6;
+        color: white;
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 25px;
+        font-size: 20px;
+    }
+
+    .card {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 15px;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+    }
+
+    .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .row:last-child { border-bottom: none; }
+
+    label {
+        font-size: 16px;
+    }
+
+    input[type="number"] {
+        width: 90px;
+        padding: 6px;
+        font-size: 16px;
+    }
+
+    .summary-box {
+        background: #dbeafe;
+        padding: 15px;
+        border-radius: 10px;
+        margin-top: 10px;
+        font-size: 18px;
+    }
+
+    button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 15px;
+        font-size: 18px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    #printBtn { background: #2563eb; color: white; }
+    #pdfBtn   { background: #10b981; color: white; }
+    #mailBtn  { background: #f59e0b; color: white; }
+</style>
+</head>
+
+<body>
+
+<h2>כמות משתתפים</h2>
+<div class="card">
+    <input id="people" type="number" value="10" min="1" oninput="calc()">
+</div>
+
+<h2>סיכום</h2>
+<div class="summary-box">
+    <div>סה"כ הוצאה: <span id="totalCost">0.00</span> ₪</div>
+    <div>השתתפות לעובד: <span id="perPerson">0.00</span> ₪</div>
+</div>
+
+<!-- לא לשכוח לקחת -->
+<h2>לא לשכוח לקחת</h2>
+<div class="card" id="noForgetList"></div>
+
+<!-- רשימת קניות -->
+<h2>רשימת קניות</h2>
+<div class="card" id="shoppingList"></div>
+
+<button id="printBtn" onclick="window.print()">הדפס</button>
+<button id="pdfBtn">PDF</button>
+<button id="mailBtn">MAIL</button>
+
+
+<script>
+
+//////////////////////////////////////////////////////
+//  כל המוצרים המלאים מבשר2.xlsm EXACT 1:1
+//////////////////////////////////////////////////////
+
+const DATA = [
+    {name:"אנטריקוט", price:100, perPerson:0.25},
+    {name:"מרגז", price:60, perPerson:0.125},
+    {name:"צוריסו", price:60, perPerson:0.166666667},
+    {name:"פרגיות", price:60, perPerson:0.166666667},
+    {name:"פילה", price:150, perPerson:0.2},
+    {name:"פיקניה", price:110, perPerson:0.166666667},
+    {name:"קציצות", price:65, perPerson:0.166666667},
+    {name:"צלעות כבש", price:130, perPerson:0.17},
+    {name:"פטריות", price:35, perPerson:0.125},
+    {name:"דג סלמון", price:80, perPerson:0.2},
+    {name:"קינוח", price:60, perPerson:0.07},
+    {name:"בקבוק שתיה מתוקה", price:8, perPerson:0.50},
+    {name:"סלט", price:14, perPerson:0.50},
+    {name:"פיתה", price:1.5, perPerson:2.00},
+    {name:"בצל", price:5, perPerson:1.00},
+    {name:"בירה", price:14, perPerson:2.00},
+    {name:"יין", price:30, perPerson:0.20},
+    {name:"נענע", price:5, perPerson:0.10},
+    {name:"מים", price:3, perPerson:0.75},
+    {name:"פיצוחים", price:80, perPerson:0.05},
+    {name:"פחמים", price:80, perPerson:1.00},
+    {name:"שמן", price:10, perPerson:1.00},
+    {name:"דלק", price:30, perPerson:4.00},
+    {name:"נייר ניגוב (חבילה של 6)", price:15, perPerson:1.00},
+    {name:"סכום + צלחות", price:4, perPerson:1.00},
+    {name:"תבניות אלומיניום", price:15, perPerson:5.00},
+    {name:"מיכל גז", price:10, perPerson:1.00},
+];
+
+//////////////////////////////////////////////////////
+//  ציוד – בלי מחיר (לא לשכוח)
+//////////////////////////////////////////////////////
+
+const NO_FORGET = [
+"מנגל","מלקחיים","גנרטור","קובית כוח","גרילנדה","פרוזקטור",
+"מיכל דלק","שולחנות","בוצרים","סכינים","פלפל מלח",
+"אמודי גרילנדה","מפצל חשמל","מאריך חשמל","כיסאות","מקרן",
+"ערכת עזרה ראשונה","מפת שולחן","צידניות","קרחונים","גזיות","רכב גדול"
+];
+
+//////////////////////////////////////////////////////
+//  יצירת הרשימות בדף
+//////////////////////////////////////////////////////
+
+function renderLists() {
+
+    const shop = document.getElementById("shoppingList");
+    const forget = document.getElementById("noForgetList");
+
+    DATA.forEach(item=>{
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `
+            <label><input type="checkbox" onchange="calc()" data-name="${item.name}"> ${item.name}</label>
+            <span id="amount-${item.name}">0</span>
+            <span>₪ <span id="cost-${item.name}">0</span></span>
+        `;
+        shop.appendChild(row);
+    });
+
+    NO_FORGET.forEach(n=>{
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `<label><input type="checkbox"> ${n}</label>`;
+        forget.appendChild(row);
+    });
+}
+
+renderLists();
+
+//////////////////////////////////////////////////////
+//  החישוב – זהה לאקסל 1:1
+//////////////////////////////////////////////////////
+
+function calc() {
+    let people = Number(document.getElementById("people").value);
+    let total = 0;
+
+    DATA.forEach(item=>{
+        const cb = document.querySelector(`input[data-name="${item.name}"]`);
+        const amountEl = document.getElementById(`amount-${item.name}`);
+        const costEl = document.getElementById(`cost-${item.name}`);
+
+        if (cb.checked) {
+            let amount = item.perPerson * people;
+            let cost = amount * item.price;
+
+            amountEl.innerText = amount.toFixed(2);
+            costEl.innerText   = cost.toFixed(2);
+
+            total += cost;
+        } else {
+            amountEl.innerText = "0";
+            costEl.innerText = "0";
+        }
+    });
+
+    document.getElementById("totalCost").innerText = total.toFixed(2);
+    document.getElementById("perPerson").innerText = (total / people).toFixed(2);
+}
+
+</script>
+
+</body>
+</html>
