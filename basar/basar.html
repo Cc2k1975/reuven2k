@@ -152,7 +152,8 @@ body{
     color:var(--text-muted);
     margin-bottom:2px;
 }
-.people-input input{
+/* כאן שיניתי ל-select במקום input */
+.people-input select{
     width:100%;
     padding:7px 8px;
     font-size:16px;
@@ -386,7 +387,7 @@ button{
         <div class="hero-sub">מכניסים מספר סועדים, מסמנים מה קונים – והמחשבון עושה את כל החישובים</div>
     </div>
 
-    <!-- כמות משתתפים – גברים / נשים / ילדים -->
+    <!-- כמות משתתפים – גברים / נשים / ילדים (קומבובוקס 0–20) -->
     <div class="card">
         <div class="card-header">
             <div class="card-title">כמות משתתפים</div>
@@ -396,15 +397,15 @@ button{
             <div class="people-grid">
                 <div>
                     <label for="menCount">גברים</label>
-                    <input id="menCount" type="number" value="0" min="0" oninput="calc()">
+                    <select id="menCount" onchange="calc()"></select>
                 </div>
                 <div>
                     <label for="womenCount">נשים</label>
-                    <input id="womenCount" type="number" value="0" min="0" oninput="calc()">
+                    <select id="womenCount" onchange="calc()"></select>
                 </div>
                 <div>
                     <label for="kidsCount">ילדים</label>
-                    <input id="kidsCount" type="number" value="0" min="0" oninput="calc()">
+                    <select id="kidsCount" onchange="calc()"></select>
                 </div>
             </div>
         </div>
@@ -538,7 +539,7 @@ firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
 /////////////////////////////////////////////////////////////
-// DATA – עכשיו נטען מ-Firebase (products) במקום מ-meat.json
+// DATA – נטען מ-Firebase (products)
 /////////////////////////////////////////////////////////////
 
 let DATA = [];
@@ -902,6 +903,26 @@ document.getElementById("btnSave").onclick = function(){
 };
 
 /////////////////////////////////////////////////////////////
+// מילוי קומבובוקס 0–20 לגברים/נשים/ילדים
+/////////////////////////////////////////////////////////////
+
+function initPeopleSelects(){
+    const max = 20;
+    ["menCount","womenCount","kidsCount"].forEach(id=>{
+        const sel = document.getElementById(id);
+        if(!sel) return;
+        sel.innerHTML = "";
+        for(let i=0;i<=max;i++){
+            const opt = document.createElement("option");
+            opt.value = i;
+            opt.textContent = i;
+            sel.appendChild(opt);
+        }
+        sel.value = "0";
+    });
+}
+
+/////////////////////////////////////////////////////////////
 // אתחול – טעינת נתונים מפיירבייס ואז בנייה וחישוב
 /////////////////////////////////////////////////////////////
 
@@ -926,6 +947,9 @@ function initFromFirebase(){
 
 // להגדיר את הלחיצה הארוכה על כותרת CHARLES
 setupLongPress();
+
+// למלא קומבובוקסים של גברים/נשים/ילדים (0–20)
+initPeopleSelects();
 
 // הפעלה ראשונית
 initFromFirebase();
