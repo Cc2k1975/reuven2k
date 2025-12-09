@@ -261,7 +261,7 @@ button{
 }
 .admin-row{
     display:grid;
-    grid-template-columns:1.5fr auto auto;
+    grid-template-columns:1.4fr auto auto auto;
     gap:6px;
     align-items:center;
     padding:6px 0;
@@ -271,13 +271,14 @@ button{
 .admin-row:last-child{border-bottom:none;}
 .admin-name{font-weight:600;}
 .admin-row input{
-    width:80px;
+    width:70px;
     padding:4px 6px;
     border-radius:999px;
     border:1px solid #cbd5e1;
     text-align:center;
+    font-size:13px;
 }
-.admin-unit{font-size:13px;color:var(--text-muted);}
+.admin-unit{font-size:11px;color:var(--text-muted);text-align:left;}
 .admin-buttons{
     display:flex;
     justify-content:flex-end;
@@ -401,7 +402,10 @@ button{
 <div id="adminOverlay" class="admin-overlay">
     <div class="admin-panel">
         <div class="admin-title">הגדרת מחירים – מצב מנהל</div>
-        <div class="admin-sub">לחצת 3 שניות על CHARLES BBQ – כאן אפשר לעדכן מחירי מוצרים. הנתונים נשמרים בדפדפן.</div>
+        <div class="admin-sub">
+            לחצת 3 שניות על CHARLES BBQ – כאן אפשר לעדכן מחירי מוצרים וכמות לסועד.
+            הנתונים נשמרים בדפדפן.
+        </div>
         <div id="adminList" class="admin-list"></div>
         <div class="admin-buttons">
             <button class="admin-btn admin-cancel" onclick="closeAdmin()">ביטול</button>
@@ -494,7 +498,8 @@ const FIXED_ITEMS = new Set([
 ]);
 
 /////////////////////////////////////////////////////////////
-// טעינת מחירים מותאמים מ-localStorage (אם קיימים)
+// טעינת הגדרות (מחיר + perPerson) מ-localStorage
+// תומך גם בפורמט הישן (map[name] = price בלבד)
 /////////////////////////////////////////////////////////////
 
 function loadPricesFromStorage(){
@@ -503,10 +508,22 @@ function loadPricesFromStorage(){
         if(!raw) return;
         const map = JSON.parse(raw);
         DATA = DATA.map(item=>{
-            if(map[item.name] != null && !isNaN(map[item.name])){
-                return {...item, price:Number(map[item.name])};
+            const cfg = map[item.name];
+            if(cfg == null) return item;
+
+            const updated = {...item};
+            if(typeof cfg === "number"){
+                // פורמט ישן – רק מחיר
+                if(!isNaN(cfg)) updated.price = Number(cfg);
+            }else if(typeof cfg === "object"){
+                if(typeof cfg.price === "number" && !isNaN(cfg.price)){
+                    updated.price = cfg.price;
+                }
+                if(typeof cfg.perPerson === "number" && !isNaN(cfg.perPerson)){
+                    updated.perPerson = cfg.perPerson;
+                }
             }
-            return item;
+            return updated;
         });
     }catch(e){
         console.log("cannot load prices", e);
@@ -561,9 +578,7 @@ function renderLists(){
 renderLists();
 
 /////////////////////////////////////////////////////////////
-// חישוב – כמו באקסל, עם:
-// * FIXED_ITEMS = תמיד כמות 1
-// * meatPerPerson = גרם בשר לסועד
+// חישוב – כמו באקסל, עם FIXED_ITEMS וגרמים בשר לסועד
 /////////////////////////////////////////////////////////////
 
 function calc(){
@@ -578,7 +593,7 @@ function calc(){
         if(cb && cb.checked){
             let amount;
             if(FIXED_ITEMS.has(item.name)){
-                amount = 1; // לא תלוי במס' סועדים
+                amount = 1; // תמיד פריט אחד
             }else{
                 amount = item.perPerson * people;
             }
@@ -614,7 +629,7 @@ function calc(){
 calc();
 
 /////////////////////////////////////////////////////////////
-// ווצאפ – נשאר כמו שהיה, עם הטקסט של יחידות/ק"ג
+// ווצאפ – עם בשר לסועד + יחידות/ק"ג
 /////////////////////////////////////////////////////////////
 
 function sendWhatsapp(){
@@ -650,6 +665,7 @@ function sendWhatsapp(){
 
 /////////////////////////////////////////////////////////////
 // חלון סודי – לחיצה ארוכה 3 שניות על CHARLES BBQ
+// עכשיו כולל גם שינוי perPerson (כמות לסועד)
 /////////////////////////////////////////////////////////////
 
 let longPressTimer = null;
@@ -684,12 +700,14 @@ function openAdmin(){
     listDiv.innerHTML = "";
 
     DATA.forEach((item,idx)=>{
+        const unitLabel = UNIT_ITEMS.has(item.name) ? "יח' לסועד" : "ק\"ג לסועד";
         listDiv.insertAdjacentHTML(
             'beforeend',
-            `<div class="admin-row">
+            `<div class="admin-row" data-idx="${idx}">
                 <span class="admin-name">${item.name}</span>
-                <input type="number" step="0.1" min="0" value="${item.price}" data-idx="${idx}">
-                <span class="admin-unit">₪ ליחידה</span>
+                <input type="number" step="0.1" min="0" value="${item.price}" data-field="price">
+                <input type="number" step="0.01" min="0" value="${item.perPerson}" data-field="perPerson">
+                <span class="admin-unit">₪ ליחידה · ${unitLabel}</span>
              </div>`
         );
     });
@@ -702,19 +720,33 @@ function closeAdmin(){
 }
 
 function saveAdmin(){
-    const inputs = document.querySelectorAll("#adminList input[data-idx]");
-    const priceMap = {};
-    inputs.forEach(inp=>{
-        const idx = Number(inp.getAttribute("data-idx"));
-        const val = parseFloat(inp.value);
-        if(!isNaN(val) && val >= 0){
-            DATA[idx].price = val;
-            priceMap[DATA[idx].name] = val;
-        }
+    const rows = document.querySelectorAll("#adminList .admin-row");
+    const configMap = {};
+
+    rows.forEach(row=>{
+        const idx = Number(row.getAttribute("data-idx"));
+        if(isNaN(idx) || !DATA[idx]) return;
+
+        const priceInp = row.querySelector('input[data-field="price"]');
+        const perInp   = row.querySelector('input[data-field="perPerson"]');
+
+        let newPrice = parseFloat(priceInp.value);
+        let newPer   = parseFloat(perInp.value);
+
+        if(isNaN(newPrice) || newPrice < 0) newPrice = DATA[idx].price;
+        if(isNaN(newPer)   || newPer   < 0) newPer   = DATA[idx].perPerson;
+
+        DATA[idx].price = newPrice;
+        DATA[idx].perPerson = newPer;
+
+        configMap[DATA[idx].name] = {
+            price: newPrice,
+            perPerson: newPer
+        };
     });
 
     try{
-        localStorage.setItem("charlesBBQPrices", JSON.stringify(priceMap));
+        localStorage.setItem("charlesBBQPrices", JSON.stringify(configMap));
     }catch(e){
         console.log("cannot save prices", e);
     }
