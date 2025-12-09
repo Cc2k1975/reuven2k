@@ -574,7 +574,7 @@ firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
 let DATA = [];
-const NO_FORGET = [
+let NO_FORGET = [ // המערך ההתחלתי
     "מנגל","מלקחיים","גנרטור","קובית כוח","גרילנדה","פרוזקטור",
     "מיכל דלק","שולחנות","בוצרים","סכינים","פלפל מלח",
     "מפצל חשמל","מאריך חשמל","כיסאות","מקרן",
@@ -585,23 +585,28 @@ const FIXED_ITEMS = new Set(["נענע","פחמים","שמן","דלק","נייר
 
 function buildRow(item){
     const id = item.name.replace(/\s+/g,'_').replace(/[()]/g,'');
-    const labelText = UNIT_ITEMS.has(item.name) ? "יחידות" : "משקל (ק״ג)";
-    return `
-        <div class="row">
-            <label>
-                <input type="checkbox" data-name="${id}" onchange="calc()">
-                <span class="item-name" data-name="${id}">${item.name}</span>
-            </label>
-            <div class="row-amount">
-                <div class="amount-label">${labelText}</div>
-                <div class="amount-value" id="amount-${id}">0.00</div>
+    // פריטים רגילים עם מחיר וכמות
+    if(item.category !== 'no_forget'){
+        const labelText = UNIT_ITEMS.has(item.name) ? "יחידות" : "משקל (ק״ג)";
+        return `
+            <div class="row">
+                <label>
+                    <input type="checkbox" data-name="${id}" onchange="calc()">
+                    <span class="item-name" data-name="${id}">${item.name}</span>
+                </label>
+                <div class="row-amount">
+                    <div class="amount-label">${labelText}</div>
+                    <div class="amount-value" id="amount-${id}">0.00</div>
+                </div>
+                <div class="row-cost">
+                    <div class="cost-label">מחיר (₪)</div>
+                    <div class="cost-value" id="cost-${id}">0.0</div>
+                </div>
             </div>
-            <div class="row-cost">
-                <div class="cost-label">מחיר (₪)</div>
-                <div class="cost-value" id="cost-${id}">0.0</div>
-            </div>
-        </div>
-    `;
+        `;
+    }
+    // פריטי "לא לשכוח"
+    return `<div class="row"><label><input type="checkbox" data-name="${id}"> ${item.name}</label></div>`;
 }
 
 function renderLists(){
@@ -611,7 +616,8 @@ function renderLists(){
     document.getElementById("otherList").innerHTML  = "";
     document.getElementById("noForgetList").innerHTML = "";
 
-    DATA.forEach(item=>{
+    // רנדור פריטים מ-Firebase (עם מחירים)
+    DATA.filter(item => item.category !== 'no_forget').forEach(item=>{
         const html = buildRow(item);
         if(item.category==="meat")   document.getElementById("meatList").insertAdjacentHTML('beforeend', html);
         if(item.category==="sides")  document.getElementById("sidesList").insertAdjacentHTML('beforeend', html);
@@ -619,9 +625,12 @@ function renderLists(){
         if(item.category==="other")  document.getElementById("otherList").insertAdjacentHTML('beforeend', html);
     });
 
+    // רנדור פריטי "לא לשכוח" (ללא מחירים)
     NO_FORGET.forEach(n=>{
-        document.getElementById("noForgetList").insertAdjacentHTML('beforeend',`<div class="row"><label><input type="checkbox"> ${n}</label></div>`);
+        const id = n.replace(/\s+/g,'_').replace(/[()]/g,'');
+        document.getElementById("noForgetList").insertAdjacentHTML('beforeend', buildRow({name: n, category: 'no_forget'}));
     });
+    
     attachNameLongPressHandlers();
 }
 
@@ -634,6 +643,8 @@ function calc(){
     let meatTotalKg = 0;
 
     DATA.forEach(item=>{
+        if(item.category === 'no_forget') return; // מדלג על פריטי "לא לשכוח"
+        
         const id = item.name.replace(/\s+/g,'_').replace(/[()]/g,'');
         const cb = document.querySelector(`input[data-name="${id}"]`);
         const amountEl = document.getElementById(`amount-${id}`);
@@ -679,7 +690,8 @@ function sendWhatsapp(){
     msg += `סה\"כ: ${total} ₪\n\n`;
     msg += `פריטים שסימנתי:\n`;
 
-    DATA.forEach(item=>{
+    // 1. פריטים עם כמות/מחיר
+    DATA.filter(item => item.category !== 'no_forget').forEach(item=>{
         const id = item.name.replace(/\s+/g,'_').replace(/[()]/g,'');
         const cb = document.querySelector(`input[data-name="${id}"]`);
         const amountEl = document.getElementById(`amount-${id}`);
@@ -687,6 +699,21 @@ function sendWhatsapp(){
             msg += `• ${item.name} (${amountEl.textContent})\n`;
         }
     });
+
+    // 2. פריטי "לא לשכוח"
+    let forgetItems = "";
+    NO_FORGET.forEach(name => {
+        const id = name.replace(/\s+/g,'_').replace(/[()]/g,'');
+        const cb = document.querySelector(`input[data-name="${id}"]`);
+        if(cb && cb.checked){
+            forgetItems += `• ${name}\n`;
+        }
+    });
+
+    if(forgetItems) {
+        msg += `\n**חשוב לא לשכוח לקחת:**\n${forgetItems}`;
+    }
+
     window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(msg), "_blank");
 }
 
@@ -745,11 +772,15 @@ function openAdmin(){
     const overlay = document.getElementById("adminOverlay");
     const listDiv = document.getElementById("adminList");
     listDiv.innerHTML = "";
-    DATA.forEach((item,idx)=>{
+    
+    // מציג רק פריטים עם מחיר בניהול
+    DATA.filter(item => item.category !== 'no_forget').forEach((item,idx)=>{
+        // יש צורך למצוא את ה-index המקורי שלהם במערך ה-DATA
+        const originalIndex = DATA.findIndex(d => d.name === item.name);
         listDiv.insertAdjacentHTML('beforeend',
             `<div class="admin-row">
                 <span class="admin-name">${item.name}</span>
-                <input type="number" step="0.1" value="${item.price}" data-idx="${idx}">
+                <input type="number" step="0.1" value="${item.price}" data-idx="${originalIndex}">
                 <span class="admin-unit">₪</span>
              </div>`
         );
@@ -779,17 +810,36 @@ function addNewProductFlow(){
     const name = prompt("הכנס שם למוצר החדש:");
     if(!name) return;
     
-    if(DATA.find(d=>d.name===name)){
+    // בדיקה כפולה מול שתי הרשימות
+    if(DATA.find(d=>d.name===name) || NO_FORGET.includes(name)){
         alert("מוצר זה כבר קיים!");
         return;
     }
 
     const catMap = {
-        "1": "meat", "2": "sides", "3": "drinks", "4": "other"
+        "1": "meat", "2": "sides", "3": "drinks", "4": "other", "5": "no_forget" // *הוספת אפשרות 5*
     };
-    const catChoice = prompt("בחר קטגוריה:\n1 - בשרים\n2 - סלטים/תוספות\n3 - שתייה\n4 - חד פעמי/אחר");
-    const category = catMap[catChoice] || "other";
+    const catChoice = prompt("בחר קטגוריה:\n1 - בשרים\n2 - סלטים/תוספות\n3 - שתייה\n4 - חד פעמי/אחר\n5 - לא לשכוח לקחת (ללא מחיר/כמות)");
+    const category = catMap[catChoice] || null;
     
+    if(!category) {
+        alert("בחירה לא חוקית. הוספת המוצר בוטלה.");
+        return;
+    }
+    
+    // *לוגיקה נפרדת עבור "לא לשכוח לקחת"*
+    if(category === "no_forget"){
+        NO_FORGET.push(name);
+        // שמירת המערך המעודכן ב-Firebase כדי לשמר אותו
+        db.ref("no_forget_items").set(NO_FORGET) 
+        .then(() => {
+            alert(`הפריט "${name}" נוסף לרשימת "לא לשכוח לקחת"!`);
+            closeAdmin();
+        });
+        return;
+    }
+
+    // לוגיקה רגילה (עבור קטגוריות 1-4)
     const price = prompt("מחיר ליחידה/קילו (בשקלים):", "0");
     
     db.ref("products/" + name).set({
@@ -813,7 +863,16 @@ function addNewProductFlow(){
    ========================================= */
 let currentEditItem = null;
 function attachNameLongPressHandlers(){
-    DATA.forEach(item=>{
+    // מסירים את ההאזנה הקודמת אם קיימת
+    document.querySelectorAll('.item-name').forEach(el => {
+        el.removeEventListener("mousedown", el.start);
+        el.removeEventListener("touchstart", el.start);
+        el.removeEventListener("mouseup", el.cancel);
+        el.removeEventListener("mouseleave", el.cancel);
+        el.removeEventListener("touchend", el.cancel);
+    });
+
+    DATA.filter(item => item.category !== 'no_forget').forEach(item=>{
         const id = item.name.replace(/\s+/g,'_').replace(/[()]/g,'');
         const el = document.querySelector(`.item-name[data-name="${id}"]`);
         if(!el) return;
@@ -822,6 +881,9 @@ function attachNameLongPressHandlers(){
         const start = (e)=>{ timer = setTimeout(()=>openEditor(item), 1500); };
         const cancel = ()=>{ clearTimeout(timer); };
         
+        el.start = start;
+        el.cancel = cancel;
+
         el.addEventListener("mousedown", start);
         el.addEventListener("touchstart", start);
         el.addEventListener("mouseup", cancel);
@@ -832,6 +894,13 @@ function attachNameLongPressHandlers(){
 
 function openEditor(item){
     currentEditItem = item;
+    // אם פריט "לא לשכוח" נפתח בטעות, סגור
+    if(item.category === 'no_forget'){
+        alert("אין אפשרות לערוך פריט זה כאן.");
+        currentEditItem = null;
+        return;
+    }
+
     document.getElementById("editTitle").textContent = item.name;
     document.getElementById("inputPrice").value = item.price || 0;
     document.getElementById("inputMen").value   = item.perMen || 0;
@@ -886,6 +955,7 @@ function initPeopleSelects(){
 }
 
 function initFromFirebase(){
+    // טוען רשימת פריטים רגילים
     db.ref("products").on("value", snap=>{
         const obj = snap.val() || {};
         DATA = Object.keys(obj).map(name=>({
@@ -896,8 +966,16 @@ function initFromFirebase(){
             perWomen: obj[name].perWomen,
             perKids: obj[name].perKids
         }));
-        renderLists();
-        calc();
+        
+        // טוען רשימת "לא לשכוח"
+        db.ref("no_forget_items").once("value").then(forgetSnap => {
+            const forgetList = forgetSnap.val();
+            if(Array.isArray(forgetList)) {
+                NO_FORGET = forgetList;
+            }
+            renderLists();
+            calc();
+        });
     });
 }
 
