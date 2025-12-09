@@ -114,7 +114,7 @@ body{
     color:var(--text-main);
 }
 
-/* עמודות משקל/יחידות ומחיר */
+/* עמודות כמות/יחידות ומחיר */
 .row-amount, .row-cost{
     text-align:center;
     color:var(--text-main);
@@ -330,8 +330,12 @@ button{
         <div class="summary-box">
             <div class="summary-label">סה״כ הוצאה</div>
             <div class="summary-value-main"><span id="totalCost">0.00</span> ₪</div>
+
             <div class="summary-label" style="margin-top:8px;">לכל משתתף</div>
             <div class="summary-value-main"><span id="perPerson">0.00</span> ₪</div>
+
+            <div class="summary-label" style="margin-top:8px;">כמות בשר לסועד (גרם)</div>
+            <div class="summary-value-main"><span id="meatPerPerson">0</span> גרם</div>
         </div>
     </div>
 
@@ -476,6 +480,20 @@ const UNIT_ITEMS = new Set([
 ]);
 
 /////////////////////////////////////////////////////////////
+// מוצרים שלא תלויים במספר הסועדים – תמיד כמות 1
+/////////////////////////////////////////////////////////////
+
+const FIXED_ITEMS = new Set([
+    "נענע",
+    "פחמים",
+    "שמן",
+    "דלק",
+    "נייר ניגוב (חבילה של 6)",
+    "תבניות אלומיניום",
+    "מיכל גז"
+]);
+
+/////////////////////////////////////////////////////////////
 // טעינת מחירים מותאמים מ-localStorage (אם קיימים)
 /////////////////////////////////////////////////////////////
 
@@ -543,25 +561,38 @@ function renderLists(){
 renderLists();
 
 /////////////////////////////////////////////////////////////
-// חישוב – כמו באקסל, עם פורמטים שביקשת
+// חישוב – כמו באקסל, עם:
+// * FIXED_ITEMS = תמיד כמות 1
+// * meatPerPerson = גרם בשר לסועד
 /////////////////////////////////////////////////////////////
 
 function calc(){
     const people = Number(document.getElementById("people").value) || 1;
     let total = 0;
+    let meatTotalKg = 0; // סה"כ בשר ודגים בק"ג
 
     DATA.forEach(item=>{
         const id = item.name.replace(/\s+/g,'_').replace(/[()]/g,'');
         const cb = document.querySelector(`input[data-name="${id}"]`);
 
         if(cb && cb.checked){
-            const amount = item.perPerson * people;   // כמות (ק״ג או יחידות)
-            const cost   = amount * item.price;       // מחיר כולל
+            let amount;
+            if(FIXED_ITEMS.has(item.name)){
+                amount = 1; // לא תלוי במס' סועדים
+            }else{
+                amount = item.perPerson * people;
+            }
+
+            const cost = amount * item.price;
 
             document.getElementById(`amount-${id}`).textContent = amount.toFixed(2);
             document.getElementById(`cost-${id}`).textContent   = cost.toFixed(1);
 
             total += cost;
+
+            if(item.category === "meat"){
+                meatTotalKg += amount;
+            }
         } else {
             document.getElementById(`amount-${id}`).textContent = "0.00";
             document.getElementById(`cost-${id}`).textContent   = "0.0";
@@ -570,24 +601,33 @@ function calc(){
 
     document.getElementById("totalCost").textContent = total.toFixed(2);
     document.getElementById("perPerson").textContent = (total / people).toFixed(2);
+
+    // כמות בשר לסועד בגרמים
+    let meatPerPersonGrams = 0;
+    if(people > 0){
+        meatPerPersonGrams = (meatTotalKg / people) * 1000;
+    }
+    document.getElementById("meatPerPerson").textContent = meatPerPersonGrams.toFixed(0);
 }
 
 // חישוב ראשוני
 calc();
 
 /////////////////////////////////////////////////////////////
-// ווצאפ – נשאר כמו שהיה
+// ווצאפ – נשאר כמו שהיה, עם הטקסט של יחידות/ק"ג
 /////////////////////////////////////////////////////////////
 
 function sendWhatsapp(){
     const total = document.getElementById("totalCost").textContent;
     const per = document.getElementById("perPerson").textContent;
+    const meatPer = document.getElementById("meatPerPerson").textContent;
     const people = document.getElementById("people").value;
 
     let msg = `🔥 Charles BBQ – רשימת קניות למנגל\n`;
     msg += `משתתפים: ${people}\n`;
     msg += `סה\"כ הוצאה: ${total} ₪\n`;
-    msg += `לכל משתתף: ${per} ₪\n\n`;
+    msg += `לכל משתתף: ${per} ₪\n`;
+    msg += `כמות בשר לסועד: ${meatPer} גרם\n\n`;
     msg += `פריטים שסימנתי:\n`;
 
     DATA.forEach(item=>{
