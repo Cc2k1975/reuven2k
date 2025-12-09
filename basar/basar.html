@@ -32,7 +32,7 @@ body{
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
     background:linear-gradient(to bottom,var(--bg-top),var(--bg-bottom));
     color:#fff;
-    padding:16px 12px 100px; /* הוגדל קצת למטה בשביל הכפתורים */
+    padding:16px 12px 80px; /* מקום לכפתורי התחתית */
 }
 
 .app-shell{
@@ -185,41 +185,38 @@ body{
     margin-bottom:4px;
 }
 
-/* כפתורים בתחתית - מעודכן עם כפתור ניהול */
+/* כפתורים בתחתית (חזר ל-3 כפתורים) */
 .footer-buttons{
     position:fixed;
     bottom:0;
     left:0;
     right:0;
     background:#0f172a;
-    padding:12px;
+    padding:10px 12px;
     display:grid;
-    grid-template-columns:repeat(4,1fr); /* 4 עמודות עכשיו */
-    gap:6px;
+    grid-template-columns:repeat(3,1fr); 
+    gap:8px;
     box-shadow:0 -6px 16px rgba(0,0,0,0.4);
     z-index:20;
 }
 
 button{
     border:none;
-    border-radius:8px;
-    padding:10px 4px;
-    font-size:12px; /* הקטנתי קצת שייכנסו 4 */
+    border-radius:999px;
+    padding:10px;
+    font-size:14px;
     font-weight:600;
     cursor:pointer;
     display:flex;
-    flex-direction: column;
     align-items:center;
     justify-content:center;
-    gap:4px;
-    text-align: center;
+    gap:6px;
 }
 
 /* צבעי כפתורים */
-.btn-print{background:#334155;color:#e2e8f0;}
+.btn-print{background:#1e293b;color:#e5e7eb;}
 .btn-calendar{background:#6366f1;color:#ffffff;} 
-.btn-whatsapp{background:#22c55e;color:white;}
-.btn-admin{background:#f97316;color:white;} /* כפתור ניהול בולט */
+.btn-whatsapp{background:#25d366;color:white;}
 
 @media print{
     body{background:#ffffff;padding:0;}
@@ -486,22 +483,9 @@ button{
 </div>
 
 <div class="footer-buttons">
-    <button class="btn-print" onclick="window.print()">
-        <span>🖨️</span>
-        <span>הדפס</span>
-    </button>
-    <button class="btn-calendar" onclick="openEventModal()">
-        <span>🗓️</span>
-        <span>ליומן</span>
-    </button>
-    <button class="btn-whatsapp" onclick="sendWhatsapp()">
-        <span>🟢</span>
-        <span>ווצאפ</span>
-    </button>
-    <button class="btn-admin" onclick="openAdmin()">
-        <span>⚙️</span>
-        <span>ניהול</span>
-    </button>
+    <button class="btn-print" onclick="window.print()">🖨️ הדפס</button>
+    <button class="btn-calendar" onclick="openEventModal()">🗓️ הוסף ליומן</button>
+    <button class="btn-whatsapp" onclick="sendWhatsapp()">🟢 ווצאפ</button>
 </div>
 
 <div id="eventOverlay">
@@ -739,8 +723,23 @@ function sendEventWhatsapp(){
 }
 
 /* =========================================
-   מנהל + הוספת מוצרים
+   מנהל + הוספת מוצרים (לחיצה ארוכה על כותרת)
    ========================================= */
+let longPressTimer = null;
+function setupLongPress(){
+    const title = document.getElementById("heroTitle");
+    if(!title) return;
+    const start = (e)=>{
+        // e.preventDefault(); // נותן למשתמש לגלול אם לא לוחץ ארוך
+        longPressTimer = setTimeout(openAdmin, 3000); // 3 שניות
+    };
+    const cancel = ()=>{ clearTimeout(longPressTimer); };
+    title.addEventListener("mousedown", start);
+    title.addEventListener("touchstart", start);
+    title.addEventListener("mouseup", cancel);
+    title.addEventListener("mouseleave", cancel);
+    title.addEventListener("touchend", cancel);
+}
 
 function openAdmin(){
     const overlay = document.getElementById("adminOverlay");
@@ -810,7 +809,7 @@ function addNewProductFlow(){
 }
 
 /* =========================================
-   עריכת כמויות מוצר ומחיקה
+   עריכת כמויות מוצר ומחיקה (לחיצה ארוכה על פריט)
    ========================================= */
 let currentEditItem = null;
 function attachNameLongPressHandlers(){
@@ -820,7 +819,7 @@ function attachNameLongPressHandlers(){
         if(!el) return;
         
         let timer;
-        const start = (e)=>{ timer = setTimeout(()=>openEditor(item), 1000); };
+        const start = (e)=>{ timer = setTimeout(()=>openEditor(item), 1500); };
         const cancel = ()=>{ clearTimeout(timer); };
         
         el.addEventListener("mousedown", start);
@@ -858,7 +857,6 @@ document.getElementById("btnSave").onclick = function(){
     });
 };
 
-// === פונקציית המחיקה החדשה ===
 document.getElementById("btnDelete").onclick = function(){
     if(!currentEditItem) return;
 
@@ -903,6 +901,7 @@ function initFromFirebase(){
     });
 }
 
+setupLongPress(); // הפעלת הלחיצה הארוכה על הכותרת
 initPeopleSelects();
 initFromFirebase();
 </script>
