@@ -149,6 +149,16 @@
       animation: fadeInUp 0.4s ease;
     }
 
+    .badge{
+      display:inline-block;
+      font-size:0.75rem;
+      padding:2px 8px;
+      border-radius:999px;
+      background:#e0ecff;
+      color:#0b3c91;
+      margin-bottom:4px;
+    }
+
     .place-top{
       display:flex;
       justify-content:space-between;
@@ -158,7 +168,7 @@
     }
     .place-name{
       font-weight:700;
-      font-size:1.1rem;
+      font-size:1.05rem;
       color:#000;
       word-break:break-word;
     }
@@ -211,23 +221,6 @@
       overflow:hidden;
       margin:10px 0 10px;
       border:1px solid rgba(0,0,0,0.1);
-    }
-
-    /* כפתור SOS (השארתי כמו אצלך, אם תרצה נסיר בהמשך) */
-    .btn-sos{
-      width:100%;
-      margin-top:4px;
-      background:#d50000;
-      color:#fff;
-      font-weight:900;
-      letter-spacing:1px;
-      text-transform:uppercase;
-      cursor:pointer;
-      padding:11px 16px;
-      border-radius:999px;
-    }
-    .btn-sos:active{
-      transform:scale(0.98);
     }
 
     /* מודל (חלון קופץ) */
@@ -337,10 +330,10 @@
     </button>
   </div>
 
-  <!-- אזור מיקום אחרון + מפה + SOS -->
+  <!-- אזור מיקום אחרון + מפה -->
   <div id="sectionLast">
     <div class="places-header">
-      <span>מיקום אחרון של הרכב</span>
+      <span>מיקום נוכחי + מיקום קודם</span>
       <div class="header-buttons">
         <button id="btnShareWhatsApp" class="btn-wa-all" type="button">
           📲 שלח לוואטסאפ
@@ -351,8 +344,6 @@
     <div id="lastPlaceBox" class="list"></div>
 
     <div id="map"></div>
-
-    <button id="btnSOS" class="btn-sos" type="button">SOS</button>
   </div>
 
   <!-- מודל: טלפון נהג + סטטוס GPS -->
@@ -380,19 +371,19 @@
 </div>
 
 <script>
-  // ----- Firebase config – חובה למלא מה־Firebase Console שלך -----
-const firebaseConfig = {
-  apiKey: "AIzaSyCMntnZD__xfuQHzAhAaM-lSgzsjAKHBug",
-  authDomain: "mycar-8b46d.firebaseapp.com",
-  databaseURL: "https://mycar-8b46d-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "mycar-8b46d",
-  storageBucket: "mycar-8b46d.firebasestorage.app",
-  messagingSenderId: "247369154890",
-  appId: "1:247369154890:web:1ecd68d830b8e52bca01b3"
-};
+  // ----- Firebase config – פרויקט mycar -----
+  const firebaseConfig = {
+    apiKey: "AIzaSyCMntnZD__xfuQHzAhAaM-lSgzsjAKHBug",
+    authDomain: "mycar-8b46d.firebaseapp.com",
+    databaseURL: "https://mycar-8b46d-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "mycar-8b46d",
+    storageBucket: "mycar-8b46d.firebasestorage.app",
+    messagingSenderId: "247369154890",
+    appId: "1:247369154890:web:1ecd68d830b8e52bca01b3"
+  };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
-  const LAST_NODE = "carLastLocation"; // נתיב יחיד למיקום הרכב
+  const LAST_NODE = "carLastLocation"; // current + previous
 
   (function(){
     const statusEl         = document.getElementById('status');
@@ -403,17 +394,16 @@ const firebaseConfig = {
     const sectionLast      = document.getElementById('sectionLast');
     const lastPlaceBox     = document.getElementById('lastPlaceBox');
     const btnShareWhatsApp = document.getElementById('btnShareWhatsApp');
-    const btnSOS           = document.getElementById('btnSOS');
 
     const modalOverlay     = document.getElementById('modalOverlay');
-    const modalPhone       = document.getElementById('modalPhone');
     const modalPhoneInput  = document.getElementById('modalPhoneInput');
     const modalGpsStatus   = document.getElementById('modalGpsStatus');
     const btnPhoneCancel   = document.getElementById('btnPhoneCancel');
     const btnPhoneOk       = document.getElementById('btnPhoneOk');
 
-    // מצב אחרון בזיכרון
-    let lastPlace = null;
+    // מצב אחרון בזיכרון: נוכחי + קודם
+    let lastPlaceCurrent = null;
+    let lastPlacePrevious = null;
 
     // מפה
     let map = null;
@@ -438,12 +428,20 @@ const firebaseConfig = {
 
     // טעינת המיקום האחרון מפיירבייס בזמן אמת
     db.ref(LAST_NODE).on('value', snapshot => {
-      const val = snapshot.val();
-      if (val && typeof val.lat === "number" && typeof val.lng === "number") {
-        lastPlace = val;
+      const val = snapshot.val() || null;
+
+      // backward compatible – אם פעם נשמר כאובייקט בודד
+      if (val && val.current) {
+        lastPlaceCurrent = (typeof val.current.lat === "number") ? val.current : null;
+        lastPlacePrevious = (val.previous && typeof val.previous.lat === "number") ? val.previous : null;
+      } else if (val && typeof val.lat === "number") {
+        lastPlaceCurrent = val;
+        lastPlacePrevious = null;
       } else {
-        lastPlace = null;
+        lastPlaceCurrent = null;
+        lastPlacePrevious = null;
       }
+
       renderLastPlace();
       updateMap();
     });
@@ -549,9 +547,28 @@ const firebaseConfig = {
             time: now.toISOString()
           };
 
-          db.ref(LAST_NODE).set(payload)
+          // קודם שולפים ערך ישן כדי לשמור אותו כ"previous"
+          db.ref(LAST_NODE).once('value')
+            .then(snap=>{
+              const old = snap.val();
+              let prev = null;
+              if (old) {
+                if (old.current) {
+                  prev = old.current;
+                } else if (typeof old.lat === "number") {
+                  prev = old;
+                }
+              }
+              const updateObj = {
+                current: payload,
+                previous: prev || null
+              };
+              return db.ref(LAST_NODE).set(updateObj).then(()=>{
+                lastPlaceCurrent  = payload;
+                lastPlacePrevious = prev || null;
+              });
+            })
             .then(()=>{
-              lastPlace = payload;
               renderLastPlace();
               updateMap();
               showLastSection();
@@ -582,11 +599,11 @@ const firebaseConfig = {
       statusEl.className = 'status ' + (isError ? 'error' : 'ok');
     }
 
-    // ---- רינדור המיקום האחרון ----
+    // ---- רינדור המיקום הנוכחי + הקודם ----
     function renderLastPlace(){
       lastPlaceBox.innerHTML = '';
 
-      if (!lastPlace){
+      if (!lastPlaceCurrent && !lastPlacePrevious){
         const div = document.createElement('div');
         div.style.fontSize = '0.9rem';
         div.style.opacity = '0.7';
@@ -595,10 +612,22 @@ const firebaseConfig = {
         return;
       }
 
-      const p = lastPlace;
+      if (lastPlaceCurrent){
+        lastPlaceBox.appendChild(createPlaceCard(lastPlaceCurrent,'מיקום נוכחי'));
+      }
+      if (lastPlacePrevious){
+        lastPlaceBox.appendChild(createPlaceCard(lastPlacePrevious,'מיקום קודם'));
+      }
+    }
 
+    function createPlaceCard(p, label){
       const card = document.createElement('div');
       card.className = 'place';
+
+      const badge = document.createElement('div');
+      badge.className = 'badge';
+      badge.textContent = label;
+      card.appendChild(badge);
 
       const top = document.createElement('div');
       top.className = 'place-top';
@@ -658,7 +687,7 @@ const firebaseConfig = {
       card.appendChild(top);
       card.appendChild(bottom);
 
-      lastPlaceBox.appendChild(card);
+      return card;
     }
 
     // ---- מפה ----
@@ -667,59 +696,52 @@ const firebaseConfig = {
       if (!map || !markerLayer) return;
 
       markerLayer.clearLayers();
+      const points = [];
 
-      if (!lastPlace){
-        map.setView([32.0853, 34.7818], 8);
-        return;
+      if (lastPlaceCurrent){
+        const llc = [lastPlaceCurrent.lat, lastPlaceCurrent.lng];
+        points.push(llc);
+        L.marker(llc).addTo(markerLayer).bindPopup('הרכב – מיקום נוכחי');
+      }
+      if (lastPlacePrevious){
+        const llp = [lastPlacePrevious.lat, lastPlacePrevious.lng];
+        points.push(llp);
+        L.marker(llp).addTo(markerLayer).bindPopup('מיקום קודם');
       }
 
-      const ll = [lastPlace.lat, lastPlace.lng];
-      L.marker(ll).addTo(markerLayer).bindPopup('הרכב כאן');
-      map.setView(ll, 16);
+      if (points.length === 0){
+        map.setView([32.0853, 34.7818], 8);
+      } else if (points.length === 1){
+        map.setView(points[0], 16);
+      } else {
+        map.fitBounds(points, {padding:[20,20]});
+      }
     }
 
-    // ---- כפתור SOS ----
-    btnSOS.addEventListener('click', function(){
-      if (!navigator.geolocation) {
-        statusText('המכשיר לא תומך ב-GPS – אי אפשר לשלוח מיקום SOS.', true);
+    // ---- שיתוף בוואטסאפ של המיקומים ----
+    btnShareWhatsApp.addEventListener('click', function(){
+      if (!lastPlaceCurrent && !lastPlacePrevious){
+        statusText('אין מיקומים לשיתוף בוואטסאפ.', true);
         return;
       }
 
-      const sure = confirm('אתה הולך לשדר מצב חירום.\nהאם אתה בטוח?');
-      if (!sure) return;
+      const lines = [];
+      lines.push('🚗 מיקום הרכב הטיפולי:');
+      lines.push('');
 
-      statusText('טוען מיקום לחירום…', false);
+      if (lastPlaceCurrent){
+        appendPlaceToLines(lines, lastPlaceCurrent, 'מיקום נוכחי');
+      }
+      if (lastPlacePrevious){
+        appendPlaceToLines(lines, lastPlacePrevious, 'מיקום קודם');
+      }
 
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          const lat = pos.coords.latitude.toFixed(6);
-          const lng = pos.coords.longitude.toFixed(6);
-
-          const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-          const text = `אני חייב עזרה!\nזה המיקום שלי:\n${mapsUrl}`;
-
-          const waUrl = 'https://wa.me/?text=' + encodeURIComponent(text);
-          window.open(waUrl,'_blank');
-          statusText('קישור SOS נפתח בוואטסאפ ✔', false);
-        },
-        err => {
-          statusText('לא הצלחתי לקבל מיקום לחירום: ' + err.message, true);
-        },
-        {
-          enableHighAccuracy:true,
-          timeout:15000,
-          maximumAge:0
-        }
-      );
+      const text = lines.join('\n');
+      const url  = 'https://wa.me/?text=' + encodeURIComponent(text);
+      window.open(url, '_blank');
     });
 
-    // ---- שיתוף בוואטסאפ של המיקום האחרון ----
-    btnShareWhatsApp.addEventListener('click', function(){
-      if (!lastPlace){
-        statusText('אין מיקום לשיתוף בוואטסאפ.', true);
-        return;
-      }
-      const p = lastPlace;
+    function appendPlaceToLines(lines, p, label){
       const dt = new Date(p.time);
       let dateStr = '';
       if (!isNaN(dt.getTime())){
@@ -734,21 +756,13 @@ const firebaseConfig = {
       const wazeUrl = `https://waze.com/ul?ll=${p.lat},${p.lng}&navigate=yes`;
       const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
 
-      const lines = [];
-      lines.push('🚗 מיקום אחרון של הרכב הטיפולי:');
-      lines.push('');
+      lines.push(`=== ${label} ===`);
       lines.push(`טלפון נהג: ${p.phone || 'לא ידוע'}`);
       if (dateStr) lines.push(`תאריך: ${dateStr}`);
-      lines.push('');
       lines.push(`Waze: ${wazeUrl}`);
       lines.push(`Maps: ${mapsUrl}`);
-
-      const text = lines.join('\n');
-      // בלי מספר יעד קבוע – שיפתח למסך בחירת איש קשר
-      const url  = 'https://wa.me/?text=' + encodeURIComponent(text);
-
-      window.open(url, '_blank');
-    });
+      lines.push('');
+    }
 
   })();
 </script>
