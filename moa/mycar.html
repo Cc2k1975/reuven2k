@@ -5,14 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>מיקום הרכב התפעולי</title>
 
-  <!-- Leaflet למפה -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-  <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <style>
+    /* פונקציית המרה גסה: 1cm ~= 37.8px */
+    :root {
+        --btn-width:  226.8px; /* 6cm * 37.8 */
+        --btn-height: 245.7px; /* 6.5cm * 37.8 */
+    }
+
     *{box-sizing:border-box;margin:0;padding:0;}
     html,body{
       height:100%;
@@ -70,12 +74,24 @@
       gap:14px;
       margin-top:10px;
     }
+    
+    /* **השינויים לגודל הלחצנים:** */
     .btn-hero{
-      width:100%;
-      padding:18px 20px;
-      border-radius:999px;
+      width:100%; /* רוחב מלא בתוך האפליקציה */
+      /* גודל קבוע לרוחב ולגובה - רק אם רוצים גודל קבוע בפיקסלים/ס"מ */
+      /* כדי שיהיה רספונסיבי, נגביל את המינימום/מקסימום */
+      min-width: var(--btn-width);
+      max-width: var(--btn-width);
+      min-height: var(--btn-height);
+      max-height: var(--btn-height);
+      
+      /* מרכוז בתוך ה־.main-actions (כשהוא flex-direction: column) */
+      align-self: center;
+      
+      padding:0; /* מוריד את הפדינג הקודם */
+      border-radius:18px; /* שיניתי לריבוע מעוגל במקום עגול */
       border:none;
-      font-size:1.2rem;
+      font-size:1.4rem; /* הגדלתי מעט את הפונט */
       font-weight:800;
       cursor:pointer;
       display:flex;
@@ -84,7 +100,24 @@
       gap:10px;
       box-shadow:0 8px 20px rgba(0,0,0,0.16);
       transition:transform 0.15s ease, box-shadow 0.15s ease;
+      text-align:center;
+      line-height:1.3;
     }
+
+    /* התאמה למסכים קטנים מאוד: אם רוחב המסך קטן מ-var(--btn-width), נחזור לגודל מלא */
+    @media (max-width: 400px) {
+        .btn-hero {
+            min-width: 100%;
+            max-width: 100%;
+            height: 100px; /* גובה קטן יותר כדי לא לתפוס את כל המסך */
+            min-height: 100px;
+            max-height: 100px;
+            font-size: 1.2rem;
+            padding: 10px;
+        }
+    }
+    /* סוף שינויי הלחצנים */
+
     .btn-hero:active{
       transform:scale(0.97);
       box-shadow:0 4px 10px rgba(0,0,0,0.18);
@@ -260,6 +293,27 @@
       direction:ltr;
       text-align:left;
     }
+    
+    /* הוספתי כפתור לשינוי הטלפון */
+    .phone-input-group {
+        display: flex;
+        gap: 8px;
+    }
+    .phone-input-group input[type="tel"] {
+        flex-grow: 1;
+        margin-bottom: 0; /* הפדינג כבר ב־group */
+    }
+    .btn-change-phone {
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(0,0,0,0.2);
+        background: #f1f1f1;
+        color: #333;
+        font-size: 0.95rem;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    
     .modal-buttons{
       display:flex;
       justify-content:flex-end;
@@ -316,7 +370,6 @@
 
   <div id="status" class="status"></div>
 
-  <!-- מסך ראשי -->
   <div id="screenHome">
     <div class="main-actions">
       <button id="btnNewPlace" class="btn-hero btn-hero-primary">
@@ -328,7 +381,6 @@
     </div>
   </div>
 
-  <!-- מסך איסוף רכב -->
   <div id="screenPickup">
     <div class="places-header">
       <span>מיקום נוכחי + מיקום קודם</span>
@@ -344,21 +396,25 @@
     <div id="map"></div>
   </div>
 
-  <!-- מודל: טלפון נהג + סטטוס GPS -->
   <div id="modalOverlay" class="modal-overlay">
     <div id="modalPhone" class="modal">
-      <div class="modal-title">הכנס מספר טלפון לשמירת מיקום הרכב</div>
-      <div class="modal-text">
+      <div class="modal-title" id="modalTitle">הכנס מספר טלפון לשמירת מיקום הרכב</div>
+      <div class="modal-text" id="modalText">
         הכנס את מספר הטלפון של הנהג שמחנה את הרכב.
       </div>
-      <input
-        id="modalPhoneInput"
-        type="tel"
-        inputmode="numeric"
-        autocomplete="tel"
-        maxlength="10"
-        placeholder="05XXXXXXXX"
-      >
+      
+      <div class="phone-input-group">
+          <input
+            id="modalPhoneInput"
+            type="tel"
+            inputmode="numeric"
+            autocomplete="tel"
+            maxlength="10"
+            placeholder="05XXXXXXXX"
+          >
+          <button id="btnChangePhone" class="btn-change-phone hidden">שנה</button>
+      </div>
+      
       <div id="modalGpsStatus" class="modal-gps-status"></div>
       <div class="modal-buttons">
         <button id="btnPhoneCancel" class="btn-modal btn-modal-secondary">ביטול</button>
@@ -382,6 +438,8 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const LAST_NODE = "carLastLocation"; // current + previous
+  const LOCAL_PHONE_KEY = "carAppLastPhone"; // מפתח ל-localStorage
+  
 
   (function(){
     const statusEl         = document.getElementById('status');
@@ -400,10 +458,14 @@
     const modalGpsStatus   = document.getElementById('modalGpsStatus');
     const btnPhoneCancel   = document.getElementById('btnPhoneCancel');
     const btnPhoneOk       = document.getElementById('btnPhoneOk');
-
+    const btnChangePhone   = document.getElementById('btnChangePhone'); // כפתור חדש
+    const modalTitle       = document.getElementById('modalTitle');
+    const modalText        = document.getElementById('modalText');
+    
     // מצב אחרון בזיכרון: נוכחי + קודם
     let lastPlaceCurrent = null;
     let lastPlacePrevious = null;
+    let storedPhone = localStorage.getItem(LOCAL_PHONE_KEY) || '05'; // טוען מספר טלפון שמור
 
     // מפה
     let map = null;
@@ -464,16 +526,46 @@
       }, 60);
     });
 
-    // ---- מודל טלפון ----
+    // ---- מודל טלפון: טיפול בזכירת הטלפון ----
+    
+    function setPhoneMode(isPreFilled) {
+        if (isPreFilled && storedPhone && /^05\d{8}$/.test(storedPhone)) {
+            // מצב: טלפון שמור ומוכן לשמירה
+            modalTitle.textContent = 'שמירת מיקום חדש';
+            modalText.innerHTML = `האם ברצונך לשמור מיקום עם המספר השמור: <b>${storedPhone}</b>?`;
+            modalPhoneInput.value = storedPhone;
+            modalPhoneInput.readOnly = true;
+            btnChangePhone.classList.remove('hidden');
+            btnPhoneOk.textContent = 'שמור מיקום';
+            btnPhoneOk.disabled = false;
+        } else {
+            // מצב: בקשת טלפון חדש
+            modalTitle.textContent = 'הכנס מספר טלפון לשמירת מיקום הרכב';
+            modalText.textContent = 'הכנס את מספר הטלפון של הנהג שמחנה את הרכב.';
+            modalPhoneInput.value = storedPhone === '05' ? '05' : storedPhone;
+            modalPhoneInput.readOnly = false;
+            btnChangePhone.classList.add('hidden');
+            btnPhoneOk.textContent = 'שמור מיקום';
+            btnPhoneOk.disabled = !/^05\d{8}$/.test(normalizePhone(modalPhoneInput.value));
+        }
+        modalGpsStatus.textContent = '';
+    }
+
     function openPhoneModal(){
+      // טוען את המצב האחרון של הטלפון
+      storedPhone = localStorage.getItem(LOCAL_PHONE_KEY) || '05';
+      setPhoneMode(true); 
+
       modalOverlay.style.display = 'flex';
-      modalGpsStatus.textContent = '';
-      modalPhoneInput.value = '05';
-      setTimeout(()=>{
-        modalPhoneInput.focus();
-        const len = modalPhoneInput.value.length;
-        modalPhoneInput.setSelectionRange(len, len);
-      }, 50);
+      
+      // מיקוד לשדה רק אם הוא לא לקריאה בלבד
+      if (!modalPhoneInput.readOnly) {
+          setTimeout(()=>{
+            modalPhoneInput.focus();
+            const len = modalPhoneInput.value.length;
+            modalPhoneInput.setSelectionRange(len, len);
+          }, 50);
+      }
     }
 
     function closePhoneModal(){
@@ -484,6 +576,12 @@
     btnPhoneCancel.addEventListener('click', ()=>{
       closePhoneModal();
     });
+    
+    // כפתור "שנה" במסך הטלפון השמור
+    btnChangePhone.addEventListener('click', ()=>{
+        setPhoneMode(false); // מעביר למצב של קלט חופשי
+        modalPhoneInput.focus();
+    });
 
     // מנקה כל תו שאינו ספרה + דואג לתחילית 05
     function normalizePhone(value){
@@ -492,6 +590,7 @@
         if (digits.startsWith('5')) {
           digits = '0' + digits;
         } else if (digits.length > 0) {
+          // מנסה להכניס 05 אם הוא לא קיים
           digits = '05' + digits.replace(/^0+/, '');
         } else {
           digits = '05';
@@ -506,13 +605,19 @@
     modalPhoneInput.addEventListener('input', ()=>{
       const cur = modalPhoneInput.value;
       const norm = normalizePhone(cur);
+      
       if (cur !== norm) {
         const pos = norm.length;
         modalPhoneInput.value = norm;
+        // מנסה לשמור על מיקום הסמן
         modalPhoneInput.setSelectionRange(pos, pos);
       }
+      
+      // מפעיל/מכבה את כפתור השמירה
+      btnPhoneOk.disabled = !/^05\d{8}$/.test(modalPhoneInput.value);
     });
-
+    
+    // כפתור "שמור מיקום" (שומר טלפון ומתחיל תהליך GPS)
     btnPhoneOk.addEventListener('click', ()=>{
       let phone = normalizePhone(modalPhoneInput.value);
       modalPhoneInput.value = phone;
@@ -523,6 +628,12 @@
         modalGpsStatus.textContent = 'המספר שהוזן לא תקין';
         return;
       }
+      
+      // **שמירת הטלפון ב-localStorage:**
+      storedPhone = phone;
+      localStorage.setItem(LOCAL_PHONE_KEY, phone);
+      // עדכון המצב ל"קריאה בלבד" עם הכפתור "שנה"
+      setPhoneMode(true); 
 
       if (!navigator.geolocation) {
         statusText('המכשיר לא תומך ב-GPS דרך הדפדפן.', true);
@@ -530,6 +641,8 @@
         return;
       }
 
+      // מנטרל את כפתור השמירה בזמן שאנחנו מחכים ל-GPS
+      btnPhoneOk.disabled = true; 
       statusText('טוען מיקום… אנא אשר גישה ל-GPS.', false);
       modalGpsStatus.textContent = 'ממתין לאות GPS… אנא הישאר במסך הזה.';
 
@@ -577,11 +690,15 @@
             .catch(err=>{
               statusText('שגיאה בשמירה בפיירבייס: ' + err.message, true);
               modalGpsStatus.textContent = 'שגיאה בשמירה בפיירבייס.';
+            })
+            .finally(()=>{
+               btnPhoneOk.disabled = false; // מחזיר את הכפתור לפעולה
             });
         },
         err => {
           statusText('לא הצלחתי לקבל מיקום: ' + err.message, true);
           modalGpsStatus.textContent = 'שגיאה בקבלת GPS: ' + err.message;
+          btnPhoneOk.disabled = false; // מחזיר את הכפתור לפעולה
         },
         {
           enableHighAccuracy:true,
@@ -669,7 +786,7 @@
       btnGMaps.className = 'btn-mini btn-gmaps';
       btnGMaps.textContent = 'Maps';
       btnGMaps.addEventListener('click', ()=>{
-        window.open(`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`, '_blank');
+        window.open(`http://maps.google.com/?q=${p.lat},${p.lng}`, '_blank');
       });
 
       btnGroup.appendChild(btnWaze);
