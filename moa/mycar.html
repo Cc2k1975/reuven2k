@@ -316,17 +316,17 @@
 <body>
 <div class="app">
   <h1>מיקום הרכב הטיפולי</h1>
-  <div class="subtitle">שמור את המיקום האחרון של הרכב לפי מספר הטלפון של הנהג.</div>
+  <div class="subtitle">חניית רכב לפי מספר טלפון של הנהג, ואיסוף עם מפה + וויז.</div>
 
   <div id="status" class="status"></div>
 
   <!-- מסך ראשי: שתי אפשרויות -->
   <div class="main-actions">
     <button id="btnNewPlace" class="btn-hero btn-hero-primary">
-      🚗 שמור מיקום הרכב עכשיו
+      🚗 חניית רכב
     </button>
     <button id="btnShowLast" class="btn-hero btn-hero-secondary">
-      📌 הצג מיקום אחרון
+      📌 איסוף רכב
     </button>
   </div>
 
@@ -336,7 +336,7 @@
       <span>מיקום נוכחי + מיקום קודם</span>
       <div class="header-buttons">
         <button id="btnShareWhatsApp" class="btn-wa-all" type="button">
-          📲 שלח לוואטסאפ
+          📲 וואטסאפ לנהג האחרון
         </button>
       </div>
     </div>
@@ -349,9 +349,9 @@
   <!-- מודל: טלפון נהג + סטטוס GPS -->
   <div id="modalOverlay" class="modal-overlay">
     <div id="modalPhone" class="modal">
-      <div class="modal-title">הכנס טלפון נייד</div>
+      <div class="modal-title">הכנס מספר טלפון לשמירת מיקום הרכב</div>
       <div class="modal-text">
-        טלפון הנהג שהחנה את הרכב (רק ספרות, מתחיל ב־05).
+        טלפון הנהג שהחנה את הרכב (10 ספרות, מתחיל ב־05).
       </div>
       <input
         id="modalPhoneInput"
@@ -446,12 +446,12 @@
       updateMap();
     });
 
-    // כפתור "שמור מיקום הרכב עכשיו"
+    // כפתור "חניית רכב"
     btnNewPlace.addEventListener('click', ()=>{
       openPhoneModal();
     });
 
-    // כפתור "הצג מיקום אחרון"
+    // כפתור "איסוף רכב" – רק אז רואים את המפה
     btnShowLast.addEventListener('click', ()=>{
       showLastSection();
     });
@@ -488,7 +488,7 @@
       closePhoneModal();
     });
 
-    // לנקות כל תו שאינו ספרה ולוודא התחלה ב־05
+    // מנקה כל תו שאינו ספרה + דואג לתחילית 05
     function normalizePhone(value){
       let digits = (value || '').replace(/\D/g, '');
       if (!digits.startsWith('05')) {
@@ -520,8 +520,9 @@
       let phone = normalizePhone(modalPhoneInput.value);
       modalPhoneInput.value = phone;
 
-      if (!phone || phone.length < 9) {
-        modalGpsStatus.textContent = 'מספר טלפון לא תקין. ודא שיש 9–10 ספרות ומתחיל ב־05.';
+      // בדיקה: בדיוק 10 ספרות ומתחיל ב-05
+      if (!/^05\d{8}$/.test(phone)) {
+        modalGpsStatus.textContent = 'מספר טלפון חייב להיות 10 ספרות ולהתחיל ב־05.';
         return;
       }
 
@@ -571,10 +572,9 @@
             .then(()=>{
               renderLastPlace();
               updateMap();
-              showLastSection();
               statusText('המיקום נשמר בפיירבייס ✔', false);
               modalGpsStatus.textContent = 'המיקום נשמר בהצלחה ✔';
-              closePhoneModal();
+              closePhoneModal();   // שומר ולא פותח מפה – לפי הבקשה
             })
             .catch(err=>{
               statusText('שגיאה בשמירה בפיירבייס: ' + err.message, true);
@@ -718,51 +718,25 @@
       }
     }
 
-    // ---- שיתוף בוואטסאפ של המיקומים ----
+    // ---- וואטסאפ לנהג האחרון (מיקום נוכחי בלבד) ----
     btnShareWhatsApp.addEventListener('click', function(){
-      if (!lastPlaceCurrent && !lastPlacePrevious){
-        statusText('אין מיקומים לשיתוף בוואטסאפ.', true);
+      if (!lastPlaceCurrent || !lastPlaceCurrent.phone){
+        statusText('אין טלפון נהג אחרון לשיתוף בוואטסאפ.', true);
         return;
       }
 
-      const lines = [];
-      lines.push('🚗 מיקום הרכב הטיפולי:');
-      lines.push('');
-
-      if (lastPlaceCurrent){
-        appendPlaceToLines(lines, lastPlaceCurrent, 'מיקום נוכחי');
-      }
-      if (lastPlacePrevious){
-        appendPlaceToLines(lines, lastPlacePrevious, 'מיקום קודם');
+      const digits = String(lastPlaceCurrent.phone).replace(/\D/g,'');
+      if (!/^05\d{8}$/.test(digits)){
+        statusText('מספר הטלפון האחרון שנשמר אינו תקין.', true);
+        return;
       }
 
-      const text = lines.join('\n');
-      const url  = 'https://wa.me/?text=' + encodeURIComponent(text);
+      // להמיר ל־972xxxxxxx (בלי האפס)
+      const intl = '972' + digits.substring(1); // מוריד 0 ומשאיר 9 ספרות
+      const url  = 'https://wa.me/' + intl; // הודעה ריקה
+
       window.open(url, '_blank');
     });
-
-    function appendPlaceToLines(lines, p, label){
-      const dt = new Date(p.time);
-      let dateStr = '';
-      if (!isNaN(dt.getTime())){
-        const d  = String(dt.getDate()).padStart(2,'0');
-        const m  = String(dt.getMonth()+1).padStart(2,'0');
-        const y  = dt.getFullYear();
-        const hh = String(dt.getHours()).padStart(2,'0');
-        const mm = String(dt.getMinutes()).padStart(2,'0');
-        dateStr = `${d}.${m}.${y}  ${hh}:${mm}`;
-      }
-
-      const wazeUrl = `https://waze.com/ul?ll=${p.lat},${p.lng}&navigate=yes`;
-      const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
-
-      lines.push(`=== ${label} ===`);
-      lines.push(`טלפון נהג: ${p.phone || 'לא ידוע'}`);
-      if (dateStr) lines.push(`תאריך: ${dateStr}`);
-      lines.push(`Waze: ${wazeUrl}`);
-      lines.push(`Maps: ${mapsUrl}`);
-      lines.push('');
-    }
 
   })();
 </script>
