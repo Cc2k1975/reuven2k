@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>חניית רכב הטיפולי</title>
+  <title>מיקום הרכב הטיפולי</title>
 
   <!-- Leaflet למפה -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -38,8 +38,8 @@
       overflow:hidden;
     }
     h1{
-      font-size:1.5rem;
-      margin-bottom:6px;
+      font-size:1.6rem;
+      margin-bottom:10px;
       text-align:center;
       font-weight:800;
       color:#000;
@@ -60,44 +60,46 @@
     .error{color:#d63031;}
     .ok{color:#27ae60;}
 
-    /* מסך ראשי – שני לחצנים */
+    /* מסך ראשי – שני לחצנים גדולים */
+    #screenHome{
+      animation: fadeInUp 0.6s ease;
+    }
     .main-actions{
       display:flex;
       flex-direction:column;
-      gap:10px;
-      margin-bottom:14px;
-      animation: fadeInUp 0.6s ease;
+      gap:14px;
+      margin-top:10px;
     }
     .btn-hero{
       width:100%;
-      padding:14px 18px;
+      padding:18px 20px;
       border-radius:999px;
       border:none;
-      font-size:1.05rem;
-      font-weight:700;
+      font-size:1.2rem;
+      font-weight:800;
       cursor:pointer;
       display:flex;
       align-items:center;
       justify-content:center;
-      gap:8px;
-      box-shadow:0 7px 18px rgba(0,0,0,0.12);
+      gap:10px;
+      box-shadow:0 8px 20px rgba(0,0,0,0.16);
       transition:transform 0.15s ease, box-shadow 0.15s ease;
     }
     .btn-hero:active{
       transform:scale(0.97);
-      box-shadow:0 4px 10px rgba(0,0,0,0.15);
+      box-shadow:0 4px 10px rgba(0,0,0,0.18);
     }
     .btn-hero-primary{
       background:linear-gradient(135deg,#00b7ff,#00ffae);
       color:#00242f;
     }
     .btn-hero-secondary{
-      background:#f2f4f7;
-      color:#222;
+      background:#0f172a;
+      color:#f9fafb;
     }
 
-    /* אזור מיקום אחרון */
-    #sectionLast{
+    /* מסך איסוף רכב */
+    #screenPickup{
       display:none;
       animation: fadeIn 0.4s ease;
     }
@@ -181,18 +183,12 @@
 
     .place-bottom{
       display:flex;
-      justify-content:space-between;
+      justify-content:flex-end;
       align-items:center;
       gap:8px;
       flex-wrap:wrap;
       margin-top:4px;
       color:#000;
-    }
-
-    .place-extra{
-      font-size:0.85rem;
-      opacity:0.8;
-      margin-top:2px;
     }
 
     .btn-group{
@@ -315,23 +311,25 @@
 </head>
 <body>
 <div class="app">
-  <h1>חניית רכב הטפעולי</h1>
-  <div class="subtitle"בכדי להחנות את הרכב נא הכנס מספר טלפון נייד ולחץ על חניית רכב </div>
+  <h1>מיקום הרכב הטיפולי</h1>
+  <div class="subtitle">חניית רכב לפי מספר טלפון של הנהג, ואיסוף עם מפה + וויז.</div>
 
   <div id="status" class="status"></div>
 
-  <!-- מסך ראשי: שתי אפשרויות -->
-  <div class="main-actions">
-    <button id="btnNewPlace" class="btn-hero btn-hero-primary">
-      🚗 חניית רכב
-    </button>
-    <button id="btnShowLast" class="btn-hero btn-hero-secondary">
-      📌 איסוף רכב
-    </button>
+  <!-- מסך ראשי -->
+  <div id="screenHome">
+    <div class="main-actions">
+      <button id="btnNewPlace" class="btn-hero btn-hero-primary">
+        🚗 חניית רכב
+      </button>
+      <button id="btnShowLast" class="btn-hero btn-hero-secondary">
+        📌 איסוף רכב
+      </button>
+    </div>
   </div>
 
-  <!-- אזור מיקום אחרון + מפה -->
-  <div id="sectionLast">
+  <!-- מסך איסוף רכב -->
+  <div id="screenPickup">
     <div class="places-header">
       <span>מיקום נוכחי + מיקום קודם</span>
       <div class="header-buttons">
@@ -351,7 +349,7 @@
     <div id="modalPhone" class="modal">
       <div class="modal-title">הכנס מספר טלפון לשמירת מיקום הרכב</div>
       <div class="modal-text">
-        טלפון הנהג שהחנה את הרכב (10 ספרות, מתחיל ב־05).
+        הכנס את מספר הטלפון של הנהג שהחנה את הרכב.
       </div>
       <input
         id="modalPhoneInput"
@@ -388,10 +386,12 @@
   (function(){
     const statusEl         = document.getElementById('status');
 
+    const screenHome       = document.getElementById('screenHome');
+    const screenPickup     = document.getElementById('screenPickup');
+
     const btnNewPlace      = document.getElementById('btnNewPlace');
     const btnShowLast      = document.getElementById('btnShowLast');
 
-    const sectionLast      = document.getElementById('sectionLast');
     const lastPlaceBox     = document.getElementById('lastPlaceBox');
     const btnShareWhatsApp = document.getElementById('btnShareWhatsApp');
 
@@ -451,13 +451,10 @@
       openPhoneModal();
     });
 
-    // כפתור "איסוף רכב" – רק אז רואים את המפה
+    // כפתור "איסוף רכב" – מסך נפרד
     btnShowLast.addEventListener('click', ()=>{
-      showLastSection();
-    });
-
-    function showLastSection(){
-      sectionLast.style.display = 'block';
+      screenHome.style.display  = 'none';
+      screenPickup.style.display = 'block';
       ensureMap();
       setTimeout(()=>{
         if (map) {
@@ -465,7 +462,7 @@
           updateMap();
         }
       }, 60);
-    }
+    });
 
     // ---- מודל טלפון ----
     function openPhoneModal(){
@@ -522,7 +519,8 @@
 
       // בדיקה: בדיוק 10 ספרות ומתחיל ב-05
       if (!/^05\d{8}$/.test(phone)) {
-        modalGpsStatus.textContent = 'מספר טלפון חייב להיות 10 ספרות ולהתחיל ב־05.';
+        alert('המספר שהוזן לא תקין');
+        modalGpsStatus.textContent = 'המספר שהוזן לא תקין';
         return;
       }
 
@@ -572,9 +570,9 @@
             .then(()=>{
               renderLastPlace();
               updateMap();
-              statusText('המיקום נשמר בפיירבייס ✔', false);
-              modalGpsStatus.textContent = 'המיקום נשמר בהצלחה ✔';
-              closePhoneModal();   // שומר ולא פותח מפה – לפי הבקשה
+              statusText('המיקום נשמר !', false);
+              modalGpsStatus.textContent = 'המיקום נשמר !';
+              closePhoneModal();   // שומר ולא פותח מפה
             })
             .catch(err=>{
               statusText('שגיאה בשמירה בפיירבייס: ' + err.message, true);
@@ -657,10 +655,6 @@
       const bottom = document.createElement('div');
       bottom.className = 'place-bottom';
 
-      const extra = document.createElement('div');
-      extra.className = 'place-extra';
-      extra.textContent = `LAT: ${p.lat}, LNG: ${p.lng}`;
-
       const btnGroup = document.createElement('div');
       btnGroup.className = 'btn-group';
 
@@ -681,7 +675,6 @@
       btnGroup.appendChild(btnWaze);
       btnGroup.appendChild(btnGMaps);
 
-      bottom.appendChild(extra);
       bottom.appendChild(btnGroup);
 
       card.appendChild(top);
@@ -733,7 +726,7 @@
 
       // להמיר ל־972xxxxxxx (בלי האפס)
       const intl = '972' + digits.substring(1); // מוריד 0 ומשאיר 9 ספרות
-      const url  = 'https://wa.me/' + intl; // הודעה ריקה
+      const url  = 'https://wa.me/' + intl; // הודעה ריקה לחלוטין
 
       window.open(url, '_blank');
     });
