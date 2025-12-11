@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>הקראה חכמה</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            padding-top: 20px;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 85%;
+            text-align: center;
+        }
+        h2 { margin-top: 0; color: #333; font-size: 20px; margin-bottom: 15px; }
+        
+        .edit-buttons {
+            display: flex;
+            justify-content: flex-end; /* הזזה שמאלה */
+            margin-bottom: 5px;
+        }
+        .small-btn {
+            background: #fff0f0; /* רקע אדמדם עדין */
+            border: 1px solid #ffcccc;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #d32f2f;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .small-btn:active { background: #ffcdd2; }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+            font-size: 18px;
+            border: 2px solid #007bff;
+            border-radius: 12px;
+            resize: none;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+
+        .speed-control {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .speed-control label {
+            font-size: 16px;
+            font-weight: bold;
+            color: #555;
+            display: block;
+            margin-bottom: 10px;
+        }
+        input[type=range] {
+            width: 100%;
+            height: 10px;
+            -webkit-appearance: none;
+            background: #d3d3d3;
+            border-radius: 5px;
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 25px;
+            height: 25px;
+            background: #007bff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .buttons { display: flex; flex-direction: column; gap: 12px; }
+        button.main-btn {
+            padding: 15px;
+            font-size: 18px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            color: white;
+            width: 100%;
+            font-weight: bold;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+        }
+        .btn-play { background-color: #007bff; }
+        .btn-play:active { background-color: #0056b3; transform: scale(0.98); }
+        .btn-stop { background-color: #dc3545; }
+        .btn-stop:active { background-color: #a71d2a; transform: scale(0.98); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>קורא טקסטים חכם 🧠</h2>
+        
+        <div class="edit-buttons">
+            <button class="small-btn" onclick="clearText()">🗑️ נקה הכל</button>
+        </div>
+
+        <textarea id="textInput" placeholder="לחיצה ארוכה להדבקה... הטקסט נשמר אוטומטית" oninput="saveText()"></textarea>
+        
+        <div class="speed-control">
+            <label>מהירות דיבור: <span id="speedValue">1.0</span></label>
+            <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1" oninput="updateLabel()">
+        </div>
+
+        <div class="buttons">
+            <button class="main-btn btn-play" onclick="speakText()">🔊 נגן טקסט</button>
+            <button class="main-btn btn-stop" onclick="stopText()">⏹️ עצור</button>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            const saved = localStorage.getItem("savedText");
+            if (saved) {
+                document.getElementById("textInput").value = saved;
+            }
+        }
+
+        function saveText() {
+            const text = document.getElementById("textInput").value;
+            localStorage.setItem("savedText", text);
+        }
+
+        function clearText() {
+            if(confirm("למחוק את כל הטקסט?")) {
+                document.getElementById("textInput").value = "";
+                saveText();
+            }
+        }
+
+        function updateLabel() {
+            const slider = document.getElementById("rateSlider");
+            document.getElementById("speedValue").innerText = slider.value;
+        }
+
+        function speakText() {
+            window.speechSynthesis.cancel();
+            const text = document.getElementById("textInput").value;
+            const speed = document.getElementById("rateSlider").value;
+
+            if (text.trim() === "") {
+                alert("אין טקסט להקראה");
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'he-IL'; 
+            utterance.rate = speed; 
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function stopText() {
+            window.speechSynthesis.cancel();
+        }
+    </script>
+
+</body>
+</html>
