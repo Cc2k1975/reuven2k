@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>הקראה חכמה</title>
+    <title>הקראה והכתבה חכמה</title>
     <style>
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -27,20 +27,50 @@
         
         .edit-buttons {
             display: flex;
-            justify-content: flex-end; /* הזזה שמאלה */
-            margin-bottom: 5px;
+            justify-content: space-between; /* פיזור הכפתורים לצדדים */
+            margin-bottom: 8px;
         }
+        
         .small-btn {
-            background: #fff0f0; /* רקע אדמדם עדין */
-            border: 1px solid #ffcccc;
+            border: none;
             padding: 8px 15px;
             border-radius: 8px;
             font-size: 14px;
-            color: #d32f2f;
             cursor: pointer;
             font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
         }
-        .small-btn:active { background: #ffcdd2; }
+
+        .btn-clear {
+            background: #fff0f0;
+            color: #d32f2f;
+            border: 1px solid #ffcccc;
+        }
+        .btn-clear:active { background: #ffcdd2; }
+
+        .btn-mic {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        .btn-mic:active { background: #c8e6c9; }
+
+        /* אנימציה כשהמיקרופון מקליט */
+        .recording {
+            background-color: #ffebee !important;
+            color: #d32f2f !important;
+            border-color: #d32f2f !important;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); }
+        }
 
         textarea {
             width: 100%;
@@ -105,13 +135,18 @@
 <body>
 
     <div class="container">
-        <h2>קורא טקסטים חכם 🧠</h2>
+        <h2>קורא ומכתב חכם 🧠</h2>
         
         <div class="edit-buttons">
-            <button class="small-btn" onclick="clearText()">🗑️ נקה הכל</button>
+            <button class="small-btn btn-mic" id="micBtn" onclick="toggleRecording()">
+                🎤 הכתב קולית
+            </button>
+            <button class="small-btn btn-clear" onclick="clearText()">
+                🗑️ נקה הכל
+            </button>
         </div>
 
-        <textarea id="textInput" placeholder="לחיצה ארוכה להדבקה... הטקסט נשמר אוטומטית" oninput="saveText()"></textarea>
+        <textarea id="textInput" placeholder="הקלד כאן או לחץ על המיקרופון להכתבה..." oninput="saveText()"></textarea>
         
         <div class="speed-control">
             <label>מהירות דיבור: <span id="speedValue">1.0</span></label>
@@ -125,12 +160,80 @@
     </div>
 
     <script>
+        // --- אתחול וזיהוי דיבור ---
         window.onload = function() {
             const saved = localStorage.getItem("savedText");
             if (saved) {
                 document.getElementById("textInput").value = saved;
             }
         }
+
+        // הגדרת משתנים לזיהוי דיבור
+        let recognition;
+        let isRecording = false;
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'he-IL'; // שפה עברית
+            recognition.continuous = false; // מפסיק אוטומטית כשיש שקט
+            recognition.interimResults = false; // מראה רק תוצאה סופית
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                const textArea = document.getElementById("textInput");
+                
+                // הוספת רווח אם כבר יש טקסט
+                if (textArea.value.length > 0) {
+                    textArea.value += " " + transcript;
+                } else {
+                    textArea.value = transcript;
+                }
+                
+                saveText();
+                stopRecordingUI();
+            };
+
+            recognition.onerror = function(event) {
+                console.error("שגיאת זיהוי דיבור:", event.error);
+                stopRecordingUI();
+                alert("אירעה שגיאה בזיהוי הדיבור. וודא שיש הרשאת מיקרופון.");
+            };
+
+            recognition.onend = function() {
+                stopRecordingUI();
+            };
+        } else {
+            alert("הדפדפן שלך לא תומך בדיבור לטקסט (מומלץ להשתמש ב-Chrome בנייד/מחשב).");
+            document.getElementById("micBtn").style.display = "none";
+        }
+
+        function toggleRecording() {
+            if (!recognition) return;
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+                startRecordingUI();
+            }
+        }
+
+        function startRecordingUI() {
+            isRecording = true;
+            const btn = document.getElementById("micBtn");
+            btn.innerHTML = "⏹️ מקשיב... (לחץ לעצירה)";
+            btn.classList.add("recording");
+        }
+
+        function stopRecordingUI() {
+            isRecording = false;
+            const btn = document.getElementById("micBtn");
+            btn.innerHTML = "🎤 הכתב קולית";
+            btn.classList.remove("recording");
+        }
+
+        // --- פונקציות קיימות ---
 
         function saveText() {
             const text = document.getElementById("textInput").value;
