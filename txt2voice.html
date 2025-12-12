@@ -27,7 +27,7 @@
         
         .edit-buttons {
             display: flex;
-            justify-content: space-between; /* פיזור הכפתורים לצדדים */
+            justify-content: space-between; 
             margin-bottom: 8px;
         }
         
@@ -58,7 +58,6 @@
         }
         .btn-mic:active { background: #c8e6c9; }
 
-        /* אנימציה כשהמיקרופון מקליט */
         .recording {
             background-color: #ffebee !important;
             color: #d32f2f !important;
@@ -130,6 +129,8 @@
         .btn-play:active { background-color: #0056b3; transform: scale(0.98); }
         .btn-stop { background-color: #dc3545; }
         .btn-stop:active { background-color: #a71d2a; transform: scale(0.98); }
+        
+        .hint { font-size: 12px; color: #777; margin-top: -10px; margin-bottom: 15px;}
     </style>
 </head>
 <body>
@@ -146,7 +147,8 @@
             </button>
         </div>
 
-        <textarea id="textInput" placeholder="הקלד כאן או לחץ על המיקרופון להכתבה..." oninput="saveText()"></textarea>
+        <textarea id="textInput" placeholder="הקלד כאן או לחץ על המיקרופון..." oninput="saveText()"></textarea>
+        <div class="hint">טיפ: אמור 'נקודה', 'פסיק' או 'סימן שאלה' כדי להוסיף אותם.</div>
         
         <div class="speed-control">
             <label>מהירות דיבור: <span id="speedValue">1.0</span></label>
@@ -160,7 +162,6 @@
     </div>
 
     <script>
-        // --- אתחול וזיהוי דיבור ---
         window.onload = function() {
             const saved = localStorage.getItem("savedText");
             if (saved) {
@@ -168,22 +169,25 @@
             }
         }
 
-        // הגדרת משתנים לזיהוי דיבור
         let recognition;
         let isRecording = false;
 
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
-            recognition.lang = 'he-IL'; // שפה עברית
-            recognition.continuous = false; // מפסיק אוטומטית כשיש שקט
-            recognition.interimResults = false; // מראה רק תוצאה סופית
+            recognition.lang = 'he-IL'; 
+            recognition.continuous = false; 
+            recognition.interimResults = false; 
 
             recognition.onresult = function(event) {
-                const transcript = event.results[0][0].transcript;
+                let transcript = event.results[0][0].transcript;
+                
+                // --- מנגנון חכם להחלפת מילים בסימנים ---
+                transcript = smartPunctuation(transcript);
+                // ----------------------------------------
+
                 const textArea = document.getElementById("textInput");
                 
-                // הוספת רווח אם כבר יש טקסט
                 if (textArea.value.length > 0) {
                     textArea.value += " " + transcript;
                 } else {
@@ -195,22 +199,33 @@
             };
 
             recognition.onerror = function(event) {
-                console.error("שגיאת זיהוי דיבור:", event.error);
+                console.error("שגיאת זיהוי:", event.error);
                 stopRecordingUI();
-                alert("אירעה שגיאה בזיהוי הדיבור. וודא שיש הרשאת מיקרופון.");
             };
 
             recognition.onend = function() {
                 stopRecordingUI();
             };
         } else {
-            alert("הדפדפן שלך לא תומך בדיבור לטקסט (מומלץ להשתמש ב-Chrome בנייד/מחשב).");
+            alert("דפדפן זה אינו תומך בהכתבה קולית");
             document.getElementById("micBtn").style.display = "none";
+        }
+
+        // פונקציה שמחליפה מילים בסימנים
+        function smartPunctuation(text) {
+            return text
+                .replace(/סימן שאלה/g, "?")
+                .replace(/סימן קריאה/g, "!")
+                .replace(/ נקודה/g, ".") // נקודה עם רווח לפני
+                .replace(/נקודה/g, ".")  // נקודה בלי רווח
+                .replace(/ פסיק/g, ",")
+                .replace(/פסיק/g, ",")
+                .replace(/ שורה חדשה/g, "\n")
+                .replace(/שורה חדשה/g, "\n");
         }
 
         function toggleRecording() {
             if (!recognition) return;
-
             if (isRecording) {
                 recognition.stop();
             } else {
@@ -222,7 +237,7 @@
         function startRecordingUI() {
             isRecording = true;
             const btn = document.getElementById("micBtn");
-            btn.innerHTML = "⏹️ מקשיב... (לחץ לעצירה)";
+            btn.innerHTML = "⏹️ מקשיב...";
             btn.classList.add("recording");
         }
 
@@ -233,23 +248,20 @@
             btn.classList.remove("recording");
         }
 
-        // --- פונקציות קיימות ---
-
         function saveText() {
             const text = document.getElementById("textInput").value;
             localStorage.setItem("savedText", text);
         }
 
         function clearText() {
-            if(confirm("למחוק את כל הטקסט?")) {
+            if(confirm("למחוק את הכל?")) {
                 document.getElementById("textInput").value = "";
                 saveText();
             }
         }
 
         function updateLabel() {
-            const slider = document.getElementById("rateSlider");
-            document.getElementById("speedValue").innerText = slider.value;
+            document.getElementById("speedValue").innerText = document.getElementById("rateSlider").value;
         }
 
         function speakText() {
