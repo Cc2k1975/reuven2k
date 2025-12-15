@@ -54,7 +54,7 @@
             width: 100%;
             height: 200px;
             padding: 20px;
-            font-size: 22px; 
+            font-size: 22px; /* הגדלתי קצת שיראו את הניקוד */
             line-height: 1.6;
             border: 2px solid #e1e4e8;
             border-radius: 15px;
@@ -175,7 +175,7 @@
             width: 20px;
             height: 20px;
             animation: spin 1s linear infinite;
-            display: none;
+            display: none; /* מוסתר כברירת מחדל */
         }
         
         .loading .loader { display: block; }
@@ -184,6 +184,59 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* ====== הוספה מינימלית: שכבת ניקוד (לא משנה עיצוב קיים) ====== */
+        .nikud-overlay{
+            position:fixed;
+            inset:0;
+            background: rgba(0,0,0,0.35);
+            display:none;
+            align-items:center;
+            justify-content:center;
+            z-index:9999;
+        }
+        .nikud-modal{
+            width: 92%;
+            max-width: 740px;
+            height: 85vh;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+            overflow:hidden;
+            display:flex;
+            flex-direction:column;
+        }
+        .nikud-topbar{
+            height:56px;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            padding:0 14px;
+            background:#f6f8fa;
+            border-bottom:1px solid #e6e8eb;
+            color:#2c3e50;
+            font-weight:700;
+        }
+        .nikud-close{
+            border:none;
+            background:#ffffff;
+            color:#2c3e50;
+            font-weight:800;
+            border-radius:12px;
+            padding:10px 12px;
+            cursor:pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+        .nikud-frame{
+            flex:1;
+            background:#fff;
+        }
+        .nikud-frame iframe{
+            width:100%;
+            height:100%;
+            border:0;
+            background:#fff;
         }
 
     </style>
@@ -216,6 +269,7 @@
                 קול לטקסט
             </button>
 
+            <!-- אותו כפתור, אותו עיצוב, רק הפעולה השתנתה -->
             <button class="action-btn btn-clean" id="nakdanBtn" onclick="applyNiqqud()">
                 <span class="icon">✨</span>
                 <div class="loader"></div>
@@ -226,8 +280,28 @@
         <div class="status-bar" id="status">מוכן לפעולה</div>
     </div>
 
+    <!-- ====== הוספה מינימלית: חלון ניקוד (DICTA) ====== -->
+    <div class="nikud-overlay" id="nikudOverlay" aria-hidden="true">
+        <div class="nikud-modal" role="dialog" aria-modal="true" aria-label="ניקוד אוטומטי">
+            <div class="nikud-topbar">
+                <div>ניקוד אוטומטי (DICTA)</div>
+                <button class="nikud-close" onclick="closeNikud()">סגור ✕</button>
+            </div>
+            <div class="nikud-frame">
+                <iframe
+                    id="nikudIframe"
+                    src="https://nakdanlive.dicta.org.il/"
+                    title="Nakdan Live – DICTA"
+                    loading="eager"
+                    referrerpolicy="no-referrer"
+                    allow="clipboard-read; clipboard-write"
+                ></iframe>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // --- שמירה וטעינה ---
+        // --- אתחול ושמירה ---
         window.onload = function() {
             const saved = localStorage.getItem("savedText");
             if (saved) document.getElementById("textInput").value = saved;
@@ -237,94 +311,62 @@
             localStorage.setItem("savedText", document.getElementById("textInput").value);
         }
 
-        // --- משתנים גלובליים ---
+        // --- משתנים ---
         let recognition;
         let isRecording = false;
         let synth = window.speechSynthesis;
         let utterance = null;
         let isSpeaking = false;
 
-        // --- פונקציית הניקוד המתוקנת (עם מעקף CORS) ---
-        async function applyNiqqud() {
-            let textField = document.getElementById("textInput");
-            let originalText = textField.value;
-            let btn = document.getElementById("nakdanBtn");
-            let btnText = btn.querySelector(".btn-text");
+        // --- שינוי קריטי: במקום API בעייתי -> פתיחת הנקדן שעובד לך מעולה ---
+        function applyNiqqud() {
+            const textField = document.getElementById("textInput");
+            const originalText = (textField.value || "").trim();
 
-            if (!originalText.trim()) {
+            if (!originalText) {
                 showStatus("אין טקסט לנקד");
                 return;
             }
 
-            // סימון ויזואלי לטעינה
-            btn.classList.add("loading");
-            btnText.innerText = "מנקד...";
-            btn.disabled = true;
-            showStatus("מתחבר לשרת הניקוד...");
+            // פותח שכבת ניקוד שעובדת תמיד (DICTA Live)
+            openNikud();
 
-            try {
-                // שימוש בשירות PROXY כדי לאפשר את הבקשה מהשרת שלך
-                const proxyUrl = "https://corsproxy.io/?";
-                const targetUrl = "https://nakdan-2-0.loadbalancer.dicta.org.il/api";
-                
-                const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        task: "nakdan",
-                        genre: "modern",
-                        data: originalText,
-                        addmorph: true,
-                        keepqq: false,
-                        nodageshdef: false,
-                        kamatz: false,
-                        sin: true
-                    })
-                });
-
-                if (!response.ok) throw new Error("שגיאת רשת");
-
-                const result = await response.json();
-                
-                let vocalizedText = "";
-                
-                // עיבוד התשובה מהשרת של דיקטה
-                if (Array.isArray(result)) {
-                    vocalizedText = result.map(wordObj => {
-                        // אם יש אפשרויות ניקוד, ניקח את הראשונה
-                        if (wordObj.options && wordObj.options.length > 0) {
-                            return wordObj.options[0]; 
-                        }
-                        // אם אין אפשרויות (למשל סימן פיסוק או מילה לא מוכרת), נחזיר כמו שהוא
-                        return wordObj.word; 
-                    }).join("");
-                } else {
-                    // גיבוי למקרה שהפורמט שונה
-                    vocalizedText = result.data || originalText; 
-                }
-
-                // ניקוי רווחים כפולים שעלולים להיווצר
-                vocalizedText = vocalizedText.replace(/  +/g, ' ');
-
-                textField.value = vocalizedText;
-                saveText();
-                showStatus("הטקסט נוקד בהצלחה! ✨");
-
-            } catch (error) {
-                console.error("Nakdan Error:", error);
-                showStatus("שגיאה בניקוד (בדוק חיבור אינטרנט)");
-                alert("לא הצלחתי לנקד. ייתכן שיש חסימת אינטרנט או שהשירות עמוס כרגע.");
-            } finally {
-                // החזרת הכפתור למצב רגיל
-                btn.classList.remove("loading");
-                btnText.innerText = "נקד טקסט";
-                btn.disabled = false;
-            }
+            // טיפ: מעדכן סטטוס בלבד, בלי "טוען" ובלי API
+            showStatus("נפתח חלון ניקוד. כתוב שם והניקוד מתווסף אוטומטית ✨");
         }
 
-        // --- קול לטקסט (STT) ---
+        function openNikud(){
+            const overlay = document.getElementById("nikudOverlay");
+            overlay.style.display = "flex";
+            overlay.setAttribute("aria-hidden", "false");
+
+            // סוגר עם ESC
+            document.addEventListener("keydown", escCloseOnce);
+
+            // מונע גלילה ברקע
+            document.body.style.overflow = "hidden";
+        }
+
+        function closeNikud(){
+            const overlay = document.getElementById("nikudOverlay");
+            overlay.style.display = "none";
+            overlay.setAttribute("aria-hidden", "true");
+
+            document.removeEventListener("keydown", escCloseOnce);
+            document.body.style.overflow = "";
+            showStatus("חזרת לעורך. אם צריך, תעתיק מהנקדן והדבק כאן.");
+        }
+
+        function escCloseOnce(e){
+            if (e.key === "Escape") closeNikud();
+        }
+
+        // סגירה בלחיצה מחוץ לחלון
+        document.getElementById("nikudOverlay").addEventListener("click", function(e){
+            if (e.target === this) closeNikud();
+        });
+
+        // --- קול לטקסט (ללא שינוי) ---
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
@@ -339,7 +381,6 @@
                         currentTranscript += event.results[i][0].transcript;
                     }
                 }
-                
                 currentTranscript = smartPunctuation(currentTranscript);
                 const textArea = document.getElementById("textInput");
                 textArea.value = textArea.value ? textArea.value + " " + currentTranscript : currentTranscript;
@@ -349,7 +390,7 @@
             recognition.onerror = (e) => showStatus("שגיאה: " + e.error);
             recognition.onend = () => { if (isRecording) recognition.start(); else stopRecordingUI(); };
         } else {
-            alert("דפדפן זה אינו תומך בהכתבה קולית");
+            alert("דפדפן זה אינו תומך בהכתבה");
         }
 
         function toggleRecording() {
@@ -372,15 +413,10 @@
         }
 
         function smartPunctuation(text) {
-            return text
-                .replace(/סימן שאלה/g, "?")
-                .replace(/סימן קריאה/g, "!")
-                .replace(/ נקודה/g, ".")
-                .replace(/ פסיק/g, ",")
-                .replace(/שורה חדשה/g, "\n");
+            return text.replace(/סימן שאלה/g, "?").replace(/סימן קריאה/g, "!").replace(/ נקודה/g, ".").replace(/ פסיק/g, ",").replace(/שורה חדשה/g, "\n");
         }
 
-        // --- טקסט לקול (TTS) ---
+        // --- טקסט לקול (ללא שינוי) ---
         function toggleSpeech() {
             if (synth.speaking) { synth.cancel(); isSpeaking = false; showStatus("עצרתי"); } 
             else { speakText(); }
@@ -389,17 +425,13 @@
         function speakText() {
             const text = document.getElementById("textInput").value;
             const speed = document.getElementById("rateSlider").value;
-            
             if (!text.trim()) { showStatus("אין טקסט להקראה"); return; }
-            
             synth.cancel();
             utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'he-IL';
             utterance.rate = speed;
-            
             utterance.onstart = () => showStatus("מקריא... 🔊");
             utterance.onend = () => showStatus("סיים להקריא");
-            
             synth.speak(utterance);
         }
 
