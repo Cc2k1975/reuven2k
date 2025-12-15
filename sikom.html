@@ -174,33 +174,28 @@
     }
   </style>
 
-  <!-- Firebase compat ל-HTML רגיל -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <div class="app">
+  <div class="app" id="mainApp" style="display:none;">
     <h1>רישום הכנסות</h1>
     <div class="sub">לחץ על השירות לכל לקוח. נשמר מקומית ובענן.</div>
 
     <div class="today-date" id="todayDate"></div>
 
     <div class="buttons-row">
-      <!-- שורה ראשונה: פן 50 / פן 60 / פן 70 -->
       <button class="btn-amount" data-amount="50" data-label="פן 50">פן 50</button>
       <button class="btn-amount" data-amount="60" data-label="פן 60">פן 60</button>
       <button class="btn-amount" data-amount="70" data-label="פן 70">פן 70</button>
 
-      <!-- שורה שנייה: מסכת שיער (70), ספריי לשיער (30), מכשיר פן (150) -->
       <button class="btn-amount" data-amount="70" data-label="מסכת שיער">מסכת שיער</button>
       <button class="btn-amount" data-amount="30" data-label="ספריי לשיער">ספריי לשיער</button>
       <button class="btn-amount" data-amount="150" data-label="מכשיר פן">מכשיר פן</button>
     </div>
 
-    <!-- כפתור פירוט -->
     <button id="toggleDetails" class="toggle-details-btn">פירוט</button>
 
-    <!-- כל החלק התחתון עטוף – מוסתר/מוצג לפי פירוט -->
     <div id="detailsWrapper" class="details-wrapper">
       <div class="section">
         <div class="section-title">היום</div>
@@ -222,6 +217,20 @@
   </div>
 
   <script>
+    // --- מנגנון סיסמה בכניסה (הוסף חדש) ---
+    (function checkLogin() {
+      let entered = "";
+      // לולאה שתרוץ כל עוד הסיסמה אינה 4451
+      while (entered !== "4451") {
+        entered = prompt("האתר נעול. נא להקיש סיסמה לכניסה:");
+        if (entered !== "4451") {
+          alert("סיסמה שגויה, נסה שוב.");
+        }
+      }
+      // אם הגענו לפה - הסיסמה נכונה, נציג את האפליקציה
+      document.getElementById('mainApp').style.display = 'block';
+    })();
+
     // --- Firebase config שלך ---
     const firebaseConfig = {
       apiKey: "AIzaSyCg7xjTPHeRemfCyz0xG5uoolMR8tvVve8",
@@ -430,8 +439,8 @@
     async function loadFromServer() {
       try {
         const snap = await db.collection("incomeEntries")
-                             .orderBy("date")
-                             .get();
+                      .orderBy("date")
+                      .get();
 
         const serverEntries = [];
         snap.forEach(doc => {
