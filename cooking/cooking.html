@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>השף שלי - גרסה סופית עם חיפוש</title>
+  <title>השף שלי - גרסת מגע נקייה</title>
   
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -20,16 +20,27 @@
       --shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
+    /* מניעת סימון טקסט בלחיצה ארוכה - חשוב לחוויית אפליקציה */
+    * { 
+      box-sizing: border-box; margin: 0; padding: 0; outline: none; 
+      -webkit-tap-highlight-color: transparent; 
+      -webkit-touch-callout: none; /* iOS Safari */
+      -webkit-user-select: none; /* Safari */
+      -khtml-user-select: none; /* Konqueror HTML */
+      -moz-user-select: none; /* Old versions of Firefox */
+      -ms-user-select: none; /* Internet Explorer/Edge */
+      user-select: none; 
+    }
     
+    /* אפשור בחירת טקסט רק בתוך שדות קלט */
+    input, textarea { user-select: text; -webkit-user-select: text; font-size: 16px !important; }
+
     body {
       font-family: 'Rubik', sans-serif;
       background: var(--bg);
       color: var(--text);
       padding-bottom: calc(100px + env(safe-area-inset-bottom));
     }
-
-    input, select, textarea { font-size: 16px !important; }
 
     header {
       background: #fff;
@@ -55,28 +66,13 @@
       background: var(--primary); color: #fff; box-shadow: 0 4px 10px rgba(230, 126, 34, 0.3);
     }
 
-    /* --- עיצוב שורת החיפוש --- */
-    .search-wrapper {
-      padding: 0 15px 15px 15px;
-      position: relative;
-    }
+    .search-wrapper { padding: 0 15px 15px 15px; position: relative; }
     .search-input {
-      width: 100%;
-      padding: 12px 45px 12px 15px;
-      border: 1px solid #ddd;
-      border-radius: 30px;
-      font-size: 16px;
-      background: #fff;
+      width: 100%; padding: 12px 45px 12px 15px; border: 1px solid #ddd;
+      border-radius: 30px; font-size: 16px; background: #fff;
       box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
-    .search-icon {
-      position: absolute;
-      right: 30px;
-      top: 50%; /* ממורכז אנכית */
-      transform: translateY(-70%); /* תיקון מיקום עדין */
-      color: #aaa;
-      font-size: 18px;
-    }
+    .search-icon { position: absolute; right: 30px; top: 50%; transform: translateY(-70%); color: #aaa; font-size: 18px; }
 
     .container { max-width: 100%; margin: 0 auto; padding: 0 10px 10px 10px; }
     
@@ -86,6 +82,7 @@
       gap: 12px; 
     }
     
+    /* כרטיס נקי - ללא כפתורים */
     .recipe-card {
       background: #fff; border-radius: 15px; overflow: hidden; box-shadow: var(--shadow);
       cursor: pointer; position: relative; transition: transform 0.1s;
@@ -95,23 +92,13 @@
     .card-img-wrapper {
       width: 100%; height: 160px; background: #eee;
       display: flex; align-items: center; justify-content: center; overflow: hidden;
+      pointer-events: none; /* מעביר את הלחיצה לכרטיס עצמו */
     }
     .card-img { width: 100%; height: 100%; object-fit: cover; }
     .card-title { 
-      padding: 10px; text-align: center; font-size: 16px; font-weight: 600; color: #333; 
+      padding: 12px; text-align: center; font-size: 16px; font-weight: 600; color: #333; 
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    
-    .card-actions {
-      position: absolute; top: 8px; left: 8px; display: flex; gap: 8px; z-index: 2;
-    }
-    .action-btn {
-      background: rgba(255,255,255,0.95); border: none; border-radius: 50%;
-      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-size: 16px;
-    }
-    .btn-delete { color: #ff4757; }
-    .btn-edit { color: #2980b9; }
 
     .fab {
       position: fixed; bottom: 25px; left: 25px; width: 60px; height: 60px;
@@ -121,6 +108,7 @@
     }
     .fab:active { transform: scale(0.9); }
 
+    /* מודאל כללי */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6);
       display: flex; align-items: flex-end; justify-content: center; z-index: 2000;
@@ -134,6 +122,24 @@
       overflow: hidden; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
     .modal-overlay.open .modal { transform: translateY(0); }
+
+    /* תפריט אפשרויות (Action Sheet) ללחיצה ארוכה */
+    .action-sheet {
+      background: #fff; width: 100%; padding: 20px;
+      border-radius: 20px 20px 0 0;
+      transform: translateY(100%); transition: transform 0.3s ease;
+      position: absolute; bottom: 0; left: 0; z-index: 2001;
+    }
+    .modal-overlay.open .action-sheet { transform: translateY(0); }
+    
+    .sheet-title { text-align: center; font-weight: bold; color: #999; margin-bottom: 20px; font-size: 14px; }
+    .sheet-btn {
+      width: 100%; padding: 15px; border: none; background: #f8f9fa; margin-bottom: 10px;
+      border-radius: 12px; font-size: 16px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 10px;
+    }
+    .sheet-btn i { font-size: 18px; width: 25px; }
+    .sheet-btn.delete { color: #ff4757; background: #fff5f5; }
+    .sheet-btn.edit { color: #2980b9; background: #f0f7fa; }
 
     .modal-header {
       padding: 15px; background: #fff; border-bottom: 1px solid #eee;
@@ -209,6 +215,21 @@
   </div>
 
   <button class="fab" onclick="openAddModal()">+</button>
+
+  <div class="modal-overlay" id="optionsModal">
+    <div class="action-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-title">מה תרצה לעשות עם המתכון?</div>
+      <button class="sheet-btn edit" onclick="handleOptionEdit()">
+        <i class="fas fa-pen"></i> ערוך מתכון
+      </button>
+      <button class="sheet-btn delete" onclick="handleOptionDelete()">
+        <i class="fas fa-trash"></i> מחק מתכון
+      </button>
+      <button class="sheet-btn" onclick="closeModal('optionsModal')">
+        ביטול
+      </button>
+    </div>
+  </div>
 
   <div class="modal-overlay" id="addModal">
     <div class="modal">
@@ -321,7 +342,12 @@
     let recipes = [];
     let currentCategory = 'cooking';
     let tempImage = null;
-    let editingRecipeId = null; 
+    let editingRecipeId = null;
+    let selectedForOptionsId = null;
+
+    // --- משתנים לזיהוי לחיצה ארוכה ---
+    let pressTimer;
+    let isLongPress = false;
 
     // --- טעינה ---
     document.addEventListener('DOMContentLoaded', () => {
@@ -366,7 +392,6 @@
       currentCategory = cat;
       document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
       event.target.classList.add('active');
-      // איפוס חיפוש במעבר קטגוריה
       document.getElementById('searchInput').value = '';
       renderGrid();
     }
@@ -375,18 +400,14 @@
       const grid = document.getElementById('grid');
       const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
 
-      // סינון לפי קטגוריה + חיפוש
       const filtered = recipes.filter(r => {
         const isCategoryMatch = r.category === currentCategory;
-        
         let isSearchMatch = true;
         if (searchTerm) {
            const titleMatch = r.title.toLowerCase().includes(searchTerm);
-           // חיפוש גם בתוך המצרכים
            const ingredientsMatch = r.ingredients && r.ingredients.some(ing => ing.name.toLowerCase().includes(searchTerm));
            isSearchMatch = titleMatch || ingredientsMatch;
         }
-
         return isCategoryMatch && isSearchMatch;
       });
       
@@ -399,22 +420,62 @@
         return;
       }
 
+      // כאן הקסם: לחיצה ארוכה vs קצרה
       grid.innerHTML = filtered.map(r => `
-        <div class="recipe-card" onclick="openViewModal('${r.id}')">
-          <div class="card-actions">
-             <button class="action-btn btn-edit" onclick="event.stopPropagation(); editRecipe('${r.id}')">
-                <i class="fas fa-pen"></i>
-             </button>
-             <button class="action-btn btn-delete" onclick="event.stopPropagation(); deleteRecipe('${r.id}')">
-                <i class="fas fa-trash"></i>
-             </button>
-          </div>
+        <div class="recipe-card" 
+             oncontextmenu="return false;"
+             ontouchstart="startPress('${r.id}')" 
+             ontouchend="endPress('${r.id}')"
+             ontouchmove="cancelPress()"
+             onmousedown="startPress('${r.id}')"
+             onmouseup="endPress('${r.id}')"
+             onmouseleave="cancelPress()">
           <div class="card-img-wrapper">
             <img src="${r.image || 'https://via.placeholder.com/300?text=No+Image'}" class="card-img">
           </div>
           <div class="card-title">${r.title}</div>
         </div>
       `).join('');
+    }
+
+    // --- לוגיקת לחיצה ארוכה ---
+    function startPress(id) {
+        isLongPress = false;
+        pressTimer = setTimeout(() => {
+            isLongPress = true;
+            // רטט קטן במובייל כדי לסמן הצלחה
+            if (navigator.vibrate) navigator.vibrate(50);
+            openOptionsModal(id);
+        }, 600); // 600 מילישניות = לחיצה ארוכה
+    }
+
+    function endPress(id) {
+        clearTimeout(pressTimer);
+        if (!isLongPress) {
+            // אם זו לא לחיצה ארוכה - פתח צפייה
+            openViewModal(id);
+        }
+    }
+
+    function cancelPress() {
+        clearTimeout(pressTimer);
+    }
+
+    // --- ניהול תפריט אפשרויות ---
+    function openOptionsModal(id) {
+        selectedForOptionsId = id;
+        document.getElementById('optionsModal').classList.add('open');
+    }
+
+    function handleOptionEdit() {
+        closeModal('optionsModal');
+        editRecipe(selectedForOptionsId);
+    }
+
+    function handleOptionDelete() {
+        closeModal('optionsModal');
+        // דיליי קטן שיראה טבעי
+        setTimeout(() => deleteRecipe(selectedForOptionsId), 200);
     }
 
     // --- הוספה / עריכה ושמירה ---
