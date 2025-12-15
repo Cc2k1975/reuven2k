@@ -1,1 +1,613 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>השף שלי - מחובר לענן ☁️</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+
+  <style>
+    :root {
+      --primary: #e67e22;
+      --secondary: #d35400;
+      --bg: #fdf5e6;
+      --text: #2c3e50;
+      --shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
+    
+    body {
+      font-family: 'Rubik', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 100px;
+    }
+
+    header {
+      background: #fff;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 { font-size: 22px; color: var(--primary); margin: 0; }
+    
+    .btn-settings {
+      background: #f1f2f6; border: none; width: 40px; height: 40px;
+      border-radius: 50%; color: #555; font-size: 18px; cursor: pointer;
+    }
+
+    .nav-tabs {
+      display: flex; justify-content: center; gap: 10px; margin: 20px auto; padding: 0 10px; max-width: 600px;
+    }
+    .nav-btn {
+      flex: 1; padding: 12px; border: 1px solid var(--primary); background: transparent;
+      color: var(--primary); border-radius: 50px; font-weight: 700; cursor: pointer; transition: 0.3s;
+    }
+    .nav-btn.active {
+      background: var(--primary); color: #fff; box-shadow: 0 5px 15px rgba(230, 126, 34, 0.4);
+    }
+
+    .container { max-width: 1000px; margin: 0 auto; padding: 10px; }
+    .recipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
+    
+    .recipe-card {
+      background: #fff; border-radius: 15px; overflow: hidden; box-shadow: var(--shadow);
+      cursor: pointer; transition: transform 0.2s; position: relative;
+    }
+    .recipe-card:active { transform: scale(0.98); }
+    
+    .card-img-wrapper {
+      width: 100%; height: 180px; background: #eee;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .card-img { width: 100%; height: 100%; object-fit: cover; }
+    .card-title { padding: 12px; text-align: center; font-size: 18px; font-weight: 600; color: #333; }
+    .delete-btn-card {
+      position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9);
+      color: red; border: none; border-radius: 50%; width: 30px; height: 30px;
+      z-index: 2; cursor: pointer;
+    }
+
+    .fab {
+      position: fixed; bottom: 30px; left: 30px; width: 65px; height: 65px;
+      background: var(--primary); color: white; border-radius: 50%; border: none;
+      font-size: 35px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); cursor: pointer; z-index: 100;
+    }
+
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center; z-index: 2000;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+
+    .modal {
+      background: #fff; width: 95%; max-width: 600px; height: 90vh;
+      border-radius: 20px; display: flex; flex-direction: column;
+      overflow: hidden; animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp { from {transform: translateY(50px);} to {transform: translateY(0);} }
+
+    .modal-header {
+      padding: 15px; background: #f9f9f9; border-bottom: 1px solid #ddd;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-header h2 { font-size: 20px; color: var(--primary); margin:0;}
+    .close-btn { background: none; border: none; font-size: 28px; cursor: pointer; color: #777; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+    .settings-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .settings-tab-btn {
+      flex: 1; padding: 10px; border: none; background: #f1f2f6; border-radius: 8px; cursor: pointer; font-weight: 600;
+    }
+    .settings-tab-btn.active { background: var(--secondary); color: white; }
+
+    .manage-list-section { margin-bottom: 30px; }
+    .manage-input-row { display: flex; gap: 10px; margin-bottom: 15px; }
+    .manage-input-row input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
+    .btn-add-item {
+      background: var(--secondary); color: white; border: none; padding: 0 20px;
+      border-radius: 8px; cursor: pointer; font-weight: bold;
+    }
+    .tags-container { display: flex; flex-wrap: wrap; gap: 8px; }
+    .manage-tag {
+      background: #f1f2f6; padding: 6px 12px; border-radius: 20px;
+      font-size: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .tag-delete { color: #ff4757; cursor: pointer; font-weight: bold; font-size: 16px; }
+
+    .section-title {
+      font-size: 16px; color: var(--secondary); margin: 20px 0 10px 0;
+      border-bottom: 2px solid #eee; padding-bottom: 5px; font-weight: 700;
+    }
+    .form-control { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; background: #fafafa; }
+    .dynamic-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .dynamic-row select, .dynamic-row input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+    .btn-remove { background: #ff7675; color: white; border: none; width: 35px; height: 35px; border-radius: 8px; flex-shrink: 0; }
+    .btn-add-line {
+      width: 100%; padding: 10px; border: 2px dashed #ccc; color: #777;
+      background: none; border-radius: 10px; cursor: pointer; font-weight: 600;
+    }
+    .btn-save {
+      background: var(--primary); color: white; width: 100%; padding: 15px;
+      font-size: 18px; border: none; font-weight: bold; cursor: pointer;
+    }
+
+    .view-image { width: 100%; height: 250px; object-fit: cover; border-radius: 10px; margin-bottom: 15px; }
+    .view-times { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+    .time-tag {
+      background: var(--primary); color: white; padding: 5px 12px;
+      border-radius: 20px; font-size: 14px; display: flex; align-items: center; gap: 5px;
+    }
+    .ing-list-view { list-style: none; border: 1px solid #eee; border-radius: 10px; padding: 10px; }
+    .ing-list-view li { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px dashed #eee; }
+    .ing-list-view li:last-child { border-bottom: none; }
+    .ing-amount { font-weight: bold; color: var(--primary); }
+    .file-drop { border: 2px solid #ddd; padding: 20px; text-align: center; border-radius: 10px; color: #999; }
+    #previewImgInput { width: 100%; height: 150px; object-fit: cover; margin-top: 10px; display: none; border-radius: 8px; }
+
+    /* הוספתי אנימציית טעינה קטנה */
+    #loadingIndicator {
+      text-align: center; padding: 20px; color: #999; display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <datalist id="ingredientsDataList"></datalist>
+  <datalist id="spicesDataList"></datalist>
+
+  <header>
+    <h1>השף שלי</h1>
+    <button class="btn-settings" onclick="openSettings()"><i class="fas fa-cog"></i></button>
+  </header>
+
+  <div class="nav-tabs">
+    <button class="nav-btn active" onclick="setCategory('cooking')">בישולים</button>
+    <button class="nav-btn" onclick="setCategory('desserts')">קינוחים</button>
+  </div>
+
+  <div class="container">
+    <div id="loadingIndicator"><i class="fas fa-spinner fa-spin"></i> טוען מתכונים מהענן...</div>
+    <div id="grid" class="recipe-grid"></div>
+  </div>
+
+  <button class="fab" onclick="openAddModal()">+</button>
+
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>ניהול רשימות</h2>
+        <button class="close-btn" onclick="closeModal('settingsModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-tabs">
+          <button class="settings-tab-btn active" id="btnEditCooking" onclick="switchSettingsMode('cooking')">רשימות בישול</button>
+          <button class="settings-tab-btn" id="btnEditBaking" onclick="switchSettingsMode('desserts')">רשימות אפייה</button>
+        </div>
+        <div id="settingsTitle" style="text-align:center; font-weight:bold; color:#777; margin-bottom:15px;">
+          עורך כרגע: מוצרי בישול
+        </div>
+
+        <div class="manage-list-section">
+          <div class="section-title">מצרכים</div>
+          <div class="manage-input-row">
+            <input type="text" id="newProdInput" placeholder="הוסף מצרך...">
+            <button class="btn-add-item" onclick="addItemToCurrentList('products')">+</button>
+          </div>
+          <div id="productsTags" class="tags-container"></div>
+        </div>
+
+        <div class="manage-list-section">
+          <div class="section-title">תבלינים</div>
+          <div class="manage-input-row">
+            <input type="text" id="newSpiceInput" placeholder="הוסף תבלין...">
+            <button class="btn-add-item" onclick="addItemToCurrentList('spices')">+</button>
+          </div>
+          <div id="spicesTags" class="tags-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="addModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">הוספת מתכון</h2>
+        <button class="close-btn" onclick="closeModal('addModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="recipeTitle" class="form-control" placeholder="שם המנה...">
+        <div style="margin-top:15px;" class="file-drop" onclick="document.getElementById('fileInput').click()">
+          <i class="fas fa-camera"></i> בחר תמונה
+          <input type="file" id="fileInput" hidden accept="image/*" onchange="previewImage(this)">
+          <img id="previewImgInput">
+        </div>
+        <div class="section-title">זמנים</div>
+        <div id="timesContainer"></div>
+        <button type="button" class="btn-add-line" onclick="addTimeRow()">+ הוסף זמן</button>
+        <div class="section-title">מצרכים</div>
+        <div id="ingredientsContainer"></div>
+        <button type="button" class="btn-add-line" onclick="addIngredientRow()">+ הוסף מצרך</button>
+        <div class="section-title">תבלינים</div>
+        <div id="spicesContainer"></div>
+        <button type="button" class="btn-add-line" onclick="addSpiceRow()">+ הוסף תבלין</button>
+      </div>
+      <button class="btn-save" onclick="saveRecipe()">שמור מתכון</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="viewModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="viewTitle"></h2>
+        <button class="close-btn" onclick="closeModal('viewModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img id="viewImg" class="view-image" src="">
+        <div id="viewTimes" class="view-times"></div>
+        <h3 style="font-size:18px; margin-bottom:10px;">מצרכים:</h3>
+        <ul id="viewIngredients" class="ing-list-view"></ul>
+        <h3 style="font-size:18px; margin-top:20px; margin-bottom:10px;">תבלינים:</h3>
+        <ul id="viewSpices" class="ing-list-view"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- הגדרות Firebase שלך ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyBGrNVQ2DFHHD2-lv2tuSoO02Y3ImKggoo",
+      authDomain: "cooking-e45ca.firebaseapp.com",
+      projectId: "cooking-e45ca",
+      storageBucket: "cooking-e45ca.firebasestorage.app",
+      messagingSenderId: "710717068396",
+      appId: "1:710717068396:web:829ddd9c9be71a090f3449",
+      measurementId: "G-4CTG6186BT",
+      // חשוב מאוד! הוספתי את כתובת ה-Database מהצילום מסך שלך
+      databaseURL: "https://cooking-e45ca-default-rtdb.europe-west1.firebasedatabase.app"
+    };
+
+    // אתחול Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    
+    // הפניות (References) למסד הנתונים
+    const recipesRef = db.ref('recipes');
+    const listsRef = db.ref('lists'); // כאן נשמור את רשימות המצרכים/תבלינים הקבועות
+
+    // נתונים בזיכרון (מתעדכנים מהענן)
+    let recipes = [];
+    let listsData = {
+        cookProds: ["בצל", "שום", "עגבנייה", "מלפפון", "חזה עוף", "בשר טחון", "דג מושט", "תפוחי אדמה", "גזר", "אורז", "פסטה", "שמן זית"],
+        cookSpices: ["מלח", "פלפל שחור", "כמון", "כורכום", "פפריקה", "גריל עוף", "אבקת מרק"],
+        bakeProds: ["קמח לבן", "קמח תופח", "סוכר לבן", "סוכר חום", "ביצים", "חמאה", "שוקולד מריר", "שמנת מתוקה", "אבקת אפייה", "סוכר וניל"],
+        bakeSpices: ["קינמון", "אגוז מוסקט", "תמצית וניל", "גרידת לימון", "ציפורן"]
+    };
+
+    let currentCategory = 'cooking';
+    let settingsMode = 'cooking';
+    let tempImage = null;
+
+    // --- האזנה לשינויים ב-Firebase (Realtime!) ---
+    
+    // 1. האזנה למתכונים
+    document.getElementById('loadingIndicator').style.display = 'block';
+    recipesRef.on('value', (snapshot) => {
+        document.getElementById('loadingIndicator').style.display = 'none';
+        const data = snapshot.val();
+        recipes = [];
+        if (data) {
+            // המרת האובייקט שחוזר מ-Firebase למערך
+            Object.keys(data).forEach(key => {
+                recipes.push({ id: key, ...data[key] });
+            });
+        }
+        // הפוך סדר (חדש למעלה)
+        recipes.reverse(); 
+        renderGrid();
+    });
+
+    // 2. האזנה לרשימות (מוצרים/תבלינים)
+    listsRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            listsData = data;
+        } else {
+            // אם אין עדיין רשימות בענן (פעם ראשונה), נשמור את ברירת המחדל
+            listsRef.set(listsData);
+        }
+        refreshDataLists();
+    });
+
+    // --- פונקציות ליבה ---
+
+    function refreshDataLists() {
+      const ingList = document.getElementById('ingredientsDataList');
+      const spiceList = document.getElementById('spicesDataList');
+      ingList.innerHTML = '';
+      spiceList.innerHTML = '';
+
+      let prodsToShow = (currentCategory === 'cooking') ? listsData.cookProds : listsData.bakeProds;
+      let spicesToShow = (currentCategory === 'cooking') ? listsData.cookSpices : listsData.bakeSpices;
+
+      if(prodsToShow) {
+        prodsToShow.sort().forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item;
+            ingList.appendChild(opt);
+        });
+      }
+      if(spicesToShow) {
+        spicesToShow.sort().forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item;
+            spiceList.appendChild(opt);
+        });
+      }
+    }
+
+    function setCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      document.getElementById('modalTitle').textContent = 
+        cat === 'cooking' ? 'הוספת תבשיל' : 'הוספת קינוח/מאפה';
+        
+      refreshDataLists();
+      renderGrid();
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById('grid');
+      const filtered = recipes.filter(r => r.category === currentCategory);
+      
+      if(filtered.length === 0) {
+        grid.innerHTML = '<div style="text-align:center; grid-column:1/-1; padding:40px; color:#999;">אין מתכונים כאן עדיין.</div>';
+        return;
+      }
+
+      grid.innerHTML = filtered.map(r => `
+        <div class="recipe-card" onclick="openViewModal('${r.id}')">
+          <button class="delete-btn-card" onclick="event.stopPropagation(); deleteRecipe('${r.id}')">
+            <i class="fas fa-trash"></i>
+          </button>
+          <div class="card-img-wrapper">
+            <img src="${r.image || 'https://via.placeholder.com/300?text=No+Image'}" class="card-img">
+          </div>
+          <div class="card-title">${r.title}</div>
+        </div>
+      `).join('');
+    }
+
+    // --- שמירה ומחיקה מול הענן ---
+
+    function saveRecipe() {
+      const title = document.getElementById('recipeTitle').value;
+      if(!title) return alert("חייב שם למתכון");
+
+      const times = [];
+      document.querySelectorAll('#timesContainer .dynamic-row').forEach(row => {
+        const selects = row.querySelectorAll('select');
+        times.push({ type: selects[0].value, duration: selects[1].value });
+      });
+
+      const collectItems = (containerId) => {
+        const items = [];
+        document.querySelectorAll(`#${containerId} .dynamic-row`).forEach(row => {
+          const inputs = row.querySelectorAll('input');
+          const select = row.querySelector('select');
+          if(inputs[0].value) {
+            items.push({ name: inputs[0].value, amount: inputs[1].value, unit: select.value });
+          }
+        });
+        return items;
+      };
+
+      const newRecipe = {
+        category: currentCategory,
+        title,
+        image: tempImage,
+        times,
+        ingredients: collectItems('ingredientsContainer'),
+        spices: collectItems('spicesContainer'),
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      };
+
+      // שולח לענן (push מייצר מזהה ייחודי אוטומטית)
+      recipesRef.push(newRecipe).then(() => {
+          closeModal('addModal');
+          // אין צורך לקרוא ל-renderGrid, ה-Listener יעשה את זה לבד!
+      }).catch(err => {
+          alert("שגיאה בשמירה: " + err.message);
+      });
+    }
+
+    function deleteRecipe(id) {
+      if(confirm("למחוק? הפעולה בלתי הפיכה.")) {
+        // מחיקה מהענן לפי ה-ID
+        db.ref('recipes/' + id).remove();
+      }
+    }
+
+    // --- ניהול רשימות (הגדרות) מול הענן ---
+
+    function openSettings() {
+      switchSettingsMode(currentCategory);
+      document.getElementById('settingsModal').classList.add('open');
+    }
+
+    function switchSettingsMode(mode) {
+      settingsMode = mode;
+      document.getElementById('btnEditCooking').className = mode === 'cooking' ? 'settings-tab-btn active' : 'settings-tab-btn';
+      document.getElementById('btnEditBaking').className = mode === 'desserts' ? 'settings-tab-btn active' : 'settings-tab-btn';
+      
+      const title = mode === 'cooking' ? "עורך כרגע: רשימות בישול" : "עורך כרגע: רשימות אפייה";
+      document.getElementById('settingsTitle').textContent = title;
+
+      renderSettingsTags();
+    }
+
+    function renderSettingsTags() {
+      const pContainer = document.getElementById('productsTags');
+      const sContainer = document.getElementById('spicesTags');
+
+      let pList = settingsMode === 'cooking' ? listsData.cookProds : listsData.bakeProds;
+      let sList = settingsMode === 'cooking' ? listsData.cookSpices : listsData.bakeSpices;
+
+      if(!pList) pList = [];
+      if(!sList) sList = [];
+
+      pContainer.innerHTML = pList.map(p => `
+        <div class="manage-tag">
+          ${p} <span class="tag-delete" onclick="deleteFromCurrentList('products', '${p}')">&times;</span>
+        </div>
+      `).join('');
+
+      sContainer.innerHTML = sList.map(s => `
+        <div class="manage-tag">
+          ${s} <span class="tag-delete" onclick="deleteFromCurrentList('spices', '${s}')">&times;</span>
+        </div>
+      `).join('');
+    }
+
+    function addItemToCurrentList(type) {
+      let inputId = type === 'products' ? 'newProdInput' : 'newSpiceInput';
+      let input = document.getElementById(inputId);
+      let val = input.value.trim();
+      if (!val) return;
+
+      // מעדכנים את האובייקט המקומי ואז שולחים את כולו לענן
+      if (settingsMode === 'cooking') {
+        if (type === 'products') {
+           if(!listsData.cookProds) listsData.cookProds = [];
+           if(!listsData.cookProds.includes(val)) listsData.cookProds.push(val);
+        } else {
+           if(!listsData.cookSpices) listsData.cookSpices = [];
+           if(!listsData.cookSpices.includes(val)) listsData.cookSpices.push(val);
+        }
+      } else { // Baking
+        if (type === 'products') {
+           if(!listsData.bakeProds) listsData.bakeProds = [];
+           if(!listsData.bakeProds.includes(val)) listsData.bakeProds.push(val);
+        } else {
+           if(!listsData.bakeSpices) listsData.bakeSpices = [];
+           if(!listsData.bakeSpices.includes(val)) listsData.bakeSpices.push(val);
+        }
+      }
+
+      input.value = '';
+      listsRef.set(listsData); // עדכון בענן
+    }
+
+    function deleteFromCurrentList(type, val) {
+      if(!confirm("למחוק את " + val + "?")) return;
+
+      if (settingsMode === 'cooking') {
+        if (type === 'products') listsData.cookProds = listsData.cookProds.filter(i => i !== val);
+        else listsData.cookSpices = listsData.cookSpices.filter(i => i !== val);
+      } else {
+        if (type === 'products') listsData.bakeProds = listsData.bakeProds.filter(i => i !== val);
+        else listsData.bakeSpices = listsData.bakeSpices.filter(i => i !== val);
+      }
+      
+      listsRef.set(listsData); // עדכון בענן
+    }
+
+    // --- שאר הפונקציות ---
+
+    function openAddModal() {
+      refreshDataLists();
+      document.getElementById('addModal').classList.add('open');
+      document.getElementById('recipeTitle').value = '';
+      document.getElementById('fileInput').value = '';
+      document.getElementById('previewImgInput').style.display = 'none';
+      tempImage = null;
+      document.getElementById('timesContainer').innerHTML = '';
+      document.getElementById('ingredientsContainer').innerHTML = '';
+      document.getElementById('spicesContainer').innerHTML = '';
+      addTimeRow(); addIngredientRow(); addSpiceRow();
+    }
+
+    const unitsOptions = `
+      <option value="גרם">גרם</option><option value='ק"ג'>ק"ג</option>
+      <option value="יחידות">יחידות</option><option value="כפית">כפית</option>
+      <option value="כף">כף</option><option value='כוס חד"פ'>כוס חד"פ</option>
+      <option value="ספל">ספל</option><option value="מ"ל">מ"ל</option>
+      <option value="ליטר">ליטר</option><option value="קופסה">קופסה</option>
+      <option value="חבילה">חבילה</option>
+    `;
+
+    const timeTypes = `
+      <option value="בישול">בישול</option><option value="השרייה">השרייה</option>
+      <option value="חימום תנור">חימום תנור</option><option value="אפייה">אפייה</option>
+      <option value="הטפחה">הטפחה</option><option value="טיגון">טיגון</option>
+      <option value="קירור">קירור</option>
+    `;
+
+    function generateTimeList() {
+      let html = '';
+      for(let i=1; i<=10; i++) html += `<option value="${i} דקות">${i} דקות</option>`;
+      for(let i=15; i<=55; i+=5) html += `<option value="${i} דקות">${i} דקות</option>`;
+      html += `<option value="שעה">שעה</option><option value="שעה וחצי">שעה וחצי</option>
+               <option value="שעתיים">שעתיים</option><option value="לילה">לילה</option>`;
+      return html;
+    }
+    const timeValues = generateTimeList();
+
+    function addTimeRow() {
+      const div = document.createElement('div'); div.className = 'dynamic-row';
+      div.innerHTML = `<select style="flex:1;">${timeTypes}</select><select style="flex:1;">${timeValues}</select><button class="btn-remove" onclick="this.parentElement.remove()">X</button>`;
+      document.getElementById('timesContainer').appendChild(div);
+    }
+    function addIngredientRow() {
+      const div = document.createElement('div'); div.className = 'dynamic-row';
+      div.innerHTML = `<input type="text" list="ingredientsDataList" placeholder="מצרך" style="flex:2;"><input type="number" placeholder="כמות" style="flex:1;"><select style="flex:1;">${unitsOptions}</select><button class="btn-remove" onclick="this.parentElement.remove()">X</button>`;
+      document.getElementById('ingredientsContainer').appendChild(div);
+    }
+    function addSpiceRow() {
+      const div = document.createElement('div'); div.className = 'dynamic-row';
+      div.innerHTML = `<input type="text" list="spicesDataList" placeholder="תבלין" style="flex:2;"><input type="number" placeholder="כמות" style="flex:1;"><select style="flex:1;">${unitsOptions}</select><button class="btn-remove" onclick="this.parentElement.remove()">X</button>`;
+      document.getElementById('spicesContainer').appendChild(div);
+    }
+
+    function openViewModal(id) {
+      const r = recipes.find(i => i.id === id);
+      if(!r) return;
+      document.getElementById('viewTitle').textContent = r.title;
+      document.getElementById('viewImg').src = r.image || 'https://via.placeholder.com/300?text=No+Image';
+      document.getElementById('viewTimes').innerHTML = (r.times || []).map(t => `<div class="time-tag"><i class="far fa-clock"></i> ${t.type}: ${t.duration}</div>`).join('');
+      const createList = (items) => (!items || items.length===0) ? '<li>אין</li>' : items.map(i => `<li><span>${i.name}</span><span class="ing-amount">${i.amount} ${i.unit}</span></li>`).join('');
+      document.getElementById('viewIngredients').innerHTML = createList(r.ingredients);
+      document.getElementById('viewSpices').innerHTML = createList(r.spices);
+      document.getElementById('viewModal').classList.add('open');
+    }
+    
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function previewImage(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          tempImage = e.target.result;
+          document.getElementById('previewImgInput').src = tempImage;
+          document.getElementById('previewImgInput').style.display = 'block';
+        }
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+  </script>
+</body>
+</html>
