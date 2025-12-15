@@ -3,286 +3,399 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>הקראה והכתבה חכמה</title>
+    <title>מערכת הקראה, כתיבה וניקוד</title>
     <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #50e3c2;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            width: 90%;
+            max-width: 600px;
+            padding: 30px;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            padding-top: 20px;
+            gap: 20px;
+            position: relative;
         }
-        .container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            width: 85%;
+
+        h1 {
             text-align: center;
-        }
-        h2 { margin-top: 0; color: #333; font-size: 20px; margin-bottom: 15px; }
-        
-        .edit-buttons {
-            display: flex;
-            justify-content: space-between; 
-            margin-bottom: 8px;
-        }
-        
-        .small-btn {
-            border: none;
-            padding: 8px 15px;
-            border-radius: 8px;
-            font-size: 14px;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            transition: all 0.2s;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            color: #2c3e50;
         }
 
-        .btn-clear {
-            background: #fff0f0;
-            color: #d32f2f;
-            border: 1px solid #ffcccc;
-        }
-        .btn-clear:active { background: #ffcdd2; }
-
-        .btn-mic {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border: 1px solid #c8e6c9;
-        }
-        .btn-mic:active { background: #c8e6c9; }
-
-        .recording {
-            background-color: #ffebee !important;
-            color: #d32f2f !important;
-            border-color: #d32f2f !important;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0); }
+        .text-area-wrapper {
+            position: relative;
+            width: 100%;
         }
 
         textarea {
             width: 100%;
-            height: 120px;
-            padding: 10px;
-            font-size: 18px;
-            border: 2px solid #007bff;
-            border-radius: 12px;
+            height: 200px;
+            padding: 20px;
+            font-size: 22px; /* הגדלתי קצת שיראו את הניקוד */
+            line-height: 1.6;
+            border: 2px solid #e1e4e8;
+            border-radius: 15px;
             resize: none;
             box-sizing: border-box;
-            margin-bottom: 15px;
+            background: #fafafa;
+            transition: all 0.3s ease;
+            font-family: 'Segoe UI', sans-serif;
         }
 
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(74, 144, 226, 0.1);
+        }
+
+        /* שליטה במהירות */
         .speed-control {
-            background: #e9ecef;
+            background: #eef2f5;
             padding: 15px;
             border-radius: 12px;
-            margin-bottom: 20px;
-        }
-        .speed-control label {
-            font-size: 16px;
-            font-weight: bold;
-            color: #555;
-            display: block;
-            margin-bottom: 10px;
-        }
-        input[type=range] {
-            width: 100%;
-            height: 10px;
-            -webkit-appearance: none;
-            background: #d3d3d3;
-            border-radius: 5px;
-            outline: none;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 25px;
-            height: 25px;
-            background: #007bff;
-            border-radius: 50%;
-            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
-        .buttons { display: flex; flex-direction: column; gap: 12px; }
-        button.main-btn {
-            padding: 15px;
-            font-size: 18px;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            color: white;
-            width: 100%;
+        .speed-label {
+            display: flex;
+            justify-content: space-between;
             font-weight: bold;
-            box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+            font-size: 14px;
+            color: #666;
         }
-        .btn-play { background-color: #007bff; }
-        .btn-play:active { background-color: #0056b3; transform: scale(0.98); }
-        .btn-stop { background-color: #dc3545; }
-        .btn-stop:active { background-color: #a71d2a; transform: scale(0.98); }
+
+        input[type=range] {
+            width: 100%;
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e0;
+            border-radius: 2px;
+        }
+
+        /* כפתורים */
+        .main-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 15px 5px;
+            border: none;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn:active { transform: scale(0.96); }
+        .action-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .btn-tts { background: linear-gradient(135deg, #4a90e2, #357abd); }
+        .btn-stt { background: linear-gradient(135deg, #00b894, #00cec9); }
+        .btn-stt.recording { background: linear-gradient(135deg, #ff7675, #d63031); animation: pulse 1.5s infinite; }
+        .btn-clean { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
+
+        .icon { font-size: 24px; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(214, 48, 49, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(214, 48, 49, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(214, 48, 49, 0); }
+        }
+
+        .status-bar {
+            text-align: center;
+            font-size: 14px;
+            color: #888;
+            margin-top: 10px;
+            height: 20px;
+        }
+
+        /* ספינר טעינה */
+        .loader {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid #fff;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: none; /* מוסתר כברירת מחדל */
+        }
         
-        .hint { font-size: 12px; color: #777; margin-top: -10px; margin-bottom: 15px;}
+        .loading .loader { display: block; }
+        .loading .icon { display: none; }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>קורא ומכתב חכם 🧠</h2>
-        
-        <div class="edit-buttons">
-            <button class="small-btn btn-mic" id="micBtn" onclick="toggleRecording()">
-                🎤 הכתב קולית
-            </button>
-            <button class="small-btn btn-clear" onclick="clearText()">
-                🗑️ נקה הכל
-            </button>
+        <h1>עורך טקסט חכם + ניקוד 🧠</h1>
+
+        <div class="text-area-wrapper">
+            <textarea id="textInput" placeholder="הקלד כאן, לחץ על 'קול לטקסט', או בקש ניקוד..." oninput="saveText()"></textarea>
         </div>
 
-        <textarea id="textInput" placeholder="הקלד כאן או לחץ על המיקרופון..." oninput="saveText()"></textarea>
-        <div class="hint">טיפ: אמור 'נקודה', 'פסיק' או 'סימן שאלה' כדי להוסיף אותם.</div>
-        
         <div class="speed-control">
-            <label>מהירות דיבור: <span id="speedValue">1.0</span></label>
-            <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1" oninput="updateLabel()">
+            <div class="speed-label">
+                <span>מהירות דיבור</span>
+                <span id="speedValue">1.0</span>
+            </div>
+            <input type="range" id="rateSlider" min="0.5" max="2" step="0.1" value="1" oninput="handleSpeedChange()">
         </div>
 
-        <div class="buttons">
-            <button class="main-btn btn-play" onclick="speakText()">🔊 נגן טקסט</button>
-            <button class="main-btn btn-stop" onclick="stopText()">⏹️ עצור</button>
+        <div class="main-buttons">
+            <button class="action-btn btn-tts" onclick="toggleSpeech()">
+                <span class="icon">🔊</span>
+                טקסט לקול
+            </button>
+
+            <button class="action-btn btn-stt" id="micBtn" onclick="toggleRecording()">
+                <span class="icon">🎙️</span>
+                קול לטקסט
+            </button>
+
+            <button class="action-btn btn-clean" id="nakdanBtn" onclick="applyNiqqud()">
+                <span class="icon">✨</span>
+                <div class="loader"></div>
+                <span class="btn-text">נקד טקסט</span>
+            </button>
         </div>
+
+        <div class="status-bar" id="status">מוכן לפעולה</div>
     </div>
 
     <script>
+        // --- אתחול ושמירה ---
         window.onload = function() {
             const saved = localStorage.getItem("savedText");
-            if (saved) {
-                document.getElementById("textInput").value = saved;
-            }
-        }
-
-        let recognition;
-        let isRecording = false;
-
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'he-IL'; 
-            recognition.continuous = false; 
-            recognition.interimResults = false; 
-
-            recognition.onresult = function(event) {
-                let transcript = event.results[0][0].transcript;
-                
-                // --- מנגנון חכם להחלפת מילים בסימנים ---
-                transcript = smartPunctuation(transcript);
-                // ----------------------------------------
-
-                const textArea = document.getElementById("textInput");
-                
-                if (textArea.value.length > 0) {
-                    textArea.value += " " + transcript;
-                } else {
-                    textArea.value = transcript;
-                }
-                
-                saveText();
-                stopRecordingUI();
-            };
-
-            recognition.onerror = function(event) {
-                console.error("שגיאת זיהוי:", event.error);
-                stopRecordingUI();
-            };
-
-            recognition.onend = function() {
-                stopRecordingUI();
-            };
-        } else {
-            alert("דפדפן זה אינו תומך בהכתבה קולית");
-            document.getElementById("micBtn").style.display = "none";
-        }
-
-        // פונקציה שמחליפה מילים בסימנים
-        function smartPunctuation(text) {
-            return text
-                .replace(/סימן שאלה/g, "?")
-                .replace(/סימן קריאה/g, "!")
-                .replace(/ נקודה/g, ".") // נקודה עם רווח לפני
-                .replace(/נקודה/g, ".")  // נקודה בלי רווח
-                .replace(/ פסיק/g, ",")
-                .replace(/פסיק/g, ",")
-                .replace(/ שורה חדשה/g, "\n")
-                .replace(/שורה חדשה/g, "\n");
-        }
-
-        function toggleRecording() {
-            if (!recognition) return;
-            if (isRecording) {
-                recognition.stop();
-            } else {
-                recognition.start();
-                startRecordingUI();
-            }
-        }
-
-        function startRecordingUI() {
-            isRecording = true;
-            const btn = document.getElementById("micBtn");
-            btn.innerHTML = "⏹️ מקשיב...";
-            btn.classList.add("recording");
-        }
-
-        function stopRecordingUI() {
-            isRecording = false;
-            const btn = document.getElementById("micBtn");
-            btn.innerHTML = "🎤 הכתב קולית";
-            btn.classList.remove("recording");
+            if (saved) document.getElementById("textInput").value = saved;
         }
 
         function saveText() {
-            const text = document.getElementById("textInput").value;
-            localStorage.setItem("savedText", text);
+            localStorage.setItem("savedText", document.getElementById("textInput").value);
         }
 
-        function clearText() {
-            if(confirm("למחוק את הכל?")) {
-                document.getElementById("textInput").value = "";
-                saveText();
-            }
-        }
+        // --- משתנים ---
+        let recognition;
+        let isRecording = false;
+        let synth = window.speechSynthesis;
+        let utterance = null;
+        let isSpeaking = false;
 
-        function updateLabel() {
-            document.getElementById("speedValue").innerText = document.getElementById("rateSlider").value;
-        }
+        // --- פונקציה חדשה: ניקוד באמצעות API חיצוני ---
+        async function applyNiqqud() {
+            let textField = document.getElementById("textInput");
+            let originalText = textField.value;
+            let btn = document.getElementById("nakdanBtn");
+            let btnText = btn.querySelector(".btn-text");
 
-        function speakText() {
-            window.speechSynthesis.cancel();
-            const text = document.getElementById("textInput").value;
-            const speed = document.getElementById("rateSlider").value;
-
-            if (text.trim() === "") {
-                alert("אין טקסט להקראה");
+            if (!originalText.trim()) {
+                showStatus("אין טקסט לנקד");
                 return;
             }
 
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'he-IL'; 
-            utterance.rate = speed; 
-            window.speechSynthesis.speak(utterance);
+            // עדכון ממשק ל"טוען"
+            btn.classList.add("loading");
+            btnText.innerText = "מנקד...";
+            btn.disabled = true;
+            showStatus("מתחבר לשרת הניקוד... אנא המתן");
+
+            try {
+                // שליחת בקשה לשרת של Dicta
+                const response = await fetch("https://nakdan-2-0.loadbalancer.dicta.org.il/api", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        task: "nakdan",
+                        genre: "modern",
+                        data: originalText,
+                        addmorph: true,
+                        keepqq: false,
+                        nodageshdef: false,
+                        kamatz: false,
+                        sin: true
+                    })
+                });
+
+                if (!response.ok) throw new Error("שגיאת רשת");
+
+                const result = await response.json();
+                
+                // עיבוד התוצאה - בניית הטקסט מחדש עם ניקוד
+                let vocalizedText = "";
+                
+                // התוצאה היא לפעמים מערך של מילים ולפעמים טקסט פשוט תלוי בגרסה
+                // בממשק הנוכחי של דיקטה זה לרוב מגיע כמערך
+                if (Array.isArray(result)) {
+                    vocalizedText = result.map(wordObj => {
+                        // לוקחים את האופציה הראשונה (הסבירה ביותר)
+                        if (wordObj.options && wordObj.options.length > 0) {
+                            return wordObj.options[0]; 
+                        }
+                        return wordObj.word; // אם אין אופציות, מחזירים את המילה המקורית
+                    }).join("");
+                } else {
+                    // גיבוי למקרה שהפורמט משתנה
+                    vocalizedText = result.data || originalText; 
+                }
+
+                // עדכון הטקסט בתיבה
+                textField.value = vocalizedText;
+                saveText();
+                showStatus("הטקסט נוקד בהצלחה! ✨");
+
+            } catch (error) {
+                console.error(error);
+                showStatus("שגיאה בניקוד (בדוק חיבור אינטרנט)");
+                alert("לא הצלחתי להתחבר לשרת הניקוד. וודא שיש אינטרנט ושהדפדפן לא חוסם את הבקשה.");
+            } finally {
+                // החזרת הכפתור למצב רגיל
+                btn.classList.remove("loading");
+                btnText.innerText = "נקד טקסט";
+                btn.disabled = false;
+            }
         }
 
-        function stopText() {
-            window.speechSynthesis.cancel();
+        // --- קול לטקסט (ללא שינוי) ---
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'he-IL';
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onresult = function(event) {
+                let currentTranscript = "";
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        currentTranscript += event.results[i][0].transcript;
+                    }
+                }
+                currentTranscript = smartPunctuation(currentTranscript);
+                const textArea = document.getElementById("textInput");
+                textArea.value = textArea.value ? textArea.value + " " + currentTranscript : currentTranscript;
+                saveText();
+            };
+
+            recognition.onerror = (e) => showStatus("שגיאה: " + e.error);
+            recognition.onend = () => { if (isRecording) recognition.start(); else stopRecordingUI(); };
+        } else {
+            alert("דפדפן זה אינו תומך בהכתבה");
         }
+
+        function toggleRecording() {
+            if (isRecording) { recognition.stop(); isRecording = false; stopRecordingUI(); } 
+            else { recognition.start(); isRecording = true; startRecordingUI(); }
+        }
+
+        function startRecordingUI() {
+            const btn = document.getElementById("micBtn");
+            btn.innerHTML = '<span class="icon">⏹️</span> <span class="btn-text">מקשיב...</span>';
+            btn.classList.add("recording");
+            showStatus("מקליט...");
+        }
+
+        function stopRecordingUI() {
+            const btn = document.getElementById("micBtn");
+            btn.innerHTML = '<span class="icon">🎙️</span> <span class="btn-text">קול לטקסט</span>';
+            btn.classList.remove("recording");
+            showStatus("ההקלטה נעצרה");
+        }
+
+        function smartPunctuation(text) {
+            return text.replace(/סימן שאלה/g, "?").replace(/סימן קריאה/g, "!").replace(/ נקודה/g, ".").replace(/ פסיק/g, ",").replace(/שורה חדשה/g, "\n");
+        }
+
+        // --- טקסט לקול (ללא שינוי) ---
+        function toggleSpeech() {
+            if (synth.speaking) { synth.cancel(); isSpeaking = false; showStatus("עצרתי"); } 
+            else { speakText(); }
+        }
+
+        function speakText() {
+            const text = document.getElementById("textInput").value;
+            const speed = document.getElementById("rateSlider").value;
+            if (!text.trim()) { showStatus("אין טקסט להקראה"); return; }
+            synth.cancel();
+            utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'he-IL';
+            utterance.rate = speed;
+            utterance.onstart = () => showStatus("מקריא... 🔊");
+            utterance.onend = () => showStatus("סיים להקריא");
+            synth.speak(utterance);
+        }
+
+        function handleSpeedChange() {
+            const speed = document.getElementById("rateSlider").value;
+            document.getElementById("speedValue").innerText = speed;
+            if (synth.speaking) { synth.cancel(); setTimeout(() => speakText(), 50); }
+        }
+
+        function showStatus(msg) { document.getElementById("status").innerText = msg; }
     </script>
 
 </body>
