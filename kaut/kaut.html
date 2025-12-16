@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
-        /* (עיצוב זהה לקודם) */
+        /* עיצוב */
         :root { --primary: #1e3c72; --secondary: #2a5298; --accent: #f2a900; --danger: #ff4757; --success: #2ed573; }
         body { font-family: 'Rubik', sans-serif; background: radial-gradient(circle, var(--secondary) 0%, var(--primary) 100%); color: white; text-align: center; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow-x: hidden; }
         .container { width: 90%; max-width: 600px; padding: 20px; }
@@ -32,13 +32,13 @@
 <body>
 
     <div class="container">
-        
         <div id="loading-screen" class="screen active">
             <h2 style="margin-top:20px;">טוען...</h2>
         </div>
 
         <div id="login-screen" class="screen">
-            <h1 id="main-title">חידון</h1> <p>הכניסו את שמכם:</p>
+            <h1 id="main-title">חידון</h1>
+            <p>הכניסו את שמכם:</p>
             <input type="text" id="username-input" placeholder="שם שחקן / זוג">
             <button id="join-btn">היכנסו למשחק</button>
         </div>
@@ -62,6 +62,7 @@
         <div id="waiting-screen" class="screen">
             <h2>תשובה נקלטה! 👌</h2>
             <p>ממתינים לתוצאות...</p>
+            <p id="points-preview" style="color: #2ed573; font-weight: bold; font-size: 1.2rem; margin-top:10px;"></p>
         </div>
 
         <div id="round-screen" class="screen">
@@ -71,7 +72,7 @@
                 <h1 id="round-winner-name" style="color: var(--accent);">?</h1>
                 <p>התשובה: <b id="correct-answer-display"></b></p>
             </div>
-            </div>
+        </div>
 
         <div id="final-screen" class="screen">
             <h1>🏆 התוצאות הסופיות! 🏆</h1>
@@ -105,6 +106,7 @@
         }
         let myName = "";
         let currentQIndex = 0;
+        let questionStartTime = 0; // משתנה גלובלי לזמן ההתחלה של השאלה
 
         // --- סנכרון כותרת ---
         onValue(ref(db, 'gameSettings/title'), (snapshot) => {
@@ -120,15 +122,13 @@
         onValue(ref(db, 'questions'), (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // תמיכה באובייקט או מערך
                 questions = Object.values(data);
                 if (document.getElementById('loading-screen').classList.contains('active')) {
                     showScreen('login-screen');
                 }
             } else {
-                // אם אין שאלות עדיין, נשארים בטעינה או מראים הודעה
                  if (document.getElementById('loading-screen').classList.contains('active')) {
-                    showScreen('login-screen'); // בכל זאת נאפשר כניסה
+                    showScreen('login-screen');
                 }
             }
         });
@@ -149,34 +149,36 @@
             document.getElementById(id).classList.add('active');
         }
 
-        // --- לוגיקת משחק (מאזין לשינויים מהמנהל) ---
+        // --- לוגיקת משחק ---
         onValue(ref(db, 'gameState'), (snapshot) => {
             const state = snapshot.val();
             if (!state) return;
 
             if (state.status === 'waiting') {
                 if (!document.getElementById('login-screen').classList.contains('active')) {
-                    showScreen('login-screen'); // איפוס
+                    showScreen('login-screen');
                 }
             }
             else if (state.status === 'playing') {
+                // שמירת זמן התחלת השאלה מהשרת
+                questionStartTime = state.startTime || Date.now(); 
+                
                 if (state.qIndex < questions.length) {
                     currentQIndex = state.qIndex;
                     renderQuestion(state.qIndex);
-                    // אם עוד לא במשחק או אם היינו בהמתנה/תוצאות - מעבר למשחק
+                    
                     const currentScreen = document.querySelector('.screen.active').id;
                     if (currentScreen !== 'game-screen') {
                         showScreen('game-screen');
+                        document.getElementById('points-preview').innerText = ""; // איפוס הודעת ניקוד
                     }
-                } else {
-                    // סוף משחק
                 }
             } 
             else if (state.status === 'round_results') { showRoundResults(); }
             else if (state.status === 'finished') { showFinalResults(); }
         });
 
-        // רשימת שחקנים בלובי
+        // שחקנים בלובי
         onValue(ref(db, 'players'), (snapshot) => {
             const players = snapshot.val() || {};
             const list = document.getElementById('lobby-list');
@@ -209,27 +211,55 @@
                 container.appendChild(btn);
             });
 
+            // אנימציית טיימר (ויזואלית בלבד)
             const bar = document.getElementById('timer-bar');
             bar.style.transition = 'none';
             bar.style.width = '100%';
             setTimeout(() => { bar.style.transition = 'width 15s linear'; bar.style.width = '0%'; }, 100);
         }
 
+        // --- חישוב ניקוד חכם ---
         function submitAnswer(idx) {
             const q = questions[currentQIndex];
             const isCorrect = (idx === q.correct);
-            const points = isCorrect ? 100 : 0;
             
-            update(ref(db, 'players/' + myId), {
-                lastAnswerCorrect: isCorrect,
-                lastAnswerTime: isCorrect ? (Date.now() * -1) : 0,
-            });
+            let points = 0;
+            const timeNow = Date.now();
             
             if (isCorrect) {
-                get(ref(db, 'players/' + myId + '/score')).then(s => {
-                    set(ref(db, 'players/' + myId + '/score'), (s.val()||0) + points);
-                });
+                // חישוב הזמן שעבר באלפיות שנייה
+                const timeElapsed = timeNow - questionStartTime;
+                const maxTime = 15000; // 15 שניות
+                
+                // הנוסחה: מתחילים מ-1000 ויורדים ליניארית עד 500
+                // אם עבר הזמן המוקצב, מקבלים מינימום 500
+                if (timeElapsed < maxTime) {
+                    // אחוז הזמן שעבר (0 = התחלה, 1 = סוף)
+                    const timeRatio = timeElapsed / maxTime;
+                    // הניקוד: 1000 פחות החלק היחסי של 500 הנקודות הנותרות
+                    points = Math.round(1000 - (500 * timeRatio));
+                } else {
+                    points = 500; // מינימום נקודות לתשובה נכונה
+                }
             }
+
+            // עדכון בשרת
+            update(ref(db, 'players/' + myId), {
+                lastAnswerCorrect: isCorrect,
+                lastAnswerTime: isCorrect ? (timeNow * -1) : 0, // טריק המינוס למיון
+            });
+            
+            // עדכון הניקוד המצטבר
+            if (points > 0) {
+                get(ref(db, 'players/' + myId + '/score')).then(s => {
+                    const newScore = (s.val()||0) + points;
+                    set(ref(db, 'players/' + myId + '/score'), newScore);
+                });
+                document.getElementById('points-preview').innerText = `+${points} נקודות!`;
+            } else {
+                document.getElementById('points-preview').innerText = "טעות!";
+            }
+
             showScreen('waiting-screen');
         }
 
@@ -239,6 +269,7 @@
                 let winnerName = "אף אחד";
                 snapshot.forEach(child => {
                     const p = child.val();
+                    // בודק מי צדק (זמן שלילי) ומי המספר הכי נמוך (בערך מוחלט)
                     if (p.lastAnswerCorrect && Math.abs(p.lastAnswerTime) < fastestTime) {
                          fastestTime = Math.abs(p.lastAnswerTime);
                          winnerName = p.name;
@@ -254,7 +285,7 @@
              get(ref(db, 'players')).then(snapshot => {
                 const playersArr = [];
                 snapshot.forEach(c => playersArr.push(c.val()));
-                playersArr.sort((a, b) => b.score - a.score);
+                playersArr.sort((a, b) => b.score - a.score); // מיון לפי ניקוד
                 const list = document.getElementById('final-list');
                 list.innerHTML = '';
                 playersArr.forEach((p, i) => {
