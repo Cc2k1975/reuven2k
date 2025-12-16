@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
-        /* (אותו עיצוב בדיוק) */
+        /* עיצוב */
         :root { --primary: #1e3c72; --secondary: #2a5298; --accent: #f2a900; --danger: #ff4757; --success: #2ed573; }
         body { font-family: 'Rubik', sans-serif; background: radial-gradient(circle, var(--secondary) 0%, var(--primary) 100%); color: white; text-align: center; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
         .container { width: 90%; max-width: 600px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
@@ -26,8 +26,9 @@
             box-shadow: none !important;
         }
 
-        .timer-bar-container { width: 100%; height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; margin-bottom: 20px; overflow: hidden; }
-        .timer-bar { height: 100%; background: var(--danger); width: 100%; transform-origin: left; }
+        .timer-bar-container { width: 100%; height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; margin-bottom: 20px; overflow: hidden; position: relative; }
+        .timer-bar { height: 100%; background-color: #ff4757; width: 100%; transform-origin: left; display: block; position: absolute; top:0; right:0; }
+        
         .question-box { background: rgba(255,255,255,0.95); color: var(--primary); padding: 20px; border-radius: 15px; font-size: 1.4rem; font-weight: bold; min-height: 100px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
         .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .ans-btn { height: 80px; font-size: 1.1rem; color: white; display: flex; align-items: center; justify-content: center; }
@@ -170,14 +171,15 @@
                 btn.onclick = () => submitAnswer(i); container.appendChild(btn);
             });
 
-            // איפוס בר טעינה
+            // איפוס מוחלט של הבר
             const bar = document.getElementById('timer-bar'); 
             bar.style.transition = 'none'; 
             bar.style.width = '100%';
+            bar.style.backgroundColor = '#ff4757'; // וידוא צבע
+            void bar.offsetWidth; // טריק: הכרחת הדפדפן לצייר את הבר מחדש (Force Reflow)
             
-            // שינוי ל-10 שניות (10000 מילישניות)
             const elapsed = Date.now() - questionStartTime;
-            const totalTime = 10000; // כאן השינוי
+            const totalTime = 10000;
             const remaining = totalTime - elapsed;
 
             if (remaining <= 0) {
@@ -207,7 +209,6 @@
 
         function submitAnswer(idx) {
             const timeNow = Date.now();
-            // שינוי ל-10 שניות גם כאן
             if (timeNow - questionStartTime > 10000) return;
 
             clearTimeout(timerTimeout); 
@@ -215,7 +216,6 @@
             const isCorrect = (idx === questions[currentQIndex].correct);
             const elapsed = timeNow - questionStartTime;
             let points = 0;
-            // חישוב ניקוד מותאם ל-10 שניות
             if(isCorrect) points = elapsed < 10000 ? Math.round(1000 - (500 * (elapsed/10000))) : 500;
             
             update(ref(db, 'players/' + myId), { lastAnswerCorrect: isCorrect, lastAnswerTime: isCorrect ? (timeNow * -1) : 0 });
