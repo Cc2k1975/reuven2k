@@ -1,160 +1,162 @@
+
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מתורגמן מהיר</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מתורגמן קולי</title>
     <style>
+        /* איפוס הגדרות דפדפן */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* מניעת גלילה */
+        }
         body {
-            font-family: 'Segoe UI', sans-serif;
-            text-align: center;
-            background-color: #f4f4f9;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
         }
-        .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+
+        /* עיצוב הכפתורים הגדולים */
+        .mega-button {
             width: 100%;
-            max-width: 350px;
-        }
-        h2 { margin-top: 0; color: #333; }
-        .buttons { display: flex; flex-direction: column; gap: 15px; margin: 20px 0; }
-        button {
-            padding: 18px;
-            font-size: 20px;
+            height: 50vh; /* 50% מגובה המסך */
             border: none;
-            border-radius: 12px;
-            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 4rem; /* טקסט ענק */
+            font-weight: 800;
             color: white;
-            font-weight: bold;
-            transition: 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.1s, transform 0.1s;
+            outline: none;
+            /* מניעת בחירת טקסט בלחיצה ארוכה בנייד */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
-        button:active { transform: scale(0.98); }
-        #btn-he { background: linear-gradient(135deg, #007bff, #0056b3); }
-        #btn-en { background: linear-gradient(135deg, #dc3545, #a71d2a); }
-        
-        .status-text { font-size: 14px; color: #666; margin-bottom: 10px; min-height: 20px; }
-        
-        .result-box {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 15px;
-            text-align: right;
+
+        /* צבעים */
+        #btn-he { background-color: #0056b3; } /* כחול כהה */
+        #btn-en { background-color: #c82333; } /* אדום כהה */
+
+        /* אפקט לחיצה */
+        .mega-button:active {
+            filter: brightness(85%); /* מכהה מעט בלחיצה */
+            transform: scale(0.98);
         }
-        .result-label { font-size: 12px; color: #adb5bd; display: block; margin-bottom: 5px; }
-        .result-content { font-size: 18px; font-weight: 500; word-wrap: break-word; }
         
-        /* התאמה לאנגלית בתיבת התוצאה */
-        .ltr-text { text-align: left; direction: ltr; }
+        /* אינדיקציה ויזואלית עדינה בזמן הקשבה */
+        .listening {
+             animation: pulse 1.5s infinite alternate;
+        }
+        
+        @keyframes pulse {
+            from { filter: brightness(100%); }
+            to { filter: brightness(130%); }
+        }
+
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h2>מתורגמן בזמן אמת ⚡</h2>
-        <div id="status" class="status-text">מוכן לתרגום...</div>
-
-        <div class="buttons">
-            <button id="btn-he" onclick="startListening('he')">דבר בעברית 🇮🇱</button>
-            <button id="btn-en" onclick="startListening('en')">Speak English 🇺🇸</button>
-        </div>
-
-        <div class="result-box">
-            <span class="result-label">שמעתי:</span>
-            <div id="original-text" class="result-content">...</div>
-        </div>
-        <div class="result-box">
-            <span class="result-label">תרגום:</span>
-            <div id="translated-text" class="result-content" style="color: #28a745;">...</div>
-        </div>
-    </div>
+    <button id="btn-he" class="mega-button" onmousedown="startListening('he')" onmouseup="stopRecognition()" ontouchstart="startListening('he')" ontouchend="stopRecognition()">
+        עברית
+    </button>
+    
+    <button id="btn-en" class="mega-button" onmousedown="startListening('en')" onmouseup="stopRecognition()" ontouchstart="startListening('en')" ontouchend="stopRecognition()">
+        ENGLISH
+    </button>
 
     <script>
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         const synthesis = window.speechSynthesis;
+        
+        // הגדרות לזיהוי מהיר יותר
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        let isListening = false;
 
         function startListening(lang) {
-            const statusEl = document.getElementById('status');
-            const originalEl = document.getElementById('original-text');
-            const translatedEl = document.getElementById('translated-text');
-
-            // איפוס
-            originalEl.innerText = "...";
-            translatedEl.innerText = "...";
-            originalEl.className = "result-content"; // איפוס כיוון טקסט
-            translatedEl.className = "result-content";
+            if (isListening) return;
+            
+            synthesis.cancel(); // עצירת דיבור אם קיים
+            
+            const btnId = lang === 'he' ? 'btn-he' : 'btn-en';
+            document.getElementById(btnId).classList.add('listening');
 
             if (lang === 'he') {
                 recognition.lang = 'he-IL';
-                statusEl.innerText = "מקשיב בעברית...";
-                originalEl.classList.remove('ltr-text');
             } else {
                 recognition.lang = 'en-US';
-                statusEl.innerText = "Listening...";
-                originalEl.classList.add('ltr-text');
             }
 
-            recognition.start();
-
-            recognition.onresult = async (event) => {
-                const transcript = event.results[0][0].transcript;
-                originalEl.innerText = transcript;
-                statusEl.innerText = "מתרגם...";
-
-                // הגדרת כיוון תרגום
-                const source = lang === 'he' ? 'he' : 'en';
-                const target = lang === 'he' ? 'en' : 'he';
-
-                // שימוש ב-API מהיר של גוגל
-                try {
-                    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${source}&tl=${target}&dt=t&q=${encodeURIComponent(transcript)}`;
-                    
-                    const response = await fetch(url);
-                    const data = await response.json();
-                    
-                    // גוגל מחזיר מערך, הטקסט נמצא כאן:
-                    const translatedText = data[0][0][0];
-
-                    translatedEl.innerText = translatedText;
-                    
-                    // סידור כיוון טקסט לתוצאה
-                    if (target === 'en') {
-                        translatedEl.classList.add('ltr-text');
-                    } else {
-                        translatedEl.classList.remove('ltr-text');
-                    }
-
-                    statusEl.innerText = "בוצע!";
-                    speak(translatedText, target);
-
-                } catch (error) {
-                    console.error(error);
-                    statusEl.innerText = "שגיאה בתרגום, נסה שוב.";
-                }
-            };
-
-            recognition.onspeechend = () => {
+            try {
+                recognition.start();
+                isListening = true;
+            } catch (e) {
+                console.error("Error starting recognition:", e);
+            }
+        }
+        
+        function stopRecognition() {
+            // פונקציה זו מפסיקה את ההאזנה כשהמשתמש עוזב את הכפתור
+            // זה עוזר לקבל תוצאה מהירה יותר במקום לחכות לשקט
+            if (isListening) {
                 recognition.stop();
-            };
+            }
+        }
+
+        // כשהדפדפן מסיים לזהות את הדיבור
+        recognition.onresult = async (event) => {
+            const transcript = event.results[0][0].transcript;
+            console.log("שמעתי:", transcript); // לצרכי ניפוי באגים בקונסול
+
+            // זיהוי שפות יעד לתרגום
+            const currentLang = recognition.lang === 'he-IL' ? 'he' : 'en';
+            const translateTo = currentLang === 'he' ? 'en' : 'he';
+
+            try {
+                // שימוש ב-API המהיר של גוגל
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${currentLang}&tl=${translateTo}&dt=t&q=${encodeURIComponent(transcript)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                const translatedText = data[0][0][0];
+
+                // הקראת הטקסט
+                speak(translatedText, translateTo);
+
+            } catch (error) {
+                console.error("שגיאה בתרגום", error);
+            }
+        };
+
+        // ניקוי מצבים בסיום
+        recognition.onspeechend = () => {
+             resetButtons();
+             isListening = false;
+        };
+        recognition.onerror = (event) => {
+             console.log("שגיאה בזיהוי:", event.error);
+             resetButtons();
+             isListening = false;
+        };
+
+        function resetButtons() {
+            document.getElementById('btn-he').classList.remove('listening');
+            document.getElementById('btn-en').classList.remove('listening');
         }
 
         function speak(text, lang) {
-            synthesis.cancel(); // עצירת דיבור קודם
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = lang === 'he' ? 'he-IL' : 'en-US';
+            // ניסיון להגביר מעט את המהירות
+            utterance.rate = 1.1; 
             synthesis.speak(utterance);
         }
     </script>
