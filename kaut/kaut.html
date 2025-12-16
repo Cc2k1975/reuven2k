@@ -7,64 +7,60 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
-        /* עיצוב */
+        /* (אותו עיצוב בסיסי) */
         :root { --primary: #1e3c72; --secondary: #2a5298; --accent: #f2a900; --danger: #ff4757; --success: #2ed573; }
-        body { font-family: 'Rubik', sans-serif; background: radial-gradient(circle, var(--secondary) 0%, var(--primary) 100%); color: white; text-align: center; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow-x: hidden; }
-        .container { width: 90%; max-width: 600px; padding: 20px; }
-        .screen { display: none; opacity: 0; transition: opacity 0.5s; }
+        body { font-family: 'Rubik', sans-serif; background: radial-gradient(circle, var(--secondary) 0%, var(--primary) 100%); color: white; text-align: center; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
+        .container { width: 90%; max-width: 600px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
+        .screen { display: none; opacity: 0; transition: opacity 0.5s; width: 100%; }
         .screen.active { display: block; opacity: 1; animation: slideUp 0.5s ease-out; }
-        h1 { font-size: 2.5rem; margin-bottom: 10px; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        h2 { font-size: 1.5rem; margin-bottom: 20px; }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; }
         input { padding: 15px; font-size: 1.2rem; border-radius: 12px; border: 2px solid var(--accent); width: 80%; text-align: center; margin-bottom: 20px; outline: none; }
-        button { background: var(--accent); color: var(--primary); font-size: 1.2rem; padding: 15px 40px; border: none; border-radius: 50px; cursor: pointer; font-weight: 900; box-shadow: 0 5px 15px rgba(242, 169, 0, 0.4); transition: transform 0.2s, background 0.2s; width: 100%; margin: 10px 0; }
+        button { background: var(--accent); color: var(--primary); font-size: 1.2rem; padding: 15px 40px; border: none; border-radius: 50px; cursor: pointer; font-weight: 900; box-shadow: 0 5px 15px rgba(242, 169, 0, 0.4); width: 100%; margin: 10px 0; }
         button:active { transform: scale(0.95); }
-        .player-list { list-style: none; padding: 0; background: rgba(255,255,255,0.1); border-radius: 15px; padding: 15px; max-height: 300px; overflow-y: auto; }
-        .player-list li { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 1.1rem; display: flex; justify-content: space-between; }
         .timer-bar-container { width: 100%; height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; margin-bottom: 20px; overflow: hidden; }
         .timer-bar { height: 100%; background: var(--danger); width: 100%; transform-origin: left; }
-        .question-box { background: rgba(255,255,255,0.95); color: var(--primary); padding: 20px; border-radius: 15px; font-size: 1.4rem; font-weight: bold; min-height: 100px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .question-box { background: rgba(255,255,255,0.95); color: var(--primary); padding: 20px; border-radius: 15px; font-size: 1.4rem; font-weight: bold; min-height: 100px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
         .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .ans-btn { height: 80px; font-size: 1.1rem; color: white; display: flex; align-items: center; justify-content: center; line-height: 1.1; }
+        .ans-btn { height: 80px; font-size: 1.1rem; color: white; display: flex; align-items: center; justify-content: center; }
         .winner-card { background: white; color: var(--primary); padding: 30px; border-radius: 20px; }
+        
+        .summary-container { background: rgba(255, 255, 255, 0.95); color: #333; border-radius: 15px; padding: 15px; text-align: right; max-height: 500px; overflow-y: auto; }
+        .summary-item { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .summary-q { font-weight: bold; margin-bottom: 5px; color: var(--primary); }
+        .summary-a { color: var(--success); font-weight: bold; }
+        
+        .player-list { list-style: none; padding: 0; background: rgba(255,255,255,0.1); border-radius: 15px; padding: 15px; max-height: 300px; overflow-y: auto; }
+        .player-list li { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 1.1rem; display: flex; justify-content: space-between; }
+
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div id="loading-screen" class="screen active">
-            <h2 style="margin-top:20px;">טוען...</h2>
-        </div>
-
+        <div id="loading-screen" class="screen active"><h2>טוען...</h2></div>
         <div id="login-screen" class="screen">
             <h1 id="main-title">חידון</h1>
             <p>הכניסו את שמכם:</p>
             <input type="text" id="username-input" placeholder="שם שחקן / זוג">
             <button id="join-btn">היכנסו למשחק</button>
         </div>
-
         <div id="lobby-screen" class="screen">
             <h1 id="lobby-title">ממתינים...</h1>
-            <p>המשחק יתחיל בקרוב ע"י המארח</p>
+            <p>המשחק יתחיל בקרוב</p>
             <div class="player-list"><ul id="lobby-list"></ul></div>
             <p id="player-count">0 מחוברים</p>
-            <div style="margin-top: 20px;">
-                <div style="font-size: 3rem; animation: spin 3s infinite linear;">⏳</div>
-            </div>
         </div>
-
         <div id="game-screen" class="screen">
             <div class="timer-bar-container"><div id="timer-bar" class="timer-bar"></div></div>
             <div class="question-box" id="question-text"></div>
             <div class="answers-grid" id="answers-container"></div>
         </div>
-
         <div id="waiting-screen" class="screen">
             <h2>תשובה נקלטה! 👌</h2>
             <p>ממתינים לתוצאות...</p>
             <p id="points-preview" style="color: #2ed573; font-weight: bold; font-size: 1.2rem; margin-top:10px;"></p>
         </div>
-
         <div id="round-screen" class="screen">
             <h2>תוצאות הסיבוב</h2>
             <div class="winner-card">
@@ -74,225 +70,132 @@
             </div>
         </div>
 
+        <div id="summary-screen" class="screen">
+            <h2>📝 סיכום השאלות</h2>
+            <p>עוברים על התשובות עם המנחה...</p>
+            <div id="qa-summary-only" class="summary-container"></div>
+        </div>
+
         <div id="final-screen" class="screen">
-            <h1>🏆 התוצאות הסופיות! 🏆</h1>
-            <div class="player-list"><ul id="final-list"></ul></div>
+            <h1>🏆 המנצחים הגדולים! 🏆</h1>
+            <div class="player-list" style="background: rgba(0,0,0,0.3); padding: 20px;">
+                <ul id="final-list"></ul>
+            </div>
+            <button onclick="location.reload()" style="margin-top:20px; background:#e74c3c; width:auto;">יציאה</button>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, get } 
-        from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDJN7sN1lT5Qi8zFV6ad8PtXc6oc7cElY0",
-            authDomain: "kaut-72127.firebaseapp.com",
-            databaseURL: "https://kaut-72127-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "kaut-72127",
-            storageBucket: "kaut-72127.firebasestorage.app",
-            messagingSenderId: "125458113848",
-            appId: "1:125458113848:web:6b7acfd03b629cebb90dcd"
-        };
-
+        const firebaseConfig = { apiKey: "AIzaSyDJN7sN1lT5Qi8zFV6ad8PtXc6oc7cElY0", authDomain: "kaut-72127.firebaseapp.com", databaseURL: "https://kaut-72127-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "kaut-72127", storageBucket: "kaut-72127.firebasestorage.app", messagingSenderId: "125458113848", appId: "1:125458113848:web:6b7acfd03b629cebb90dcd" };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-
+        
         let questions = [];
-        let myId = localStorage.getItem('playerId');
-        if (!myId) {
-            myId = 'user_' + Date.now() + Math.floor(Math.random() * 1000);
-            localStorage.setItem('playerId', myId);
-        }
-        let myName = "";
+        let myId = localStorage.getItem('playerId') || 'user_' + Date.now() + Math.floor(Math.random() * 1000);
+        localStorage.setItem('playerId', myId);
         let currentQIndex = 0;
-        let questionStartTime = 0; // משתנה גלובלי לזמן ההתחלה של השאלה
+        let questionStartTime = 0;
 
-        // --- סנכרון כותרת ---
-        onValue(ref(db, 'gameSettings/title'), (snapshot) => {
-            const title = snapshot.val();
-            if(title) {
-                document.getElementById('main-title').innerText = title;
-                document.getElementById('lobby-title').innerText = title;
-                document.title = title;
-            }
-        });
-
-        // --- טעינת שאלות ---
-        onValue(ref(db, 'questions'), (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                questions = Object.values(data);
-                if (document.getElementById('loading-screen').classList.contains('active')) {
-                    showScreen('login-screen');
-                }
-            } else {
-                 if (document.getElementById('loading-screen').classList.contains('active')) {
-                    showScreen('login-screen');
-                }
-            }
-        });
-
-        // --- כניסה ---
+        onValue(ref(db, 'gameSettings/title'), (s) => { if(s.val()) document.getElementById('main-title').innerText = s.val(); });
+        onValue(ref(db, 'questions'), (s) => { if(s.val()) questions = Object.values(s.val()); if(document.getElementById('loading-screen').classList.contains('active')) showScreen('login-screen'); });
+        
         document.getElementById('join-btn').addEventListener('click', () => {
             const name = document.getElementById('username-input').value;
-            if (!name) return alert("חובה להכניס שם!");
-            myName = name;
+            if (!name) return alert("חובה שם!");
             set(ref(db, 'players/' + myId), { name: name, score: 0, lastAnswerTime: 0, lastAnswerCorrect: false });
             showScreen('lobby-screen');
         });
 
-        // --- ניהול מסכים ---
         const screens = document.querySelectorAll('.screen');
-        function showScreen(id) {
-            screens.forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        }
+        function showScreen(id) { screens.forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
-        // --- לוגיקת משחק ---
         onValue(ref(db, 'gameState'), (snapshot) => {
             const state = snapshot.val();
             if (!state) return;
 
-            if (state.status === 'waiting') {
-                if (!document.getElementById('login-screen').classList.contains('active')) {
-                    showScreen('login-screen');
-                }
-            }
+            if (state.status === 'waiting') { if (!document.getElementById('login-screen').classList.contains('active')) showScreen('login-screen'); }
             else if (state.status === 'playing') {
-                // שמירת זמן התחלת השאלה מהשרת
-                questionStartTime = state.startTime || Date.now(); 
-                
+                questionStartTime = state.startTime || Date.now();
                 if (state.qIndex < questions.length) {
                     currentQIndex = state.qIndex;
                     renderQuestion(state.qIndex);
-                    
-                    const currentScreen = document.querySelector('.screen.active').id;
-                    if (currentScreen !== 'game-screen') {
+                    if (document.querySelector('.screen.active').id !== 'game-screen') {
                         showScreen('game-screen');
-                        document.getElementById('points-preview').innerText = ""; // איפוס הודעת ניקוד
+                        document.getElementById('points-preview').innerText = "";
                     }
                 }
             } 
             else if (state.status === 'round_results') { showRoundResults(); }
+            else if (state.status === 'summary') { showSummary(); } // המצב החדש!
             else if (state.status === 'finished') { showFinalResults(); }
         });
 
-        // שחקנים בלובי
-        onValue(ref(db, 'players'), (snapshot) => {
-            const players = snapshot.val() || {};
-            const list = document.getElementById('lobby-list');
-            list.innerHTML = '';
+        onValue(ref(db, 'players'), (s) => {
+            const list = document.getElementById('lobby-list'); list.innerHTML = '';
             let count = 0;
-            Object.values(players).forEach(p => {
-                const li = document.createElement('li');
-                li.innerText = p.name;
-                list.appendChild(li);
-                count++;
-            });
+            if(s.val()) Object.values(s.val()).forEach(p => { list.innerHTML += `<li>${p.name}</li>`; count++; });
             document.getElementById('player-count').innerText = count + ' מחוברים';
         });
 
         function renderQuestion(index) {
             const q = questions[index];
-            if (!q) return;
-
             document.getElementById('question-text').innerText = q.q;
-            const container = document.getElementById('answers-container');
-            container.innerHTML = '';
+            const container = document.getElementById('answers-container'); container.innerHTML = '';
             const colors = ['#e1b12c', '#44bd32', '#0097e6', '#c23616'];
-
-            q.ans.forEach((ansText, i) => {
-                const btn = document.createElement('button');
-                btn.className = 'ans-btn';
-                btn.innerText = ansText;
-                btn.style.backgroundColor = colors[i % 4];
-                btn.onclick = () => submitAnswer(i);
-                container.appendChild(btn);
+            q.ans.forEach((a, i) => {
+                const btn = document.createElement('button'); btn.className = 'ans-btn'; btn.innerText = a; btn.style.backgroundColor = colors[i%4];
+                btn.onclick = () => submitAnswer(i); container.appendChild(btn);
             });
-
-            // אנימציית טיימר (ויזואלית בלבד)
-            const bar = document.getElementById('timer-bar');
-            bar.style.transition = 'none';
-            bar.style.width = '100%';
+            const bar = document.getElementById('timer-bar'); bar.style.transition = 'none'; bar.style.width = '100%';
             setTimeout(() => { bar.style.transition = 'width 15s linear'; bar.style.width = '0%'; }, 100);
         }
 
-        // --- חישוב ניקוד חכם ---
         function submitAnswer(idx) {
-            const q = questions[currentQIndex];
-            const isCorrect = (idx === q.correct);
-            
+            const isCorrect = (idx === questions[currentQIndex].correct);
+            const elapsed = Date.now() - questionStartTime;
             let points = 0;
-            const timeNow = Date.now();
+            if(isCorrect) points = elapsed < 15000 ? Math.round(1000 - (500 * (elapsed/15000))) : 500;
             
-            if (isCorrect) {
-                // חישוב הזמן שעבר באלפיות שנייה
-                const timeElapsed = timeNow - questionStartTime;
-                const maxTime = 15000; // 15 שניות
-                
-                // הנוסחה: מתחילים מ-1000 ויורדים ליניארית עד 500
-                // אם עבר הזמן המוקצב, מקבלים מינימום 500
-                if (timeElapsed < maxTime) {
-                    // אחוז הזמן שעבר (0 = התחלה, 1 = סוף)
-                    const timeRatio = timeElapsed / maxTime;
-                    // הניקוד: 1000 פחות החלק היחסי של 500 הנקודות הנותרות
-                    points = Math.round(1000 - (500 * timeRatio));
-                } else {
-                    points = 500; // מינימום נקודות לתשובה נכונה
-                }
-            }
-
-            // עדכון בשרת
-            update(ref(db, 'players/' + myId), {
-                lastAnswerCorrect: isCorrect,
-                lastAnswerTime: isCorrect ? (timeNow * -1) : 0, // טריק המינוס למיון
-            });
-            
-            // עדכון הניקוד המצטבר
-            if (points > 0) {
-                get(ref(db, 'players/' + myId + '/score')).then(s => {
-                    const newScore = (s.val()||0) + points;
-                    set(ref(db, 'players/' + myId + '/score'), newScore);
-                });
+            update(ref(db, 'players/' + myId), { lastAnswerCorrect: isCorrect, lastAnswerTime: isCorrect ? (Date.now() * -1) : 0 });
+            if(points > 0) {
+                get(ref(db, 'players/' + myId + '/score')).then(s => set(ref(db, 'players/' + myId + '/score'), (s.val()||0) + points));
                 document.getElementById('points-preview').innerText = `+${points} נקודות!`;
-            } else {
-                document.getElementById('points-preview').innerText = "טעות!";
-            }
-
+            } else { document.getElementById('points-preview').innerText = "טעות!"; }
             showScreen('waiting-screen');
         }
 
         function showRoundResults() {
-            get(ref(db, 'players')).then(snapshot => {
-                let fastestTime = Infinity;
-                let winnerName = "אף אחד";
-                snapshot.forEach(child => {
-                    const p = child.val();
-                    // בודק מי צדק (זמן שלילי) ומי המספר הכי נמוך (בערך מוחלט)
-                    if (p.lastAnswerCorrect && Math.abs(p.lastAnswerTime) < fastestTime) {
-                         fastestTime = Math.abs(p.lastAnswerTime);
-                         winnerName = p.name;
-                    }
-                });
-                document.getElementById('round-winner-name').innerText = winnerName;
+            get(ref(db, 'players')).then(s => {
+                let fastest = Infinity, winner = "אף אחד";
+                s.forEach(c => { const p = c.val(); if(p.lastAnswerCorrect && Math.abs(p.lastAnswerTime) < fastest) { fastest = Math.abs(p.lastAnswerTime); winner = p.name; } });
+                document.getElementById('round-winner-name').innerText = winner;
                 document.getElementById('correct-answer-display').innerText = questions[currentQIndex].ans[questions[currentQIndex].correct];
                 showScreen('round-screen');
             });
         }
 
+        // פונקציה חדשה: מציגה רק שאלות ותשובות
+        function showSummary() {
+            const div = document.getElementById('qa-summary-only');
+            div.innerHTML = '';
+            questions.forEach((q, i) => {
+                div.innerHTML += `<div class="summary-item"><div class="summary-q">${i+1}. ${q.q}</div><div class="summary-a">תשובה: ${q.ans[q.correct]}</div></div>`;
+            });
+            showScreen('summary-screen');
+        }
+
         function showFinalResults() {
-             get(ref(db, 'players')).then(snapshot => {
-                const playersArr = [];
-                snapshot.forEach(c => playersArr.push(c.val()));
-                playersArr.sort((a, b) => b.score - a.score); // מיון לפי ניקוד
-                const list = document.getElementById('final-list');
-                list.innerHTML = '';
-                playersArr.forEach((p, i) => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<span>#${i+1} ${p.name}</span> <span>${p.score}</span>`;
-                    if (i===0) { li.style.fontWeight="bold"; li.style.fontSize="1.3rem"; li.style.background="rgba(242,169,0,0.3)"; }
-                    list.appendChild(li);
+            get(ref(db, 'players')).then(s => {
+                const arr = []; s.forEach(c => arr.push(c.val()));
+                arr.sort((a, b) => b.score - a.score);
+                const list = document.getElementById('final-list'); list.innerHTML = '';
+                arr.forEach((p, i) => {
+                    let style = "";
+                    if(i===0) style = "font-weight:bold; font-size:1.5rem; color:#f1c40f;";
+                    list.innerHTML += `<li style="${style}"><span>#${i+1} ${p.name}</span> <span>${p.score}</span></li>`;
                 });
                 showScreen('final-screen');
             });
