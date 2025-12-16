@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
-        /* (אותו עיצוב בסיסי) */
+        /* (אותו עיצוב בדיוק) */
         :root { --primary: #1e3c72; --secondary: #2a5298; --accent: #f2a900; --danger: #ff4757; --success: #2ed573; }
         body { font-family: 'Rubik', sans-serif; background: radial-gradient(circle, var(--secondary) 0%, var(--primary) 100%); color: white; text-align: center; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
         .container { width: 90%; max-width: 600px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
@@ -17,6 +17,15 @@
         input { padding: 15px; font-size: 1.2rem; border-radius: 12px; border: 2px solid var(--accent); width: 80%; text-align: center; margin-bottom: 20px; outline: none; }
         button { background: var(--accent); color: var(--primary); font-size: 1.2rem; padding: 15px 40px; border: none; border-radius: 50px; cursor: pointer; font-weight: 900; box-shadow: 0 5px 15px rgba(242, 169, 0, 0.4); width: 100%; margin: 10px 0; }
         button:active { transform: scale(0.95); }
+        
+        button:disabled, .ans-btn.disabled {
+            background-color: #bdc3c7 !important;
+            color: #7f8c8d !important;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
         .timer-bar-container { width: 100%; height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; margin-bottom: 20px; overflow: hidden; }
         .timer-bar { height: 100%; background: var(--danger); width: 100%; transform-origin: left; }
         .question-box { background: rgba(255,255,255,0.95); color: var(--primary); padding: 20px; border-radius: 15px; font-size: 1.4rem; font-weight: bold; min-height: 100px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
@@ -52,6 +61,8 @@
             <p id="player-count">0 מחוברים</p>
         </div>
         <div id="game-screen" class="screen">
+            <div id="time-up-msg" style="display:none; color:#ff4757; font-weight:bold; margin-bottom:10px;">⏰ הזמן נגמר!</div>
+            
             <div class="timer-bar-container"><div id="timer-bar" class="timer-bar"></div></div>
             <div class="question-box" id="question-text"></div>
             <div class="answers-grid" id="answers-container"></div>
@@ -60,7 +71,7 @@
         <div id="waiting-screen" class="screen">
             <h2>תשובה נקלטה! 👌</h2>
             <p>ממתינים לתוצאות...</p>
-            </div>
+        </div>
         
         <div id="round-screen" class="screen">
             <h2>תוצאות הסיבוב</h2>
@@ -99,6 +110,7 @@
         localStorage.setItem('playerId', myId);
         let currentQIndex = 0;
         let questionStartTime = 0;
+        let timerTimeout;
 
         onValue(ref(db, 'gameSettings/title'), (s) => { if(s.val()) document.getElementById('main-title').innerText = s.val(); });
         onValue(ref(db, 'questions'), (s) => { if(s.val()) questions = Object.values(s.val()); if(document.getElementById('loading-screen').classList.contains('active')) showScreen('login-screen'); });
@@ -117,9 +129,13 @@
             const state = snapshot.val();
             if (!state) return;
 
-            if (state.status === 'waiting') { if (!document.getElementById('login-screen').classList.contains('active')) showScreen('login-screen'); }
+            if (state.status === 'waiting') { 
+                if (!document.getElementById('login-screen').classList.contains('active')) showScreen('login-screen'); 
+            }
             else if (state.status === 'playing') {
                 questionStartTime = state.startTime || Date.now();
+                document.getElementById('time-up-msg').style.display = 'none';
+                
                 if (state.qIndex < questions.length) {
                     currentQIndex = state.qIndex;
                     renderQuestion(state.qIndex);
@@ -128,7 +144,10 @@
                     }
                 }
             } 
-            else if (state.status === 'round_results') { showRoundResults(); }
+            else if (state.status === 'round_results') { 
+                clearTimeout(timerTimeout);
+                showRoundResults(); 
+            }
             else if (state.status === 'summary') { showSummary(); }
             else if (state.status === 'finished') { showFinalResults(); }
         });
@@ -145,29 +164,66 @@
             document.getElementById('question-text').innerText = q.q;
             const container = document.getElementById('answers-container'); container.innerHTML = '';
             const colors = ['#e1b12c', '#44bd32', '#0097e6', '#c23616'];
+            
             q.ans.forEach((a, i) => {
                 const btn = document.createElement('button'); btn.className = 'ans-btn'; btn.innerText = a; btn.style.backgroundColor = colors[i%4];
                 btn.onclick = () => submitAnswer(i); container.appendChild(btn);
             });
-            const bar = document.getElementById('timer-bar'); bar.style.transition = 'none'; bar.style.width = '100%';
-            setTimeout(() => { bar.style.transition = 'width 15s linear'; bar.style.width = '0%'; }, 100);
+
+            // איפוס בר טעינה
+            const bar = document.getElementById('timer-bar'); 
+            bar.style.transition = 'none'; 
+            bar.style.width = '100%';
+            
+            // שינוי ל-10 שניות (10000 מילישניות)
+            const elapsed = Date.now() - questionStartTime;
+            const totalTime = 10000; // כאן השינוי
+            const remaining = totalTime - elapsed;
+
+            if (remaining <= 0) {
+                disableButtons();
+                bar.style.width = '0%';
+            } else {
+                setTimeout(() => { 
+                    bar.style.transition = `width ${remaining/1000}s linear`; 
+                    bar.style.width = '0%'; 
+                }, 50);
+
+                clearTimeout(timerTimeout);
+                timerTimeout = setTimeout(() => {
+                    disableButtons();
+                }, remaining);
+            }
+        }
+
+        function disableButtons() {
+            const btns = document.querySelectorAll('.ans-btn');
+            btns.forEach(b => {
+                b.disabled = true;
+                b.classList.add('disabled');
+            });
+            document.getElementById('time-up-msg').style.display = 'block';
         }
 
         function submitAnswer(idx) {
+            const timeNow = Date.now();
+            // שינוי ל-10 שניות גם כאן
+            if (timeNow - questionStartTime > 10000) return;
+
+            clearTimeout(timerTimeout); 
+
             const isCorrect = (idx === questions[currentQIndex].correct);
-            const elapsed = Date.now() - questionStartTime;
+            const elapsed = timeNow - questionStartTime;
             let points = 0;
-            if(isCorrect) points = elapsed < 15000 ? Math.round(1000 - (500 * (elapsed/15000))) : 500;
+            // חישוב ניקוד מותאם ל-10 שניות
+            if(isCorrect) points = elapsed < 10000 ? Math.round(1000 - (500 * (elapsed/10000))) : 500;
             
-            // עדכון בשרת בלבד
-            update(ref(db, 'players/' + myId), { lastAnswerCorrect: isCorrect, lastAnswerTime: isCorrect ? (Date.now() * -1) : 0 });
+            update(ref(db, 'players/' + myId), { lastAnswerCorrect: isCorrect, lastAnswerTime: isCorrect ? (timeNow * -1) : 0 });
             
             if(points > 0) {
-                // עדכון ניקוד ברקע
                 get(ref(db, 'players/' + myId + '/score')).then(s => set(ref(db, 'players/' + myId + '/score'), (s.val()||0) + points));
             }
             
-            // מעבר למסך המתנה בלי שום חיווי
             showScreen('waiting-screen');
         }
 
