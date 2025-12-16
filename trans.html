@@ -1,163 +1,270 @@
-
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מתורגמן קולי</title>
+    <title>מתורגמן מולטי</title>
     <style>
-        /* איפוס הגדרות דפדפן */
         body, html {
             margin: 0;
             padding: 0;
             height: 100%;
             width: 100%;
-            overflow: hidden; /* מניעת גלילה */
-        }
-        body {
-            display: flex;
-            flex-direction: column;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        /* עיצוב הכפתורים הגדולים */
+        /* כפתורי הענק */
         .mega-button {
             width: 100%;
-            height: 50vh; /* 50% מגובה המסך */
+            height: 50vh;
             border: none;
-            font-family: 'Segoe UI', sans-serif;
-            font-size: 4rem; /* טקסט ענק */
+            font-size: 3.5rem;
             font-weight: 800;
             color: white;
             cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: background-color 0.1s, transform 0.1s;
             outline: none;
-            /* מניעת בחירת טקסט בלחיצה ארוכה בנייד */
+            transition: all 0.1s;
+            /* מניעת תפריטים קופצים בלחיצה ארוכה */
+            -webkit-user-select: none; 
+            user-select: none; 
             -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
         }
 
-        /* צבעים */
-        #btn-he { background-color: #0056b3; } /* כחול כהה */
-        #btn-en { background-color: #c82333; } /* אדום כהה */
+        /* צבעים ראשוניים */
+        #btn-top { background-color: #0056b3; } /* כחול */
+        #btn-bottom { background-color: #c82333; } /* אדום */
 
         /* אפקט לחיצה */
-        .mega-button:active {
-            filter: brightness(85%); /* מכהה מעט בלחיצה */
+        .mega-button:active, .active-press {
+            filter: brightness(80%);
             transform: scale(0.98);
         }
-        
-        /* אינדיקציה ויזואלית עדינה בזמן הקשבה */
-        .listening {
-             animation: pulse 1.5s infinite alternate;
-        }
-        
-        @keyframes pulse {
-            from { filter: brightness(100%); }
-            to { filter: brightness(130%); }
+
+        /* אייקון הגדרות */
+        #settings-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            z-index: 100;
+            cursor: pointer;
+            background: rgba(255,255,255,0.8);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
+        /* חלון הגדרות (מוסתר בהתחלה) */
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            width: 80%;
+            max-width: 300px;
+            text-align: center;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0 20px 0;
+            font-size: 18px;
+            border-radius: 8px;
+        }
+        .close-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            font-size: 18px;
+            border-radius: 50px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
 
-    <button id="btn-he" class="mega-button" onmousedown="startListening('he')" onmouseup="stopRecognition()" ontouchstart="startListening('he')" ontouchend="stopRecognition()">
-        עברית
-    </button>
-    
-    <button id="btn-en" class="mega-button" onmousedown="startListening('en')" onmouseup="stopRecognition()" ontouchstart="startListening('en')" ontouchend="stopRecognition()">
-        ENGLISH
-    </button>
+    <div id="settings-btn" onclick="openSettings()">⚙️</div>
+
+    <div id="btn-top" class="mega-button">עברית</div>
+    <div id="btn-bottom" class="mega-button">ENGLISH</div>
+
+    <div id="modal">
+        <div class="modal-content">
+            <h3>הגדרת שפות</h3>
+            
+            <label>כפתור עליון (כחול)</label>
+            <select id="select-top">
+                <option value="he">עברית</option>
+                <option value="en">English</option>
+                <option value="es">Español (ספרדית)</option>
+                <option value="pt">Português (פורטוגזית)</option>
+                <option value="ru">Русский (רוסית)</option>
+                <option value="ar">العربية (ערבית)</option>
+            </select>
+
+            <label>כפתור תחתון (אדום)</label>
+            <select id="select-bottom">
+                <option value="he">עברית</option>
+                <option value="en" selected>English</option>
+                <option value="es">Español (ספרדית)</option>
+                <option value="pt">Português (פורטוגזית)</option>
+                <option value="ru">Русский (רוסית)</option>
+                <option value="ar">العربية (ערבית)</option>
+            </select>
+
+            <button class="close-btn" onclick="saveSettings()">שמור וסגור</button>
+        </div>
+    </div>
 
     <script>
+        // הגדרת השפות והקודים שלהן
+        const languages = {
+            'he': { code: 'he-IL', name: 'עברית' },
+            'en': { code: 'en-US', name: 'ENGLISH' },
+            'es': { code: 'es-ES', name: 'ESPAÑOL' },
+            'pt': { code: 'pt-PT', name: 'PORTUGUÊS' },
+            'ru': { code: 'ru-RU', name: 'РУССКИЙ' },
+            'ar': { code: 'ar-SA', name: 'العربية' }
+        };
+
+        // מצב התחלתי
+        let currentTop = 'he';
+        let currentBottom = 'en';
+        
+        // משתנים למנוע הדיבור
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         const synthesis = window.speechSynthesis;
         
-        // הגדרות לזיהוי מהיר יותר
         recognition.continuous = false;
         recognition.interimResults = false;
-        let isListening = false;
 
-        function startListening(lang) {
-            if (isListening) return;
-            
-            synthesis.cancel(); // עצירת דיבור אם קיים
-            
-            const btnId = lang === 'he' ? 'btn-he' : 'btn-en';
-            document.getElementById(btnId).classList.add('listening');
+        let isRecording = false;
 
-            if (lang === 'he') {
-                recognition.lang = 'he-IL';
-            } else {
-                recognition.lang = 'en-US';
-            }
+        // חיבור אירועים לכפתורים (לחיצה ארוכה)
+        setupButton('btn-top', 'top');
+        setupButton('btn-bottom', 'bottom');
+
+        function setupButton(elementId, position) {
+            const btn = document.getElementById(elementId);
+            
+            // אירועים למחשב
+            btn.addEventListener('mousedown', () => start(position));
+            btn.addEventListener('mouseup', stop);
+            btn.addEventListener('mouseleave', stop); // אם העכבר בורח מהכפתור
+
+            // אירועים לנייד
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault(); // מונע תפריט קליק ימני בנייד
+                start(position);
+            });
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                stop();
+            });
+        }
+
+        function start(position) {
+            if (isRecording) return;
+            
+            synthesis.cancel(); // השתקת דיבור קודם
+            
+            // זיהוי השפה הנבחרת
+            let langKey = (position === 'top') ? currentTop : currentBottom;
+            recognition.lang = languages[langKey].code;
+
+            // שינוי ויזואלי
+            const btn = document.getElementById(position === 'top' ? 'btn-top' : 'btn-bottom');
+            btn.classList.add('active-press');
+            btn.innerText = "...";
 
             try {
                 recognition.start();
-                isListening = true;
+                isRecording = true;
+                console.log("Started recording in " + langKey);
             } catch (e) {
-                console.error("Error starting recognition:", e);
-            }
-        }
-        
-        function stopRecognition() {
-            // פונקציה זו מפסיקה את ההאזנה כשהמשתמש עוזב את הכפתור
-            // זה עוזר לקבל תוצאה מהירה יותר במקום לחכות לשקט
-            if (isListening) {
-                recognition.stop();
+                console.error(e);
             }
         }
 
-        // כשהדפדפן מסיים לזהות את הדיבור
+        function stop() {
+            if (!isRecording) return;
+            recognition.stop();
+            isRecording = false;
+            
+            // החזרת הכפתורים למצב רגיל
+            document.getElementById('btn-top').classList.remove('active-press');
+            document.getElementById('btn-bottom').classList.remove('active-press');
+            
+            // החזרת הטקסט המקורי
+            document.getElementById('btn-top').innerText = languages[currentTop].name;
+            document.getElementById('btn-bottom').innerText = languages[currentBottom].name;
+        }
+
+        // טיפול בתוצאות הדיבור
         recognition.onresult = async (event) => {
             const transcript = event.results[0][0].transcript;
-            console.log("שמעתי:", transcript); // לצרכי ניפוי באגים בקונסול
-
-            // זיהוי שפות יעד לתרגום
-            const currentLang = recognition.lang === 'he-IL' ? 'he' : 'en';
-            const translateTo = currentLang === 'he' ? 'en' : 'he';
+            
+            // חישוב שפות מקור ויעד
+            let sourceLang = recognition.lang === languages[currentTop].code ? currentTop : currentBottom;
+            let targetLang = sourceLang === currentTop ? currentBottom : currentTop;
 
             try {
-                // שימוש ב-API המהיר של גוגל
-                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${currentLang}&tl=${translateTo}&dt=t&q=${encodeURIComponent(transcript)}`;
+                // תרגום
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(transcript)}`;
                 const response = await fetch(url);
                 const data = await response.json();
                 const translatedText = data[0][0][0];
 
-                // הקראת הטקסט
-                speak(translatedText, translateTo);
+                // השמעה
+                speak(translatedText, languages[targetLang].code);
 
             } catch (error) {
-                console.error("שגיאה בתרגום", error);
+                console.error("Translation error", error);
             }
         };
 
-        // ניקוי מצבים בסיום
-        recognition.onspeechend = () => {
-             resetButtons();
-             isListening = false;
-        };
-        recognition.onerror = (event) => {
-             console.log("שגיאה בזיהוי:", event.error);
-             resetButtons();
-             isListening = false;
-        };
-
-        function resetButtons() {
-            document.getElementById('btn-he').classList.remove('listening');
-            document.getElementById('btn-en').classList.remove('listening');
+        function speak(text, langCode) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = langCode;
+            synthesis.speak(utterance);
         }
 
-        function speak(text, lang) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = lang === 'he' ? 'he-IL' : 'en-US';
-            // ניסיון להגביר מעט את המהירות
-            utterance.rate = 1.1; 
-            synthesis.speak(utterance);
+        // --- לוגיקה של הגדרות ---
+
+        function openSettings() {
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function saveSettings() {
+            // שמירת הבחירות מהתפריט
+            currentTop = document.getElementById('select-top').value;
+            currentBottom = document.getElementById('select-bottom').value;
+            
+            // עדכון הכפתורים במסך
+            document.getElementById('btn-top').innerText = languages[currentTop].name;
+            document.getElementById('btn-bottom').innerText = languages[currentBottom].name;
+
+            // סגירת החלון
+            document.getElementById('modal').style.display = 'none';
         }
     </script>
 </body>
