@@ -3,55 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מנהל משחק חנוכה 🛠️</title>
+    <title>ניהול משחק - מאובטח</title>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Rubik', sans-serif; background: #f0f2f5; padding: 20px; text-align: center; }
-        .card { background: white; padding: 20px; margin: 10px auto; max-width: 500px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, select { width: 90%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; }
-        button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; }
-        .btn-add { background: #2ed573; }
-        .btn-reset { background: #ff4757; }
-        .btn-default { background: #1e90ff; }
-        h2 { margin-top: 0; color: #333; }
+        body { font-family: 'Rubik', sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
+        
+        /* מסך כניסה */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #2c3e50; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 1000;
+        }
+        #login-box { background: white; padding: 30px; border-radius: 10px; text-align: center; }
+        #pass-input { padding: 10px; font-size: 1.2rem; margin-bottom: 10px; text-align: center; }
+        
+        /* תוכן ראשי */
+        .main-content { display: none; padding: 20px; max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        @media (max-width: 768px) { .main-content { grid-template-columns: 1fr; } }
+
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; color: #333; }
+        
+        input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+        button:hover { opacity: 0.9; }
+
+        .btn-start { background: #27ae60; font-size: 1.2rem; }
+        .btn-stop { background: #e74c3c; }
+        .btn-add { background: #2980b9; }
+        .btn-update { background: #f39c12; }
+        .btn-del { background: #c0392b; width: auto; padding: 5px 10px; font-size: 0.8rem; margin: 0; float: left;}
+
+        .question-item { background: #f9f9f9; border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        .q-text { font-weight: bold; color: #2c3e50; }
+        .ans-preview { font-size: 0.85rem; color: #7f8c8d; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <h1>🛠️ פאנל ניהול</h1>
-
-    <div class="card">
-        <h2>פעולות מהירות</h2>
-        <button class="btn-reset" onclick="resetGame()">🔄 אפס משחק (מחק שחקנים)</button>
-        <button class="btn-default" onclick="loadDefaults()">📥 טען שאלות חנוכה (ברירת מחדל)</button>
-        <p id="status-msg" style="color: gray; font-size: 0.9em;"></p>
+    <div id="login-overlay">
+        <div id="login-box">
+            <h2>🔒 כניסה למנהל</h2>
+            <input type="password" id="pass-input" placeholder="הכנס סיסמה">
+            <button onclick="checkPass()" style="background:#2c3e50;">כניסה</button>
+            <p id="error-msg" style="color:red; display:none;">סיסמה שגויה!</p>
+        </div>
     </div>
 
-    <div class="card">
-        <h2>הוסף שאלה חדשה</h2>
-        <input type="text" id="q-text" placeholder="השאלה עצמה...">
-        <input type="text" id="ans-1" placeholder="תשובה 1 (למשל: נכון)">
-        <input type="text" id="ans-2" placeholder="תשובה 2">
-        <input type="text" id="ans-3" placeholder="תשובה 3">
-        <input type="text" id="ans-4" placeholder="תשובה 4">
+    <div id="app-content" style="display:none;">
+        <h1 style="text-align:center; color:#2c3e50;">פאנל ניהול ראשי 🛠️</h1>
         
-        <p>איזו תשובה היא הנכונה?</p>
-        <select id="correct-idx">
-            <option value="0">תשובה 1</option>
-            <option value="1">תשובה 2</option>
-            <option value="2">תשובה 3</option>
-            <option value="3">תשובה 4</option>
-        </select>
+        <div class="main-content">
+            
+            <div class="col-right">
+                
+                <div class="card" style="border: 2px solid #27ae60;">
+                    <h2>🚀 שליטה במשחק</h2>
+                    <p>שחקנים מחוברים: <b id="connected-count">0</b></p>
+                    <button class="btn-start" id="start-btn">התחל משחק לכולם!</button>
+                    <button class="btn-stop" onclick="resetGame()" style="margin-top:20px; background:#7f8c8d;">🔄 איפוס מלא (מחיקת שחקנים)</button>
+                </div>
 
-        <button class="btn-add" onclick="addQuestion()">➕ הוסף שאלה לבנק</button>
+                <div class="card">
+                    <h2>✏️ הגדרות כלליות</h2>
+                    <label>כותרת המשחק (למשל: חידון פסח):</label>
+                    <input type="text" id="game-title" placeholder="שם המשחק">
+                    <button class="btn-update" onclick="updateTitle()">עדכן כותרת</button>
+                </div>
+
+                <div class="card">
+                    <h2>➕ הוסף שאלה</h2>
+                    <input type="text" id="q-text" placeholder="השאלה...">
+                    <input type="text" id="ans-1" placeholder="תשובה 1">
+                    <input type="text" id="ans-2" placeholder="תשובה 2">
+                    <input type="text" id="ans-3" placeholder="תשובה 3">
+                    <input type="text" id="ans-4" placeholder="תשובה 4">
+                    <select id="correct-idx">
+                        <option value="0">תשובה 1 היא הנכונה</option>
+                        <option value="1">תשובה 2 היא הנכונה</option>
+                        <option value="2">תשובה 3 היא הנכונה</option>
+                        <option value="3">תשובה 4 היא הנכונה</option>
+                    </select>
+                    <button class="btn-add" onclick="addQuestion()">שמור שאלה</button>
+                </div>
+            </div>
+
+            <div class="col-left">
+                <div class="card">
+                    <h2>📚 בנק השאלות (<span id="q-count">0</span>)</h2>
+                    <div id="questions-list">
+                        </div>
+                    <button onclick="loadDefaults()" style="background:#bdc3c7; color:#333; margin-top:20px;">טען שאלות לדוגמה</button>
+                </div>
+            </div>
+
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, set, remove, push, update } 
+        import { getDatabase, ref, set, remove, push, update, onValue, get } 
         from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
-        // --- הקונפיגורציה שלך ---
+        // הגדרות Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyDJN7sN1lT5Qi8zFV6ad8PtXc6oc7cElY0",
             authDomain: "kaut-72127.firebaseapp.com",
@@ -64,32 +119,90 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        let currentQuestions = [];
 
-        // פונקציות גלובליות לחלון
-        window.resetGame = function() {
-            if(!confirm("זה ימחוק את כל השחקנים והניקוד. בטוח?")) return;
-            
-            // איפוס שחקנים ומצב משחק
-            remove(ref(db, 'players'));
-            update(ref(db, 'gameState'), {
-                status: 'waiting', // מחזיר ללובי
-                qIndex: 0
-            }).then(() => alert("המשחק אופס בהצלחה!"));
+        // --- 1. אבטחה בסיסית ---
+        window.checkPass = function() {
+            const val = document.getElementById('pass-input').value;
+            if (val === '4451') {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('app-content').style.display = 'block';
+                document.querySelector('.main-content').style.display = 'grid'; // מפעיל את הגריד
+            } else {
+                document.getElementById('error-msg').style.display = 'block';
+            }
         };
 
-        window.loadDefaults = function() {
-            if(!confirm("זה ימחוק שאלות קיימות ויטען את ברירת המחדל. להמשיך?")) return;
-            
-            const defaultQuestions = [
-                { q: "כמה קנים יש בחנוכייה (כולל השמש)?", ans: ["7", "8", "9", "10"], correct: 2 },
-                { q: "מהו המאכל המסורתי של חנוכה?", ans: ["מצות", "סופגניות", "אוזני המן", "תפוח בדבש"], correct: 1 },
-                { q: "מי עמד בראש המרד ביוונים?", ans: ["מתתיהו", "יהודה המכבי", "יוסף", "משה"], correct: 1 },
-                { q: "באיזה חודש עברי חל חנוכה?", ans: ["ניסן", "תשרי", "אדר", "כסלו"], correct: 3 },
-                { q: "מה כתוב על סביבון בחו''ל?", ans: ["נ, ג, ה, פ", "נ, ג, ה, ש", "נ, ג, ה, ק", "א, ב, ג, ד"], correct: 1 }
-            ];
+        // --- 2. האזנה לשאלות ולהגדרות ---
+        onValue(ref(db, 'questions'), (snapshot) => {
+            const listDiv = document.getElementById('questions-list');
+            listDiv.innerHTML = '';
+            const data = snapshot.val();
+            let count = 0;
 
-            set(ref(db, 'questions'), defaultQuestions)
-                .then(() => alert("שאלות נטענו!"));
+            if (data) {
+                // המרה למערך עם מפתחות כדי שנוכל למחוק
+                // Firebase מחזיר אובייקט או מערך תלוי איך שמרנו. נטפל בשניהם.
+                const entries = Object.entries(data); 
+                currentQuestions = entries; // שומרים בצד
+                
+                entries.forEach(([key, q]) => {
+                    count++;
+                    const div = document.createElement('div');
+                    div.className = 'question-item';
+                    div.innerHTML = `
+                        <button class="btn-del" onclick="deleteQ('${key}')">מחק</button>
+                        <div style="margin-right: 60px;">
+                            <div class="q-text">${count}. ${q.q}</div>
+                            <div class="ans-preview">תשובה נכונה: ${q.ans[q.correct]}</div>
+                        </div>
+                    `;
+                    listDiv.appendChild(div);
+                });
+            }
+            document.getElementById('q-count').innerText = count;
+        });
+
+        // האזנה לכותרת המשחק
+        onValue(ref(db, 'gameSettings/title'), (snapshot) => {
+            const title = snapshot.val();
+            if(title) document.getElementById('game-title').value = title;
+        });
+        
+        // האזנה לכמות שחקנים
+        onValue(ref(db, 'players'), (snap) => {
+            document.getElementById('connected-count').innerText = snap.size;
+        });
+
+        // --- 3. פונקציות ניהול ---
+
+        // התחלת משחק (הועבר לכאן!)
+        document.getElementById('start-btn').addEventListener('click', () => {
+             get(ref(db, 'questions')).then(qSnap => {
+                 if(!qSnap.exists()) return alert("אין שאלות בבנק!");
+                 
+                 // איפוס ניקוד לשחקנים
+                 get(ref(db, 'players')).then(pSnap => {
+                    const updates = {};
+                    pSnap.forEach(c => {
+                        updates['players/' + c.key + '/score'] = 0;
+                        updates['players/' + c.key + '/lastAnswerTime'] = 0;
+                        updates['players/' + c.key + '/lastAnswerCorrect'] = false;
+                    });
+                    // סטטוס משחק
+                    updates['gameState'] = { 
+                        status: 'playing', 
+                        qIndex: 0, 
+                        startTime: Date.now() 
+                    };
+                    update(ref(db), updates);
+                 });
+             });
+        });
+
+        window.updateTitle = function() {
+            const t = document.getElementById('game-title').value;
+            set(ref(db, 'gameSettings/title'), t).then(() => alert('הכותרת עודכנה אצל כולם!'));
         };
 
         window.addQuestion = function() {
@@ -100,23 +213,41 @@
             const a4 = document.getElementById('ans-4').value;
             const correct = parseInt(document.getElementById('correct-idx').value);
 
-            if (!q || !a1 || !a2) return alert("חסרים נתונים!");
+            if (!q || !a1) return alert("חסרים נתונים!");
 
-            // משיכה של השאלות הקיימות והוספה לסוף
-            // בשיטה פשוטה של רשימה:
             push(ref(db, 'questions'), {
-                q: q,
-                ans: [a1, a2, a3, a4],
-                correct: correct
+                q: q, ans: [a1, a2, a3, a4], correct: correct
             }).then(() => {
-                alert("השאלה נוספה!");
-                // ניקוי טופס
+                // ניקוי
                 document.getElementById('q-text').value = "";
                 document.getElementById('ans-1').value = "";
                 document.getElementById('ans-2').value = "";
                 document.getElementById('ans-3').value = "";
                 document.getElementById('ans-4').value = "";
             });
+        };
+
+        window.deleteQ = function(key) {
+            if(confirm("למחוק את השאלה הזו?")) {
+                remove(ref(db, 'questions/' + key));
+            }
+        };
+        
+        // עושה את זה גלובלי כדי שה-HTML יכיר
+        window.deleteQ = window.deleteQ; 
+
+        window.resetGame = function() {
+            if(!confirm("זה יעיף את כל השחקנים ויאפס הכל. בטוח?")) return;
+            remove(ref(db, 'players'));
+            update(ref(db, 'gameState'), { status: 'waiting', qIndex: 0 });
+        };
+
+        window.loadDefaults = function() {
+            const defaultQuestions = [
+                { q: "כמה קנים יש בחנוכייה (כולל השמש)?", ans: ["7", "8", "9", "10"], correct: 2 },
+                { q: "מהו המאכל המסורתי של חנוכה?", ans: ["מצות", "סופגניות", "אוזני המן", "תפוח בדבש"], correct: 1 }
+            ];
+            set(ref(db, 'questions'), defaultQuestions);
         };
     </script>
 </body>
