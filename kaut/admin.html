@@ -2,204 +2,272 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>המשחק הגדול</title>
-    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ניהול משחק - גרסה סופית</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        /* (אותו עיצוב בסיסי) */
-        :root { --primary: #1e3c72; --secondary: #2a5298; --accent: #f2a900; --danger: #ff4757; --success: #2ed573; }
-        body { font-family: 'Rubik', sans-serif; background: radial-gradient(circle, var(--secondary) 0%, var(--primary) 100%); color: white; text-align: center; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
-        .container { width: 90%; max-width: 600px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
-        .screen { display: none; opacity: 0; transition: opacity 0.5s; width: 100%; }
-        .screen.active { display: block; opacity: 1; animation: slideUp 0.5s ease-out; }
-        h1 { font-size: 2.5rem; margin-bottom: 10px; }
-        input { padding: 15px; font-size: 1.2rem; border-radius: 12px; border: 2px solid var(--accent); width: 80%; text-align: center; margin-bottom: 20px; outline: none; }
-        button { background: var(--accent); color: var(--primary); font-size: 1.2rem; padding: 15px 40px; border: none; border-radius: 50px; cursor: pointer; font-weight: 900; box-shadow: 0 5px 15px rgba(242, 169, 0, 0.4); width: 100%; margin: 10px 0; }
-        button:active { transform: scale(0.95); }
-        .timer-bar-container { width: 100%; height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; margin-bottom: 20px; overflow: hidden; }
-        .timer-bar { height: 100%; background: var(--danger); width: 100%; transform-origin: left; }
-        .question-box { background: rgba(255,255,255,0.95); color: var(--primary); padding: 20px; border-radius: 15px; font-size: 1.4rem; font-weight: bold; min-height: 100px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
-        .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .ans-btn { height: 80px; font-size: 1.1rem; color: white; display: flex; align-items: center; justify-content: center; }
-        .winner-card { background: white; color: var(--primary); padding: 30px; border-radius: 20px; }
+        body { font-family: 'Rubik', sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
         
-        .summary-container { background: rgba(255, 255, 255, 0.95); color: #333; border-radius: 15px; padding: 15px; text-align: right; max-height: 500px; overflow-y: auto; }
-        .summary-item { border-bottom: 1px solid #eee; padding: 10px 0; }
-        .summary-q { font-weight: bold; margin-bottom: 5px; color: var(--primary); }
-        .summary-a { color: var(--success); font-weight: bold; }
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #2c3e50; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
+        #login-box { background: white; padding: 30px; border-radius: 10px; text-align: center; width: 300px; }
         
-        .player-list { list-style: none; padding: 0; background: rgba(255,255,255,0.1); border-radius: 15px; padding: 15px; max-height: 300px; overflow-y: auto; }
-        .player-list li { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 1.1rem; display: flex; justify-content: space-between; }
+        .main-content { display: none; padding: 20px; max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .main-content { grid-template-columns: 1fr; } }
 
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        input, select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+        
+        .btn-start { background: #27ae60; }
+        .btn-stop { background: #e74c3c; font-size: 0.8rem; }
+        .btn-reveal { background: #e67e22; border: 2px solid #d35400; }
+        .btn-next { background: #2980b9; }
+        .btn-winner { background: #f1c40f; color: #2c3e50; font-size: 1.3rem; border: 2px solid #f39c12; animation: pulse 2s infinite; }
+        
+        .btn-icon { width: auto; padding: 5px 10px; margin: 0 0 0 5px; float: left; }
+        .btn-del { background: #c0392b; }
+        .btn-edit { background: #f39c12; }
+        .btn-add { background: #2980b9; }
+        .btn-update-mode { background: #f39c12; }
+        .btn-cancel { background: #95a5a6; }
+
+        .question-item { background: #f9f9f9; border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 5px; overflow: hidden; }
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 5px; font-size: 0.8em; font-weight: bold; color: white; margin-bottom: 10px; }
+        
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div id="loading-screen" class="screen active"><h2>טוען...</h2></div>
-        <div id="login-screen" class="screen">
-            <h1 id="main-title">חידון</h1>
-            <p>הכניסו את שמכם:</p>
-            <input type="text" id="username-input" placeholder="שם שחקן / זוג">
-            <button id="join-btn">היכנסו למשחק</button>
+    <div id="login-overlay">
+        <div id="login-box">
+            <h2>🔒 כניסה למנהל</h2>
+            <input type="password" id="pass-input" placeholder="הכנס סיסמה">
+            <button onclick="checkPass()" style="background:#2c3e50;">כניסה</button>
+            <p id="error-msg" style="color:red; display:none;">סיסמה שגויה!</p>
         </div>
-        <div id="lobby-screen" class="screen">
-            <h1 id="lobby-title">ממתינים...</h1>
-            <p>המשחק יתחיל בקרוב</p>
-            <div class="player-list"><ul id="lobby-list"></ul></div>
-            <p id="player-count">0 מחוברים</p>
-        </div>
-        <div id="game-screen" class="screen">
-            <div class="timer-bar-container"><div id="timer-bar" class="timer-bar"></div></div>
-            <div class="question-box" id="question-text"></div>
-            <div class="answers-grid" id="answers-container"></div>
-        </div>
-        <div id="waiting-screen" class="screen">
-            <h2>תשובה נקלטה! 👌</h2>
-            <p>ממתינים לתוצאות...</p>
-            <p id="points-preview" style="color: #2ed573; font-weight: bold; font-size: 1.2rem; margin-top:10px;"></p>
-        </div>
-        <div id="round-screen" class="screen">
-            <h2>תוצאות הסיבוב</h2>
-            <div class="winner-card">
-                <p>המהירים ביותר:</p>
-                <h1 id="round-winner-name" style="color: var(--accent);">?</h1>
-                <p>התשובה: <b id="correct-answer-display"></b></p>
-            </div>
-        </div>
+    </div>
 
-        <div id="summary-screen" class="screen">
-            <h2>📝 סיכום השאלות</h2>
-            <p>עוברים על התשובות עם המנחה...</p>
-            <div id="qa-summary-only" class="summary-container"></div>
-        </div>
+    <div id="app-content">
+        <h1 style="text-align:center; color:#2c3e50;">מערכת ניהול</h1>
+        <div class="main-content">
+            <div class="col-right">
+                <div class="card" style="border-top: 5px solid #27ae60;">
+                    <h2>🚀 ניהול בזמן אמת</h2>
+                    <div id="status-indicator" class="status-badge" style="background:#95a5a6;">ממתין...</div>
+                    <p>שחקנים מחוברים: <b id="connected-count">0</b></p>
+                    
+                    <button class="btn-start" onclick="startGame()">▶️ התחל משחק חדש</button>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                        <button class="btn-reveal" onclick="revealResults()">🛑 עצור סבב</button>
+                        <button class="btn-next" onclick="nextQuestion()">➡️ שאלה הבאה</button>
+                    </div>
 
-        <div id="final-screen" class="screen">
-            <h1>🏆 המנצחים הגדולים! 🏆</h1>
-            <div class="player-list" style="background: rgba(0,0,0,0.3); padding: 20px;">
-                <ul id="final-list"></ul>
+                    <div id="winner-section" style="display:none; margin-top:20px; border-top:1px solid #eee; padding-top:10px;">
+                        <p>סיימנו את השאלות! כעת אפשר לעבור על התשובות ואז לחשוף:</p>
+                        <button class="btn-winner" onclick="revealFinalWinner()">🏆 חשוף את המנצח!</button>
+                    </div>
+
+                    <button class="btn-stop" onclick="resetGame()" style="margin-top:20px;">🔄 איפוס מלא</button>
+                </div>
+
+                <div class="card" id="editor-card">
+                    <h2 id="editor-title">➕ הוסף שאלה</h2>
+                    <input type="text" id="q-text" placeholder="שאלה...">
+                    <input type="text" id="ans-1" placeholder="תשובה 1">
+                    <input type="text" id="ans-2" placeholder="תשובה 2">
+                    <input type="text" id="ans-3" placeholder="תשובה 3">
+                    <input type="text" id="ans-4" placeholder="תשובה 4">
+                    <select id="correct-idx">
+                        <option value="0">תשובה 1 נכונה</option>
+                        <option value="1">תשובה 2 נכונה</option>
+                        <option value="2">תשובה 3 נכונה</option>
+                        <option value="3">תשובה 4 נכונה</option>
+                    </select>
+                    <button id="save-btn" class="btn-add" onclick="saveQuestion()">שמור</button>
+                    <button id="cancel-btn" class="btn-cancel" onclick="cancelEdit()" style="display:none;">ביטול</button>
+                </div>
+                
+                <div class="card">
+                     <label>כותרת:</label>
+                     <div style="display:flex; gap:5px;"><input type="text" id="game-title"><button onclick="updateTitle()" style="width:auto; margin:0; background:#2980b9;">עדכן</button></div>
+                </div>
             </div>
-            <button onclick="location.reload()" style="margin-top:20px; background:#e74c3c; width:auto;">יציאה</button>
+
+            <div class="col-left">
+                <div class="card">
+                    <h2>📚 בנק שאלות (<span id="q-count">0</span>)</h2>
+                    <div id="questions-list"></div>
+                    <button onclick="loadDefaults()" style="background:#bdc3c7; color:#333; margin-top:20px;">טען שאלות לדוגמה</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        import { getDatabase, ref, set, remove, push, update, onValue, get } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
         const firebaseConfig = { apiKey: "AIzaSyDJN7sN1lT5Qi8zFV6ad8PtXc6oc7cElY0", authDomain: "kaut-72127.firebaseapp.com", databaseURL: "https://kaut-72127-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "kaut-72127", storageBucket: "kaut-72127.firebasestorage.app", messagingSenderId: "125458113848", appId: "1:125458113848:web:6b7acfd03b629cebb90dcd" };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         
-        let questions = [];
-        let myId = localStorage.getItem('playerId') || 'user_' + Date.now() + Math.floor(Math.random() * 1000);
-        localStorage.setItem('playerId', myId);
+        let currentQuestions = [];
+        let editingKey = null;
         let currentQIndex = 0;
-        let questionStartTime = 0;
 
-        onValue(ref(db, 'gameSettings/title'), (s) => { if(s.val()) document.getElementById('main-title').innerText = s.val(); });
-        onValue(ref(db, 'questions'), (s) => { if(s.val()) questions = Object.values(s.val()); if(document.getElementById('loading-screen').classList.contains('active')) showScreen('login-screen'); });
-        
-        document.getElementById('join-btn').addEventListener('click', () => {
-            const name = document.getElementById('username-input').value;
-            if (!name) return alert("חובה שם!");
-            set(ref(db, 'players/' + myId), { name: name, score: 0, lastAnswerTime: 0, lastAnswerCorrect: false });
-            showScreen('lobby-screen');
-        });
+        window.checkPass = function() {
+            if (document.getElementById('pass-input').value === '4451') {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.querySelector('.main-content').style.display = 'grid';
+            } else { document.getElementById('error-msg').style.display = 'block'; }
+        };
 
-        const screens = document.querySelectorAll('.screen');
-        function showScreen(id) { screens.forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-
-        onValue(ref(db, 'gameState'), (snapshot) => {
-            const state = snapshot.val();
-            if (!state) return;
-
-            if (state.status === 'waiting') { if (!document.getElementById('login-screen').classList.contains('active')) showScreen('login-screen'); }
-            else if (state.status === 'playing') {
-                questionStartTime = state.startTime || Date.now();
-                if (state.qIndex < questions.length) {
-                    currentQIndex = state.qIndex;
-                    renderQuestion(state.qIndex);
-                    if (document.querySelector('.screen.active').id !== 'game-screen') {
-                        showScreen('game-screen');
-                        document.getElementById('points-preview').innerText = "";
-                    }
-                }
-            } 
-            else if (state.status === 'round_results') { showRoundResults(); }
-            else if (state.status === 'summary') { showSummary(); } // המצב החדש!
-            else if (state.status === 'finished') { showFinalResults(); }
-        });
-
-        onValue(ref(db, 'players'), (s) => {
-            const list = document.getElementById('lobby-list'); list.innerHTML = '';
+        onValue(ref(db, 'questions'), (snapshot) => {
+            const listDiv = document.getElementById('questions-list');
+            listDiv.innerHTML = '';
+            const data = snapshot.val();
             let count = 0;
-            if(s.val()) Object.values(s.val()).forEach(p => { list.innerHTML += `<li>${p.name}</li>`; count++; });
-            document.getElementById('player-count').innerText = count + ' מחוברים';
+            if (data) {
+                const entries = Object.entries(data); 
+                currentQuestions = entries;
+                entries.forEach(([key, q]) => {
+                    count++;
+                    const div = document.createElement('div');
+                    div.className = 'question-item';
+                    if(key === editingKey) div.classList.add('editing-now');
+                    div.innerHTML = `<div style="float:left;"><button class="btn-icon btn-del" onclick="deleteQ('${key}')">🗑️</button><button class="btn-icon btn-edit" onclick="editQ('${key}')">✏️</button></div><div style="margin-left: 10px;"><div style="font-weight:bold;">${count}. ${q.q}</div><div style="color:gray; font-size:0.9em;">תשובה: ${q.ans[q.correct]}</div></div>`;
+                    listDiv.appendChild(div);
+                });
+            }
+            document.getElementById('q-count').innerText = count;
         });
 
-        function renderQuestion(index) {
-            const q = questions[index];
-            document.getElementById('question-text').innerText = q.q;
-            const container = document.getElementById('answers-container'); container.innerHTML = '';
-            const colors = ['#e1b12c', '#44bd32', '#0097e6', '#c23616'];
-            q.ans.forEach((a, i) => {
-                const btn = document.createElement('button'); btn.className = 'ans-btn'; btn.innerText = a; btn.style.backgroundColor = colors[i%4];
-                btn.onclick = () => submitAnswer(i); container.appendChild(btn);
-            });
-            const bar = document.getElementById('timer-bar'); bar.style.transition = 'none'; bar.style.width = '100%';
-            setTimeout(() => { bar.style.transition = 'width 15s linear'; bar.style.width = '0%'; }, 100);
-        }
+        onValue(ref(db, 'players'), (s) => { document.getElementById('connected-count').innerText = s.size; });
+        onValue(ref(db, 'gameSettings/title'), (s) => { if(s.val()) document.getElementById('game-title').value = s.val(); });
 
-        function submitAnswer(idx) {
-            const isCorrect = (idx === questions[currentQIndex].correct);
-            const elapsed = Date.now() - questionStartTime;
-            let points = 0;
-            if(isCorrect) points = elapsed < 15000 ? Math.round(1000 - (500 * (elapsed/15000))) : 500;
+        onValue(ref(db, 'gameState'), (s) => {
+            const st = s.val();
+            const badge = document.getElementById('status-indicator');
+            const winnerSec = document.getElementById('winner-section');
+            if(!st) return;
+            currentQIndex = st.qIndex || 0;
             
-            update(ref(db, 'players/' + myId), { lastAnswerCorrect: isCorrect, lastAnswerTime: isCorrect ? (Date.now() * -1) : 0 });
-            if(points > 0) {
-                get(ref(db, 'players/' + myId + '/score')).then(s => set(ref(db, 'players/' + myId + '/score'), (s.val()||0) + points));
-                document.getElementById('points-preview').innerText = `+${points} נקודות!`;
-            } else { document.getElementById('points-preview').innerText = "טעות!"; }
-            showScreen('waiting-screen');
-        }
+            winnerSec.style.display = 'none'; // הסתרה כברירת מחדל
 
-        function showRoundResults() {
-            get(ref(db, 'players')).then(s => {
-                let fastest = Infinity, winner = "אף אחד";
-                s.forEach(c => { const p = c.val(); if(p.lastAnswerCorrect && Math.abs(p.lastAnswerTime) < fastest) { fastest = Math.abs(p.lastAnswerTime); winner = p.name; } });
-                document.getElementById('round-winner-name').innerText = winner;
-                document.getElementById('correct-answer-display').innerText = questions[currentQIndex].ans[questions[currentQIndex].correct];
-                showScreen('round-screen');
-            });
-        }
+            if(st.status === 'playing') {
+                badge.innerText = `שאלה ${currentQIndex + 1} רצה`;
+                badge.style.background = "#e74c3c";
+            } else if (st.status === 'round_results') {
+                badge.innerText = "תוצאות סיבוב";
+                badge.style.background = "#e67e22";
+            } else if (st.status === 'summary') {
+                badge.innerText = "סיכום שאלות (מנצח מוסתר)";
+                badge.style.background = "#3498db"; // כחול
+                winnerSec.style.display = 'block'; // הצגת כפתור החשיפה!
+            } else if (st.status === 'finished') {
+                badge.innerText = "משחק הסתיים - מנצח נחשף";
+                badge.style.background = "#f1c40f"; // זהב
+                badge.style.color = "#333";
+            } else {
+                badge.innerText = "ממתין";
+                badge.style.background = "#95a5a6";
+            }
+        });
 
-        // פונקציה חדשה: מציגה רק שאלות ותשובות
-        function showSummary() {
-            const div = document.getElementById('qa-summary-only');
-            div.innerHTML = '';
-            questions.forEach((q, i) => {
-                div.innerHTML += `<div class="summary-item"><div class="summary-q">${i+1}. ${q.q}</div><div class="summary-a">תשובה: ${q.ans[q.correct]}</div></div>`;
-            });
-            showScreen('summary-screen');
-        }
+        window.startGame = function() {
+             get(ref(db, 'questions')).then(qSnap => {
+                 if(!qSnap.exists()) return alert("אין שאלות בבנק!");
+                 get(ref(db, 'players')).then(pSnap => {
+                    const updates = {};
+                    if(pSnap.exists()) {
+                        pSnap.forEach(c => {
+                            updates['players/' + c.key + '/score'] = 0;
+                            updates['players/' + c.key + '/lastAnswerTime'] = 0;
+                            updates['players/' + c.key + '/lastAnswerCorrect'] = false;
+                        });
+                    }
+                    updates['gameState'] = { status: 'playing', qIndex: 0, startTime: Date.now() };
+                    update(ref(db), updates);
+                 });
+             });
+        };
 
-        function showFinalResults() {
-            get(ref(db, 'players')).then(s => {
-                const arr = []; s.forEach(c => arr.push(c.val()));
-                arr.sort((a, b) => b.score - a.score);
-                const list = document.getElementById('final-list'); list.innerHTML = '';
-                arr.forEach((p, i) => {
-                    let style = "";
-                    if(i===0) style = "font-weight:bold; font-size:1.5rem; color:#f1c40f;";
-                    list.innerHTML += `<li style="${style}"><span>#${i+1} ${p.name}</span> <span>${p.score}</span></li>`;
-                });
-                showScreen('final-screen');
-            });
-        }
+        window.revealResults = function() { update(ref(db, 'gameState'), { status: 'round_results' }); };
+
+        window.nextQuestion = function() {
+             const nextIdx = currentQIndex + 1;
+             
+             // אם נגמרו השאלות -> הולכים למצב "סיכום" (Summary) במקום ישר ל"סיום"
+             if (nextIdx >= currentQuestions.length) {
+                 update(ref(db, 'gameState'), { status: 'summary' });
+                 return;
+             }
+
+             get(ref(db, 'players')).then(snap => {
+                 const updates = {};
+                 if(snap.exists()) {
+                    snap.forEach(p => {
+                        updates['players/' + p.key + '/lastAnswerCorrect'] = false;
+                        updates['players/' + p.key + '/lastAnswerTime'] = 0;
+                    });
+                 }
+                 updates['gameState'] = { status: 'playing', qIndex: nextIdx, startTime: Date.now() };
+                 update(ref(db), updates);
+             });
+        };
+
+        // הפונקציה החדשה לחשיפה הסופית
+        window.revealFinalWinner = function() {
+            update(ref(db, 'gameState'), { status: 'finished' });
+        };
+
+        window.resetGame = function() {
+            if(!confirm("זה יעיף את כל השחקנים. בטוח?")) return;
+            remove(ref(db, 'players'));
+            update(ref(db, 'gameState'), { status: 'waiting', qIndex: 0 });
+        };
+
+        // (פונקציות העריכה הוסרו לקיצור, הן זהות לקודם)
+        window.saveQuestion = function() {
+            const q = document.getElementById('q-text').value;
+            const a1 = document.getElementById('ans-1').value;
+            const a2 = document.getElementById('ans-2').value;
+            const a3 = document.getElementById('ans-3').value;
+            const a4 = document.getElementById('ans-4').value;
+            const correct = parseInt(document.getElementById('correct-idx').value);
+            if (!q || !a1) return alert("חסרים נתונים!");
+            const qObj = { q: q, ans: [a1, a2, a3, a4], correct: correct };
+            if (editingKey) set(ref(db, 'questions/' + editingKey), qObj).then(() => cancelEdit());
+            else push(ref(db, 'questions'), qObj).then(() => cancelEdit());
+        };
+        window.editQ = function(key) {
+            const found = currentQuestions.find(item => item[0] === key);
+            if (!found) return;
+            const qData = found[1];
+            document.getElementById('q-text').value = qData.q;
+            document.getElementById('ans-1').value = qData.ans[0];
+            document.getElementById('ans-2').value = qData.ans[1];
+            document.getElementById('ans-3').value = qData.ans[2];
+            document.getElementById('ans-4').value = qData.ans[3];
+            document.getElementById('correct-idx').value = qData.correct;
+            editingKey = key;
+            document.getElementById('editor-title').innerText = "ערוך שאלה";
+            document.getElementById('cancel-btn').style.display = "inline-block";
+        };
+        window.cancelEdit = function() {
+            editingKey = null;
+            document.getElementById('q-text').value = ""; document.getElementById('ans-1').value = ""; document.getElementById('ans-2').value = ""; document.getElementById('ans-3').value = ""; document.getElementById('ans-4').value = "";
+            document.getElementById('editor-title').innerText = "הוסף שאלה";
+            document.getElementById('cancel-btn').style.display = "none";
+        };
+        window.deleteQ = function(key) { if(confirm("למחוק?")) remove(ref(db, 'questions/' + key)); };
+        window.updateTitle = function() { set(ref(db, 'gameSettings/title'), document.getElementById('game-title').value); };
+        window.loadDefaults = function() {
+             const defaultQuestions = [{ q: "ניסיון", ans: ["1", "2", "3", "4"], correct: 0 }];
+             push(ref(db, 'questions'), defaultQuestions[0]);
+        };
     </script>
 </body>
 </html>
