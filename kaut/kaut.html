@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>חידון חנוכה הגדול 🕎</title>
+    <title>המשחק הגדול</title>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
-        /* (אותו עיצוב כמו קודם - לא השתנה) */
+        /* (עיצוב זהה לקודם) */
         :root { --primary: #1e3c72; --secondary: #2a5298; --accent: #f2a900; --danger: #ff4757; --success: #2ed573; }
         body { font-family: 'Rubik', sans-serif; background: radial-gradient(circle, var(--secondary) 0%, var(--primary) 100%); color: white; text-align: center; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; overflow-x: hidden; }
         .container { width: 90%; max-width: 600px; padding: 20px; }
         .screen { display: none; opacity: 0; transition: opacity 0.5s; }
         .screen.active { display: block; opacity: 1; animation: slideUp 0.5s ease-out; }
-        h1 { font-size: 3rem; margin-bottom: 10px; }
-        h2 { font-size: 1.8rem; margin-bottom: 20px; }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        h2 { font-size: 1.5rem; margin-bottom: 20px; }
         input { padding: 15px; font-size: 1.2rem; border-radius: 12px; border: 2px solid var(--accent); width: 80%; text-align: center; margin-bottom: 20px; outline: none; }
         button { background: var(--accent); color: var(--primary); font-size: 1.2rem; padding: 15px 40px; border: none; border-radius: 50px; cursor: pointer; font-weight: 900; box-shadow: 0 5px 15px rgba(242, 169, 0, 0.4); transition: transform 0.2s, background 0.2s; width: 100%; margin: 10px 0; }
         button:active { transform: scale(0.95); }
@@ -32,24 +32,24 @@
 <body>
 
     <div class="container">
+        
         <div id="loading-screen" class="screen active">
-            <h2>טוען משחק...</h2>
-            <div style="font-size: 2rem;">🕎</div>
+            <h2 style="margin-top:20px;">טוען...</h2>
         </div>
 
         <div id="login-screen" class="screen">
-            <h1>🕎 חנוכה שמח!</h1>
-            <p>הכניסו את שם הזוג:</p>
-            <input type="text" id="username-input" placeholder="למשל: דני ורונית">
+            <h1 id="main-title">חידון</h1> <p>הכניסו את שמכם:</p>
+            <input type="text" id="username-input" placeholder="שם שחקן / זוג">
             <button id="join-btn">היכנסו למשחק</button>
         </div>
 
         <div id="lobby-screen" class="screen">
-            <h2>ממתינים לכולם...</h2>
+            <h1 id="lobby-title">ממתינים...</h1>
+            <p>המשחק יתחיל בקרוב ע"י המארח</p>
             <div class="player-list"><ul id="lobby-list"></ul></div>
-            <p id="player-count">0 זוגות מחוברים</p>
-            <div style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 20px;">
-                <button id="start-game-btn" style="background: var(--success); color: white;">🚀 התחל משחק</button>
+            <p id="player-count">0 מחוברים</p>
+            <div style="margin-top: 20px;">
+                <div style="font-size: 3rem; animation: spin 3s infinite linear;">⏳</div>
             </div>
         </div>
 
@@ -61,8 +61,7 @@
 
         <div id="waiting-screen" class="screen">
             <h2>תשובה נקלטה! 👌</h2>
-            <p>ממתינים...</p>
-            <button id="force-finish-btn" style="background: var(--danger); margin-top: 50px; opacity: 0.8;">🛑 סיים שאלה (למנהל)</button>
+            <p>ממתינים לתוצאות...</p>
         </div>
 
         <div id="round-screen" class="screen">
@@ -72,8 +71,7 @@
                 <h1 id="round-winner-name" style="color: var(--accent);">?</h1>
                 <p>התשובה: <b id="correct-answer-display"></b></p>
             </div>
-            <br><button id="next-q-btn">לשאלה הבאה >>></button>
-        </div>
+            </div>
 
         <div id="final-screen" class="screen">
             <h1>🏆 התוצאות הסופיות! 🏆</h1>
@@ -99,10 +97,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- שינוי: משתנה שאלות דינמי ---
         let questions = [];
-
-        // משתנים מקומיים
         let myId = localStorage.getItem('playerId');
         if (!myId) {
             myId = 'user_' + Date.now() + Math.floor(Math.random() * 1000);
@@ -111,20 +106,40 @@
         let myName = "";
         let currentQIndex = 0;
 
-        // --- טעינת שאלות מהשרת בהתחלה ---
+        // --- סנכרון כותרת ---
+        onValue(ref(db, 'gameSettings/title'), (snapshot) => {
+            const title = snapshot.val();
+            if(title) {
+                document.getElementById('main-title').innerText = title;
+                document.getElementById('lobby-title').innerText = title;
+                document.title = title;
+            }
+        });
+
+        // --- טעינת שאלות ---
         onValue(ref(db, 'questions'), (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // המרה מאובייקט למערך (כי ב-Firebase זה לפעמים נשמר כאובייקט עם מפתחות)
+                // תמיכה באובייקט או מערך
                 questions = Object.values(data);
-                
-                // אם היינו במסך טעינה, נעבור לכניסה
                 if (document.getElementById('loading-screen').classList.contains('active')) {
                     showScreen('login-screen');
                 }
             } else {
-                console.log("אין שאלות בבנק! נא להוסיף דרך דף המנהל");
+                // אם אין שאלות עדיין, נשארים בטעינה או מראים הודעה
+                 if (document.getElementById('loading-screen').classList.contains('active')) {
+                    showScreen('login-screen'); // בכל זאת נאפשר כניסה
+                }
             }
+        });
+
+        // --- כניסה ---
+        document.getElementById('join-btn').addEventListener('click', () => {
+            const name = document.getElementById('username-input').value;
+            if (!name) return alert("חובה להכניס שם!");
+            myName = name;
+            set(ref(db, 'players/' + myId), { name: name, score: 0, lastAnswerTime: 0, lastAnswerCorrect: false });
+            showScreen('lobby-screen');
         });
 
         // --- ניהול מסכים ---
@@ -134,58 +149,34 @@
             document.getElementById(id).classList.add('active');
         }
 
-        // --- כניסה למשחק ---
-        document.getElementById('join-btn').addEventListener('click', () => {
-            const name = document.getElementById('username-input').value;
-            if (!name) return alert("חייב להכניס שם!");
-            myName = name;
-            set(ref(db, 'players/' + myId), { name: name, score: 0, lastAnswerTime: 0, lastAnswerCorrect: false });
-            showScreen('lobby-screen');
-        });
-
-        // --- התחלה (מנהל) ---
-        document.getElementById('start-game-btn').addEventListener('click', () => {
-            if (questions.length === 0) return alert("אין שאלות טעונות! טען בדף המנהל.");
-            get(ref(db, 'players')).then(snapshot => {
-                const updates = {};
-                snapshot.forEach(c => {
-                    updates['players/' + c.key + '/score'] = 0;
-                    updates['players/' + c.key + '/lastAnswerTime'] = 0;
-                    updates['players/' + c.key + '/lastAnswerCorrect'] = false;
-                });
-                updates['gameState'] = { status: 'playing', qIndex: 0, startTime: Date.now() };
-                update(ref(db), updates);
-            });
-        });
-
-        // --- מאזין למצב המשחק ---
+        // --- לוגיקת משחק (מאזין לשינויים מהמנהל) ---
         onValue(ref(db, 'gameState'), (snapshot) => {
             const state = snapshot.val();
             if (!state) return;
 
             if (state.status === 'waiting') {
-                // אם איפסו את המשחק
                 if (!document.getElementById('login-screen').classList.contains('active')) {
-                    showScreen('login-screen'); 
+                    showScreen('login-screen'); // איפוס
                 }
             }
             else if (state.status === 'playing') {
                 if (state.qIndex < questions.length) {
                     currentQIndex = state.qIndex;
                     renderQuestion(state.qIndex);
-                    if (!document.getElementById('game-screen').classList.contains('active') && 
-                        !document.getElementById('waiting-screen').classList.contains('active')) {
+                    // אם עוד לא במשחק או אם היינו בהמתנה/תוצאות - מעבר למשחק
+                    const currentScreen = document.querySelector('.screen.active').id;
+                    if (currentScreen !== 'game-screen') {
                         showScreen('game-screen');
                     }
                 } else {
-                    update(ref(db, 'gameState'), { status: 'finished' });
+                    // סוף משחק
                 }
             } 
             else if (state.status === 'round_results') { showRoundResults(); }
             else if (state.status === 'finished') { showFinalResults(); }
         });
 
-        // --- שחקנים ---
+        // רשימת שחקנים בלובי
         onValue(ref(db, 'players'), (snapshot) => {
             const players = snapshot.val() || {};
             const list = document.getElementById('lobby-list');
@@ -193,17 +184,16 @@
             let count = 0;
             Object.values(players).forEach(p => {
                 const li = document.createElement('li');
-                li.innerHTML = `<span>${p.name}</span>`;
+                li.innerText = p.name;
                 list.appendChild(li);
                 count++;
             });
-            document.getElementById('player-count').innerText = count + ' זוגות';
+            document.getElementById('player-count').innerText = count + ' מחוברים';
         });
 
-        // --- לוגיקת משחק ---
         function renderQuestion(index) {
             const q = questions[index];
-            if (!q) return; 
+            if (!q) return;
 
             document.getElementById('question-text').innerText = q.q;
             const container = document.getElementById('answers-container');
@@ -228,14 +218,13 @@
         function submitAnswer(idx) {
             const q = questions[currentQIndex];
             const isCorrect = (idx === q.correct);
-            const points = isCorrect ? 100 : 0; // לוגיקת ניקוד פשוטה
+            const points = isCorrect ? 100 : 0;
             
             update(ref(db, 'players/' + myId), {
                 lastAnswerCorrect: isCorrect,
                 lastAnswerTime: isCorrect ? (Date.now() * -1) : 0,
             });
             
-            // עדכון ניקוד
             if (isCorrect) {
                 get(ref(db, 'players/' + myId + '/score')).then(s => {
                     set(ref(db, 'players/' + myId + '/score'), (s.val()||0) + points);
@@ -243,23 +232,6 @@
             }
             showScreen('waiting-screen');
         }
-
-        // כפתורי שליטה (מנהל בתוך המשחק)
-        document.getElementById('force-finish-btn').addEventListener('click', () => {
-             update(ref(db, 'gameState'), { status: 'round_results' });
-        });
-
-        document.getElementById('next-q-btn').addEventListener('click', () => {
-             get(ref(db, 'players')).then(snap => {
-                 const updates = {};
-                 snap.forEach(p => {
-                     updates['players/' + p.key + '/lastAnswerCorrect'] = false;
-                     updates['players/' + p.key + '/lastAnswerTime'] = 0;
-                 });
-                 updates['gameState'] = { status: 'playing', qIndex: currentQIndex + 1, startTime: Date.now() };
-                 update(ref(db), updates);
-             });
-        });
 
         function showRoundResults() {
             get(ref(db, 'players')).then(snapshot => {
