@@ -3,63 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מתורגמן קולי</title>
+    <title>מתורגמן מהיר</title>
     <style>
         body {
-            font-family: sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             text-align: center;
-            background-color: #f0f2f5;
+            background-color: #f4f4f9;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
         .container {
             background: white;
             padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            width: 300px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 350px;
         }
+        h2 { margin-top: 0; color: #333; }
+        .buttons { display: flex; flex-direction: column; gap: 15px; margin: 20px 0; }
         button {
-            padding: 15px 30px;
-            font-size: 18px;
+            padding: 18px;
+            font-size: 20px;
             border: none;
-            border-radius: 50px;
+            border-radius: 12px;
             cursor: pointer;
             color: white;
-            margin: 10px;
-            width: 100%;
+            font-weight: bold;
+            transition: 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        #btn-he { background-color: #007bff; }
-        #btn-en { background-color: #dc3545; }
+        button:active { transform: scale(0.98); }
+        #btn-he { background: linear-gradient(135deg, #007bff, #0056b3); }
+        #btn-en { background: linear-gradient(135deg, #dc3545, #a71d2a); }
+        
+        .status-text { font-size: 14px; color: #666; margin-bottom: 10px; min-height: 20px; }
+        
         .result-box {
-            margin-top: 15px;
-            padding: 10px;
             background: #f8f9fa;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: right;
         }
+        .result-label { font-size: 12px; color: #adb5bd; display: block; margin-bottom: 5px; }
+        .result-content { font-size: 18px; font-weight: 500; word-wrap: break-word; }
+        
+        /* התאמה לאנגלית בתיבת התוצאה */
+        .ltr-text { text-align: left; direction: ltr; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>🎤 מתורגמן</h2>
-        <div id="status">בחר שפה כדי לדבר:</div>
+        <h2>מתורגמן בזמן אמת ⚡</h2>
+        <div id="status" class="status-text">מוכן לתרגום...</div>
 
-        <button id="btn-he" onclick="startTranslation('he')">עברית 🇮🇱</button>
-        <button id="btn-en" onclick="startTranslation('en')">English 🇺🇸</button>
+        <div class="buttons">
+            <button id="btn-he" onclick="startListening('he')">דבר בעברית 🇮🇱</button>
+            <button id="btn-en" onclick="startListening('en')">Speak English 🇺🇸</button>
+        </div>
 
         <div class="result-box">
-            <small>שמעתי:</small>
-            <div id="original-text">...</div>
+            <span class="result-label">שמעתי:</span>
+            <div id="original-text" class="result-content">...</div>
         </div>
         <div class="result-box">
-            <small>תרגום:</small>
-            <div id="translated-text" style="font-weight:bold; color:green;">...</div>
+            <span class="result-label">תרגום:</span>
+            <div id="translated-text" class="result-content" style="color: #28a745;">...</div>
         </div>
     </div>
 
@@ -68,20 +86,25 @@
         const recognition = new SpeechRecognition();
         const synthesis = window.speechSynthesis;
 
-        function startTranslation(sourceLang) {
+        function startListening(lang) {
             const statusEl = document.getElementById('status');
             const originalEl = document.getElementById('original-text');
             const translatedEl = document.getElementById('translated-text');
-            
+
+            // איפוס
             originalEl.innerText = "...";
             translatedEl.innerText = "...";
+            originalEl.className = "result-content"; // איפוס כיוון טקסט
+            translatedEl.className = "result-content";
 
-            if (sourceLang === 'he') {
+            if (lang === 'he') {
                 recognition.lang = 'he-IL';
                 statusEl.innerText = "מקשיב בעברית...";
+                originalEl.classList.remove('ltr-text');
             } else {
                 recognition.lang = 'en-US';
-                statusEl.innerText = "Listening in English...";
+                statusEl.innerText = "Listening...";
+                originalEl.classList.add('ltr-text');
             }
 
             recognition.start();
@@ -91,26 +114,45 @@
                 originalEl.innerText = transcript;
                 statusEl.innerText = "מתרגם...";
 
-                let translateFrom = sourceLang === 'he' ? 'he' : 'en';
-                let translateTo = sourceLang === 'he' ? 'en' : 'he';
+                // הגדרת כיוון תרגום
+                const source = lang === 'he' ? 'he' : 'en';
+                const target = lang === 'he' ? 'en' : 'he';
 
+                // שימוש ב-API מהיר של גוגל
                 try {
-                    // שימוש ב-API חינמי לתרגום
-                    const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(transcript)}&langpair=${translateFrom}|${translateTo}`);
-                    const data = await response.json();
-                    const translatedText = data.responseData.translatedText;
+                    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${source}&tl=${target}&dt=t&q=${encodeURIComponent(transcript)}`;
                     
-                    translatedEl.innerText = translatedText;
-                    statusEl.innerText = "משמיע...";
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    // גוגל מחזיר מערך, הטקסט נמצא כאן:
+                    const translatedText = data[0][0][0];
 
-                    speak(translatedText, translateTo);
+                    translatedEl.innerText = translatedText;
+                    
+                    // סידור כיוון טקסט לתוצאה
+                    if (target === 'en') {
+                        translatedEl.classList.add('ltr-text');
+                    } else {
+                        translatedEl.classList.remove('ltr-text');
+                    }
+
+                    statusEl.innerText = "בוצע!";
+                    speak(translatedText, target);
+
                 } catch (error) {
-                    statusEl.innerText = "שגיאה בתרגום";
+                    console.error(error);
+                    statusEl.innerText = "שגיאה בתרגום, נסה שוב.";
                 }
+            };
+
+            recognition.onspeechend = () => {
+                recognition.stop();
             };
         }
 
         function speak(text, lang) {
+            synthesis.cancel(); // עצירת דיבור קודם
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = lang === 'he' ? 'he-IL' : 'en-US';
             synthesis.speak(utterance);
