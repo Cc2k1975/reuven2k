@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
-        /* עיצוב */
+        /* (אותו עיצוב בדיוק) */
         :root { --primary: #1e3c72; --secondary: #2a5298; --accent: #f2a900; --danger: #ff4757; --success: #2ed573; }
         body { font-family: 'Rubik', sans-serif; background: radial-gradient(circle, var(--secondary) 0%, var(--primary) 100%); color: white; text-align: center; margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; overflow-x: hidden; }
         .container { width: 90%; max-width: 600px; padding: 20px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
@@ -113,10 +113,51 @@
         let questionStartTime = 0;
         let timerTimeout;
 
+        // --- מערכת סאונד פשוטה ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playStartSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            // צליל "דינג" גבוה
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.6);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.6);
+        }
+
+        function playTimeUpSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            // צליל "באזז" נמוך
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+        // -----------------------
+
         onValue(ref(db, 'gameSettings/title'), (s) => { if(s.val()) document.getElementById('main-title').innerText = s.val(); });
         onValue(ref(db, 'questions'), (s) => { if(s.val()) questions = Object.values(s.val()); if(document.getElementById('loading-screen').classList.contains('active')) showScreen('login-screen'); });
         
         document.getElementById('join-btn').addEventListener('click', () => {
+            // הפעלת הסאונד בלחיצה הראשונה (כדי לעקוף חסימות דפדפן)
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
             const name = document.getElementById('username-input').value;
             if (!name) return alert("חובה שם!");
             set(ref(db, 'players/' + myId), { name: name, score: 0, lastAnswerTime: 0, lastAnswerCorrect: false });
@@ -142,6 +183,8 @@
                     renderQuestion(state.qIndex);
                     if (document.querySelector('.screen.active').id !== 'game-screen') {
                         showScreen('game-screen');
+                        // הפעלת צליל תחילת שאלה רק אם עברנו מסך
+                        playStartSound();
                     }
                 }
             } 
@@ -171,12 +214,12 @@
                 btn.onclick = () => submitAnswer(i); container.appendChild(btn);
             });
 
-            // איפוס מוחלט של הבר
+            // איפוס בר
             const bar = document.getElementById('timer-bar'); 
             bar.style.transition = 'none'; 
             bar.style.width = '100%';
-            bar.style.backgroundColor = '#ff4757'; // וידוא צבע
-            void bar.offsetWidth; // טריק: הכרחת הדפדפן לצייר את הבר מחדש (Force Reflow)
+            bar.style.backgroundColor = '#ff4757';
+            void bar.offsetWidth;
             
             const elapsed = Date.now() - questionStartTime;
             const totalTime = 10000;
@@ -194,6 +237,7 @@
                 clearTimeout(timerTimeout);
                 timerTimeout = setTimeout(() => {
                     disableButtons();
+                    playTimeUpSound(); // הפעלת צליל סיום זמן!
                 }, remaining);
             }
         }
