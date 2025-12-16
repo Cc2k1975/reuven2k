@@ -56,11 +56,12 @@
             <div class="question-box" id="question-text"></div>
             <div class="answers-grid" id="answers-container"></div>
         </div>
+        
         <div id="waiting-screen" class="screen">
             <h2>תשובה נקלטה! 👌</h2>
             <p>ממתינים לתוצאות...</p>
-            <p id="points-preview" style="color: #2ed573; font-weight: bold; font-size: 1.2rem; margin-top:10px;"></p>
-        </div>
+            </div>
+        
         <div id="round-screen" class="screen">
             <h2>תוצאות הסיבוב</h2>
             <div class="winner-card">
@@ -124,12 +125,11 @@
                     renderQuestion(state.qIndex);
                     if (document.querySelector('.screen.active').id !== 'game-screen') {
                         showScreen('game-screen');
-                        document.getElementById('points-preview').innerText = "";
                     }
                 }
             } 
             else if (state.status === 'round_results') { showRoundResults(); }
-            else if (state.status === 'summary') { showSummary(); } // המצב החדש!
+            else if (state.status === 'summary') { showSummary(); }
             else if (state.status === 'finished') { showFinalResults(); }
         });
 
@@ -159,11 +159,15 @@
             let points = 0;
             if(isCorrect) points = elapsed < 15000 ? Math.round(1000 - (500 * (elapsed/15000))) : 500;
             
+            // עדכון בשרת בלבד
             update(ref(db, 'players/' + myId), { lastAnswerCorrect: isCorrect, lastAnswerTime: isCorrect ? (Date.now() * -1) : 0 });
+            
             if(points > 0) {
+                // עדכון ניקוד ברקע
                 get(ref(db, 'players/' + myId + '/score')).then(s => set(ref(db, 'players/' + myId + '/score'), (s.val()||0) + points));
-                document.getElementById('points-preview').innerText = `+${points} נקודות!`;
-            } else { document.getElementById('points-preview').innerText = "טעות!"; }
+            }
+            
+            // מעבר למסך המתנה בלי שום חיווי
             showScreen('waiting-screen');
         }
 
@@ -177,7 +181,6 @@
             });
         }
 
-        // פונקציה חדשה: מציגה רק שאלות ותשובות
         function showSummary() {
             const div = document.getElementById('qa-summary-only');
             div.innerHTML = '';
