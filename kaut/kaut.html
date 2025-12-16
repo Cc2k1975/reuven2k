@@ -112,42 +112,51 @@
         let currentQIndex = 0;
         let questionStartTime = 0;
         let timerTimeout;
+        let tickInterval; // משתנה לניהול צליל הטיק-טוק
 
-        // --- מערכת סאונד פשוטה ---
+        // --- מערכת סאונד ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
         function playStartSound() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            osc.connect(gain); gain.connect(audioCtx.destination);
             
-            // צליל "דינג" גבוה
             osc.type = 'sine';
             osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
             gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.6);
-            
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.6);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.6);
         }
 
         function playTimeUpSound() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
+            osc.connect(gain); gain.connect(audioCtx.destination);
             
-            // צליל "באזז" נמוך
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(150, audioCtx.currentTime);
             gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
             gain.gain.linearRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
-            
+            osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        // --- צליל הטיק-טוק המלחיץ! ---
+        function playTickSound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            osc.type = 'triangle'; // צליל קצת יותר "נוקש"
+            osc.frequency.setValueAtTime(1000, audioCtx.currentTime); // תדר גבוה
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); // ווליום נמוך
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05); // דעיכה סופר מהירה
+
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.5);
+            osc.stop(audioCtx.currentTime + 0.05);
         }
         // -----------------------
 
@@ -155,9 +164,7 @@
         onValue(ref(db, 'questions'), (s) => { if(s.val()) questions = Object.values(s.val()); if(document.getElementById('loading-screen').classList.contains('active')) showScreen('login-screen'); });
         
         document.getElementById('join-btn').addEventListener('click', () => {
-            // הפעלת הסאונד בלחיצה הראשונה (כדי לעקוף חסימות דפדפן)
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
             const name = document.getElementById('username-input').value;
             if (!name) return alert("חובה שם!");
             set(ref(db, 'players/' + myId), { name: name, score: 0, lastAnswerTime: 0, lastAnswerCorrect: false });
@@ -173,6 +180,7 @@
 
             if (state.status === 'waiting') { 
                 if (!document.getElementById('login-screen').classList.contains('active')) showScreen('login-screen'); 
+                clearInterval(tickInterval); // לוודא שאין טיקטוק בהמתנה
             }
             else if (state.status === 'playing') {
                 questionStartTime = state.startTime || Date.now();
@@ -183,17 +191,23 @@
                     renderQuestion(state.qIndex);
                     if (document.querySelector('.screen.active').id !== 'game-screen') {
                         showScreen('game-screen');
-                        // הפעלת צליל תחילת שאלה רק אם עברנו מסך
                         playStartSound();
                     }
                 }
             } 
             else if (state.status === 'round_results') { 
                 clearTimeout(timerTimeout);
+                clearInterval(tickInterval); // עצירת הטיקטוק
                 showRoundResults(); 
             }
-            else if (state.status === 'summary') { showSummary(); }
-            else if (state.status === 'finished') { showFinalResults(); }
+            else if (state.status === 'summary') { 
+                clearInterval(tickInterval);
+                showSummary(); 
+            }
+            else if (state.status === 'finished') { 
+                clearInterval(tickInterval);
+                showFinalResults(); 
+            }
         });
 
         onValue(ref(db, 'players'), (s) => {
@@ -225,6 +239,9 @@
             const totalTime = 10000;
             const remaining = totalTime - elapsed;
 
+            // ניקוי מרווחים קודמים
+            clearInterval(tickInterval);
+
             if (remaining <= 0) {
                 disableButtons();
                 bar.style.width = '0%';
@@ -234,10 +251,18 @@
                     bar.style.width = '0%'; 
                 }, 50);
 
+                // --- הפעלת הטיק-טוק ---
+                playTickSound(); // טיק ראשון
+                tickInterval = setInterval(() => {
+                    playTickSound();
+                }, 1000); // טיק כל שנייה
+                // ---------------------
+
                 clearTimeout(timerTimeout);
                 timerTimeout = setTimeout(() => {
                     disableButtons();
-                    playTimeUpSound(); // הפעלת צליל סיום זמן!
+                    clearInterval(tickInterval); // מפסיקים לתקתק כשהזמן נגמר
+                    playTimeUpSound();
                 }, remaining);
             }
         }
@@ -249,6 +274,7 @@
                 b.classList.add('disabled');
             });
             document.getElementById('time-up-msg').style.display = 'block';
+            clearInterval(tickInterval); // ליתר ביטחון
         }
 
         function submitAnswer(idx) {
@@ -256,6 +282,7 @@
             if (timeNow - questionStartTime > 10000) return;
 
             clearTimeout(timerTimeout); 
+            clearInterval(tickInterval); // מפסיקים לתקתק למי שענה!
 
             const isCorrect = (idx === questions[currentQIndex].correct);
             const elapsed = timeNow - questionStartTime;
