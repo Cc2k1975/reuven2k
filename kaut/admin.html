@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול משחק - גרסה סופית</title>
+    <title>ניהול משחק - כולל שמות</title>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Rubik', sans-serif; background: #f0f2f5; margin: 0; padding: 0; }
@@ -28,12 +28,23 @@
         .btn-del { background: #c0392b; }
         .btn-edit { background: #f39c12; }
         .btn-add { background: #2980b9; }
-        .btn-update-mode { background: #f39c12; }
         .btn-cancel { background: #95a5a6; }
 
         .question-item { background: #f9f9f9; border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 5px; overflow: hidden; }
         .status-badge { display: inline-block; padding: 5px 10px; border-radius: 5px; font-size: 0.8em; font-weight: bold; color: white; margin-bottom: 10px; }
         
+        /* עיצוב לרשימת השמות */
+        .names-list {
+            background: #ecf0f1;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+            font-size: 0.9rem;
+            color: #2c3e50;
+            line-height: 1.4;
+            border: 1px solid #bdc3c7;
+        }
+
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
     </style>
 </head>
@@ -55,7 +66,11 @@
                 <div class="card" style="border-top: 5px solid #27ae60;">
                     <h2>🚀 ניהול בזמן אמת</h2>
                     <div id="status-indicator" class="status-badge" style="background:#95a5a6;">ממתין...</div>
-                    <p>שחקנים מחוברים: <b id="connected-count">0</b></p>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <p style="margin:0 0 5px 0;">שחקנים מחוברים: <b id="connected-count">0</b></p>
+                        <div id="connected-names" class="names-list">ממתין לשחקנים...</div>
+                    </div>
                     
                     <button class="btn-start" onclick="startGame()">▶️ התחל משחק חדש</button>
                     
@@ -99,7 +114,6 @@
                 <div class="card">
                     <h2>📚 בנק שאלות (<span id="q-count">0</span>)</h2>
                     <div id="questions-list"></div>
-                    <button onclick="loadDefaults()" style="background:#bdc3c7; color:#333; margin-top:20px;">טען שאלות לדוגמה</button>
                 </div>
             </div>
         </div>
@@ -124,6 +138,20 @@
             } else { document.getElementById('error-msg').style.display = 'block'; }
         };
 
+        // --- כאן השינוי: הצגת רשימת שמות ---
+        onValue(ref(db, 'players'), (snapshot) => {
+            const players = snapshot.val() || {};
+            const count = Object.keys(players).length;
+            document.getElementById('connected-count').innerText = count;
+
+            // יצירת רשימת שמות מופרדת בפסיקים
+            const namesArray = Object.values(players).map(p => p.name);
+            const namesString = namesArray.length > 0 ? namesArray.join(', ') : "אין שחקנים עדיין...";
+            
+            document.getElementById('connected-names').innerText = namesString;
+        });
+        // ------------------------------------
+
         onValue(ref(db, 'questions'), (snapshot) => {
             const listDiv = document.getElementById('questions-list');
             listDiv.innerHTML = '';
@@ -144,7 +172,6 @@
             document.getElementById('q-count').innerText = count;
         });
 
-        onValue(ref(db, 'players'), (s) => { document.getElementById('connected-count').innerText = s.size; });
         onValue(ref(db, 'gameSettings/title'), (s) => { if(s.val()) document.getElementById('game-title').value = s.val(); });
 
         onValue(ref(db, 'gameState'), (s) => {
@@ -154,7 +181,7 @@
             if(!st) return;
             currentQIndex = st.qIndex || 0;
             
-            winnerSec.style.display = 'none'; // הסתרה כברירת מחדל
+            winnerSec.style.display = 'none'; 
 
             if(st.status === 'playing') {
                 badge.innerText = `שאלה ${currentQIndex + 1} רצה`;
@@ -163,12 +190,12 @@
                 badge.innerText = "תוצאות סיבוב";
                 badge.style.background = "#e67e22";
             } else if (st.status === 'summary') {
-                badge.innerText = "סיכום שאלות (מנצח מוסתר)";
-                badge.style.background = "#3498db"; // כחול
-                winnerSec.style.display = 'block'; // הצגת כפתור החשיפה!
+                badge.innerText = "סיכום שאלות";
+                badge.style.background = "#3498db";
+                winnerSec.style.display = 'block';
             } else if (st.status === 'finished') {
-                badge.innerText = "משחק הסתיים - מנצח נחשף";
-                badge.style.background = "#f1c40f"; // זהב
+                badge.innerText = "משחק הסתיים";
+                badge.style.background = "#f1c40f";
                 badge.style.color = "#333";
             } else {
                 badge.innerText = "ממתין";
@@ -198,13 +225,10 @@
 
         window.nextQuestion = function() {
              const nextIdx = currentQIndex + 1;
-             
-             // אם נגמרו השאלות -> הולכים למצב "סיכום" (Summary) במקום ישר ל"סיום"
              if (nextIdx >= currentQuestions.length) {
                  update(ref(db, 'gameState'), { status: 'summary' });
                  return;
              }
-
              get(ref(db, 'players')).then(snap => {
                  const updates = {};
                  if(snap.exists()) {
@@ -218,10 +242,7 @@
              });
         };
 
-        // הפונקציה החדשה לחשיפה הסופית
-        window.revealFinalWinner = function() {
-            update(ref(db, 'gameState'), { status: 'finished' });
-        };
+        window.revealFinalWinner = function() { update(ref(db, 'gameState'), { status: 'finished' }); };
 
         window.resetGame = function() {
             if(!confirm("זה יעיף את כל השחקנים. בטוח?")) return;
@@ -229,7 +250,6 @@
             update(ref(db, 'gameState'), { status: 'waiting', qIndex: 0 });
         };
 
-        // (פונקציות העריכה הוסרו לקיצור, הן זהות לקודם)
         window.saveQuestion = function() {
             const q = document.getElementById('q-text').value;
             const a1 = document.getElementById('ans-1').value;
@@ -264,10 +284,6 @@
         };
         window.deleteQ = function(key) { if(confirm("למחוק?")) remove(ref(db, 'questions/' + key)); };
         window.updateTitle = function() { set(ref(db, 'gameSettings/title'), document.getElementById('game-title').value); };
-        window.loadDefaults = function() {
-             const defaultQuestions = [{ q: "ניסיון", ans: ["1", "2", "3", "4"], correct: 0 }];
-             push(ref(db, 'questions'), defaultQuestions[0]);
-        };
     </script>
 </body>
 </html>
