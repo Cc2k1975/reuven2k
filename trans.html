@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מתורגמן מולטי</title>
+    <title>מתורגמן מולטי מהיר</title>
     <style>
         body, html {
             margin: 0;
@@ -63,7 +63,7 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        /* חלון הגדרות (מוסתר בהתחלה) */
+        /* חלון הגדרות */
         #modal {
             display: none;
             position: fixed;
@@ -135,7 +135,6 @@
     </div>
 
     <script>
-        // הגדרת השפות והקודים שלהן
         const languages = {
             'he': { code: 'he-IL', name: 'עברית' },
             'en': { code: 'en-US', name: 'ENGLISH' },
@@ -145,35 +144,29 @@
             'ar': { code: 'ar-SA', name: 'العربية' }
         };
 
-        // מצב התחלתי
         let currentTop = 'he';
         let currentBottom = 'en';
         
-        // משתנים למנוע הדיבור
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         const synthesis = window.speechSynthesis;
         
         recognition.continuous = false;
         recognition.interimResults = false;
-
         let isRecording = false;
 
-        // חיבור אירועים לכפתורים (לחיצה ארוכה)
         setupButton('btn-top', 'top');
         setupButton('btn-bottom', 'bottom');
 
         function setupButton(elementId, position) {
             const btn = document.getElementById(elementId);
             
-            // אירועים למחשב
             btn.addEventListener('mousedown', () => start(position));
             btn.addEventListener('mouseup', stop);
-            btn.addEventListener('mouseleave', stop); // אם העכבר בורח מהכפתור
+            btn.addEventListener('mouseleave', stop);
 
-            // אירועים לנייד
             btn.addEventListener('touchstart', (e) => {
-                e.preventDefault(); // מונע תפריט קליק ימני בנייד
+                e.preventDefault();
                 start(position);
             });
             btn.addEventListener('touchend', (e) => {
@@ -184,14 +177,11 @@
 
         function start(position) {
             if (isRecording) return;
+            synthesis.cancel();
             
-            synthesis.cancel(); // השתקת דיבור קודם
-            
-            // זיהוי השפה הנבחרת
             let langKey = (position === 'top') ? currentTop : currentBottom;
             recognition.lang = languages[langKey].code;
 
-            // שינוי ויזואלי
             const btn = document.getElementById(position === 'top' ? 'btn-top' : 'btn-bottom');
             btn.classList.add('active-press');
             btn.innerText = "...";
@@ -199,7 +189,6 @@
             try {
                 recognition.start();
                 isRecording = true;
-                console.log("Started recording in " + langKey);
             } catch (e) {
                 console.error(e);
             }
@@ -210,31 +199,24 @@
             recognition.stop();
             isRecording = false;
             
-            // החזרת הכפתורים למצב רגיל
             document.getElementById('btn-top').classList.remove('active-press');
             document.getElementById('btn-bottom').classList.remove('active-press');
-            
-            // החזרת הטקסט המקורי
             document.getElementById('btn-top').innerText = languages[currentTop].name;
             document.getElementById('btn-bottom').innerText = languages[currentBottom].name;
         }
 
-        // טיפול בתוצאות הדיבור
         recognition.onresult = async (event) => {
             const transcript = event.results[0][0].transcript;
             
-            // חישוב שפות מקור ויעד
             let sourceLang = recognition.lang === languages[currentTop].code ? currentTop : currentBottom;
             let targetLang = sourceLang === currentTop ? currentBottom : currentTop;
 
             try {
-                // תרגום
                 const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(transcript)}`;
                 const response = await fetch(url);
                 const data = await response.json();
                 const translatedText = data[0][0][0];
 
-                // השמעה
                 speak(translatedText, languages[targetLang].code);
 
             } catch (error) {
@@ -245,25 +227,22 @@
         function speak(text, langCode) {
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = langCode;
+            
+            // --- כאן שיניתי את המהירות ---
+            utterance.rate = 1.2; // 1.0 זה רגיל, 1.2 זה קצת יותר מהיר
+            
             synthesis.speak(utterance);
         }
-
-        // --- לוגיקה של הגדרות ---
 
         function openSettings() {
             document.getElementById('modal').style.display = 'flex';
         }
 
         function saveSettings() {
-            // שמירת הבחירות מהתפריט
             currentTop = document.getElementById('select-top').value;
             currentBottom = document.getElementById('select-bottom').value;
-            
-            // עדכון הכפתורים במסך
             document.getElementById('btn-top').innerText = languages[currentTop].name;
             document.getElementById('btn-bottom').innerText = languages[currentBottom].name;
-
-            // סגירת החלון
             document.getElementById('modal').style.display = 'none';
         }
     </script>
