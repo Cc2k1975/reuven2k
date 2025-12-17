@@ -49,7 +49,7 @@
             z-index: 10;
         }
 
-        /* כפתור הגדרות - שקוף וכמעט לא נראה */
+        /* כפתור הגדרות */
         #admin-btn {
             position: fixed;
             bottom: 20px;
@@ -114,7 +114,11 @@
 
         #users-list { margin-top: 10px; border-top: 1px solid #eee; max-height: 150px; overflow-y: auto; display: none; }
         .user-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #f1f1f1; font-size: 14px; }
+        
+        /* כפתורי פעולות ברשימה */
+        .actions-div { display: flex; gap: 10px; }
         .delete-btn { background: none; border: none; color: red; cursor: pointer; font-size: 18px; padding: 0; }
+        .edit-btn { background: none; border: none; color: #007bff; cursor: pointer; font-size: 18px; padding: 0; }
         
         #status-msg { font-size:14px; color:#666; text-align: center; margin-top: 10px; }
     </style>
@@ -161,7 +165,7 @@
         </div>
         <button class="save" onclick="saveUser()">שמור לקוח</button>
 
-        <div class="section-title">🗑️ מחיקה</div>
+        <div class="section-title">🗑️✏️ ניהול רשימה</div>
         <button class="load-list" onclick="loadUsersForManagement()">הצג רשימה</button>
         <div id="users-list"></div>
 
@@ -199,7 +203,7 @@
             CAMERA: 'face_app_camera',
             GREETING: 'face_app_greeting',
             DELAY: 'face_app_delay',
-            VOICE: 'face_app_voice' // מפתח חדש לקול
+            VOICE: 'face_app_voice'
         };
 
         // טעינה ראשונית
@@ -295,18 +299,14 @@
             startVideo(deviceId);
         }
 
-        // --- פונקציית הקראה (TTS) החדשה ---
+        // --- פונקציית הקראה (TTS) ---
         function speakText(text) {
-            // בדיקה אם הדפדפן תומך
             if ('speechSynthesis' in window) {
-                // ביטול דיבור קודם כדי למנוע חפיפות
                 window.speechSynthesis.cancel();
-                
                 const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'he-IL'; // הגדרת שפה לעברית
-                utterance.rate = 1;       // מהירות רגילה
-                utterance.pitch = 1;      // טון רגיל
-                
+                utterance.lang = 'he-IL'; 
+                utterance.rate = 1;       
+                utterance.pitch = 1;      
                 window.speechSynthesis.speak(utterance);
             }
         }
@@ -318,8 +318,6 @@
 
             setInterval(async () => {
                 if (isPaused) return;
-
-                // מוודא שהווידאו פעיל לפני זיהוי
                 if (video.paused || video.ended || !video.srcObject) return;
 
                 const detections = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
@@ -336,10 +334,9 @@
                         msgDiv.style.color = "#28a745"; 
                         isPaused = true;
                         
-                        // ** בדיקה אם VOICE פעיל והפעלה **
+                        // בדיקת VOICE
                         const isVoiceOn = localStorage.getItem(KEYS.VOICE) === 'true';
                         if (isVoiceOn) {
-                            // מחבר את השם והברכה למשפט אחד להקראה
                             speakText(bestMatch.label + " " + greeting);
                         }
 
@@ -357,22 +354,21 @@
         function loadSettingsToUI() {
             const savedGreeting = localStorage.getItem(KEYS.GREETING);
             const savedDelay = localStorage.getItem(KEYS.DELAY);
-            const savedVoice = localStorage.getItem(KEYS.VOICE); // טעינת הגדרת קול
+            const savedVoice = localStorage.getItem(KEYS.VOICE);
             
             if (savedGreeting) document.getElementById('greeting-text').value = savedGreeting;
             if (savedDelay) document.getElementById('scan-delay').value = savedDelay;
-            // עדכון ה-Checkbox
             document.getElementById('voice-toggle').checked = (savedVoice === 'true');
         }
 
         function saveSettings() {
             const greeting = document.getElementById('greeting-text').value;
             const delay = document.getElementById('scan-delay').value;
-            const voiceState = document.getElementById('voice-toggle').checked; // שמירת מצב הקול
+            const voiceState = document.getElementById('voice-toggle').checked;
             
             localStorage.setItem(KEYS.GREETING, greeting);
             localStorage.setItem(KEYS.DELAY, delay);
-            localStorage.setItem(KEYS.VOICE, voiceState); // שמירה בזיכרון
+            localStorage.setItem(KEYS.VOICE, voiceState);
             
             alert("נשמר");
         }
@@ -459,6 +455,7 @@
             };
         }
 
+        // --- עדכון: פונקציות רשימה ועריכה ---
         async function loadUsersForManagement() {
             const listDiv = document.getElementById('users-list');
             listDiv.style.display = 'block';
@@ -472,14 +469,43 @@
                     const user = data[key];
                     const item = document.createElement('div');
                     item.className = 'user-item';
-                    item.innerHTML = `<span>${user.name}</span><button class="delete-btn" onclick="deleteUser('${key}')">🗑️</button>`;
+                    
+                    // יצירת הכפתורים
+                    // משתמשים ב-replace כדי ששמות עם גרש לא ישברו את הקוד
+                    const safeName = user.name.replace(/'/g, "\\'");
+                    
+                    item.innerHTML = `
+                        <span>${user.name}</span>
+                        <div class="actions-div">
+                             <button class="edit-btn" onclick="editUser('${key}', '${safeName}')">✏️</button>
+                             <button class="delete-btn" onclick="deleteUser('${key}')">🗑️</button>
+                        </div>
+                    `;
                     listDiv.appendChild(item);
                 });
             } catch(e) { listDiv.innerHTML = 'שגיאה'; }
         }
 
+        function editUser(key, currentName) {
+            const newName = prompt("ערוך שם לקוח:", currentName);
+            if (newName && newName !== currentName) {
+                // עדכון ב-Firebase
+                db.ref('users/' + key).update({ name: newName }).then(() => {
+                    alert("השם עודכן בהצלחה!");
+                    // מחיקת זיכרון כדי שהזיהוי יתעדכן בפעם הבאה
+                    localStorage.removeItem(KEYS.DB);
+                    
+                    if(confirm("השם שונה. מומלץ לרענן את האפליקציה כדי שהזיהוי יתפוס את השם החדש. לרענן עכשיו?")) {
+                        location.reload();
+                    } else {
+                        loadUsersForManagement(); // רק מרענן את הרשימה הויזואלית
+                    }
+                });
+            }
+        }
+
         function deleteUser(key) {
-            if(confirm('למחוק?')) {
+            if(confirm('למחוק לצמיתות?')) {
                 db.ref('users/' + key).remove().then(() => {
                     alert('נמחק!');
                     localStorage.removeItem(KEYS.DB);
