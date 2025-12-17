@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>זיהוי פנים - כניסה</title>
+    <title>זיהוי פנים - V2</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -30,7 +30,7 @@
             left: 0;
             width: 1px;
             height: 1px;
-            opacity: 0;
+            opacity: 0; /* שנה ל-1 אם אתה רוצה לראות את המצלמה לבדיקה */
             z-index: -1;
         }
 
@@ -38,9 +38,10 @@
             font-size: 3rem;
             color: #333;
             font-weight: bold;
-            animation: fadeIn 1s ease;
+            transition: all 0.3s ease;
         }
 
+        /* כפתור הגדרות */
         #admin-btn {
             position: fixed;
             bottom: 20px;
@@ -48,12 +49,14 @@
             background: rgba(0,0,0,0.1);
             border: none;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
             cursor: pointer;
             z-index: 100;
         }
 
+        /* חלונית הניהול */
         #admin-panel {
             display: none;
             position: fixed;
@@ -61,20 +64,23 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 20px;
+            padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            width: 80%;
-            max-width: 300px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            width: 85%;
+            max-width: 320px;
             z-index: 200;
+            text-align: right;
         }
 
         .input-group { margin-bottom: 15px; }
-        input { width: 100%; padding: 10px; box-sizing: border-box; margin-top: 5px; }
-        button.save { background: #28a745; color: white; border: none; padding: 10px; width: 100%; cursor: pointer; }
-        button.close { background: #dc3545; color: white; border: none; padding: 5px 10px; margin-top: 10px; cursor: pointer; }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        
+        button.save { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-size: 16px; margin-top: 10px; cursor: pointer; }
+        button.close { background: #dc3545; color: white; border: none; padding: 8px; margin-top: 10px; border-radius: 8px; width: 100%; cursor: pointer; }
+        
+        #camera-select { margin-bottom: 10px; background: #f8f9fa; }
     </style>
 </head>
 <body>
@@ -84,22 +90,31 @@
     <button id="admin-btn" onclick="toggleAdmin()">⚙️</button>
 
     <div id="admin-panel">
-        <h3>הוספת לקוח חדש</h3>
+        <h3 style="text-align: center; margin-top: 0;">הגדרות מנהל</h3>
+        
         <div class="input-group">
-            <label>שם הלקוח:</label>
+            <label>📷 בחר מצלמה:</label>
+            <select id="camera-select" onchange="changeCamera()"></select>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+        <div class="input-group">
+            <label>👤 שם הלקוח:</label>
             <input type="text" id="new-name" placeholder="למשל: צ'רלס">
         </div>
         <div class="input-group">
-            <label>תמונה (מהוואטסאפ):</label>
+            <label>🖼️ תמונה:</label>
             <input type="file" id="new-image" accept="image/*">
         </div>
-        <button class="save" onclick="saveUser()">שמור בשרת</button>
+        
+        <button class="save" onclick="saveUser()">שמור לקוח חדש</button>
         <button class="close" onclick="toggleAdmin()">סגור</button>
-        <p id="status-msg" style="font-size:12px; color:gray;"></p>
+        <p id="status-msg" style="font-size:12px; color:gray; text-align: center; margin-top: 10px;"></p>
     </div>
 
     <script>
-        // --- הגדרות Firebase שלך (הטמעתי את המפתחות ששלחת) ---
+        // --- הגדרות Firebase ---
         const firebaseConfig = {
             apiKey: "AIzaSyAX7zLjQE1CwJvCqWezv7J_U8yeWO4qTi0",
             authDomain: "hello-ea209.firebaseapp.com",
@@ -111,15 +126,16 @@
             measurementId: "G-3KEHFB64HS"
         };
 
-        // אתחול
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.database();
 
-        // משתנים
+        // --- משתנים ---
         let labeledFaceDescriptors = [];
         let faceMatcher;
+        let isPaused = false; // משתנה לעצירת הזיהוי ל-5 שניות
+        let currentStream = null;
         const video = document.getElementById('video');
         const msgDiv = document.getElementById('welcome-msg');
 
@@ -129,57 +145,110 @@
             faceapi.nets.faceLandmark68Net.loadFromUri('./models'),
             faceapi.nets.faceRecognitionNet.loadFromUri('./models')
         ]).then(startApp).catch(err => {
-            msgDiv.innerText = "שגיאה: חסרה תיקיית models בגיטהאב";
+            msgDiv.innerText = "שגיאה בטעינת המודלים";
             console.error(err);
         });
 
         async function startApp() {
-            msgDiv.innerText = "טוען לקוחות מהשרת...";
+            msgDiv.innerText = "טוען נתונים...";
             await loadLabeledImagesFromFirebase();
-            startVideo();
+            await getCameras(); // טעינת רשימת המצלמות
+            startVideo(); // הפעלת מצלמה ברירת מחדל
         }
 
-        function startVideo() {
-            navigator.mediaDevices.getUserMedia({ video: {} })
+        // --- ניהול מצלמות ---
+        async function getCameras() {
+            try {
+                // מבקש אישור גישה ראשוני כדי לקבל תוויות (labels) של המצלמות
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                const select = document.getElementById('camera-select');
+                
+                select.innerHTML = '';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `מצלמה ${index + 1}`;
+                    select.appendChild(option);
+                });
+            } catch (err) {
+                console.error("לא ניתן לקבל רשימת מצלמות", err);
+            }
+        }
+
+        function startVideo(deviceId = null) {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints)
                 .then(stream => {
+                    currentStream = stream;
                     video.srcObject = stream;
-                    msgDiv.innerText = "המערכת מוכנה.";
-                    startRecognitionLoop();
+                    msgDiv.innerText = "המערכת מוכנה לסריקה";
+                    // מתחיל זיהוי רק אם זו פעם ראשונה, אחרת הלולאה כבר רצה
+                    if (!video.getAttribute('data-running')) {
+                        startRecognitionLoop();
+                        video.setAttribute('data-running', 'true');
+                    }
                 })
                 .catch(err => {
-                    msgDiv.innerText = "נא לאשר גישה למצלמה";
-                    console.error("שגיאת מצלמה:", err);
+                    msgDiv.innerText = "שגיאת מצלמה";
+                    console.error(err);
                 });
         }
 
+        function changeCamera() {
+            const select = document.getElementById('camera-select');
+            const deviceId = select.value;
+            startVideo(deviceId);
+        }
+
+        // --- לולאת הזיהוי ---
         async function startRecognitionLoop() {
             if (labeledFaceDescriptors.length === 0) return;
 
             faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
 
             setInterval(async () => {
+                // אם המערכת ב"הפסקה" אחרי זיהוי, דלג על הסריקה
+                if (isPaused) return;
+
                 const detections = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
 
                 if (detections) {
                     const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
+                    
                     if (bestMatch.label !== 'unknown') {
-                        msgDiv.innerText = bestMatch.label + " ברוך הבא!";
-                    } else {
-                        msgDiv.innerText = "לא מזוהה";
+                        // ** זיהוי מוצלח **
+                        msgDiv.innerText = bestMatch.label + " ברוך הבא! 👋";
+                        msgDiv.style.color = "green";
+                        
+                        // עצור זיהוי ל-5 שניות
+                        isPaused = true;
+                        
+                        setTimeout(() => {
+                            msgDiv.innerText = "המערכת מוכנה לסריקה";
+                            msgDiv.style.color = "#333";
+                            isPaused = false; // חזור לסרוק
+                        }, 5000);
                     }
                 }
-            }, 500);
+            }, 100); // בדיקה כל 100 מילי-שניות (מהיר יותר)
         }
 
+        // --- פונקציות עזר (Firebase וניהול) ---
         async function loadLabeledImagesFromFirebase() {
             try {
                 const snapshot = await db.ref('users').once('value');
                 const data = snapshot.val();
-                
-                if (!data) {
-                    console.log("אין משתמשים בשרת עדיין.");
-                    return;
-                }
+                if (!data) return;
 
                 const promises = Object.keys(data).map(async (key) => {
                     const user = data[key];
@@ -189,17 +258,12 @@
                         if (detections) {
                             return new faceapi.LabeledFaceDescriptors(user.name, [detections.descriptor]);
                         }
-                    } catch (e) {
-                        console.log("שגיאה בטעינת תמונה אחת", e);
-                    }
+                    } catch (e) { console.log("Skip image", e); }
                 });
 
                 const results = await Promise.all(promises);
                 labeledFaceDescriptors = results.filter(res => res !== undefined);
-            } catch (error) {
-                console.error("שגיאה בחיבור ל-Firebase:", error);
-                msgDiv.innerText = "שגיאת חיבור לנתונים";
-            }
+            } catch (error) { console.error(error); }
         }
 
         function toggleAdmin() {
@@ -212,28 +276,16 @@
             const fileInput = document.getElementById('new-image');
             const status = document.getElementById('status-msg');
 
-            if (!name || fileInput.files.length === 0) {
-                alert("חובה למלא שם ולבחור תמונה");
-                return;
-            }
+            if (!name || fileInput.files.length === 0) { alert("חסרים פרטים"); return; }
 
-            status.innerText = "מעבד תמונה...";
-            
+            status.innerText = "מעבד...";
             const reader = new FileReader();
             reader.readAsDataURL(fileInput.files[0]);
             reader.onload = function () {
-                const base64Image = reader.result;
-                
-                db.ref('users').push({
-                    name: name,
-                    image: base64Image
-                }).then(() => {
-                    status.innerText = "נשמר! רענן דף.";
-                    alert("נשמר בהצלחה");
-                    toggleAdmin();
-                }).catch(err => {
-                    status.innerText = "שגיאה בשמירה.";
-                    console.error(err);
+                db.ref('users').push({ name: name, image: reader.result })
+                .then(() => {
+                    alert("נשמר! יש לרענן את הדף כדי שהלקוח החדש יזוהה.");
+                    location.reload(); 
                 });
             };
         }
