@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מערכת כניסה חכמה</title>
+    <title>מערכת כניסה V7 - יציב</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -12,7 +12,6 @@
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
     <style>
@@ -27,7 +26,6 @@
             align-items: center;
             overflow: hidden;
             text-align: center;
-            /* מונע בחירה של טקסט כדי שירגיש כמו אפליקציה */
             user-select: none; 
             -webkit-user-select: none;
         }
@@ -48,24 +46,23 @@
             font-weight: bold;
             padding: 20px;
             transition: all 0.3s ease;
+            z-index: 10;
         }
 
-        /* כפתור הגדרות */
+        /* כפתור הגדרות - שקוף וכמעט לא נראה */
         #admin-btn {
             position: fixed;
             bottom: 20px;
             left: 20px;
-            background: rgba(0,0,0,0.05); /* כמעט שקוף */
+            background: rgba(0,0,0,0.05);
             border: none;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            font-size: 24px;
+            width: 60px;
+            height: 60px;
+            font-size: 30px;
             cursor: pointer;
             z-index: 100;
-            transition: background 0.3s;
         }
-        #admin-btn:hover { background: rgba(0,0,0,0.2); }
 
         /* חלונית הניהול */
         #admin-panel {
@@ -87,12 +84,8 @@
         }
 
         .section-title {
-            font-size: 14px;
-            color: #888;
-            margin-top: 15px;
-            margin-bottom: 5px;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 2px;
+            font-size: 14px; color: #888; margin-top: 15px; margin-bottom: 5px;
+            border-bottom: 1px solid #eee; padding-bottom: 2px;
         }
 
         .input-group { margin-bottom: 10px; }
@@ -105,32 +98,11 @@
         button.fullscreen { background: #ffc107; color: #333; margin-bottom: 10px;} 
         button.close { background: #dc3545; color: white; margin-top: 20px;}
         button.load-list { background: #6c757d; color: white; margin-top: 5px; font-size: 14px; }
+        button.reset-app { background: #343a40; color: white; margin-top: 25px; font-size: 12px;}
 
-        #users-list {
-            margin-top: 10px;
-            border-top: 1px solid #eee;
-            max-height: 150px;
-            overflow-y: auto;
-            display: none;
-        }
-        .user-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px;
-            border-bottom: 1px solid #f1f1f1;
-            font-size: 14px;
-        }
-        .delete-btn {
-            background: none;
-            border: none;
-            color: red;
-            cursor: pointer;
-            font-size: 18px;
-            width: auto;
-            padding: 0;
-            margin: 0;
-        }
+        #users-list { margin-top: 10px; border-top: 1px solid #eee; max-height: 150px; overflow-y: auto; display: none; }
+        .user-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #f1f1f1; font-size: 14px; }
+        .delete-btn { background: none; border: none; color: red; cursor: pointer; font-size: 18px; padding: 0; }
         
         #status-msg { font-size:14px; color:#666; text-align: center; margin-top: 10px; }
     </style>
@@ -144,43 +116,39 @@
     <div id="admin-panel">
         <h3 style="text-align: center; margin: 0 0 10px 0;">הגדרות וניהול</h3>
         
-        <button class="fullscreen" onclick="goFullscreen()">⛶ עבור למסך מלא (Kiosk)</button>
+        <button class="fullscreen" onclick="goFullscreen()">⛶ עבור למסך מלא</button>
 
         <div class="section-title">🛠️ הגדרות תצוגה ומצלמה</div>
-        
         <div class="input-group">
-            <label>📷 בחר מצלמה (נשמר אוטומטית):</label>
+            <label>📷 מצלמה:</label>
             <select id="camera-select" onchange="changeCamera()"></select>
         </div>
-
         <div class="input-group">
-            <label>💬 טקסט ברכה:</label>
+            <label>💬 ברכה:</label>
             <input type="text" id="greeting-text" placeholder="למשל: ברוך הבא!">
         </div>
-
         <div class="input-group">
             <label>⏱️ זמן המתנה (שניות):</label>
             <input type="number" id="scan-delay" value="5" min="1" max="60">
         </div>
-        
-        <button class="save" onclick="saveSettings()" style="background:#17a2b8; margin-top:5px;">שמור הגדרות תצוגה</button>
+        <button class="save" onclick="saveSettings()">שמור הגדרות</button>
 
+        <div class="section-title">☁️ נתונים</div>
+        <button class="sync" onclick="forceDownloadFromFirebase()">🔄 סנכרן מחדש</button>
 
-        <div class="section-title">☁️ ניהול נתונים</div>
-        <button class="sync" onclick="forceDownloadFromFirebase()">🔄 סנכרן נתונים מהענן</button>
-
-        <div class="section-title">👤 הוספת לקוח חדש</div>
+        <div class="section-title">👤 הוספה</div>
         <div class="input-group">
             <input type="text" id="new-name" placeholder="שם הלקוח">
             <input type="file" id="new-image" accept="image/*" style="margin-top:5px;">
         </div>
         <button class="save" onclick="saveUser()">שמור לקוח</button>
 
-        <div class="section-title">🗑️ מחיקת לקוחות</div>
-        <button class="load-list" onclick="loadUsersForManagement()">הצג רשימת לקוחות</button>
+        <div class="section-title">🗑️ מחיקה</div>
+        <button class="load-list" onclick="loadUsersForManagement()">הצג רשימה</button>
         <div id="users-list"></div>
 
-        <button class="close" onclick="toggleAdmin()">סגור חלונית</button>
+        <button class="reset-app" onclick="fullReset()">⚠️ איפוס מלא של האפליקציה</button>
+        <button class="close" onclick="toggleAdmin()">סגור</button>
         <p id="status-msg"></p>
     </div>
 
@@ -197,12 +165,10 @@
             measurementId: "G-3KEHFB64HS"
         };
 
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // --- משתנים ומפתחות שמירה ---
+        // --- משתנים ---
         let labeledFaceDescriptors = [];
         let faceMatcher;
         let isPaused = false;
@@ -217,7 +183,7 @@
             DELAY: 'face_app_delay'
         };
 
-        // טעינת מודלים
+        // טעינה ראשונית
         Promise.all([
             faceapi.nets.ssdMobilenetv1.loadFromUri('./models'),
             faceapi.nets.faceLandmark68Net.loadFromUri('./models'),
@@ -228,9 +194,10 @@
         });
 
         async function startApp() {
-            msgDiv.innerText = "טוען...";
+            msgDiv.innerText = "טוען נתונים...";
             loadSettingsToUI();
 
+            // טעינת נתונים
             const localData = localStorage.getItem(KEYS.DB);
             if (localData) {
                 loadFromLocal(localData);
@@ -238,45 +205,13 @@
                 await loadLabeledImagesFromFirebase();
             }
 
+            // טעינת מצלמה עם מנגנון הגנה
+            msgDiv.innerText += "\nפותח מצלמה...";
             await getCameras();
-            startVideo();
+            startVideo(); 
         }
 
-        // --- ניהול מסך מלא (פונקציה חדשה) ---
-        function goFullscreen() {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen();
-            } else if (elem.webkitRequestFullscreen) { /* Safari */
-                elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) { /* IE11 */
-                elem.msRequestFullscreen();
-            }
-            toggleAdmin(); // סגור את החלונית אחרי הלחיצה
-        }
-
-        // --- ניהול הגדרות ---
-        function loadSettingsToUI() {
-            const savedGreeting = localStorage.getItem(KEYS.GREETING);
-            const savedDelay = localStorage.getItem(KEYS.DELAY);
-            
-            if (savedGreeting) document.getElementById('greeting-text').value = savedGreeting;
-            else document.getElementById('greeting-text').value = "ברוך הבא! 👋";
-
-            if (savedDelay) document.getElementById('scan-delay').value = savedDelay;
-        }
-
-        function saveSettings() {
-            const greeting = document.getElementById('greeting-text').value;
-            const delay = document.getElementById('scan-delay').value;
-            
-            localStorage.setItem(KEYS.GREETING, greeting);
-            localStorage.setItem(KEYS.DELAY, delay);
-            
-            alert("ההגדרות נשמרו!");
-        }
-
-        // --- ניהול מצלמות ---
+        // --- מנגנון המצלמה החכם (התיקון) ---
         async function getCameras() {
             try {
                 await navigator.mediaDevices.getUserMedia({ video: true });
@@ -291,9 +226,7 @@
                     const option = document.createElement('option');
                     option.value = device.deviceId;
                     option.text = device.label || `מצלמה ${index + 1}`;
-                    if (savedCameraId === device.deviceId) {
-                        option.selected = true;
-                    }
+                    if (savedCameraId === device.deviceId) option.selected = true;
                     select.appendChild(option);
                 });
             } catch (err) { console.error(err); }
@@ -302,25 +235,38 @@
         function startVideo(deviceId = null) {
             if (currentStream) currentStream.getTracks().forEach(track => track.stop());
             
-            if (!deviceId) {
-                deviceId = localStorage.getItem(KEYS.CAMERA);
+            // בדיקה אם יש מצלמה שמורה
+            if (!deviceId) deviceId = localStorage.getItem(KEYS.CAMERA);
+
+            // ניסיון ראשון: עם ה-ID הספציפי או ברירת מחדל
+            let constraints = { video: { facingMode: 'user' } };
+            if (deviceId) {
+                constraints = { video: { deviceId: { exact: deviceId } } };
             }
 
-            const constraints = {
-                video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }
-            };
-
-            navigator.mediaDevices.getUserMedia(constraints).then(stream => {
-                currentStream = stream;
-                video.srcObject = stream;
-                if (!window.loopStarted) {
-                    startRecognitionLoop();
-                    window.loopStarted = true;
-                }
-            }).catch(err => {
-                console.error(err);
-                msgDiv.innerText = "מצלמה לא זמינה";
-            });
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(stream => {
+                    // הצלחה!
+                    currentStream = stream;
+                    video.srcObject = stream;
+                    msgDiv.innerText = "מוכן לזיהוי";
+                    if (!window.loopStarted) {
+                        startRecognitionLoop();
+                        window.loopStarted = true;
+                    }
+                })
+                .catch(err => {
+                    console.warn("Camera failed, retrying default...", err);
+                    
+                    // מנגנון חירום: אם נכשל, נסה למחוק הגדרה ולפתוח רגיל
+                    if (deviceId) {
+                        localStorage.removeItem(KEYS.CAMERA); // מחיקת המצלמה התקועה
+                        msgDiv.innerText = "מאתחל מצלמה מחדש...";
+                        startVideo(null); // נסה שוב בלי ID (אוטומטי)
+                    } else {
+                        msgDiv.innerText = "גישה למצלמה נחסמה";
+                    }
+                });
         }
 
         function changeCamera() {
@@ -330,13 +276,16 @@
             startVideo(deviceId);
         }
 
-        // --- לולאת הזיהוי ---
+        // --- לולאת זיהוי ---
         async function startRecognitionLoop() {
             if (labeledFaceDescriptors.length === 0) return;
             faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
 
             setInterval(async () => {
                 if (isPaused) return;
+
+                // מוודא שהווידאו פעיל לפני זיהוי
+                if (video.paused || video.ended || !video.srcObject) return;
 
                 const detections = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
 
@@ -361,14 +310,29 @@
             }, 100);
         }
 
-        // --- ניהול נתונים ---
+        // --- פונקציות ניהול ---
+        function loadSettingsToUI() {
+            const savedGreeting = localStorage.getItem(KEYS.GREETING);
+            const savedDelay = localStorage.getItem(KEYS.DELAY);
+            if (savedGreeting) document.getElementById('greeting-text').value = savedGreeting;
+            if (savedDelay) document.getElementById('scan-delay').value = savedDelay;
+        }
+
+        function saveSettings() {
+            const greeting = document.getElementById('greeting-text').value;
+            const delay = document.getElementById('scan-delay').value;
+            localStorage.setItem(KEYS.GREETING, greeting);
+            localStorage.setItem(KEYS.DELAY, delay);
+            alert("נשמר");
+        }
+
         function loadFromLocal(jsonString) {
             const parsed = JSON.parse(jsonString);
             labeledFaceDescriptors = parsed.map(obj => {
                 const descriptors = obj.descriptors.map(d => new Float32Array(Object.values(d)));
                 return new faceapi.LabeledFaceDescriptors(obj.label, descriptors);
             });
-            msgDiv.innerText = `נטענו ${labeledFaceDescriptors.length} (מהיר)`;
+            msgDiv.innerText += `\nנטענו ${labeledFaceDescriptors.length} (מהיר)`;
         }
 
         async function loadLabeledImagesFromFirebase() {
@@ -377,15 +341,13 @@
                 const snapshot = await db.ref('users').once('value');
                 const data = snapshot.val();
                 if (!data) { msgDiv.innerText = "אין משתמשים"; return; }
-
+                
                 const promises = Object.keys(data).map(async (key) => {
                     const user = data[key];
                     try {
                         const img = await faceapi.fetchImage(user.image);
                         const detections = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-                        if (detections) {
-                            return new faceapi.LabeledFaceDescriptors(user.name, [detections.descriptor]);
-                        }
+                        if (detections) return new faceapi.LabeledFaceDescriptors(user.name, [detections.descriptor]);
                     } catch (e) { console.log("Skip", e); }
                 });
 
@@ -405,8 +367,15 @@
         }
 
         async function forceDownloadFromFirebase() {
-            if(confirm("למחוק זיכרון ולהוריד מחדש?")) {
+            if(confirm("לסנכרן מחדש?")) {
                 localStorage.removeItem(KEYS.DB);
+                location.reload();
+            }
+        }
+
+        function fullReset() {
+            if(confirm("זה יאפס את כל ההגדרות באפליקציה (מצלמה, טקסטים וזיכרון). להמשיך?")) {
+                localStorage.clear();
                 location.reload();
             }
         }
@@ -416,24 +385,25 @@
             panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
         }
 
+        function goFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) elem.requestFullscreen();
+            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+            toggleAdmin();
+        }
+
         function saveUser() {
             const name = document.getElementById('new-name').value;
             const fileInput = document.getElementById('new-image');
             const status = document.getElementById('status-msg');
-
             if (!name || fileInput.files.length === 0) { alert("חסרים פרטים"); return; }
-
-            status.innerText = "מעלה לשרת...";
+            status.innerText = "שומר...";
             const reader = new FileReader();
             reader.readAsDataURL(fileInput.files[0]);
             reader.onload = function () {
-                db.ref('users').push({ name: name, image: reader.result })
-                .then(() => {
+                db.ref('users').push({ name: name, image: reader.result }).then(() => {
                     status.innerText = "נשמר.";
-                    if(confirm("נשמר! לרענן עכשיו?")) {
-                        localStorage.removeItem(KEYS.DB);
-                        location.reload();
-                    }
+                    if(confirm("נשמר! לרענן?")) { localStorage.removeItem(KEYS.DB); location.reload(); }
                 });
             };
         }
@@ -446,20 +416,19 @@
                 const snapshot = await db.ref('users').once('value');
                 const data = snapshot.val();
                 listDiv.innerHTML = '';
-                if(!data) { listDiv.innerHTML = '<div style="padding:10px;">ריק</div>'; return; }
-
+                if(!data) { listDiv.innerHTML = 'ריק'; return; }
                 Object.keys(data).forEach(key => {
                     const user = data[key];
                     const item = document.createElement('div');
                     item.className = 'user-item';
-                    item.innerHTML = `<span>${user.name}</span><button class="delete-btn" onclick="deleteUser('${key}', '${user.name}')">🗑️</button>`;
+                    item.innerHTML = `<span>${user.name}</span><button class="delete-btn" onclick="deleteUser('${key}')">🗑️</button>`;
                     listDiv.appendChild(item);
                 });
             } catch(e) { listDiv.innerHTML = 'שגיאה'; }
         }
 
-        function deleteUser(key, name) {
-            if(confirm('למחוק את ' + name + '?')) {
+        function deleteUser(key) {
+            if(confirm('למחוק?')) {
                 db.ref('users/' + key).remove().then(() => {
                     alert('נמחק!');
                     localStorage.removeItem(KEYS.DB);
