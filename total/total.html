@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>רישום הכנסות - TOTAL</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{
+      font-family:system-ui,"Heebo","Arial",sans-serif;
+      background:#f3f5fa;
+      color:#111;
+      font-size:18px;
+    }
+    body{
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:12px;
+    }
+    .app{
+      width:100%;
+      max-width:600px;
+      background:#fff;
+      border-radius:16px;
+      box-shadow:0 10px 24px rgba(0,0,0,0.08);
+      padding:16px 14px 20px;
+    }
+    h1{
+      font-size:22px;
+      margin-bottom:4px;
+      text-align:center;
+    }
+    .sub{
+      font-size:14px;
+      color:#555;
+      text-align:center;
+      margin-bottom:12px;
+    }
+    .today-date{
+      text-align:center;
+      font-size:16px;
+      font-weight:600;
+      margin-bottom:14px;
+    }
+    .buttons-row{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
+      margin-bottom:10px;
+    }
+    button{
+      font-family:inherit;
+      border:none;
+      border-radius:12px;
+      padding:10px 8px;
+      font-size:16px;
+      cursor:pointer;
+    }
+    .btn-amount{
+      background:#e8f3ff;
+      border:1px solid #b6d4ff;
+    }
+    .btn-amount:active{
+      transform:scale(0.97);
+    }
+    .toggle-details-btn{
+      width:100%;
+      margin-bottom:6px;
+      background:#fff3cd;
+      border:1px solid #ffe08a;
+      font-weight:600;
+    }
+    .toggle-details-btn:active{
+      transform:scale(0.98);
+    }
+    .section{
+      margin-top:12px;
+      padding:10px 10px 12px;
+      border-radius:12px;
+      background:#f7f8fc;
+      border:1px solid #e1e4f0;
+    }
+    .section-title{
+      font-size:18px;
+      font-weight:600;
+      margin-bottom:6px;
+    }
+    .today-total{
+      margin-top:6px;
+      font-weight:600;
+      color:#0a5;
+    }
+    .list{
+      margin-top:6px;
+      max-height:220px;
+      overflow-y:auto;
+    }
+    .entry-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      padding:6px 4px;
+      border-bottom:1px solid #e0e3ee;
+      font-size:15px;
+    }
+    .entry-main{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .entry-amount{
+      font-weight:600;
+    }
+    .entry-date{
+      font-size:13px;
+      color:#666;
+    }
+    .btn-delete{
+      background:#ffebee;
+      border:1px solid #ffcdd2;
+      color:#c62828;
+      font-size:13px;
+      padding:4px 8px;
+      border-radius:10px;
+      white-space:nowrap;
+    }
+    .btn-delete:active{
+      transform:scale(0.95);
+    }
+    .history-day{
+      padding:6px 4px;
+      border-bottom:1px solid #dde1ee;
+      font-size:14px;
+    }
+    .history-day-header{
+      display:flex;
+      justify-content:space-between;
+      font-weight:600;
+      margin-bottom:2px;
+    }
+    .history-day-amounts{
+      font-size:13px;
+      color:#555;
+      direction:ltr;
+    }
+    .month-row{
+      display:flex;
+      justify-content:space-between;
+      padding:4px 2px;
+      border-bottom:1px solid #dde1ee;
+      font-size:14px;
+    }
+    .month-total-all{
+      margin-top:6px;
+      font-weight:600;
+      color:#0a5;
+      text-align:left;
+      direction:ltr;
+    }
+    .details-wrapper{
+      max-height:0;
+      opacity:0;
+      overflow:hidden;
+      transition:max-height 0.4s ease, opacity 0.4s ease;
+    }
+    .details-wrapper.open{
+      max-height:2000px;
+      opacity:1;
+    }
+  </style>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+</head>
+<body>
+  <div class="app" id="mainApp" style="display:none;">
+    <h1>רישום הכנסות (TOTAL)</h1>
+    <div class="sub">מחובר לענן (Realtime - Europe)</div>
+
+    <div class="today-date" id="todayDate"></div>
+
+    <div class="buttons-row">
+      <button class="btn-amount" data-amount="50" data-label="פן 50">פן 50</button>
+      <button class="btn-amount" data-amount="60" data-label="פן 60">פן 60</button>
+      <button class="btn-amount" data-amount="70" data-label="פן 70">פן 70</button>
+
+      <button class="btn-amount" data-amount="70" data-label="מסכת שיער">מסכת שיער</button>
+      <button class="btn-amount" data-amount="30" data-label="ספריי לשיער">ספריי לשיער</button>
+      <button class="btn-amount" data-amount="150" data-label="מכשיר פן">מכשיר פן</button>
+    </div>
+
+    <button id="toggleDetails" class="toggle-details-btn">פירוט</button>
+
+    <div id="detailsWrapper" class="details-wrapper">
+      <div class="section">
+        <div class="section-title">היום</div>
+        <div class="list" id="todayList"></div>
+        <div class="today-total" id="todayTotal">סה״כ היום: 0 ₪</div>
+      </div>
+
+      <div class="section" style="margin-top:16px;">
+        <div class="section-title">היסטוריה יומית</div>
+        <div class="list" id="historyDays"></div>
+      </div>
+
+      <div class="section" style="margin-top:16px;">
+        <div class="section-title">סיכום חודשי</div>
+        <div class="list" id="historyMonths"></div>
+        <div class="month-total-all" id="grandTotal"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- מנגנון סיסמה בכניסה ---
+    (function checkLogin() {
+      let entered = "";
+      while (entered !== "4451") {
+        entered = prompt("האתר נעול. נא להקיש סיסמה לכניסה:");
+        if (entered !== "4451") {
+          alert("סיסמה שגויה, נסה שוב.");
+        }
+      }
+      document.getElementById('mainApp').style.display = 'block';
+    })();
+
+    // --- הגדרות Firebase לפרויקט TOTAL (שרת אירופה) ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyBSysGOWgubyud--rt4XtsK2z8aE9orWBQ",
+      authDomain: "total-461be.firebaseapp.com",
+      databaseURL: "https://total-461be-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "total-461be",
+      storageBucket: "total-461be.firebasestorage.app",
+      messagingSenderId: "54620740744",
+      appId: "1:54620740744:web:05dde6b18ac5a49eebd33d",
+      measurementId: "G-L885P6V249"
+    };
+
+    // אתחול Firebase ו-Realtime Database
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const STORAGE_KEY = 'income_log_total_v1';
+    let entries = [];
+
+    function saveToStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    }
+
+    function loadFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function getTodayIso() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).toString(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatDateHeb(iso) {
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    }
+
+    function formatTime(now) {
+      const hh = String(now.getHours()).padStart(2,'0');
+      const mm = String(now.getMinutes()).padStart(2,'0');
+      return `${hh}:${mm}`;
+    }
+
+    function addEntry(amount, label) {
+      const now = new Date();
+      // יצירת ID ייחודי
+      const entryId = Date.now().toString() + '_' + Math.random().toString(16).slice(2);
+      
+      const entry = {
+        id: entryId,
+        date: getTodayIso(),
+        time: formatTime(now),
+        amount: Number(amount),
+        label: label || ''
+      };
+
+      entries.push(entry);
+      saveToStorage();
+      renderAll();
+
+      // שמירה ל-Realtime Database
+      db.ref("incomeEntries/" + entryId).set(entry)
+        .catch(err => console.error("Realtime DB save error:", err));
+    }
+
+    function deleteEntry(id) {
+      const pass = prompt("הכנס סיסמה למחיקה:");
+      if (pass !== "4451") {
+        alert("סיסמה שגויה – המחיקה בוטלה.");
+        return;
+      }
+
+      entries = entries.filter(e => e.id !== id);
+      saveToStorage();
+      renderAll();
+
+      // מחיקה מ-Realtime Database
+      db.ref("incomeEntries/" + id).remove()
+        .catch(err => console.error("Realtime DB delete error:", err));
+    }
+
+    function renderAll() {
+      const todayIso = getTodayIso();
+      document.getElementById('todayDate').textContent =
+        'היום: ' + formatDateHeb(todayIso);
+      renderToday(todayIso);
+      renderHistoryDays();
+      renderHistoryMonths();
+    }
+
+    function renderToday(todayIso) {
+      const todayListEl = document.getElementById('todayList');
+      const todayTotalEl = document.getElementById('todayTotal');
+
+      const todayEntries = entries.filter(e => e.date === todayIso);
+
+      if (todayEntries.length === 0) {
+        todayListEl.innerHTML =
+          '<div style="font-size:14px;color:#777;">אין עדיין רשומות להיום.</div>';
+      } else {
+        todayListEl.innerHTML = todayEntries.map(e => {
+          const labelText = e.label && e.label.trim() !== ''
+            ? `${e.label} (${e.amount} ₪)`
+            : (e.amount + ' ₪');
+          return `
+          <div class="entry-row">
+            <div class="entry-main">
+              <div class="entry-amount">${labelText}</div>
+              <div class="entry-date">${e.time}</div>
+            </div>
+            <button class="btn-delete" data-delete-id="${e.id}">מחק</button>
+          </div>
+        `;
+        }).join('');
+      }
+
+      const sum = todayEntries.reduce((acc, e) => acc + e.amount, 0);
+      todayTotalEl.textContent = 'סה״כ היום: ' + sum + ' ₪';
+    }
+
+    function renderHistoryDays() {
+      const container = document.getElementById('historyDays');
+      if (entries.length === 0) {
+        container.innerHTML =
+          '<div style="font-size:14px;color:#777;">אין עדיין היסטוריה.</div>';
+        return;
+      }
+
+      const byDate = {};
+      entries.forEach(e => {
+        if (!byDate[e.date]) byDate[e.date] = [];
+        byDate[e.date].push(e);
+      });
+
+      const dates = Object.keys(byDate).sort();
+      container.innerHTML = dates.map(dateIso => {
+        const list = byDate[dateIso];
+        const sum = list.reduce((acc, e) => acc + e.amount, 0);
+        const amountsStr = list.map(e => {
+          if (e.label && e.label.trim() !== '') {
+            return `${e.label} (${e.amount} ₪)`;
+          }
+          return e.amount + ' ₪';
+        }).join(', ');
+        return `
+          <div class="history-day">
+            <div class="history-day-header">
+              <span>${formatDateHeb(dateIso)}</span>
+              <span>${sum} ₪</span>
+            </div>
+            <div class="history-day-amounts">
+              ${amountsStr ? 'מכירות: ' + amountsStr : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderHistoryMonths() {
+      const container = document.getElementById('historyMonths');
+      const grandTotalEl = document.getElementById('grandTotal');
+
+      if (entries.length === 0) {
+        container.innerHTML =
+          '<div style="font-size:14px;color:#777;">אין נתונים לחישוב חודשי.</div>';
+        grandTotalEl.textContent = '';
+        return;
+      }
+
+      const byMonth = {};
+      let grandTotal = 0;
+
+      entries.forEach(e => {
+        const [y, m] = e.date.split('-');
+        const monthKey = `${y}-${m}`;
+        if (!byMonth[monthKey]) byMonth[monthKey] = 0;
+        byMonth[monthKey] += e.amount;
+        grandTotal += e.amount;
+      });
+
+      const months = Object.keys(byMonth).sort();
+      container.innerHTML = months.map(mKey => {
+        const [y, m] = mKey.split('-');
+        const label = `${m}/${y}`;
+        const total = byMonth[mKey];
+        return `
+          <div class="month-row">
+            <span>חודש ${label}</span>
+            <span>${total} ₪</span>
+          </div>
+        `;
+      }).join('');
+
+      grandTotalEl.textContent = 'סה״כ כל התקופה: ' + grandTotal + ' ₪';
+    }
+
+    // --- טעינת נתונים מהשרת ---
+    async function loadFromServer() {
+      try {
+        const snapshot = await db.ref("incomeEntries").once('value');
+        const data = snapshot.val();
+
+        if (data) {
+          // המרה למערך
+          const serverEntries = Object.values(data);
+          
+          // מיון לפי תאריך (כי Realtime לא תמיד מחזיר ממוין)
+          serverEntries.sort((a, b) => {
+             if (a.date > b.date) return 1;
+             if (a.date < b.date) return -1;
+             return 0;
+          });
+
+          if (serverEntries.length > 0) {
+            entries = serverEntries;
+            saveToStorage();
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Load from Realtime DB failed:", err);
+      }
+
+      entries = loadFromStorage();
+    }
+
+    document.addEventListener('click', function(ev){
+      const btnAmount = ev.target.closest('.btn-amount');
+      if (btnAmount) {
+        const amount = btnAmount.getAttribute('data-amount');
+        const label = btnAmount.getAttribute('data-label') || '';
+        addEntry(amount, label);
+        return;
+      }
+
+      const delBtn = ev.target.closest('.btn-delete');
+      if (delBtn) {
+        const id = delBtn.getAttribute('data-delete-id');
+        deleteEntry(id);
+        return;
+      }
+    });
+
+    const detailsWrapper = document.getElementById('detailsWrapper');
+    const toggleDetailsBtn = document.getElementById('toggleDetails');
+    toggleDetailsBtn.addEventListener('click', () => {
+      const isOpen = detailsWrapper.classList.toggle('open');
+      toggleDetailsBtn.textContent = isOpen ? 'הסתר פירוט' : 'פירוט';
+    });
+
+    (async function init() {
+      await loadFromServer();
+      renderAll();
+    })();
+  </script>
+</body>
+</html>
