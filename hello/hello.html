@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מערכת זיהוי V4 - כולל מחיקה</title>
+    <title>מערכת זיהוי V5 - הגדרות מלאות</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -70,29 +70,37 @@
             box-shadow: 0 10px 100px rgba(0,0,0,0.5);
             width: 90%;
             max-width: 350px;
-            max-height: 80vh; /* שלא יחרוג מהמסך */
-            overflow-y: auto; /* גלילה אם החלון ארוך */
+            max-height: 85vh; 
+            overflow-y: auto; 
             z-index: 200;
             text-align: right;
         }
 
-        .input-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        .section-title {
+            font-size: 14px;
+            color: #888;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 2px;
+        }
+
+        .input-group { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 3px; font-weight: bold; color: #555; font-size: 14px; }
         input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px;}
         
         button { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: 16px; margin-top: 5px; cursor: pointer; font-weight: bold;}
-        button.save { background: #28a745; color: white; margin-top: 15px; }
+        button.save { background: #28a745; color: white; margin-top: 10px; }
         button.sync { background: #007bff; color: white; }
         button.close { background: #dc3545; color: white; margin-top: 20px;}
-        button.load-list { background: #6c757d; color: white; margin-top: 10px; }
+        button.load-list { background: #6c757d; color: white; margin-top: 5px; font-size: 14px; }
 
-        /* עיצוב רשימת הלקוחות למחיקה */
         #users-list {
             margin-top: 10px;
             border-top: 1px solid #eee;
             max-height: 150px;
             overflow-y: auto;
-            display: none; /* מוסתר עד שלוחצים */
+            display: none;
         }
         .user-item {
             display: flex;
@@ -123,33 +131,41 @@
     <button id="admin-btn" onclick="toggleAdmin()">⚙️</button>
 
     <div id="admin-panel">
-        <h3 style="text-align: center; margin: 0 0 15px 0;">ניהול מערכת</h3>
+        <h3 style="text-align: center; margin: 0 0 10px 0;">הגדרות וניהול</h3>
+        
+        <div class="section-title">🛠️ הגדרות תצוגה ומצלמה</div>
         
         <div class="input-group">
-            <label>📷 מצלמה:</label>
+            <label>📷 בחר מצלמה (נשמר אוטומטית):</label>
             <select id="camera-select" onchange="changeCamera()"></select>
         </div>
 
-        <button class="sync" onclick="forceDownloadFromFirebase()">🔄 סנכרן נתונים מחדש</button>
-
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-
         <div class="input-group">
-            <label>👤 שם לקוח חדש:</label>
-            <input type="text" id="new-name" placeholder="למשל: שושנה">
+            <label>💬 טקסט ברכה (במקום "ברוך הבא"):</label>
+            <input type="text" id="greeting-text" placeholder="למשל: ברוך הבא!">
         </div>
+
         <div class="input-group">
-            <label>🖼️ תמונה:</label>
-            <input type="file" id="new-image" accept="image/*">
+            <label>⏱️ זמן המתנה ללקוח הבא (שניות):</label>
+            <input type="number" id="scan-delay" value="5" min="1" max="60">
+        </div>
+        
+        <button class="save" onclick="saveSettings()" style="background:#17a2b8; margin-top:5px;">שמור הגדרות תצוגה</button>
+
+
+        <div class="section-title">☁️ ניהול נתונים</div>
+        <button class="sync" onclick="forceDownloadFromFirebase()">🔄 סנכרן נתונים מהענן</button>
+
+        <div class="section-title">👤 הוספת לקוח חדש</div>
+        <div class="input-group">
+            <input type="text" id="new-name" placeholder="שם הלקוח">
+            <input type="file" id="new-image" accept="image/*" style="margin-top:5px;">
         </div>
         <button class="save" onclick="saveUser()">שמור לקוח</button>
 
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-
-        <label>🗑️ ניהול ומחיקה:</label>
+        <div class="section-title">🗑️ מחיקת לקוחות</div>
         <button class="load-list" onclick="loadUsersForManagement()">הצג רשימת לקוחות</button>
-        <div id="users-list">
-            </div>
+        <div id="users-list"></div>
 
         <button class="close" onclick="toggleAdmin()">סגור חלונית</button>
         <p id="status-msg"></p>
@@ -173,16 +189,23 @@
         }
         const db = firebase.database();
 
-        // --- משתנים ---
+        // --- משתנים ומפתחות שמירה ---
         let labeledFaceDescriptors = [];
         let faceMatcher;
         let isPaused = false;
         let currentStream = null;
         const video = document.getElementById('video');
         const msgDiv = document.getElementById('welcome-msg');
-        const LOCAL_STORAGE_KEY = 'face_db_v1'; 
+        
+        // מפתחות ל-LocalStorage
+        const KEYS = {
+            DB: 'face_db_v1',
+            CAMERA: 'face_app_camera',
+            GREETING: 'face_app_greeting',
+            DELAY: 'face_app_delay'
+        };
 
-        // טעינת מודלים
+        // טעינת מודלים והגדרות
         Promise.all([
             faceapi.nets.ssdMobilenetv1.loadFromUri('./models'),
             faceapi.nets.faceLandmark68Net.loadFromUri('./models'),
@@ -195,7 +218,11 @@
         async function startApp() {
             msgDiv.innerText = "טוען...";
             
-            const localData = localStorage.getItem(LOCAL_STORAGE_KEY);
+            // טעינת הגדרות לשדות בחלונית הניהול
+            loadSettingsToUI();
+
+            // טעינת לקוחות
+            const localData = localStorage.getItem(KEYS.DB);
             if (localData) {
                 loadFromLocal(localData);
             } else {
@@ -203,10 +230,121 @@
             }
 
             await getCameras();
-            startVideo();
+            startVideo(); // תשתמש במצלמה השמורה
         }
 
-        // --- ניהול זיכרון ונתונים ---
+        // --- ניהול הגדרות (שמירה וטעינה) ---
+        function loadSettingsToUI() {
+            const savedGreeting = localStorage.getItem(KEYS.GREETING);
+            const savedDelay = localStorage.getItem(KEYS.DELAY);
+            
+            if (savedGreeting) document.getElementById('greeting-text').value = savedGreeting;
+            else document.getElementById('greeting-text').value = "ברוך הבא! 👋"; // ברירת מחדל
+
+            if (savedDelay) document.getElementById('scan-delay').value = savedDelay;
+        }
+
+        function saveSettings() {
+            const greeting = document.getElementById('greeting-text').value;
+            const delay = document.getElementById('scan-delay').value;
+            
+            localStorage.setItem(KEYS.GREETING, greeting);
+            localStorage.setItem(KEYS.DELAY, delay);
+            
+            alert("ההגדרות נשמרו בהצלחה!");
+        }
+
+        // --- ניהול מצלמות חכם ---
+        async function getCameras() {
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                const select = document.getElementById('camera-select');
+                
+                select.innerHTML = '';
+                const savedCameraId = localStorage.getItem(KEYS.CAMERA);
+                
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `מצלמה ${index + 1}`;
+                    if (savedCameraId === device.deviceId) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        function startVideo(deviceId = null) {
+            if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+            
+            // אם לא נבחרה מצלמה ספציפית, נסה לקחת מהזיכרון
+            if (!deviceId) {
+                deviceId = localStorage.getItem(KEYS.CAMERA);
+            }
+
+            const constraints = {
+                video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }
+            };
+
+            navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+                currentStream = stream;
+                video.srcObject = stream;
+                if (!window.loopStarted) {
+                    startRecognitionLoop();
+                    window.loopStarted = true;
+                }
+            }).catch(err => {
+                console.error(err);
+                msgDiv.innerText = "שגיאת מצלמה, נסה לבחור אחרת בהגדרות";
+            });
+        }
+
+        function changeCamera() {
+            const select = document.getElementById('camera-select');
+            const deviceId = select.value;
+            
+            // שמירת הבחירה לזיכרון
+            localStorage.setItem(KEYS.CAMERA, deviceId);
+            
+            startVideo(deviceId);
+        }
+
+        // --- לולאת הזיהוי ---
+        async function startRecognitionLoop() {
+            if (labeledFaceDescriptors.length === 0) return;
+            faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
+
+            setInterval(async () => {
+                if (isPaused) return;
+
+                const detections = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+
+                if (detections) {
+                    const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
+                    
+                    if (bestMatch.label !== 'unknown') {
+                        // שליפת הגדרות מהזיכרון בזמן אמת
+                        const greeting = localStorage.getItem(KEYS.GREETING) || "ברוך הבא! 👋";
+                        const delaySeconds = localStorage.getItem(KEYS.DELAY) || 5;
+
+                        msgDiv.innerText = bestMatch.label + " " + greeting;
+                        msgDiv.style.color = "#28a745"; 
+                        isPaused = true;
+                        
+                        setTimeout(() => {
+                            msgDiv.innerText = "מוכן...";
+                            msgDiv.style.color = "#333";
+                            isPaused = false;
+                        }, delaySeconds * 1000);
+                    }
+                }
+            }, 100);
+        }
+
+        // --- פונקציות ניהול נתונים (אותן פונקציות מ-V4) ---
         function loadFromLocal(jsonString) {
             const parsed = JSON.parse(jsonString);
             labeledFaceDescriptors = parsed.map(obj => {
@@ -221,10 +359,7 @@
             try {
                 const snapshot = await db.ref('users').once('value');
                 const data = snapshot.val();
-                if (!data) {
-                    msgDiv.innerText = "אין משתמשים";
-                    return;
-                }
+                if (!data) { msgDiv.innerText = "אין משתמשים"; return; }
 
                 const promises = Object.keys(data).map(async (key) => {
                     const user = data[key];
@@ -239,10 +374,8 @@
 
                 const results = await Promise.all(promises);
                 labeledFaceDescriptors = results.filter(res => res !== undefined);
-
                 saveToLocal();
                 msgDiv.innerText = `מוכן (${labeledFaceDescriptors.length})`;
-
             } catch (error) { console.error(error); msgDiv.innerText = "שגיאת רשת"; }
         }
 
@@ -251,124 +384,14 @@
                 label: d.label,
                 descriptors: d.descriptors.map(desc => Array.from(desc))
             }));
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(serializable));
+            localStorage.setItem(KEYS.DB, JSON.stringify(serializable));
         }
 
         async function forceDownloadFromFirebase() {
             if(confirm("למחוק זיכרון ולהוריד מחדש?")) {
-                localStorage.removeItem(LOCAL_STORAGE_KEY);
+                localStorage.removeItem(KEYS.DB);
                 location.reload();
             }
-        }
-
-        // --- פונקציות ניהול חדשות (רשימה ומחיקה) ---
-        async function loadUsersForManagement() {
-            const listDiv = document.getElementById('users-list');
-            const status = document.getElementById('status-msg');
-            
-            listDiv.style.display = 'block';
-            listDiv.innerHTML = 'טוען רשימה...';
-            
-            try {
-                const snapshot = await db.ref('users').once('value');
-                const data = snapshot.val();
-                
-                listDiv.innerHTML = ''; // ניקוי
-                
-                if(!data) {
-                    listDiv.innerHTML = '<div style="padding:10px;">אין נתונים בשרת</div>';
-                    return;
-                }
-
-                Object.keys(data).forEach(key => {
-                    const user = data[key];
-                    const item = document.createElement('div');
-                    item.className = 'user-item';
-                    // יצירת שורה עם שם וכפתור מחיקה
-                    item.innerHTML = `
-                        <span>${user.name}</span>
-                        <button class="delete-btn" onclick="deleteUser('${key}', '${user.name}')">🗑️</button>
-                    `;
-                    listDiv.appendChild(item);
-                });
-            } catch(e) {
-                listDiv.innerHTML = 'שגיאה בטעינה';
-            }
-        }
-
-        function deleteUser(key, name) {
-            if(confirm('האם אתה בטוח שברצונך למחוק את ' + name + '? זה ימחק אותו מהשרת לצמיתות.')) {
-                // מחיקה מ-Firebase
-                db.ref('users/' + key).remove()
-                .then(() => {
-                    alert('המשתמש נמחק בהצלחה! הדף יתרענן כעת כדי לעדכן את המערכת.');
-                    // חובה לנקות את הזיכרון המקומי כדי שהמשתמש לא יישאר שם
-                    localStorage.removeItem(LOCAL_STORAGE_KEY);
-                    location.reload();
-                })
-                .catch(err => alert('שגיאה במחיקה: ' + err));
-            }
-        }
-
-        // --- מצלמה וזיהוי ---
-        async function getCameras() {
-            try {
-                await navigator.mediaDevices.getUserMedia({ video: true });
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                const select = document.getElementById('camera-select');
-                select.innerHTML = '';
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = device.label || `מצלמה ${index + 1}`;
-                    select.appendChild(option);
-                });
-            } catch (err) { console.error(err); }
-        }
-
-        function startVideo(deviceId = null) {
-            if (currentStream) currentStream.getTracks().forEach(track => track.stop());
-            
-            const constraints = {
-                video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'user' }
-            };
-
-            navigator.mediaDevices.getUserMedia(constraints).then(stream => {
-                currentStream = stream;
-                video.srcObject = stream;
-                if (!window.loopStarted) {
-                    startRecognitionLoop();
-                    window.loopStarted = true;
-                }
-            }).catch(err => console.error(err));
-        }
-
-        function changeCamera() {
-            startVideo(document.getElementById('camera-select').value);
-        }
-
-        async function startRecognitionLoop() {
-            if (labeledFaceDescriptors.length === 0) return;
-            faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
-
-            setInterval(async () => {
-                if (isPaused) return;
-                const detections = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
-                if (detections) {
-                    const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
-                    if (bestMatch.label !== 'unknown') {
-                        msgDiv.innerText = bestMatch.label + " ברוך הבא! 👋";
-                        msgDiv.style.color = "#28a745"; 
-                        isPaused = true;
-                        setTimeout(() => {
-                            msgDiv.innerText = "מוכן...";
-                            msgDiv.style.color = "#333";
-                            isPaused = false;
-                        }, 5000);
-                    }
-                }
-            }, 100);
         }
 
         function toggleAdmin() {
@@ -390,12 +413,43 @@
                 db.ref('users').push({ name: name, image: reader.result })
                 .then(() => {
                     status.innerText = "נשמר.";
-                    if(confirm("נשמר בהצלחה! האם לרענן את המערכת כעת כדי לזהות אותו?")) {
-                        localStorage.removeItem(LOCAL_STORAGE_KEY);
+                    if(confirm("נשמר! לרענן עכשיו?")) {
+                        localStorage.removeItem(KEYS.DB);
                         location.reload();
                     }
                 });
             };
+        }
+
+        async function loadUsersForManagement() {
+            const listDiv = document.getElementById('users-list');
+            listDiv.style.display = 'block';
+            listDiv.innerHTML = 'טוען...';
+            
+            try {
+                const snapshot = await db.ref('users').once('value');
+                const data = snapshot.val();
+                listDiv.innerHTML = '';
+                if(!data) { listDiv.innerHTML = '<div style="padding:10px;">ריק</div>'; return; }
+
+                Object.keys(data).forEach(key => {
+                    const user = data[key];
+                    const item = document.createElement('div');
+                    item.className = 'user-item';
+                    item.innerHTML = `<span>${user.name}</span><button class="delete-btn" onclick="deleteUser('${key}', '${user.name}')">🗑️</button>`;
+                    listDiv.appendChild(item);
+                });
+            } catch(e) { listDiv.innerHTML = 'שגיאה'; }
+        }
+
+        function deleteUser(key, name) {
+            if(confirm('למחוק את ' + name + '?')) {
+                db.ref('users/' + key).remove().then(() => {
+                    alert('נמחק!');
+                    localStorage.removeItem(KEYS.DB);
+                    location.reload();
+                });
+            }
         }
     </script>
 </body>
