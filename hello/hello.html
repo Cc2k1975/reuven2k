@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>זיהוי פנים - כניסה</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        /* הסתרת המצלמה ויזואלית אך השארתה פעילה */
+        #video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            z-index: -1;
+        }
+
+        /* הודעת ברוך הבא */
+        #welcome-msg {
+            font-size: 3rem;
+            color: #333;
+            font-weight: bold;
+            animation: fadeIn 1s ease;
+        }
+
+        /* כפתור הגדרות נסתר בפינה */
+        #admin-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.1);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            z-index: 100;
+        }
+
+        /* חלונית הניהול */
+        #admin-panel {
+            display: none; /* מוסתר כברירת מחדל */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 80%;
+            max-width: 300px;
+            z-index: 200;
+        }
+
+        .input-group { margin-bottom: 15px; }
+        input { width: 100%; padding: 10px; box-sizing: border-box; margin-top: 5px; }
+        button.save { background: #28a745; color: white; border: none; padding: 10px; width: 100%; cursor: pointer; }
+        button.close { background: #dc3545; color: white; border: none; padding: 5px 10px; margin-top: 10px; cursor: pointer; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <video id="video" autoplay muted playsinline></video>
+
+    <div id="welcome-msg">מאתחל מערכת...</div>
+
+    <button id="admin-btn" onclick="toggleAdmin()">⚙️</button>
+
+    <div id="admin-panel">
+        <h3>הוספת לקוח חדש</h3>
+        <div class="input-group">
+            <label>שם הלקוח:</label>
+            <input type="text" id="new-name" placeholder="למשל: צ'רלס">
+        </div>
+        <div class="input-group">
+            <label>תמונה (מהוואטסאפ):</label>
+            <input type="file" id="new-image" accept="image/*">
+        </div>
+        <button class="save" onclick="saveUser()">שמור בשרת</button>
+        <button class="close" onclick="toggleAdmin()">סגור</button>
+        <p id="status-msg" style="font-size:12px; color:gray;"></p>
+    </div>
+
+    <script>
+        // --- 1. הגדרות Firebase (להדביק כאן את הקוד שלך) ---
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            databaseURL: "YOUR_DATABASE_URL",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "...",
+            appId: "..."
+        };
+        // אתחול Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
+        // --- משתנים גלובליים ---
+        let labeledFaceDescriptors = [];
+        let faceMatcher;
+        const video = document.getElementById('video');
+        const msgDiv = document.getElementById('welcome-msg');
+
+        // --- 2. טעינת המודלים והפעלת המערכת ---
+        Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri('./models'), // מודל זיהוי פנים
+            faceapi.nets.faceLandmark68Net.loadFromUri('./models'), // מודל תווי פנים
+            faceapi.nets.faceRecognitionNet.loadFromUri('./models') // מודל ההכרה
+        ]).then(startApp).catch(err => {
+            msgDiv.innerText = "שגיאה בטעינת המודלים. ודא שתיקיית models קיימת.";
+            console.error(err);
+        });
+
+        async function startApp() {
+            msgDiv.innerText = "טוען לקוחות מהשרת...";
+            await loadLabeledImagesFromFirebase();
+            startVideo();
+        }
+
+        // --- 3. הפעלת מצלמה ---
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({ video: {} })
+                .then(stream => {
+                    video.srcObject = stream;
+                    msgDiv.innerText = "המערכת מוכנה. סרוק פנים.";
+                    startRecognitionLoop();
+                })
+                .catch(err => console.error("שגיאת מצלמה:", err));
+        }
+
+        // --- 4. לולאת הזיהוי ---
+        async function startRecognitionLoop() {
+            if (labeledFaceDescriptors.length === 0) return; // אין את מי לזהות
+
+            faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
+
+            setInterval(async () => {
+                // זיהוי פנים בווידאו
+                const detections = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+
+                if (detections) {
+                    const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
+                    
+                    if (bestMatch.label !== 'unknown') {
+                        // נמצאה התאמה!
+                        msgDiv.innerText = bestMatch.label + " ברוך הבא!";
+                        // כאן אפשר להוסיף סאונד או פעולה נוספת
+                    } else {
+                        msgDiv.innerText = "לא מזוהה";
+                    }
+                }
+            }, 500); // בדיקה כל חצי שנייה
+        }
+
+        // --- 5. טעינת נתונים מ-Firebase ---
+        async function loadLabeledImagesFromFirebase() {
+            const snapshot = await db.ref('users').once('value');
+            const data = snapshot.val();
+            
+            if (!data) return;
+
+            const promises = Object.keys(data).map(async (key) => {
+                const user = data[key];
+                const img = await faceapi.fetchImage(user.image); // טוען את תמונת ה-Base64
+                const detections = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+                
+                if (detections) {
+                    return new faceapi.LabeledFaceDescriptors(user.name, [detections.descriptor]);
+                }
+            });
+
+            const results = await Promise.all(promises);
+            labeledFaceDescriptors = results.filter(res => res !== undefined);
+            console.log("נטענו " + labeledFaceDescriptors.length + " משתמשים.");
+        }
+
+        // --- 6. פונקציות ניהול (שמירה) ---
+        function toggleAdmin() {
+            const panel = document.getElementById('admin-panel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function saveUser() {
+            const name = document.getElementById('new-name').value;
+            const fileInput = document.getElementById('new-image');
+            const status = document.getElementById('status-msg');
+
+            if (!name || fileInput.files.length === 0) {
+                alert("חובה למלא שם ולבחור תמונה");
+                return;
+            }
+
+            status.innerText = "מעבד תמונה...";
+            
+            const reader = new FileReader();
+            reader.readAsDataURL(fileInput.files[0]);
+            reader.onload = function () {
+                const base64Image = reader.result;
+                
+                // שמירה ב-Firebase
+                db.ref('users').push({
+                    name: name,
+                    image: base64Image
+                }).then(() => {
+                    status.innerText = "נשמר בהצלחה! רענן את הדף כדי לזהות.";
+                    alert("נשמר!");
+                    toggleAdmin();
+                }).catch(err => {
+                    status.innerText = "שגיאה בשמירה.";
+                    console.error(err);
+                });
+            };
+        }
+    </script>
+</body>
+</html>
