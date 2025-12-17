@@ -90,7 +90,19 @@
 
         .input-group { margin-bottom: 10px; }
         label { display: block; margin-bottom: 3px; font-weight: bold; color: #555; font-size: 14px; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px;}
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px;}
+        
+        /* עיצוב מיוחד לצ'קבוקס של הקול */
+        .voice-control {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+        }
+        .voice-control input { width: 20px; height: 20px; cursor: pointer; }
         
         button { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: 16px; margin-top: 5px; cursor: pointer; font-weight: bold;}
         button.save { background: #28a745; color: white; margin-top: 10px; }
@@ -119,6 +131,12 @@
         <button class="fullscreen" onclick="goFullscreen()">⛶ עבור למסך מלא</button>
 
         <div class="section-title">🛠️ הגדרות תצוגה ומצלמה</div>
+        
+        <div class="input-group voice-control">
+            <label style="margin:0;">🗣️ הקראה קולית (VOICE):</label>
+            <input type="checkbox" id="voice-toggle">
+        </div>
+
         <div class="input-group">
             <label>📷 מצלמה:</label>
             <select id="camera-select" onchange="changeCamera()"></select>
@@ -180,7 +198,8 @@
             DB: 'face_db_v1',
             CAMERA: 'face_app_camera',
             GREETING: 'face_app_greeting',
-            DELAY: 'face_app_delay'
+            DELAY: 'face_app_delay',
+            VOICE: 'face_app_voice' // מפתח חדש לקול
         };
 
         // טעינה ראשונית
@@ -211,7 +230,7 @@
             startVideo(); 
         }
 
-        // --- מנגנון המצלמה החכם (התיקון) ---
+        // --- מנגנון המצלמה החכם ---
         async function getCameras() {
             try {
                 await navigator.mediaDevices.getUserMedia({ video: true });
@@ -258,11 +277,11 @@
                 .catch(err => {
                     console.warn("Camera failed, retrying default...", err);
                     
-                    // מנגנון חירום: אם נכשל, נסה למחוק הגדרה ולפתוח רגיל
+                    // מנגנון חירום
                     if (deviceId) {
-                        localStorage.removeItem(KEYS.CAMERA); // מחיקת המצלמה התקועה
+                        localStorage.removeItem(KEYS.CAMERA); 
                         msgDiv.innerText = "מאתחל מצלמה מחדש...";
-                        startVideo(null); // נסה שוב בלי ID (אוטומטי)
+                        startVideo(null); 
                     } else {
                         msgDiv.innerText = "גישה למצלמה נחסמה";
                     }
@@ -274,6 +293,22 @@
             const deviceId = select.value;
             localStorage.setItem(KEYS.CAMERA, deviceId);
             startVideo(deviceId);
+        }
+
+        // --- פונקציית הקראה (TTS) החדשה ---
+        function speakText(text) {
+            // בדיקה אם הדפדפן תומך
+            if ('speechSynthesis' in window) {
+                // ביטול דיבור קודם כדי למנוע חפיפות
+                window.speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'he-IL'; // הגדרת שפה לעברית
+                utterance.rate = 1;       // מהירות רגילה
+                utterance.pitch = 1;      // טון רגיל
+                
+                window.speechSynthesis.speak(utterance);
+            }
         }
 
         // --- לולאת זיהוי ---
@@ -296,10 +331,18 @@
                         const greeting = localStorage.getItem(KEYS.GREETING) || "ברוך הבא! 👋";
                         const delaySeconds = localStorage.getItem(KEYS.DELAY) || 5;
 
+                        // עדכון המסך
                         msgDiv.innerText = bestMatch.label + "\n" + greeting;
                         msgDiv.style.color = "#28a745"; 
                         isPaused = true;
                         
+                        // ** בדיקה אם VOICE פעיל והפעלה **
+                        const isVoiceOn = localStorage.getItem(KEYS.VOICE) === 'true';
+                        if (isVoiceOn) {
+                            // מחבר את השם והברכה למשפט אחד להקראה
+                            speakText(bestMatch.label + " " + greeting);
+                        }
+
                         setTimeout(() => {
                             msgDiv.innerText = "מוכן...";
                             msgDiv.style.color = "#333";
@@ -314,15 +357,23 @@
         function loadSettingsToUI() {
             const savedGreeting = localStorage.getItem(KEYS.GREETING);
             const savedDelay = localStorage.getItem(KEYS.DELAY);
+            const savedVoice = localStorage.getItem(KEYS.VOICE); // טעינת הגדרת קול
+            
             if (savedGreeting) document.getElementById('greeting-text').value = savedGreeting;
             if (savedDelay) document.getElementById('scan-delay').value = savedDelay;
+            // עדכון ה-Checkbox
+            document.getElementById('voice-toggle').checked = (savedVoice === 'true');
         }
 
         function saveSettings() {
             const greeting = document.getElementById('greeting-text').value;
             const delay = document.getElementById('scan-delay').value;
+            const voiceState = document.getElementById('voice-toggle').checked; // שמירת מצב הקול
+            
             localStorage.setItem(KEYS.GREETING, greeting);
             localStorage.setItem(KEYS.DELAY, delay);
+            localStorage.setItem(KEYS.VOICE, voiceState); // שמירה בזיכרון
+            
             alert("נשמר");
         }
 
