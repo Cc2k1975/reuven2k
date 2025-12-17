@@ -24,7 +24,6 @@
             text-align: center;
         }
 
-        /* הסתרת המצלמה ויזואלית אך השארתה פעילה */
         #video {
             position: absolute;
             top: 0;
@@ -35,7 +34,6 @@
             z-index: -1;
         }
 
-        /* הודעת ברוך הבא */
         #welcome-msg {
             font-size: 3rem;
             color: #333;
@@ -43,7 +41,6 @@
             animation: fadeIn 1s ease;
         }
 
-        /* כפתור הגדרות נסתר בפינה */
         #admin-btn {
             position: fixed;
             bottom: 20px;
@@ -57,9 +54,8 @@
             z-index: 100;
         }
 
-        /* חלונית הניהול */
         #admin-panel {
-            display: none; /* מוסתר כברירת מחדל */
+            display: none;
             position: fixed;
             top: 50%;
             left: 50%;
@@ -84,9 +80,7 @@
 <body>
 
     <video id="video" autoplay muted playsinline></video>
-
     <div id="welcome-msg">מאתחל מערכת...</div>
-
     <button id="admin-btn" onclick="toggleAdmin()">⚙️</button>
 
     <div id="admin-panel">
@@ -105,35 +99,37 @@
     </div>
 
     <script>
-        // --- 1. הגדרות Firebase (להדביק כאן את הקוד שלך) ---
+        // --- הגדרות Firebase שלך (הטמעתי את המפתחות ששלחת) ---
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            databaseURL: "YOUR_DATABASE_URL",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "...",
-            appId: "..."
+            apiKey: "AIzaSyAX7zLjQE1CwJvCqWezv7J_U8yeWO4qTi0",
+            authDomain: "hello-ea209.firebaseapp.com",
+            databaseURL: "https://hello-ea209-default-rtdb.firebaseio.com",
+            projectId: "hello-ea209",
+            storageBucket: "hello-ea209.firebasestorage.app",
+            messagingSenderId: "921439248216",
+            appId: "1:921439248216:web:a7afabd26b4cdb204e0f2d",
+            measurementId: "G-3KEHFB64HS"
         };
-        // אתחול Firebase
+
+        // אתחול
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.database();
 
-        // --- משתנים גלובליים ---
+        // משתנים
         let labeledFaceDescriptors = [];
         let faceMatcher;
         const video = document.getElementById('video');
         const msgDiv = document.getElementById('welcome-msg');
 
-        // --- 2. טעינת המודלים והפעלת המערכת ---
+        // טעינת מודלים
         Promise.all([
-            faceapi.nets.ssdMobilenetv1.loadFromUri('./models'), // מודל זיהוי פנים
-            faceapi.nets.faceLandmark68Net.loadFromUri('./models'), // מודל תווי פנים
-            faceapi.nets.faceRecognitionNet.loadFromUri('./models') // מודל ההכרה
+            faceapi.nets.ssdMobilenetv1.loadFromUri('./models'),
+            faceapi.nets.faceLandmark68Net.loadFromUri('./models'),
+            faceapi.nets.faceRecognitionNet.loadFromUri('./models')
         ]).then(startApp).catch(err => {
-            msgDiv.innerText = "שגיאה בטעינת המודלים. ודא שתיקיית models קיימת.";
+            msgDiv.innerText = "שגיאה: חסרה תיקיית models בגיטהאב";
             console.error(err);
         });
 
@@ -143,64 +139,69 @@
             startVideo();
         }
 
-        // --- 3. הפעלת מצלמה ---
         function startVideo() {
             navigator.mediaDevices.getUserMedia({ video: {} })
                 .then(stream => {
                     video.srcObject = stream;
-                    msgDiv.innerText = "המערכת מוכנה. סרוק פנים.";
+                    msgDiv.innerText = "המערכת מוכנה.";
                     startRecognitionLoop();
                 })
-                .catch(err => console.error("שגיאת מצלמה:", err));
+                .catch(err => {
+                    msgDiv.innerText = "נא לאשר גישה למצלמה";
+                    console.error("שגיאת מצלמה:", err);
+                });
         }
 
-        // --- 4. לולאת הזיהוי ---
         async function startRecognitionLoop() {
-            if (labeledFaceDescriptors.length === 0) return; // אין את מי לזהות
+            if (labeledFaceDescriptors.length === 0) return;
 
             faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.6);
 
             setInterval(async () => {
-                // זיהוי פנים בווידאו
                 const detections = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
 
                 if (detections) {
                     const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
-                    
                     if (bestMatch.label !== 'unknown') {
-                        // נמצאה התאמה!
                         msgDiv.innerText = bestMatch.label + " ברוך הבא!";
-                        // כאן אפשר להוסיף סאונד או פעולה נוספת
                     } else {
                         msgDiv.innerText = "לא מזוהה";
                     }
                 }
-            }, 500); // בדיקה כל חצי שנייה
+            }, 500);
         }
 
-        // --- 5. טעינת נתונים מ-Firebase ---
         async function loadLabeledImagesFromFirebase() {
-            const snapshot = await db.ref('users').once('value');
-            const data = snapshot.val();
-            
-            if (!data) return;
-
-            const promises = Object.keys(data).map(async (key) => {
-                const user = data[key];
-                const img = await faceapi.fetchImage(user.image); // טוען את תמונת ה-Base64
-                const detections = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+            try {
+                const snapshot = await db.ref('users').once('value');
+                const data = snapshot.val();
                 
-                if (detections) {
-                    return new faceapi.LabeledFaceDescriptors(user.name, [detections.descriptor]);
+                if (!data) {
+                    console.log("אין משתמשים בשרת עדיין.");
+                    return;
                 }
-            });
 
-            const results = await Promise.all(promises);
-            labeledFaceDescriptors = results.filter(res => res !== undefined);
-            console.log("נטענו " + labeledFaceDescriptors.length + " משתמשים.");
+                const promises = Object.keys(data).map(async (key) => {
+                    const user = data[key];
+                    try {
+                        const img = await faceapi.fetchImage(user.image);
+                        const detections = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+                        if (detections) {
+                            return new faceapi.LabeledFaceDescriptors(user.name, [detections.descriptor]);
+                        }
+                    } catch (e) {
+                        console.log("שגיאה בטעינת תמונה אחת", e);
+                    }
+                });
+
+                const results = await Promise.all(promises);
+                labeledFaceDescriptors = results.filter(res => res !== undefined);
+            } catch (error) {
+                console.error("שגיאה בחיבור ל-Firebase:", error);
+                msgDiv.innerText = "שגיאת חיבור לנתונים";
+            }
         }
 
-        // --- 6. פונקציות ניהול (שמירה) ---
         function toggleAdmin() {
             const panel = document.getElementById('admin-panel');
             panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
@@ -223,13 +224,12 @@
             reader.onload = function () {
                 const base64Image = reader.result;
                 
-                // שמירה ב-Firebase
                 db.ref('users').push({
                     name: name,
                     image: base64Image
                 }).then(() => {
-                    status.innerText = "נשמר בהצלחה! רענן את הדף כדי לזהות.";
-                    alert("נשמר!");
+                    status.innerText = "נשמר! רענן דף.";
+                    alert("נשמר בהצלחה");
                     toggleAdmin();
                 }).catch(err => {
                     status.innerText = "שגיאה בשמירה.";
