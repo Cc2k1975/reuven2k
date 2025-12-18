@@ -3,87 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>שאילתת רכב</title>
+    <title>שאילתת רכב - Debug Mode</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #7195ba; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .container { background: white; width: 100%; max-width: 450px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); overflow: hidden; }
-        .search-bar { padding: 15px; background: #f1f1f1; display: flex; gap: 8px; border-bottom: 1px solid #ddd; }
-        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
-        button { padding: 12px 20px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .results { padding: 20px; font-size: 15px; line-height: 1.6; color: #000; background-color: #fff; min-height: 100px; }
-        .loading { text-align: center; color: #666; font-style: italic; }
-        .error { color: #d93025; text-align: center; font-weight: bold; }
+        body { font-family: sans-serif; background-color: #7195ba; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; width: 100%; max-width: 450px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); overflow: hidden; padding: 15px; }
+        input { width: 60%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; }
+        button { width: 30%; padding: 12px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        #output { margin-top: 15px; font-size: 14px; white-space: pre-wrap; line-height: 1.4; }
+        .debug-info { color: #555; font-size: 12px; background: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-top: 10px; direction: ltr; text-align: left; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="search-bar">
-        <input type="text" id="carInput" placeholder="הכנס מספר רכב (למשל 20096003)" maxlength="8">
-        <button onclick="getCarData()">חפש</button>
-    </div>
-    
-    <div id="output" class="results">
-        <div style="text-align: center; color: #999;">המתן להזנת מספר רכב...</div>
-    </div>
+    <input type="text" id="carInput" placeholder="מספר רכב..." value="31873704">
+    <button onclick="getCarData()">חפש</button>
+    <div id="output"></div>
+    <div id="debug" class="debug-info">מידע טכני יופיע כאן במקרה של שגיאה...</div>
 </div>
 
 <script>
 async function getCarData() {
     const carId = document.getElementById('carInput').value.trim();
     const output = document.getElementById('output');
+    const debug = document.getElementById('debug');
     
-    if (!carId) {
-        output.innerHTML = '<div class="error">נא להזין מספר רכב</div>';
-        return;
-    }
-    
-    output.innerHTML = '<div class="loading">מתחבר למאגר הנתונים...</div>';
+    output.innerHTML = "טוען...";
+    debug.innerHTML = "מתחיל שאילתה...";
 
-    // שימוש ב-Proxy כדי למנוע חסימת CORS ב-GitHub Pages
-    const proxy = "https://api.allorigins.win/raw?url=";
+    // נשתמש ב-Proxy של allorigins כדי לעקוף חסימות
     const apiUrl = `https://data.gov.il/api/3/action/datastore_search?resource_id=053ad004-d6b0-461d-bc59-061749027582&filters={"mispar_rechev":"${carId}"}`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
 
     try {
-        const response = await fetch(proxy + encodeURIComponent(apiUrl));
-        const data = await response.json();
+        debug.innerHTML += `<br>פונה לכתובת: ${proxyUrl}`;
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP Error! Status: ${response.status}`);
+        }
 
-        if (data.result.records.length > 0) {
+        const wrapper = await response.json();
+        // ה-Proxy מחזיר את התשובה בתוך שדה שנקרא contents
+        const data = JSON.parse(wrapper.contents);
+
+        if (data.result && data.result.records.length > 0) {
             const r = data.result.records[0];
-            
-            // פורמט התוצאה בדיוק כמו בתמונה
-            let html = `🔍 תוצאות חיפוש:<br>`;
-            html += `-------------------------<br>`;
-            html += `<b>מספר רכב:</b> ${r.mispar_rechev}<br>`;
-            html += `<b>קוד תוצר:</b> ${r.samel_tozeret || '---'}<br>`;
-            html += `<b>סוג דגם(פרטי או מסחרי):</b> ${r.sug_deg_nm || 'פרטי'}<br>`;
-            html += `<b>שם תוצר:</b> ${r.tozeret_nm}<br>`;
-            html += `<b>קוד דגם:</b> ${r.samel_deg_nm || '---'}<br>`;
-            html += `<b>שם דגם:</b> ${r.kinuy_mishari}<br>`;
-            html += `<b>רמת גימור:</b> ${r.ramat_gimur || '(אין)'}<br>`;
-            html += `<b>רמת אבזור בטיחותי:</b> ${r.ramat_eivzur_betichuti || '(אין)'}<br>`;
-            html += `<b>קבוצת זיהום:</b> ${r.kvutzat_zihum || '---'}<br>`;
-            html += `<b>שנת יצור:</b> ${r.shnat_yitzur}<br>`;
-            html += `<b>דגם מנוע:</b> ${r.deg_manua || '---'}<br>`;
-            html += `<b>תאריך מבחן(טסט):</b> ${r.mivchan_acharon_dt || '---'}<br>`;
-            html += `<b>תוקף רשיון רכב:</b> ${r.tokef_taz_rechev}<br>`;
-            html += `<b>בעלות:</b> ${r.baalut}<br>`;
-            html += `<b>מספר שלדה:</b> ${r.mispar_shilda}<br>`;
-            html += `<b>קוד צבע:</b> ${r.samel_tzeva || '---'}<br>`;
-            html += `<b>צבע:</b> ${r.tzeva_rechev}<br>`;
-            html += `<b>צמיג קדמי:</b> ${r.tzmig_kidmi || '---'}<br>`;
-            html += `<b>צמיג אחורי:</b> ${r.tzmig_achori || '---'}<br>`;
-            html += `<b>סוג דלק:</b> ${r.sug_delek_nm}<br>`;
-            html += `<b>מספר הוראת רישום:</b> ${r.mispar_horaat_rishum || '---'}<br>`;
-            html += `<b>מועד עליה לכביש:</b> ${r.moed_aliya_lakvish || '---'}<br>`;
-            html += `<b>כינוי מסחרי:</b> ${r.kinuy_mishari}<br>`;
-
-            output.innerHTML = html;
+            output.innerHTML = `
+                <b>מספר רכב:</b> ${r.mispar_rechev}<br>
+                <b>שם תוצר:</b> ${r.tozeret_nm}<br>
+                <b>שם דגם:</b> ${r.kinuy_mishari}<br>
+                <b>שנת יצור:</b> ${r.shnat_yitzur}<br>
+                <b>בעלות:</b> ${r.baalut}
+            `;
+            debug.innerHTML = "הנתונים נשלפו בהצלחה.";
         } else {
-            output.innerHTML = '<div class="error">לא נמצאו נתונים למספר רכב זה.</div>';
+            output.innerHTML = "לא נמצא רכב כזה במאגר.";
+            debug.innerHTML = "החיבור הצליח, אך המאגר החזיר תוצאה ריקה.";
         }
     } catch (error) {
-        output.innerHTML = '<div class="error">שגיאה בתקשורת עם המאגר. נסה שוב.</div>';
+        output.innerHTML = "<b style='color:red;'>שגיאת מערכת</b>";
+        debug.innerHTML = `שגיאה מפורטת: ${error.message}<br><br>סיבות אפשריות:<br>1. ה-Proxy זמנית למטה.<br>2. המאגר הממשלתי חוסם את השרת המתווך.<br>3. אין חיבור אינטרנט.`;
+        console.error("Full error:", error);
     }
 }
 </script>
