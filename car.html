@@ -2,76 +2,67 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>חיפוש רכב</title>
+    <title>חיפוש רכב - GitHub</title>
     <style>
-        body { font-family: sans-serif; background-color: #7195ba; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .card { background: white; width: 100%; max-width: 400px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); padding: 20px; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; text-align: center; }
+        body { font-family: sans-serif; background: #7195ba; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; width: 100%; max-width: 450px; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; text-align: center; font-size: 16px; }
         button { padding: 12px 20px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        #res { font-size: 14px; line-height: 1.6; white-space: pre-wrap; color: #000; border-top: 1px solid #eee; padding-top: 15px; display: none; }
-        .err { color: red; text-align: center; margin-top: 10px; font-weight: bold; }
+        #output { margin-top: 15px; white-space: pre-wrap; line-height: 1.6; font-size: 15px; display: none; }
+        .notice { font-size: 12px; color: #555; background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ffeeba; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="input-group">
-        <input type="text" id="carId" placeholder="מספר רכב (למשל 20096003)" value="20096003">
-        <button onclick="fetchData()">חפש</button>
+    <div class="notice">
+        <b>שימו לב:</b> אם זו פעם ראשונה, יש ללחוץ <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank">כאן</a> וללחוץ על הכפתור האדום כדי לאפשר גישה למאגר.
     </div>
-    <div id="loader" style="display:none; text-align:center;">מתחבר למאגר...</div>
-    <div id="err" class="err"></div>
-    <div id="res"></div>
+    <div class="input-group">
+        <input type="text" id="carNum" placeholder="מספר רכב (למשל 20096003)">
+        <button onclick="search()">חפש</button>
+    </div>
+    <div id="status" style="text-align:center; color:#666;"></div>
+    <div id="output"></div>
 </div>
 
 <script>
-function fetchData() {
-    const id = document.getElementById('carId').value.trim();
-    const resDiv = document.getElementById('res');
-    const errDiv = document.getElementById('err');
-    const loader = document.getElementById('loader');
+async function search() {
+    const id = document.getElementById('carNum').value.trim();
+    const out = document.getElementById('output');
+    const stat = document.getElementById('status');
+    
+    if(!id) return;
+    stat.innerText = "מושך נתונים...";
+    out.style.display = 'none';
 
-    if (!id) return;
+    // שימוש ב-Proxy היחיד שעובד עם הממשלה
+    const proxy = "https://cors-anywhere.herokuapp.com/";
+    const api = `https://data.gov.il/api/3/action/datastore_search?resource_id=053ad004-d6b0-461d-bc59-061749027582&filters={"mispar_rechev":"${id}"}`;
 
-    resDiv.style.display = 'none';
-    errDiv.innerText = '';
-    loader.style.display = 'block';
+    try {
+        const response = await fetch(proxy + api);
+        const data = await response.json();
 
-    // שימוש בכתובת ה-API הישירה. 
-    // שים לב: המאגר הממשלתי תומך ב-CORS, לכן אין צורך ב-Proxy שחוסם אותנו.
-    const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=053ad004-d6b0-461d-bc59-061749027582&filters={"mispar_rechev":"${id}"}`;
-
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            loader.style.display = 'none';
-            if (data.result && data.result.records.length > 0) {
-                const r = data.result.records[0];
-                let output = `<b>מספר רכב:</b> ${r.mispar_rechev}\n`;
-                output += `<b>תוצר:</b> ${r.tozeret_nm}\n`;
-                output += `<b>דגם:</b> ${r.kinuy_mishari}\n`;
-                output += `<b>שנה:</b> ${r.shnat_yitzur}\n`;
-                output += `<b>בעלות:</b> ${r.baalut}\n`;
-                output += `<b>צבע:</b> ${r.tzeva_rechev}\n`;
-                output += `<b>תוקף רישוי:</b> ${r.tokef_taz_rechev}\n`;
-                output += `<b>שלדה:</b> ${r.mispar_shilda}\n`;
-                output += `<b>דלק:</b> ${r.sug_delek_nm}`;
-                
-                resDiv.innerHTML = output;
-                resDiv.style.display = 'block';
-            } else {
-                errDiv.innerText = "לא נמצאו נתונים למספר זה.";
-            }
-        })
-        .catch(error => {
-            loader.style.display = 'none';
-            errDiv.innerText = "שגיאה: המאגר חסם את הבקשה מהדפדפן שלך.";
-            console.error(error);
-        });
+        if(data.result.records.length > 0) {
+            const r = data.result.records[0];
+            out.innerHTML = `<b>מספר רכב:</b> ${r.mispar_rechev}\n` +
+                          `<b>תוצר:</b> ${r.tozeret_nm}\n` +
+                          `<b>דגם:</b> ${r.kinuy_mishari}\n` +
+                          `<b>שנה:</b> ${r.shnat_yitzur}\n` +
+                          `<b>בעלות:</b> ${r.baalut}\n` +
+                          `<b>שלדה:</b> ${r.mispar_shilda}\n` +
+                          `<b>טסט עד:</b> ${r.tokef_taz_rechev}`;
+            out.style.display = 'block';
+            stat.innerText = "";
+        } else {
+            stat.innerText = "לא נמצאו נתונים.";
+        }
+    } catch (e) {
+        stat.innerText = "שגיאה. האם אישרת את הגישה בלינק למעלה?";
+    }
 }
 </script>
-
 </body>
 </html>
