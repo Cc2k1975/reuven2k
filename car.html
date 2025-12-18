@@ -3,69 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>בדיקת פרטי רכב</title>
+    <title>חיפוש רכב</title>
     <style>
-        body { font-family: sans-serif; background-color: #7195ba; display: flex; justify-content: center; padding: 20px; }
-        .card { background: white; width: 100%; max-width: 450px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow: hidden; }
-        .search-box { padding: 15px; background: #f8f9fa; display: flex; gap: 8px; border-bottom: 1px solid #ddd; }
-        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; text-align: center; }
-        button { padding: 10px 20px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .results { padding: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; display: none; }
-        .msg { text-align: center; padding: 20px; color: #666; }
+        body { font-family: sans-serif; background-color: #7195ba; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .card { background: white; width: 100%; max-width: 400px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); padding: 20px; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; text-align: center; }
+        button { padding: 12px 20px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        #res { font-size: 14px; line-height: 1.6; white-space: pre-wrap; color: #000; border-top: 1px solid #eee; padding-top: 15px; display: none; }
+        .err { color: red; text-align: center; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <div class="search-box">
-        <input type="text" id="carNum" placeholder="מספר רכב (למשל: 20096003)">
-        <button onclick="checkCar()">חפש</button>
+    <div class="input-group">
+        <input type="text" id="carId" placeholder="מספר רכב (למשל 20096003)" value="20096003">
+        <button onclick="fetchData()">חפש</button>
     </div>
-    <div id="status" class="msg">הזן מספר רכב לחיפוש</div>
-    <div id="output" class="results"></div>
+    <div id="loader" style="display:none; text-align:center;">מתחבר למאגר...</div>
+    <div id="err" class="err"></div>
+    <div id="res"></div>
 </div>
 
 <script>
-async function checkCar() {
-    const carId = document.getElementById('carNum').value.trim();
-    const output = document.getElementById('output');
-    const status = document.getElementById('status');
-    
-    if (!carId) return;
+function fetchData() {
+    const id = document.getElementById('carId').value.trim();
+    const resDiv = document.getElementById('res');
+    const errDiv = document.getElementById('err');
+    const loader = document.getElementById('loader');
 
-    status.innerText = "מחפש נתונים...";
-    output.style.display = 'none';
+    if (!id) return;
 
-    // שימוש ב-Proxy אחר ויציב יותר (cors-anywhere חלופי)
-    const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=053ad004-d6b0-461d-bc59-061749027582&filters={"mispar_rechev":"${carId}"}`;
-    
-    try {
-        // פנייה ישירה - ב-GitHub Pages לפעמים זה עובד בלי פרוקסי אם ה-API תומך ב-CORS
-        const response = await fetch(url);
-        const data = await response.json();
+    resDiv.style.display = 'none';
+    errDiv.innerText = '';
+    loader.style.display = 'block';
 
-        if (data.success && data.result.records.length > 0) {
-            const r = data.result.records[0];
-            let info = `🔍 תוצאות עבור: ${r.mispar_rechev}\n`;
-            info += `--------------------------\n`;
-            info += `<b>יצרן:</b> ${r.tozeret_nm}\n`;
-            info += `<b>דגם:</b> ${r.kinuy_mishari}\n`;
-            info += `<b>שנת יצור:</b> ${r.shnat_yitzur}\n`;
-            info += `<b>בעלות:</b> ${r.baalut}\n`;
-            info += `<b>צבע:</b> ${r.tzeva_rechev}\n`;
-            info += `<b>תוקף רישוי:</b> ${r.tokef_taz_rechev}\n`;
-            info += `<b>סוג דלק:</b> ${r.sug_delek_nm}\n`;
-            info += `<b>מספר שלדה:</b> ${r.mispar_shilda}\n`;
-            
-            status.style.display = 'none';
-            output.innerHTML = info;
-            output.style.display = 'block';
-        } else {
-            status.innerText = "לא נמצאו נתונים. וודא שהמספר תקין.";
-        }
-    } catch (e) {
-        status.innerText = "שגיאה בחיבור למאגר. נסה שוב.";
-    }
+    // שימוש בכתובת ה-API הישירה. 
+    // שים לב: המאגר הממשלתי תומך ב-CORS, לכן אין צורך ב-Proxy שחוסם אותנו.
+    const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=053ad004-d6b0-461d-bc59-061749027582&filters={"mispar_rechev":"${id}"}`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            loader.style.display = 'none';
+            if (data.result && data.result.records.length > 0) {
+                const r = data.result.records[0];
+                let output = `<b>מספר רכב:</b> ${r.mispar_rechev}\n`;
+                output += `<b>תוצר:</b> ${r.tozeret_nm}\n`;
+                output += `<b>דגם:</b> ${r.kinuy_mishari}\n`;
+                output += `<b>שנה:</b> ${r.shnat_yitzur}\n`;
+                output += `<b>בעלות:</b> ${r.baalut}\n`;
+                output += `<b>צבע:</b> ${r.tzeva_rechev}\n`;
+                output += `<b>תוקף רישוי:</b> ${r.tokef_taz_rechev}\n`;
+                output += `<b>שלדה:</b> ${r.mispar_shilda}\n`;
+                output += `<b>דלק:</b> ${r.sug_delek_nm}`;
+                
+                resDiv.innerHTML = output;
+                resDiv.style.display = 'block';
+            } else {
+                errDiv.innerText = "לא נמצאו נתונים למספר זה.";
+            }
+        })
+        .catch(error => {
+            loader.style.display = 'none';
+            errDiv.innerText = "שגיאה: המאגר חסם את הבקשה מהדפדפן שלך.";
+            console.error(error);
+        });
 }
 </script>
 
