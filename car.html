@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>פרטי רכב מלאים</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #e5ddd5; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; width: 100%; max-width: 400px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); overflow: hidden; }
+        .header { background: #075e54; color: white; padding: 15px; text-align: center; font-size: 18px; }
+        .content { padding: 15px; line-height: 1.6; }
+        .search-area { padding: 15px; background: #f0f0f0; border-bottom: 1px solid #ddd; }
+        input { width: 70%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        button { width: 25%; padding: 8px; background: #25d366; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .row { border-bottom: 1px dotted #ccc; display: flex; justify-content: space-between; padding: 4px 0; }
+        .label { font-weight: bold; }
+        .value { color: #333; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div class="header">שאילתת רכב - מאגר ממשלתי</div>
+    <div class="search-area">
+        <input type="text" id="carNum" placeholder="מספר רכב..." value="20096003">
+        <button onclick="searchCar()">חפש</button>
+    </div>
+    <div class="content" id="output">
+        <p style="text-align: center; color: #888;">הזן מספר רכב ולחץ על חפש</p>
+    </div>
+</div>
+
+<script>
+async function searchCar() {
+    const num = document.getElementById('carNum').value;
+    const output = document.getElementById('output');
+    output.innerHTML = "טוען נתונים...";
+
+    try {
+        // פנייה למאגר הרכב הממשלתי
+        const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=053ad004-d6b0-461d-bc59-061749027582&q=${num}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.result.records.length > 0) {
+            const car = data.result.records[0];
+            output.innerHTML = `
+                <div class="row"><span class="label">מספר רכב:</span> <span class="value">${car.mispar_rechev}</span></div>
+                <div class="row"><span class="label">שם יצרן:</span> <span class="value">${car.tozeret_nm}</span></div>
+                <div class="row"><span class="label">שם דגם:</span> <span class="value">${car.kinuy_mishari}</span></div>
+                <div class="row"><span class="label">שנת יצור:</span> <span class="value">${car.shnat_yitzur}</span></div>
+                <div class="row"><span class="label">צבע רכב:</span> <span class="value">${car.tzeva_rechev}</span></div>
+                <div class="row"><span class="label">סוג דלק:</span> <span class="value">${car.sug_delek_nm}</span></div>
+                <div class="row"><span class="label">תוקף רישוי:</span> <span class="value">${car.tokef_taz_rechev}</span></div>
+                <div class="row"><span class="label">בעלות:</span> <span class="value">${car.baalut}</span></div>
+                <div class="row"><span class="label">מספר שלדה:</span> <span class="value">${car.mispar_shilda || 'לא פורסם'}</span></div>
+                <div class="row"><span class="label">קבוצת זיהום:</span> <span class="value">${car.kvutzat_zihum || 'ללא נתון'}</span></div>
+            `;
+        } else {
+            output.innerHTML = "לא נמצאו תוצאות.";
+        }
+    } catch (e) {
+        output.innerHTML = "שגיאה בחיבור למאגר.";
+    }
+}
+</script>
+
+</body>
+</html>
