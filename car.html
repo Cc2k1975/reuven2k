@@ -3,92 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>שאילתת רכב - תוצאות מלאות</title>
+    <title>בדיקת פרטי רכב</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #7195ba; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .container { background: white; width: 100%; max-width: 480px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); overflow: hidden; }
-        .search-area { padding: 15px; background: #f0f2f5; display: flex; gap: 8px; border-bottom: 1px solid #ddd; }
-        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; text-align: center; }
-        button { padding: 12px 20px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0077b5; }
-        .results { padding: 20px; font-size: 15px; line-height: 1.7; white-space: pre-wrap; color: #000; display: none; }
-        .status-msg { text-align: center; padding: 20px; color: #555; }
-        b { color: #000; }
+        body { font-family: sans-serif; background-color: #7195ba; display: flex; justify-content: center; padding: 20px; }
+        .card { background: white; width: 100%; max-width: 450px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); overflow: hidden; }
+        .search-box { padding: 15px; background: #f8f9fa; display: flex; gap: 8px; border-bottom: 1px solid #ddd; }
+        input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; text-align: center; }
+        button { padding: 10px 20px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .results { padding: 20px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; display: none; }
+        .msg { text-align: center; padding: 20px; color: #666; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="search-area">
-        <input type="text" id="carInput" placeholder="הכנס מספר רכב (למשל 20096003)" maxlength="8">
-        <button onclick="getCarData()">חפש</button>
+<div class="card">
+    <div class="search-box">
+        <input type="text" id="carNum" placeholder="מספר רכב (למשל: 20096003)">
+        <button onclick="checkCar()">חפש</button>
     </div>
-    
-    <div id="status" class="status-msg">ממתין להזנת מספר רכב...</div>
+    <div id="status" class="msg">הזן מספר רכב לחיפוש</div>
     <div id="output" class="results"></div>
 </div>
 
 <script>
-async function getCarData() {
-    const carId = document.getElementById('carInput').value.trim();
+async function checkCar() {
+    const carId = document.getElementById('carNum').value.trim();
     const output = document.getElementById('output');
     const status = document.getElementById('status');
     
-    if (!carId) {
-        status.innerHTML = "נא להזין מספר רכב";
-        return;
-    }
-    
+    if (!carId) return;
+
+    status.innerText = "מחפש נתונים...";
     output.style.display = 'none';
-    status.style.display = 'block';
-    status.innerHTML = "מתחבר למאגר הממשלתי...";
 
-    // שאילתה גמישה (q) כדי להבטיח מציאת נתונים
-    const apiUrl = `https://data.gov.il/api/3/action/datastore_search?resource_id=053ad004-d6b0-461d-bc59-061749027582&q=${carId}`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
-
+    // שימוש ב-Proxy אחר ויציב יותר (cors-anywhere חלופי)
+    const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=053ad004-d6b0-461d-bc59-061749027582&filters={"mispar_rechev":"${carId}"}`;
+    
     try {
-        const response = await fetch(proxyUrl);
-        const wrapper = await response.json();
-        const data = JSON.parse(wrapper.contents);
+        // פנייה ישירה - ב-GitHub Pages לפעמים זה עובד בלי פרוקסי אם ה-API תומך ב-CORS
+        const response = await fetch(url);
+        const data = await response.json();
 
-        if (data.result && data.result.records && data.result.records.length > 0) {
-            // סינון התוצאה המדויקת ביותר למקרה שחזרו כמה רכבים דומים
-            const r = data.result.records.find(record => String(record.mispar_rechev) === carId) || data.result.records[0];
+        if (data.success && data.result.records.length > 0) {
+            const r = data.result.records[0];
+            let info = `🔍 תוצאות עבור: ${r.mispar_rechev}\n`;
+            info += `--------------------------\n`;
+            info += `<b>יצרן:</b> ${r.tozeret_nm}\n`;
+            info += `<b>דגם:</b> ${r.kinuy_mishari}\n`;
+            info += `<b>שנת יצור:</b> ${r.shnat_yitzur}\n`;
+            info += `<b>בעלות:</b> ${r.baalut}\n`;
+            info += `<b>צבע:</b> ${r.tzeva_rechev}\n`;
+            info += `<b>תוקף רישוי:</b> ${r.tokef_taz_rechev}\n`;
+            info += `<b>סוג דלק:</b> ${r.sug_delek_nm}\n`;
+            info += `<b>מספר שלדה:</b> ${r.mispar_shilda}\n`;
             
-            let res = `🔍 תוצאות חיפוש:\n`;
-            res += `----------------------------------\n`;
-            res += `<b>מספר רכב:</b> ${r.mispar_rechev}\n`;
-            res += `<b>קוד תוצר:</b> ${r.samel_tozeret || '---'}\n`;
-            res += `<b>סוג דגם(פרטי או מסחרי):</b> ${r.sug_deg_nm || 'פרטי'}\n`;
-            res += `<b>שם תוצר:</b> ${r.tozeret_nm}\n`;
-            res += `<b>קוד דגם:</b> ${r.samel_deg_nm || '---'}\n`;
-            res += `<b>שם דגם:</b> ${r.kinuy_mishari}\n`;
-            res += `<b>רמת גימור:</b> ${r.ramat_gimur || '(אין)'}\n`;
-            res += `<b>רמת אבזור בטיחותי:</b> ${r.ramat_eivzur_betichuti || '0'}\n`;
-            res += `<b>קבוצת זיהום:</b> ${r.kvutzat_zihum || '---'}\n`;
-            res += `<b>שנת יצור:</b> ${r.shnat_yitzur}\n`;
-            res += `<b>דגם מנוע:</b> ${r.deg_manua || '---'}\n`;
-            res += `<b>תאריך מבחן(טסט):</b> ${r.mivchan_acharon_dt || '---'}\n`;
-            res += `<b>תוקף רשיון רכב:</b> ${r.tokef_taz_rechev}\n`;
-            res += `<b>בעלות:</b> ${r.baalut}\n`;
-            res += `<b>מספר שלדה:</b> ${r.mispar_shilda}\n`;
-            res += `<b>צבע:</b> ${r.tzeva_rechev}\n`;
-            res += `<b>צמיג קדמי:</b> ${r.tzmig_kidmi || '---'}\n`;
-            res += `<b>צמיג אחורי:</b> ${r.tzmig_achori || '---'}\n`;
-            res += `<b>סוג דלק:</b> ${r.sug_delek_nm}\n`;
-            res += `<b>מועד עליה לכביש:</b> ${r.moed_aliya_lakvish || '---'}\n`;
-            res += `<b>כינוי מסחרי:</b> ${r.kinuy_mishari}\n`;
-
             status.style.display = 'none';
-            output.innerHTML = res;
+            output.innerHTML = info;
             output.style.display = 'block';
         } else {
-            status.innerHTML = "❌ לא נמצאו נתונים למספר זה.";
+            status.innerText = "לא נמצאו נתונים. וודא שהמספר תקין.";
         }
-    } catch (error) {
-        status.innerHTML = "⚠️ שגיאה בתקשורת. נסה שוב.";
-        console.error(error);
+    } catch (e) {
+        status.innerText = "שגיאה בחיבור למאגר. נסה שוב.";
     }
 }
 </script>
