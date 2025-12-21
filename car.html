@@ -228,7 +228,6 @@
 
 <script>
 (() => {
-  // ====== CKAN / data.gov.il ======
   const RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3";
 
   const HIDE_FIELDS = new Set([
@@ -252,9 +251,7 @@
     "tzeva_rechev":"צבע"
   };
 
-  // ====== Tesseract local files ======
   const LOCAL_TESS_BASE = "/tess";
-
   const $ = (id) => document.getElementById(id);
 
   const plateInput = $("plateInput");
@@ -280,13 +277,20 @@
   let busyOCR = false;
   let lastRecord = null;
 
-  // הצבעה בין פריימים (מייצב טעויות ספרה אחת)
+  // === שיפור מהירות ===
+  const FAST_SCALE = 2.2;        // היה 3.2 (כבד)
+  const LOOP_DELAY_MS = 110;     // כמה מהר מנסים שוב (מהיר אבל לא חונק)
+  const HEAVY_EVERY_MS = 1100;   // ניסיון "כבד" רק פעם בשנייה בערך
+  const CONF_FAST_ACCEPT = 82;   // אם OCR בטוח – מאשר מיד
+
+  // הצבעה בין פריימים (מייצב טעויות)
   const votes = [];
-  const VOTE_WINDOW = 3;      // כמה תוצאות לשמור
-  const VOTE_NEED = 2;        // כמה פעמים אותו מספר כדי לאשר
+  const VOTE_WINDOW = 3;
+  const VOTE_NEED = 2;
+
+  let lastHeavyTryAt = 0;
 
   function setStatus(msg){ status.textContent = msg; }
-
   function onlyDigits(s){ return (s || "").replace(/[^\d]/g,""); }
 
   function extractPlate(text){
@@ -298,7 +302,6 @@
       const cand = m[0];
       if (cand.length === 7 || cand.length === 8) return cand;
     }
-
     if (digits.length > 8){
       const mm = digits.match(/\d{8}/);
       if (mm) return mm[0];
@@ -354,11 +357,21 @@
       logger: ()=>{}
     });
 
+    // קיבוע פרמטרים פעם אחת (חוסך זמן)
     await worker.setParameters({
       tessedit_char_whitelist: "0123456789",
       tessedit_pageseg_mode: "7",
       classify_bln_numeric_mode: "1"
     });
+
+    // Warm-up: גורם ל-WASM "להתחמם" לפני הלייב (מבטל תקיעות של קריאה ראשונה)
+    const warm = document.createElement("canvas");
+    warm.width = 80; warm.height = 30;
+    const wctx = warm.getContext("2d");
+    wctx.fillStyle = "#fff"; wctx.fillRect(0,0,80,30);
+    wctx.fillStyle = "#000"; wctx.font = "24px Arial";
+    wctx.fillText("1234567", 2, 24);
+    try{ await worker.recognize(warm); }catch(e){}
 
     hudTitle.textContent = "Worker OK";
     setStatus("Worker OK.\nמוכן לסריקה בלייב.");
@@ -413,6 +426,7 @@
     scanning = false;
     busyOCR = false;
     votes.length = 0;
+    lastHeavyTryAt = 0;
 
     if (stream){
       stream.getTracks().forEach(t=>t.stop());
@@ -425,34 +439,35 @@
   }
 
   function getFrameCropBox(videoW, videoH){
-    // התאמה למסגרת הירוקה (כמו קודם)
     const left = 0.06 * videoW;
     const width = 0.88 * videoW;
     const height = 0.22 * videoH;
     const top = videoH - (0.10 * videoH) - height;
 
-    // חיתוך פנימי להורדת שוליים
     let x = left + width * 0.03;
     let y = top + height * 0.10;
     let w = width - 2*(width * 0.03);
     let h = height - 2*(height * 0.10);
 
-    // *** קריטי: להוריד את הפס הכחול של IL משמאל (מבלבל OCR) ***
-    const cutLeft = w * 0.14; // ~14% שמאל
+    // הורדת פס IL משמאל (קריטי)
+    const cutLeft = w * 0.14;
     x += cutLeft;
     w -= cutLeft;
 
-    // וגם קצת ימין כדי להוריד שוליים/ברגים
+    // מעט ימין
     const cutRight = w * 0.03;
     w -= cutRight;
+
+    // גם קצת למעלה/למטה כדי להתרכז בספרות בלבד
+    y += h * 0.06;
+    h -= h * 0.12;
 
     return { x: Math.max(0,x), y: Math.max(0,y), w: Math.max(1,w), h: Math.max(1,h) };
   }
 
-  function preprocessToCanvas(c, mode){
-    const sw = c.width, sh = c.height;
+  function preprocessFastBinary(c){
     const ctx = c.getContext("2d", { willReadFrequently:true });
-    const img = ctx.getImageData(0,0,sw,sh);
+    const img = ctx.getImageData(0,0,c.width,c.height);
     const d = img.data;
 
     let sum = 0;
@@ -463,28 +478,42 @@
     }
     const mean = sum / (d.length/4);
 
-    const contrast = 1.45;
-    const bias = -22;
+    const contrast = 1.35;
+    const bias = -18;
+    const th = mean - 10;
 
     for (let i=0;i<d.length;i+=4){
       const r=d[i], g=d[i+1], b=d[i+2];
       let y = (0.299*r + 0.587*g + 0.114*b);
-
       y = (y - mean) * contrast + mean + bias;
       if (y<0) y=0; if (y>255) y=255;
+      const v = (y < th) ? 0 : 255;
+      d[i]=d[i+1]=d[i+2]=v;
+      d[i+3]=255;
+    }
+    ctx.putImageData(img,0,0);
+    return c;
+  }
 
-      if (mode === 1){
-        const th = mean - 12;
-        const v = (y < th) ? 0 : 255;
-        d[i]=d[i+1]=d[i+2]=v;
-      } else if (mode === 2){
-        // invert threshold (לפעמים OCR עובד יותר טוב הפוך)
-        const th = mean - 12;
-        const v = (y < th) ? 255 : 0;
-        d[i]=d[i+1]=d[i+2]=v;
-      } else {
-        d[i]=d[i+1]=d[i+2]=y;
-      }
+  function preprocessHeavyInvert(c){
+    const ctx = c.getContext("2d", { willReadFrequently:true });
+    const img = ctx.getImageData(0,0,c.width,c.height);
+    const d = img.data;
+
+    let sum = 0;
+    for (let i=0;i<d.length;i+=4){
+      const r=d[i], g=d[i+1], b=d[i+2];
+      const y = (0.299*r + 0.587*g + 0.114*b);
+      sum += y;
+    }
+    const mean = sum / (d.length/4);
+    const th = mean - 10;
+
+    for (let i=0;i<d.length;i+=4){
+      const r=d[i], g=d[i+1], b=d[i+2];
+      let y = (0.299*r + 0.587*g + 0.114*b);
+      const v = (y < th) ? 255 : 0; // invert
+      d[i]=d[i+1]=d[i+2]=v;
       d[i+3]=255;
     }
     ctx.putImageData(img,0,0);
@@ -498,8 +527,7 @@
 
     const box = getFrameCropBox(vw, vh);
 
-    // הגדלה חזקה יותר לדיוק
-    const scale = 3.2;
+    const scale = FAST_SCALE;
     const outW = Math.round(box.w * scale);
     const outH = Math.round(box.h * scale);
 
@@ -515,71 +543,92 @@
     return c;
   }
 
-  async function recognizeWithModes(roi){
-    // 3 ניסיונות מהירים (threshold / invert / grayscale) + משחק קטן עם PSM
-    // PSM 7 עובד טוב ל"שורה אחת", PSM 8 לפעמים טוב ל"word"
-    const tries = [
-      { pre:1, psm:"7" },
-      { pre:2, psm:"7" },
-      { pre:3, psm:"8" }
-    ];
+  async function recognizeFast(roi){
+    // ניסיון מהיר אחד בלבד (PSM 7)
+    preprocessFastBinary(roi);
+    const r = await worker.recognize(roi);
+    const plate = extractPlate(r?.data?.text || "");
+    const conf = Number(r?.data?.confidence ?? 0);
+    return { plate, conf };
+  }
 
-    for (const t of tries){
-      const c = roi;
-      preprocessToCanvas(c, t.pre);
-
-      await worker.setParameters({
-        tessedit_pageseg_mode: t.psm,
-        tessedit_char_whitelist: "0123456789",
-        classify_bln_numeric_mode: "1"
-      });
-
-      const r = await worker.recognize(c);
-      const plate = extractPlate(r?.data?.text || "");
-      if (plate) return plate;
-    }
-    return "";
+  async function recognizeHeavy(roi){
+    // ניסיון "כבד" נדיר (invert + PSM 8)
+    preprocessHeavyInvert(roi);
+    await worker.setParameters({ tessedit_pageseg_mode: "8" });
+    const r = await worker.recognize(roi);
+    await worker.setParameters({ tessedit_pageseg_mode: "7" });
+    const plate = extractPlate(r?.data?.text || "");
+    const conf = Number(r?.data?.confidence ?? 0);
+    return { plate, conf };
   }
 
   async function scanLoop(){
     if (!scanning) return;
+
     if (busyOCR){
-      requestAnimationFrame(scanLoop);
+      setTimeout(scanLoop, 20);
       return;
     }
 
     const t0 = performance.now();
     try{
-      const roi0 = makeROIFromVideo();
-      if (!roi0){
-        requestAnimationFrame(scanLoop);
+      const roi = makeROIFromVideo();
+      if (!roi){
+        setTimeout(scanLoop, 20);
         return;
       }
 
       busyOCR = true;
 
-      // כדי שלא נהרוס את אותו קנבס בכל ניסיון, ניצור עותקים לכל ניסיון
-      const roiA = roi0;
-      let plate = await recognizeWithModes(roiA);
+      // FAST try
+      let { plate, conf } = await recognizeFast(roi);
+
+      const now = Date.now();
+      let usedHeavy = false;
+
+      // אם לא מצא – רק פעם בשנייה תן ניסיון כבד
+      if (!plate && (now - lastHeavyTryAt) > HEAVY_EVERY_MS){
+        lastHeavyTryAt = now;
+        const roi2 = makeROIFromVideo();
+        if (roi2){
+          const heavy = await recognizeHeavy(roi2);
+          plate = heavy.plate || plate;
+          conf = Math.max(conf, heavy.conf || 0);
+          usedHeavy = true;
+        }
+      }
 
       const dt = performance.now() - t0;
 
       if (plate){
-        const v = pushVote(plate);
+        // אם confidence גבוה – מאשר מייד (מקצר זמן בצורה דרמטית)
+        if (conf >= CONF_FAST_ACCEPT){
+          hudTitle.textContent = "זוהה: " + plate;
+          hudSub.textContent = `אושר מיד (conf ${conf.toFixed(0)})`;
+          setStatus(`זוהה: ${plate}\nconf: ${conf.toFixed(0)}\n${dt.toFixed(0)}ms`);
 
+          try{ navigator.vibrate && navigator.vibrate(90); }catch(e){}
+          plateInput.value = plate;
+          closeCamera();
+          await fetchVehicle();
+          return;
+        }
+
+        // אחרת: הצבעה קצרה כמו קודם
+        const v = pushVote(plate);
         hudTitle.textContent = `סורק… (${dt.toFixed(0)}ms)`;
-        hudSub.textContent = `מועמד: ${plate} • הצבעה: ${v.bestCount}/${VOTE_WINDOW}`;
+        hudSub.textContent = `מועמד: ${plate} • הצבעה: ${v.bestCount}/${VOTE_WINDOW} • conf ${conf.toFixed(0)}${usedHeavy ? " • heavy" : ""}`;
 
         setStatus(
-          `סורק…\nמועמד: ${plate}\nחלון הצבעה: ${v.window.join(" , ")}\nזמן פריים: ${dt.toFixed(0)}ms`
+          `סורק…\nמועמד: ${plate}\nconf: ${conf.toFixed(0)}\nחלון הצבעה: ${v.window.join(" , ")}\nזמן: ${dt.toFixed(0)}ms`
         );
 
         if (v.bestCount >= VOTE_NEED){
-          // מאשר מספר יציב
           const finalPlate = v.best;
           hudTitle.textContent = "זוהה: " + finalPlate;
           hudSub.textContent = "מכניס לשדה ושולף נתונים…";
-          setStatus(`זוהה (יציב): ${finalPlate}\nפריים: ${dt.toFixed(0)}ms`);
+          setStatus(`זוהה (יציב): ${finalPlate}\n${dt.toFixed(0)}ms`);
 
           try{ navigator.vibrate && navigator.vibrate(90); }catch(e){}
           plateInput.value = finalPlate;
@@ -588,17 +637,18 @@
           await fetchVehicle();
           return;
         }
+
       } else {
         hudTitle.textContent = "סורק…";
-        hudSub.textContent = "תקרב עוד קצת, תיישר, ותמלא את המסגרת בלוחית";
-        setStatus(`סורק…\nזמן פריים: ${dt.toFixed(0)}ms • עדיין לא זוהה`);
+        hudSub.textContent = usedHeavy ? "ניסיון heavy בוצע — תיישר ותקרב עוד קצת" : "תקרב עוד קצת ותמלא את המסגרת בלוחית";
+        setStatus(`סורק…\n${dt.toFixed(0)}ms • עדיין לא זוהה${usedHeavy ? " (heavy)" : ""}`);
       }
 
     } catch(e){
       setStatus("שגיאה בסריקה:\n" + (e?.message || e));
     } finally {
       busyOCR = false;
-      setTimeout(()=>requestAnimationFrame(scanLoop), 220);
+      setTimeout(scanLoop, LOOP_DELAY_MS);
     }
   }
 
@@ -625,7 +675,6 @@
 
     setStatus("שולף נתונים…");
 
-    // ✅ GET כדי להימנע מבעיות preflight/CORS שגורמות ל-Failed to fetch באנדרואיד
     const filters = encodeURIComponent(JSON.stringify({ mispar_rechev: Number(plate) }));
     const url =
       `https://data.gov.il/api/3/action/datastore_search?resource_id=${encodeURIComponent(RESOURCE_ID)}&filters=${filters}&limit=1`;
@@ -715,7 +764,7 @@
     window.open(url, "_blank");
   }
 
-  // ===== UI events =====
+  // UI
   btnScan.addEventListener("click", openLiveScanner);
   btnClose.addEventListener("click", closeCamera);
   btnFetch.addEventListener("click", fetchVehicle);
