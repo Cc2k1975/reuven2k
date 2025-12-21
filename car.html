@@ -138,7 +138,6 @@
       box-shadow:0 0 0 9999px rgba(0,0,0,.10) inset;
     }
 
-    /* HUD ברור */
     .hud{
       position:absolute;
       left:10px; right:10px;
@@ -169,7 +168,6 @@
     .hudWarn{color:#ffedd5}
     .hudErr{color:#fee2e2}
 
-    /* ROI preview */
     .roiPreview{
       position:absolute;
       right:10px;
@@ -185,7 +183,6 @@
     }
     .roiPreview canvas{width:100%;height:100%;display:block}
 
-    /* Debug panel */
     .debugPanel{
       position:absolute;
       left:10px;
@@ -218,7 +215,6 @@
           <input id="plate" inputmode="numeric" autocomplete="off" placeholder="לדוגמה: 2623638" />
         </div>
 
-        <!-- כפתור סרוק – עובד תמיד (type=button כדי שלא יקרה submit בטעות) -->
         <button class="mini" id="scanBtn" type="button">סרוק</button>
 
         <button id="btn" type="button">שלוף נתונים</button>
@@ -243,7 +239,6 @@
     </div>
   </div>
 
-  <!-- שכבת סורק לייב -->
   <div id="scannerOverlay" class="scanner-overlay">
     <div class="scanner-card">
       <div class="scanner-top">
@@ -276,7 +271,7 @@
 
 <script>
 /* =========================
-   חלק 1: שליפה + טבלה + וואטסאפ
+   שליפה + טבלה + וואטסאפ
    ========================= */
 const RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3";
 const API_BASE = "https://data.gov.il/api/3/action/datastore_search";
@@ -446,7 +441,6 @@ async function lookup(){
     resultArea.style.display = "block";
     setStatus("נמצא רכב – הנתונים מוצגים למטה.", "ok");
     footerNote.innerHTML = "";
-
   }catch(err){
     setStatus("שגיאה: " + (err?.message || String(err)), "err");
     resultArea.style.display = "none";
@@ -510,7 +504,7 @@ async function sendWhatsApp(){
 }
 
 /* =========================
-   חלק 2: סורק לייב (יציב) + אינדיקציות
+   LIVE SCANNER (תיקון: fallback בין CDNs כדי שלא ייפול כמו אצלך)
    ========================= */
 const overlay = document.getElementById("scannerOverlay");
 const videoEl = document.getElementById("scanVideo");
@@ -536,6 +530,13 @@ let loopActive = false;
 let lastCandidate = "";
 let sameCount = 0;
 
+// *** חשוב: 2 מקורות מלאים שיש בהם גם tesseract.min.js וגם worker/core ***
+const TESS_BASES = [
+  { name: "jsdelivr", base: "https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist" },
+  { name: "unpkg",    base: "https://unpkg.com/tesseract.js@5.0.5/dist" }
+];
+let TESS_CHOSEN_BASE = null;
+
 function hud(text, sub, cls){
   hudMain.className = cls || "hudWarn";
   hudMain.textContent = text;
@@ -547,55 +548,47 @@ function dbg(msg){
   debugPanel.textContent = `[${t}] ${msg}\n` + debugPanel.textContent;
 }
 
-window.addEventListener("error", (e)=>{
-  dbg(`JS ERROR: ${e.message} @ ${e.filename}:${e.lineno}`);
-});
-window.addEventListener("unhandledrejection", (e)=>{
-  dbg(`PROMISE ERROR: ${String(e.reason || e)}`);
-});
+window.addEventListener("error", (e)=> dbg(`JS ERROR: ${e.message} @ ${e.filename}:${e.lineno}`));
+window.addEventListener("unhandledrejection", (e)=> dbg(`PROMISE ERROR: ${String(e.reason || e)}`));
 
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-async function loadTesseractIfNeeded(){
-  if(window.Tesseract) return true;
+function loadScript(src){
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+    s.onload = ()=>resolve(src);
+    s.onerror = ()=>reject(new Error("נכשל טעינת סקריפט: " + src));
+    document.head.appendChild(s);
+  });
+}
 
-  const urls = [
-    "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js",
-    "https://unpkg.com/tesseract.js@5/dist/tesseract.min.js",
-    "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.5/tesseract.min.js"
-  ];
+async function ensureTesseractLoaded(){
+  if (window.Tesseract) return true;
 
-  function loadScript(src){
-    return new Promise((resolve, reject)=>{
-      const s = document.createElement("script");
-      s.src = src;
-      s.async = true;
-      s.onload = ()=>resolve(src);
-      s.onerror = ()=>reject(new Error("נכשל טעינת OCR: " + src));
-      document.head.appendChild(s);
-    });
-  }
-
-  for(const u of urls){
+  for (const x of TESS_BASES){
     try{
-      const used = await loadScript(u);
-      dbg("Tesseract נטען מ: " + used);
-      return true;
-    }catch(e){
-      dbg(e.message || String(e));
+      hud("טוען OCR…", `מנסה מקור: ${x.name}`, "hudWarn");
+      const url = x.base + "/tesseract.min.js";
+      await loadScript(url);
+      if (window.Tesseract){
+        TESS_CHOSEN_BASE = x;
+        dbg("Tesseract נטען מ: " + url);
+        return true;
+      }
+    }catch(err){
+      dbg(err.message || String(err));
     }
   }
   return false;
 }
 
-async function ensureWorker(){
-  if(worker) return;
+async function tryCreateWorkerWithBase(x){
+  const base = x.base;
+  hud("מכין OCR…", `worker/core מ: ${x.name}`, "hudWarn");
 
-  // נתיבים מפורשים כדי להקטין “לא קורה כלום”
-  const base = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist";
-  hud("מכין OCR…", "פעם ראשונה יכול לקחת כמה שניות", "hudWarn");
-
-  worker = await Tesseract.createWorker("eng", 1, {
+  const w = await Tesseract.createWorker("eng", 1, {
     workerPath: base + "/worker.min.js",
     corePath:   base + "/tesseract-core.wasm.js",
     langPath:   "https://tessdata.projectnaptha.com/4.0.0",
@@ -607,17 +600,46 @@ async function ensureWorker(){
     }
   });
 
-  await worker.setParameters({
+  await w.setParameters({
     tessedit_char_whitelist: "0123456789",
     tessedit_pageseg_mode: "7",
     classify_bln_numeric_mode: "1"
   });
 
-  dbg("Worker OCR מוכן");
+  return w;
 }
 
-function openLiveScanner(){
-  // תמיד רואים משהו – גם אם OCR לא נטען
+async function ensureWorker(){
+  if (worker) return;
+
+  // קודם ננסה עם הבסיס ממנו נטען tesseract.min.js (אם קיים)
+  const basesToTry = [];
+  if (TESS_CHOSEN_BASE) basesToTry.push(TESS_CHOSEN_BASE);
+  for (const b of TESS_BASES){
+    if (!basesToTry.find(x => x.name === b.name)) basesToTry.push(b);
+  }
+
+  let lastErr = null;
+
+  for (const b of basesToTry){
+    try{
+      dbg("מנסה ליצור Worker עם: " + b.name);
+      worker = await tryCreateWorkerWithBase(b);
+      dbg("Worker OK עם: " + b.name);
+      hud("סורק בלייב", "תעמיד לוחית בתוך הירוק", "hudGood");
+      return;
+    }catch(err){
+      lastErr = err;
+      dbg("Worker נכשל עם " + b.name + ": " + (err?.message || String(err)));
+      try{ if(worker && worker.terminate) await worker.terminate(); }catch(e){}
+      worker = null;
+    }
+  }
+
+  throw new Error("נכשל יצירת OCR Worker מכל המקורות. " + (lastErr?.message || ""));
+}
+
+async function openLiveScanner(){
   overlay.style.display = "block";
   debugPanel.textContent = "אם יש תקלה – היא תופיע כאן.";
   hud("פותח מצלמה…", "בודק הרשאות", "hudWarn");
@@ -625,35 +647,30 @@ function openLiveScanner(){
   lastCandidate = "";
   sameCount = 0;
 
-  (async ()=>{
-    try{
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal:"environment" }, width:{ideal:1280}, height:{ideal:720} },
-        audio:false
-      });
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal:"environment" }, width:{ideal:1280}, height:{ideal:720} },
+      audio:false
+    });
 
-      videoEl.srcObject = stream;
-      await videoEl.play();
-      hud("מצלמה OK", "טוען OCR…", "hudGood");
-      dbg("מצלמה פועלת");
+    videoEl.srcObject = stream;
+    await videoEl.play();
+    hud("מצלמה OK", "טוען OCR…", "hudGood");
+    dbg("מצלמה פועלת");
 
-      const ok = await loadTesseractIfNeeded();
-      if(!ok){
-        hud("תקלה", "מנוע OCR לא נטען (חסימת CDN/AdBlock/אין רשת)", "hudErr");
-        dbg("OCR לא נטען – בדוק חוסמי פרסומות/רשת");
-        return;
-      }
-
-      await ensureWorker();
-
-      hud("סורק בלייב", "תעמיד לוחית בתוך הירוק", "hudGood");
-      startLoop();
-
-    }catch(err){
-      hud("תקלה", (err?.message || String(err)), "hudErr");
-      dbg("openLiveScanner FAILED: " + (err?.message || String(err)));
+    const ok = await ensureTesseractLoaded();
+    if(!ok){
+      hud("תקלה", "מנוע OCR לא נטען (חסימת רשת/חוסם פרסומות)", "hudErr");
+      dbg("OCR לא נטען מכל המקורות");
+      return;
     }
-  })();
+
+    await ensureWorker();
+    startLoop();
+  }catch(err){
+    hud("תקלה", (err?.message || String(err)), "hudErr");
+    dbg("openLiveScanner FAILED: " + (err?.message || String(err)));
+  }
 }
 
 function closeLiveScanner(){
@@ -740,7 +757,6 @@ async function scanOnce(){
   roiCanvas.width = targetW; roiCanvas.height = targetH;
   roiCtx.drawImage(videoEl, x, y, w, h, 0, 0, targetW, targetH);
 
-  // ROI preview – כדי שתראה שה-OCR קורא את המקום הנכון
   roiMini.width = roiCanvas.width;
   roiMini.height = roiCanvas.height;
   roiMiniCtx.drawImage(roiCanvas, 0, 0);
@@ -805,25 +821,17 @@ function preprocess(srcCanvas, invert){
 }
 
 /* =========================
-   חיבורים ללחצנים (חשוב! בלי onclick כדי שלא "לא יקרה כלום")
+   חיבורים ללחצנים
    ========================= */
-document.getElementById("scanBtn").addEventListener("click", ()=>{
-  // אינדיקציה מיידית שהלחיצה נקלטה
-  // (לא משנה עיצוב/לוגיקה – רק מבטיח שלא יהיה מצב "שום דבר")
-  openLiveScanner();
-});
-
+document.getElementById("scanBtn").addEventListener("click", openLiveScanner);
 document.getElementById("closeScanBtn").addEventListener("click", closeLiveScanner);
 document.getElementById("btn").addEventListener("click", lookup);
 document.getElementById("waBtn").addEventListener("click", sendWhatsApp);
 document.getElementById("clearBtn").addEventListener("click", clearAll);
 
 plateEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") lookup(); });
-
-// סגירה בלחיצה על הרקע
 overlay.addEventListener("click", (e)=>{ if(e.target === overlay) closeLiveScanner(); });
 
-// חשיפה גלובלית (למקרה שתרצה לקרוא מבחוץ)
 window.openLiveScanner = openLiveScanner;
 window.closeLiveScanner = closeLiveScanner;
 </script>
