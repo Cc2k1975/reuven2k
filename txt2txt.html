@@ -3,97 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>משווה טקסט מדויק</title>
+    <title>משווה תווים מדויק</title>
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 15px; background: #f4f4f9; direction: rtl; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        h2 { font-size: 1.2rem; text-align: center; color: #333; }
-        textarea { width: 100%; height: 100px; margin: 8px 0; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 14px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        body { font-family: system-ui, sans-serif; margin: 0; padding: 15px; background: #f0f2f5; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 80px; margin: 10px 0; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; margin-bottom: 20px; }
         
-        #resultContainer { margin-top: 20px; }
-        .visual-diff { background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; line-height: 1.8; font-family: monospace; }
+        .result-area { 
+            background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; 
+            white-space: pre-wrap; line-height: 2.2; font-size: 18px; font-family: monospace;
+        }
+
+        /* צהוב למילים שמסביב לשינוי */
+        .context { background-color: #ffff00; padding: 2px 0; }
         
-        /* עיצוב ההבדלים */
-        .highlight { background-color: #ffff00; border-bottom: 2px solid #ffcc00; font-weight: bold; padding: 0 2px; }
-        .explanation-box { margin-top: 15px; padding: 10px; background: #e9ecef; border-right: 4px solid #007bff; border-radius: 4px; font-size: 14px; }
-        .match-msg { background: #d4edda; color: #155724; padding: 15px; border-radius: 8px; text-align: center; font-weight: bold; }
+        /* אדום לשינוי עצמו (רווח או תו) */
+        .change { background-color: #ff4d4d; color: white; padding: 2px 4px; border-radius: 3px; font-weight: bold; }
+        
+        /* סימון מיוחד לרווחים כדי שיראו אותם באדום */
+        .space-change { background-color: #ff4d4d; display: inline-block; min-width: 10px; height: 1.2em; vertical-align: middle; }
+        
+        .info { margin-top: 15px; font-size: 14px; color: #555; border-right: 3px solid #ff4d4d; padding-right: 10px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>השוואה מדויקת (מילה במילה)</h2>
+    <h2>בדיקת שינוי נקודתית</h2>
     
-    <label>טקסט 1:</label>
-    <textarea id="text1" placeholder="הדבק טקסט מקור..."></textarea>
+    <textarea id="t1" placeholder="טקסט מקור..."></textarea>
+    <textarea id="t2" placeholder="טקסט לבדיקה (עם השינוי)..."></textarea>
+    <button onclick="compareExact()">בדוק הבדלים</button>
 
-    <label>טקסט 2:</label>
-    <textarea id="text2" placeholder="הדבק טקסט לבדיקה..."></textarea>
-
-    <button onclick="compareSmart()">השווה עכשיו</button>
-
-    <div id="resultContainer"></div>
+    <div id="display" class="result-area">התוצאה תופיע כאן...</div>
+    <div id="explanation" class="info"></div>
 </div>
 
 <script>
-    function compareSmart() {
-        const s1 = document.getElementById('text1').value;
-        const s2 = document.getElementById('text2').value;
-        const container = document.getElementById('resultContainer');
+    function compareExact() {
+        const s1 = document.getElementById('t1').value;
+        const s2 = document.getElementById('t2').value;
+        const display = document.getElementById('display');
+        const explanation = document.getElementById('explanation');
         
-        if (s1 === s2 && s1 !== "") {
-            container.innerHTML = '<div class="match-msg">✅ הטקסטים זהים לחלוטין!</div>';
+        if (s1 === s2) {
+            display.innerHTML = "✅ הטקסטים זהים";
+            explanation.innerHTML = "";
             return;
         }
 
-        // פיצול למילים (כולל רווחים וסימני פיסוק כשומרים עליהם)
-        const words1 = s1.split(/(\s+|[.,!?;:])/);
-        const words2 = s2.split(/(\s+|[.,!?;:])/);
-        
-        let htmlOutput = '<div class="visual-diff">';
-        let explanations = [];
-        
-        const maxLength = Math.max(words1.length, words2.length);
+        let html = "";
+        let diffCount = 0;
 
-        for (let i = 0; i < maxLength; i++) {
-            const w1 = words1[i] || "";
-            const w2 = words2[i] || "";
+        // עוברים תו-תו כדי למצוא שינויים
+        for (let i = 0; i < s2.length; i++) {
+            const char1 = s1[i];
+            const char2 = s2[i];
 
-            if (w1 !== w2) {
-                // מצאנו הבדל - נצבע את המילה בטקסט השני
-                htmlOutput += `<span class="highlight">${escapeHtml(w2 || "[חסר]")}</span>`;
+            if (char1 !== char2) {
+                diffCount++;
+                // מצאנו שינוי! נצבע את התו באדום
+                let charDisplay = char2;
+                if (char2 === " ") charDisplay = "&nbsp;"; // טיפול ברווח
                 
-                // יצירת הסבר מדויק
-                let reason = "";
-                if (!w1 && w2) reason = `נוספה המילה "${w2}"`;
-                else if (w1 && !w2) reason = `נמחקה המילה "${w1}"`;
-                else if (w1.toLowerCase() === w2.toLowerCase()) reason = `שינוי באותיות גדולות/קטנות ("${w1}" לעומת "${w2}")`;
-                else if (w1.trim() === "" && w2.trim() !== "") reason = `נוסף רווח או אנטר`;
-                else reason = `הוחלף "${w1}" ב-"${w2}"`;
-                
-                explanations.push(`שגיאה ליד "${words2[i-2] || ""} ${words2[i-1] || ""}": ${reason}`);
+                html += `<span class="change">${charDisplay}</span>`;
             } else {
-                htmlOutput += escapeHtml(w2);
+                // האם התו הקרוב לשינוי? אם כן נצבע בצהוב
+                const isNear = (s1[i+1] !== s2[i+1] || s1[i-1] !== s2[i-1]);
+                if (isNear) {
+                    html += `<span class="context">${escapeHtml(char2)}</span>`;
+                } else {
+                    html += escapeHtml(char2);
+                }
             }
         }
-        
-        htmlOutput += '</div>';
 
-        // הוספת הסברים למטה
-        if (explanations.length > 0) {
-            htmlOutput += '<div class="explanation-box"><strong>מה השתנה?</strong><br><ul>' + 
-                explanations.map(ex => `<li>${ex}</li>`).join('') + 
-                '</ul></div>';
-        }
-
-        container.innerHTML = htmlOutput;
+        display.innerHTML = html;
+        explanation.innerHTML = `נמצאו ${diffCount} תווים שונים. השינויים מסומנים ב<span style="color:red">אדום</span>, והטקסט הצמוד אליהם ב<span style="background:yellow">צהוב</span>.`;
     }
 
     function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        if (!text) return "";
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 </script>
 
