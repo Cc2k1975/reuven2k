@@ -74,11 +74,9 @@
       padding:12px;
     }
 
-    /* === Scanner (רק חלון הלוחית) === */
     .scanner{ margin-top:12px; display:none; }
     .scanner.on{ display:block; }
 
-    /* הווידאו נשאר פעיל אבל מוסתר (לא מציגים אותו) */
     video#video{
       position:absolute;
       left:-99999px;
@@ -127,15 +125,16 @@
     }
     .range{ width:100%; accent-color: var(--accent); }
 
-    /* חלון תצוגה של ROI */
     .previewWrap{
       position:relative;
       padding:12px;
       background: rgba(0,0,0,.18);
     }
+
+    /* ✅ הגדלה קלה בגובה (חלון גבוה יותר) */
     .previewBox{
       width:100%;
-      aspect-ratio: 4.8 / 1; /* חלון רחב ללוחית */
+      aspect-ratio: 4.3 / 1; /* היה 4.8/1 - עכשיו קצת יותר גבוה */
       border:3px solid rgba(34,197,94,.95);
       border-radius:18px;
       overflow:hidden;
@@ -226,7 +225,6 @@
         </div>
       </div>
 
-      <!-- הווידאו מוסתר בכוונה (משמש רק ל-capture/ocr) -->
       <video id="video" playsinline muted></video>
     </div>
 
@@ -295,23 +293,27 @@
   let busyOCR = false;
   let lastRecord = null;
 
-  // Zoom וירטואלי תמיד עובד
   let zoomFactor = 1.0;
-
-  // אם יש זום אמיתי במצלמה – נשתמש גם בו (ממופה מהסליידר)
   let hwZoomCaps = null;
 
-  // === טיונינג מהירות ===
-  const FAST_SCALE = 2.2;
-  const LOOP_DELAY_MS = 110;
-  const HEAVY_EVERY_MS = 1100;
-  const CONF_FAST_ACCEPT = 82;
+  // ✅ שיפורי מהירות + יציבות
+  const FAST_SCALE = 1.7;           // היה 2.2 (מהיר יותר)
+  const OCR_INTERVAL_MS = 260;      // כמה פעמים בשנייה מנסים OCR (מונע עומס/קפיצות)
+  const HEAVY_EVERY_MS = 1600;      // כבד פחות תכוף
+  const CONF_IMMEDIATE = 78;        // אם מעל → ננעל מיד
+  const CONF_OK = 58;               // מינימום סביר לספירה
+  const LOCK_NEED_HITS = 2;         // כמה פעמים אותו מספר כדי לנעול
+  const HOLD_MS = 1300;             // “לא מאבד” מועמד למשך זמן זה
 
-  const votes = [];
-  const VOTE_WINDOW = 3;
-  const VOTE_NEED = 2;
-
+  let lastOcrAt = 0;
   let lastHeavyTryAt = 0;
+
+  let holdPlate = "";               // מספר שמחזיקים (לא נזרק)
+  let holdAt = 0;
+
+  let candidate = "";               // מועמד לנעילה
+  let candidateHits = 0;
+  let candidateFirstAt = 0;
 
   function setStatus(msg){ status.textContent = msg; }
   function onlyDigits(s){ return (s || "").replace(/[^\d]/g,""); }
@@ -332,22 +334,7 @@
     return "";
   }
 
-  function pushVote(plate){
-    votes.push(plate);
-    while (votes.length > VOTE_WINDOW) votes.shift();
-
-    const counts = {};
-    for (const p of votes) counts[p] = (counts[p] || 0) + 1;
-
-    let best = "";
-    let bestCount = 0;
-    for (const [k,v] of Object.entries(counts)){
-      if (v > bestCount){
-        best = k; bestCount = v;
-      }
-    }
-    return { best, bestCount, window: votes.slice() };
-  }
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
   async function loadScript(src){
     return new Promise((resolve, reject)=>{
@@ -401,7 +388,6 @@
   }
 
   function resizePreviewCanvas(){
-    // קובע רזולוציה פנימית ל-canvas לפי הגודל בפועל
     const rect = preview.getBoundingClientRect();
     const w = Math.max(2, Math.round(rect.width));
     const h = Math.max(2, Math.round(rect.height));
@@ -430,15 +416,9 @@
     await video.play();
 
     track = stream.getVideoTracks()[0];
-
-    // Zoom HW (אם קיים)
     const caps = track.getCapabilities ? track.getCapabilities() : null;
     hwZoomCaps = (caps && caps.zoom) ? caps.zoom : null;
 
-    // זום תמיד פעיל (דיגיטלי), 1..3
-    zoomRange.min = 1;
-    zoomRange.max = 3;
-    zoomRange.step = 0.1;
     zoomRange.value = 1;
     zoomFactor = 1.0;
     zoomVal.textContent = "×1.0";
@@ -448,26 +428,33 @@
       zoomFactor = z;
       zoomVal.textContent = "×" + z.toFixed(1);
 
-      // אם יש זום אמיתי – ניישם גם אותו (ממופה ל-min..max)
       if (track && track.applyConstraints && hwZoomCaps){
         const min = hwZoomCaps.min;
         const max = hwZoomCaps.max;
-        const t = (z - 1) / (3 - 1); // 0..1
+        const t = (z - 1) / (3 - 1);
         const hw = min + t * (max - min);
         try{ await track.applyConstraints({ advanced: [{ zoom: hw }] }); }catch(e){}
       }
     };
 
-    // Canvas size
     resizePreviewCanvas();
     window.addEventListener("resize", resizePreviewCanvas, { passive:true });
+  }
+
+  function resetStability(){
+    holdPlate = "";
+    holdAt = 0;
+    candidate = "";
+    candidateHits = 0;
+    candidateFirstAt = 0;
+    lastOcrAt = 0;
+    lastHeavyTryAt = 0;
   }
 
   function closeCamera(){
     scanning = false;
     busyOCR = false;
-    votes.length = 0;
-    lastHeavyTryAt = 0;
+    resetStability();
 
     if (stream){
       stream.getTracks().forEach(t=>t.stop());
@@ -480,10 +467,7 @@
     setStatus("מוכן.");
   }
 
-  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
-
   function getFrameCropBox(videoW, videoH){
-    // בסיס – אזור הלוחית (כמו קודם)
     const left = 0.06 * videoW;
     const width = 0.88 * videoW;
     const height = 0.22 * videoH;
@@ -494,20 +478,16 @@
     let w = width - 2*(width * 0.03);
     let h = height - 2*(height * 0.10);
 
-    // חיתוך פס IL
     const cutLeft = w * 0.14;
     x += cutLeft;
     w -= cutLeft;
 
-    // קצת ימין
     const cutRight = w * 0.03;
     w -= cutRight;
 
-    // עוד קצת למעלה/למטה (רק ספרות)
     y += h * 0.06;
     h -= h * 0.12;
 
-    // === זום דיגיטלי (תמיד עובד) ===
     const z = clamp(zoomFactor, 1, 3);
     const cx = x + w/2;
     const cy = y + h/2;
@@ -516,7 +496,6 @@
     x = cx - w/2;
     y = cy - h/2;
 
-    // גבולות
     x = clamp(x, 0, videoW - w);
     y = clamp(y, 0, videoH - h);
 
@@ -532,7 +511,6 @@
 
     const box = getFrameCropBox(vw, vh);
 
-    // מצייר "בדיוק מה שנסרק" בחלון
     pctx.imageSmoothingEnabled = true;
     pctx.imageSmoothingQuality = "high";
     pctx.clearRect(0,0,preview.width, preview.height);
@@ -544,16 +522,18 @@
     const img = ctx.getImageData(0,0,c.width,c.height);
     const d = img.data;
 
+    // ✅ ממוצע מהיר עם דגימה (חוסך זמן)
     let sum = 0;
-    for (let i=0;i<d.length;i+=4){
+    let cnt = 0;
+    for (let i=0;i<d.length;i+=16){ // דגימה במקום כל פיקסל
       const r=d[i], g=d[i+1], b=d[i+2];
-      const y = (0.299*r + 0.587*g + 0.114*b);
-      sum += y;
+      sum += (0.299*r + 0.587*g + 0.114*b);
+      cnt++;
     }
-    const mean = sum / (d.length/4);
+    const mean = sum / Math.max(1,cnt);
 
-    const contrast = 1.35;
-    const bias = -18;
+    const contrast = 1.30;
+    const bias = -16;
     const th = mean - 10;
 
     for (let i=0;i<d.length;i+=4){
@@ -574,19 +554,19 @@
     const img = ctx.getImageData(0,0,c.width,c.height);
     const d = img.data;
 
-    let sum = 0;
-    for (let i=0;i<d.length;i+=4){
+    let sum = 0, cnt = 0;
+    for (let i=0;i<d.length;i+=16){
       const r=d[i], g=d[i+1], b=d[i+2];
-      const y = (0.299*r + 0.587*g + 0.114*b);
-      sum += y;
+      sum += (0.299*r + 0.587*g + 0.114*b);
+      cnt++;
     }
-    const mean = sum / (d.length/4);
+    const mean = sum / Math.max(1,cnt);
     const th = mean - 10;
 
     for (let i=0;i<d.length;i+=4){
       const r=d[i], g=d[i+1], b=d[i+2];
-      let y = (0.299*r + 0.587*g + 0.114*b);
-      const v = (y < th) ? 255 : 0; // invert
+      const y = (0.299*r + 0.587*g + 0.114*b);
+      const v = (y < th) ? 255 : 0;
       d[i]=d[i+1]=d[i+2]=v;
       d[i+3]=255;
     }
@@ -601,9 +581,8 @@
 
     const box = getFrameCropBox(vw, vh);
 
-    const scale = FAST_SCALE;
-    const outW = Math.round(box.w * scale);
-    const outH = Math.round(box.h * scale);
+    const outW = Math.round(box.w * FAST_SCALE);
+    const outH = Math.round(box.h * FAST_SCALE);
 
     const c = document.createElement("canvas");
     c.width = outW;
@@ -635,22 +614,73 @@
     return { plate, conf };
   }
 
+  function considerLock(plate, conf){
+    const now = Date.now();
+
+    // “מחזיקים” מספר שנראה לאחרונה כדי לא לאבד
+    if (plate){
+      holdPlate = plate;
+      holdAt = now;
+    }
+
+    // אם יש ביטחון גבוה → נעילה מיידית
+    if (plate && conf >= CONF_IMMEDIATE){
+      return { locked:true, finalPlate: plate, reason:`conf ${conf.toFixed(0)} (מיידי)` };
+    }
+
+    // אם אין plate כרגע – אבל יש hold טרי, לא מאבדים
+    if (!plate){
+      if (holdPlate && (now - holdAt) <= HOLD_MS){
+        return { locked:false, keep: holdPlate, msg:`מחפש… שומר על ${holdPlate}` };
+      }
+      // אין מה לשמור
+      candidate = "";
+      candidateHits = 0;
+      candidateFirstAt = 0;
+      holdPlate = "";
+      return { locked:false, keep:"", msg:"מחפש… תקרב/תיישר" };
+    }
+
+    // plate קיים אבל עם conf נמוך מדי → עדיין אפשר “להחזיק” אך לא לספור לנעילה
+    if (conf < CONF_OK){
+      return { locked:false, keep: plate, msg:`זוהה חלש (${conf.toFixed(0)})… תקרב קצת` };
+    }
+
+    // מנגנון נעילה: 2 פגיעות של אותו מספר בפרק זמן קצר
+    if (plate !== candidate){
+      candidate = plate;
+      candidateHits = 1;
+      candidateFirstAt = now;
+      return { locked:false, keep: plate, msg:`מועמד: ${plate} (1/${LOCK_NEED_HITS})` };
+    } else {
+      candidateHits++;
+      const age = now - candidateFirstAt;
+      if (candidateHits >= LOCK_NEED_HITS && age >= 160){
+        return { locked:true, finalPlate: plate, reason:`יציב (${candidateHits} פגיעות)` };
+      }
+      return { locked:false, keep: plate, msg:`מועמד: ${plate} (${candidateHits}/${LOCK_NEED_HITS})` };
+    }
+  }
+
   async function scanLoop(){
     if (!scanning) return;
 
-    // כל לולאה: מעדכן חלון תצוגה (רק הלוחית)
+    // תצוגה זורמת (בלי קשר ל-OCR)
     try{ drawPreviewROI(); }catch(e){}
 
-    if (busyOCR){
-      setTimeout(scanLoop, 20);
+    const now = Date.now();
+    if (busyOCR || (now - lastOcrAt) < OCR_INTERVAL_MS){
+      requestAnimationFrame(scanLoop);
       return;
     }
 
+    lastOcrAt = now;
     const t0 = performance.now();
+
     try{
       const roi = makeROIFromVideo();
       if (!roi){
-        setTimeout(scanLoop, 20);
+        requestAnimationFrame(scanLoop);
         return;
       }
 
@@ -658,64 +688,47 @@
 
       let { plate, conf } = await recognizeFast(roi);
 
-      const now = Date.now();
-      let usedHeavy = false;
-
-      if (!plate && (now - lastHeavyTryAt) > HEAVY_EVERY_MS){
+      // Heavy רק מדי פעם ורק כשלא הצליח/חלש
+      if ((!plate || conf < CONF_OK) && (now - lastHeavyTryAt) > HEAVY_EVERY_MS){
         lastHeavyTryAt = now;
         const roi2 = makeROIFromVideo();
         if (roi2){
           const heavy = await recognizeHeavy(roi2);
-          plate = heavy.plate || plate;
+          if (heavy.plate) plate = heavy.plate;
           conf = Math.max(conf, heavy.conf || 0);
-          usedHeavy = true;
         }
       }
 
       const dt = performance.now() - t0;
 
-      if (plate){
-        if (conf >= CONF_FAST_ACCEPT){
-          hudTitle.textContent = "זוהה: " + plate;
-          hudSub.textContent = `אושר מיד (conf ${conf.toFixed(0)})`;
-          setStatus(`זוהה: ${plate}\nconf: ${conf.toFixed(0)}\n${dt.toFixed(0)}ms`);
-          try{ navigator.vibrate && navigator.vibrate(90); }catch(e){}
-          plateInput.value = plate;
-          closeCamera();
-          await fetchVehicle();
-          return;
-        }
+      const lock = considerLock(plate, conf);
 
-        const v = pushVote(plate);
-        hudTitle.textContent = `סורק… (${dt.toFixed(0)}ms)`;
-        hudSub.textContent = `מועמד: ${plate} • הצבעה: ${v.bestCount}/${VOTE_WINDOW} • conf ${conf.toFixed(0)}${usedHeavy ? " • heavy" : ""}`;
-        setStatus(
-          `סורק…\nמועמד: ${plate}\nconf: ${conf.toFixed(0)}\nחלון הצבעה: ${v.window.join(" , ")}\nזמן: ${dt.toFixed(0)}ms`
-        );
+      if (lock.locked){
+        const finalPlate = lock.finalPlate;
+        hudTitle.textContent = "זוהה: " + finalPlate;
+        hudSub.textContent = "נעול → מכניס לשדה ושולף נתונים… (" + lock.reason + ")";
+        setStatus(`זוהה: ${finalPlate}\n${lock.reason}\n${dt.toFixed(0)}ms`);
+        try{ navigator.vibrate && navigator.vibrate(90); }catch(e){}
+        plateInput.value = finalPlate;
+        closeCamera();
+        await fetchVehicle();
+        return;
+      }
 
-        if (v.bestCount >= VOTE_NEED){
-          const finalPlate = v.best;
-          hudTitle.textContent = "זוהה: " + finalPlate;
-          hudSub.textContent = "מכניס לשדה ושולף נתונים…";
-          setStatus(`זוהה (יציב): ${finalPlate}\n${dt.toFixed(0)}ms`);
-          try{ navigator.vibrate && navigator.vibrate(90); }catch(e){}
-          plateInput.value = finalPlate;
-          closeCamera();
-          await fetchVehicle();
-          return;
-        }
-
+      // לא נעול עדיין — מציג סטטוס בלי “לקפוץ” ולשדר כאילו איבד
+      hudTitle.textContent = "סורק…";
+      hudSub.textContent = lock.msg || "סורק…";
+      if (lock.keep){
+        setStatus(`סורק…\nמועמד: ${lock.keep}\nconf: ${conf.toFixed(0)}\n${dt.toFixed(0)}ms`);
       } else {
-        hudTitle.textContent = "סורק…";
-        hudSub.textContent = usedHeavy ? "ניסיון heavy בוצע — תיישר ותקרב עוד קצת" : "תקרב עוד קצת עד שהספרות חדות בחלון";
-        setStatus(`סורק…\n${dt.toFixed(0)}ms • עדיין לא זוהה${usedHeavy ? " (heavy)" : ""}`);
+        setStatus(`סורק…\nconf: ${conf.toFixed(0)}\n${dt.toFixed(0)}ms`);
       }
 
     } catch(e){
       setStatus("שגיאה בסריקה:\n" + (e?.message || e));
     } finally {
       busyOCR = false;
-      setTimeout(scanLoop, LOOP_DELAY_MS);
+      requestAnimationFrame(scanLoop);
     }
   }
 
@@ -725,6 +738,7 @@
       btnClose.style.display = "inline-block";
       await openCamera();
       await ensureWorker();
+      resetStability();
       scanning = true;
       scanLoop();
     } catch(e){
@@ -830,7 +844,6 @@
     window.open(url, "_blank");
   }
 
-  // UI
   btnScan.addEventListener("click", openLiveScanner);
   btnClose.addEventListener("click", closeCamera);
   btnFetch.addEventListener("click", fetchVehicle);
