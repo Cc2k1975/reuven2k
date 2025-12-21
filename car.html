@@ -32,7 +32,6 @@
       margin-bottom:14px;
     }
     h1{margin:0;font-size:20px;line-height:1.25}
-    .sub{color:var(--muted);font-size:13px;margin-top:6px;max-width:55ch}
     .card{
       background:rgba(17,28,51,.92);
       border:1px solid var(--line);
@@ -108,25 +107,23 @@
     }
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
     
-    /* אנימציה קלה כשהמיקרופון פעיל */
     .recording {
+      background: rgba(239, 68, 68, 0.2) !important;
       border-color: var(--danger) !important;
-      color: var(--danger) !important;
-      animation: pulse 1.5s infinite;
+      color: #fff !important;
+      animation: pulse 1.2s infinite;
     }
     @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.5; }
-      100% { opacity: 1; }
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
     }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="title">
-      <div>
-        <h1>שליפת נתוני רכב לפי מספר רישוי</h1>
-      </div>
+      <h1>שליפת נתוני רכב לפי מספר רישוי</h1>
     </div>
 
     <div class="card">
@@ -137,9 +134,9 @@
         </div>
         <button id="btn" onclick="lookup()">שלוף נתונים</button>
         <button class="mini" onclick="sendWhatsApp()">ווצאפ</button>
-        <button id="micBtn" class="mini" onclick="startDictation()" title="חיפוש קולי">
+        <button id="micBtn" class="mini" onclick="toggleDictation()" title="חיפוש קולי מהיר">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-          דבר
+          <span id="micTxt">דבר</span>
         </button>
         <button class="mini" onclick="clearAll()">נקה</button>
       </div>
@@ -148,8 +145,7 @@
 
       <div id="resultArea" style="display:none;">
         <div class="kv" id="quickKv"></div>
-
-        <div class="table-wrap" style="margin-top:12px;">
+        <div class="table-wrap">
           <table id="tbl">
             <thead>
               <tr>
@@ -160,7 +156,6 @@
             <tbody id="tbody"></tbody>
           </table>
         </div>
-
         <div class="footer" id="footerNote"></div>
       </div>
     </div>
@@ -174,68 +169,71 @@
   const plateEl  = document.getElementById("plate");
   const btnEl    = document.getElementById("btn");
   const micBtn   = document.getElementById("micBtn");
+  const micTxt   = document.getElementById("micTxt");
   const resultArea = document.getElementById("resultArea");
   const tbodyEl  = document.getElementById("tbody");
   const quickKv  = document.getElementById("quickKv");
   const footerNote = document.getElementById("footerNote");
 
   let lastRecord = null;
+  let recognition = null;
+  let isListening = false;
 
-  const HIDDEN_FIELDS = new Set([
-    "zmig_kidmi",
-    "zmig_ahori",
-    "misgeret",
-    "horaat_rishum",
-    "tozeret_cd",
-    "degem_cd",
-    "degem_manoa",
-    "tzeva_cd",
-    "sug_degem",
-    "_id",
-    "rank"
-  ]);
+  const HIDDEN_FIELDS = new Set(["zmig_kidmi", "zmig_ahori", "misgeret", "horaat_rishum", "tozeret_cd", "degem_cd", "degem_manoa", "tzeva_cd", "sug_degem", "_id", "rank"]);
 
-  // --- פונקציית הקלטה קולית ---
-  function startDictation() {
-    if (window.hasOwnProperty('webkitSpeechRecognition') || window.hasOwnProperty('speechRecognition')) {
-      const Recognition = window.webkitSpeechRecognition || window.speechRecognition;
-      const recognition = new Recognition();
-
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "he-IL"; // שפה עברית
-
-      recognition.onstart = function() {
-        micBtn.classList.add('recording');
-        setStatus("מקשיב למספר רכב...", "warn");
-      };
-
-      recognition.onresult = function(e) {
-        const transcript = e.results[0][0].transcript;
-        // מסננים רק ספרות מהתוצאה הקולית
-        const cleaned = transcript.replace(/[^\d]/g, "");
-        if (cleaned) {
-          plateEl.value = cleaned;
-          lookup(); // חיפוש אוטומטי מיד בסיום
-        } else {
-          setStatus("לא זוהו מספרים. נסה שוב.", "err");
-        }
-        micBtn.classList.remove('recording');
-      };
-
-      recognition.onerror = function(e) {
-        micBtn.classList.remove('recording');
-        setStatus("שגיאה בזיהוי קולי: " + e.error, "err");
-      };
-
-      recognition.onend = function() {
-        micBtn.classList.remove('recording');
-      };
-
-      recognition.start();
-    } else {
-      alert("הדפדפן שלך לא תומך בחיפוש קולי.");
+  // --- פונקציית הקלטה קולית משופרת ---
+  function toggleDictation() {
+    if (isListening) {
+      recognition.stop();
+      return;
     }
+
+    const Recognition = window.webkitSpeechRecognition || window.speechRecognition;
+    if (!Recognition) {
+      alert("הדפדפן לא תומך בחיפוש קולי.");
+      return;
+    }
+
+    recognition = new Recognition();
+    recognition.continuous = true;
+    recognition.interimResults = true; // חיווי בזמן אמת!
+    recognition.lang = "he-IL";
+
+    recognition.onstart = function() {
+      isListening = true;
+      micBtn.classList.add('recording');
+      micTxt.textContent = "מקשיב...";
+      setStatus("דבר עכשיו (המספר יופיע תוך כדי דיבור)...", "warn");
+    };
+
+    recognition.onresult = function(e) {
+      let finalTranscript = "";
+      for (let i = e.resultIndex; i < e.results.length; ++i) {
+        finalTranscript += e.results[i][0].transcript;
+      }
+
+      const cleaned = finalTranscript.replace(/[^\d]/g, "");
+      if (cleaned) {
+        plateEl.value = cleaned; // שתילת המספר בשדה בזמן אמת
+        
+        // אם הגענו ל-7 או 8 ספרות, זה כנראה מספר רכב - נחפש מיד!
+        if (cleaned.length >= 7 && cleaned.length <= 9) {
+          recognition.stop();
+          lookup();
+        }
+      }
+    };
+
+    recognition.onerror = function() { stopMic(); };
+    recognition.onend = function() { stopMic(); };
+
+    recognition.start();
+  }
+
+  function stopMic() {
+    isListening = false;
+    micBtn.classList.remove('recording');
+    micTxt.textContent = "דבר";
   }
 
   function setStatus(msg, kind=""){
@@ -255,117 +253,28 @@
   }
 
   function escapeHtml(s){
-    return String(s ?? "").replace(/[&<>"']/g, ch => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-    }[ch]));
+    return String(s ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
   }
 
   function labelForField(field){
     const map = {
-      mispar_rechev: "מספר רכב",
-      tozeret_nm: "שם תוצר / יצרן",
-      tozeret_cd: "קוד תוצר",
-      sug_degem: "סוג דגם (P=פרטי וכו')",
-      degem_nm: "דגם",
-      degem_cd: "קוד דגם",
-      ramat_gimur: "רמת גימור",
-      ramat_eivzur_betihuty: "רמת אבזור בטיחותי",
-      kvutzat_zihum: "קבוצת זיהום",
-      shnat_yitzur: "שנת ייצור",
-      degem_manoa: "דגם מנוע",
-      mivchan_acharon_dt: "טסט אחרון",
-      tokef_dt: "תוקף רישוי",
-      baalut: "בעלות (כללי)",
-      misgeret: "מספר שילדה",
-      tzeva_rechev: "צבע",
-      tzeva_cd: "קוד צבע",
-      zmig_kidmi: "צמיג קדמי",
-      zmig_ahori: "צמיג אחורי",
-      sug_delek_nm: "סוג דלק",
-      horaat_rishum: "מספר הוראת רישום",
-      moed_aliya_lakvish: "מועד עלייה לכביש",
-      kinuy_mishari: "כינוי מסחרי"
+      mispar_rechev: "מספר רכב", tozeret_nm: "שם תוצר / יצרן", degem_nm: "דגם",
+      ramat_gimur: "רמת גימור", shnat_yitzur: "שנת ייצור", mivchan_acharon_dt: "טסט אחרון",
+      tokef_dt: "תוקף רישוי", baalut: "בעלות (כללי)", tzeva_rechev: "צבע",
+      sug_delek_nm: "סוג דלק", moed_aliya_lakvish: "מועד עלייה לכביש", kinuy_mishari: "כינוי מסחרי"
     };
     return map[field] || field;
   }
 
-  function buildTable(record){
-    tbodyEl.innerHTML = "";
-    const keys = Object.keys(record);
-
-    const preferredOrder = [
-      "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
-      "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
-      "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish",
-      "tzeva_rechev","zmig_kidmi","zmig_ahori","misgeret","horaat_rishum",
-      "tozeret_cd","degem_cd","degem_manoa","tzeva_cd","sug_degem","_id","rank"
-    ];
-
-    const ordered = [];
-    preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
-    keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
-
-    for(const k of ordered){
-      if (HIDDEN_FIELDS.has(k)) continue;
-
-      let v = record[k];
-      if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="mono">${escapeHtml(labelForField(k))}</td>
-        <td>${escapeHtml(v)}</td>
-      `;
-      tbodyEl.appendChild(tr);
-    }
-  }
-
-  function buildQuickCards(record){
-    const pick = [
-      ["mispar_rechev","מספר רכב"],
-      ["tozeret_nm","יצרן"],
-      ["degem_nm","דגם"],
-      ["shnat_yitzur","שנת ייצור"],
-      ["sug_delek_nm","דלק"],
-      ["tokef_dt","תוקף רישוי"],
-      ["mivchan_acharon_dt","טסט אחרון"],
-      ["tzeva_rechev","צבע"]
-    ];
-
-    quickKv.innerHTML = "";
-
-    for(const [k,ttl] of pick){
-      if(record[k] === undefined) continue;
-      if (HIDDEN_FIELDS.has(k)) continue;
-
-      let val = record[k];
-      if (k === "tokef_dt" || k === "mivchan_acharon_dt") val = fmtDateMaybe(val);
-
-      const div = document.createElement("div");
-      div.className = "card";
-      div.style.padding = "10px 12px";
-      div.style.boxShadow = "none";
-      div.style.background = "rgba(255,255,255,.04)";
-      div.innerHTML = `
-        <div style="color:var(--muted);font-size:12px;font-weight:800;margin-bottom:4px;">${escapeHtml(ttl)}</div>
-        <div style="font-size:15px;font-weight:800;">${escapeHtml(val)}</div>
-      `;
-      quickKv.appendChild(div);
-    }
-  }
-
   async function lookup(){
     const plate = normalizePlate(plateEl.value);
-
     if(!plate){
-      setStatus("חסר מספר רכב. הכנס מספר (רק ספרות).", "warn");
-      resultArea.style.display = "none";
-      lastRecord = null;
+      setStatus("חסר מספר רכב.", "warn");
       return;
     }
 
     btnEl.disabled = true;
-    setStatus("שולף נתונים…", "");
+    setStatus("סורק...", "");
 
     try{
       const url = new URL(API_BASE);
@@ -373,46 +282,45 @@
       url.searchParams.set("q", plate);
       url.searchParams.set("limit", "1");
 
-      const res = await fetch(url.toString(), { method:"GET" });
-
-      if(!res.ok){
-        throw new Error("שגיאת רשת: " + res.status + " " + res.statusText);
-      }
-
+      const res = await fetch(url.toString());
       const data = await res.json();
-
-      if(!data || data.success !== true){
-        throw new Error("תשובה לא צפויה מהשרת.");
-      }
-
       const records = (data.result && data.result.records) ? data.result.records : [];
 
       if(records.length === 0){
-        setStatus(
-          "לא נמצאו נתונים למספר הזה במאגר.\n" +
-          "זה יכול להיות כי הרכב לא פעיל/לא עומד בתנאי המאגר/רכב ישן מאוד/משאית כבדה/אופנוע וכו'.",
-          "warn"
-        );
+        setStatus("לא נמצאו נתונים למספר " + plate, "warn");
         resultArea.style.display = "none";
-        lastRecord = null;
         return;
       }
 
       const record = records[0];
       lastRecord = record;
 
-      buildQuickCards(record);
-      buildTable(record);
+      // בניית כרטיסיות
+      quickKv.innerHTML = "";
+      const pick = [["mispar_rechev","מספר רכב"],["tozeret_nm","יצרן"],["degem_nm","דגם"],["shnat_yitzur","שנת ייצור"],["tokef_dt","תוקף"]];
+      pick.forEach(([k,ttl]) => {
+        if(record[k]){
+          const div = document.createElement("div");
+          div.className = "card"; div.style.padding = "10px"; div.style.background = "rgba(255,255,255,.04)";
+          div.innerHTML = `<div style="color:var(--muted);font-size:11px;">${ttl}</div><div style="font-weight:800;">${(k.includes('dt')?fmtDateMaybe(record[k]):record[k])}</div>`;
+          quickKv.appendChild(div);
+        }
+      });
+
+      // בניית טבלה
+      tbodyEl.innerHTML = "";
+      Object.keys(record).forEach(k => {
+        if(!HIDDEN_FIELDS.has(k)){
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${labelForField(k)}</td><td>${(k.includes('dt')?fmtDateMaybe(record[k]):record[k])}</td>`;
+          tbodyEl.appendChild(tr);
+        }
+      });
 
       resultArea.style.display = "block";
-      setStatus("נמצא רכב – הנתונים מוצגים למטה.", "ok");
-
-      footerNote.innerHTML = "";
-
+      setStatus("נמצא רכב!", "ok");
     }catch(err){
-      setStatus("שגיאה: " + (err?.message || String(err)), "err");
-      resultArea.style.display = "none";
-      lastRecord = null;
+      setStatus("שגיאה בחיבור", "err");
     }finally{
       btnEl.disabled = false;
     }
@@ -420,64 +328,19 @@
 
   function clearAll(){
     plateEl.value = "";
-    setStatus("הכנס מספר רכב ולחץ “שלוף נתונים”.", "");
     resultArea.style.display = "none";
-    tbodyEl.innerHTML = "";
-    quickKv.innerHTML = "";
-    footerNote.innerHTML = "";
+    setStatus("הכנס מספר רכב", "");
     lastRecord = null;
-    plateEl.focus();
   }
 
-  function buildWhatsAppText(record){
-    const keys = Object.keys(record);
-
-    const preferredOrder = [
-      "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
-      "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
-      "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev"
-    ];
-
-    const ordered = [];
-    preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
-    keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
-
-    const lines = [];
-    lines.push("נתוני רכב:");
-    for(const k of ordered){
-      if (HIDDEN_FIELDS.has(k)) continue;
-      let v = record[k];
-      if (v === undefined || v === null || String(v).trim() === "") continue;
-
-      if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
-
-      lines.push(`${labelForField(k)}: ${v}`);
-    }
-    return lines.join("\n");
+  function sendWhatsApp(){
+    if(!lastRecord) return;
+    let txt = "נתוני רכב:\n";
+    Object.keys(lastRecord).forEach(k => { if(!HIDDEN_FIELDS.has(k)) txt += `${labelForField(k)}: ${lastRecord[k]}\n`; });
+    window.open("https://wa.me/?text=" + encodeURIComponent(txt), "_blank");
   }
 
-  async function sendWhatsApp(){
-    if(!lastRecord){
-      setStatus("אין נתונים לשליחה. קודם תבצע שליפה של מספר רכב.", "warn");
-      return;
-    }
-
-    const text = buildWhatsAppText(lastRecord);
-
-    try{
-      if (navigator.share){
-        await navigator.share({ text });
-        return;
-      }
-    }catch(e){}
-
-    const url = "https://wa.me/?text=" + encodeURIComponent(text);
-    window.open(url, "_blank");
-  }
-
-  plateEl.addEventListener("keydown", (e)=>{
-    if(e.key === "Enter") lookup();
-  });
+  plateEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") lookup(); });
 </script>
 </body>
 </html>
