@@ -110,7 +110,6 @@
     }
     .status.ok{border-color:rgba(34,197,94,.35); color:#d1fae5; background:rgba(34,197,94,.08)}
     .status.err{border-color:rgba(239,68,68,.35); color:#fee2e2; background:rgba(239,68,68,.08)}
-    .status.warn{border-color:rgba(245,158,11,.35); color:#ffedd5; background:rgba(245,158,11,.08)}
     
     .banner {
       padding: 15px;
@@ -124,9 +123,9 @@
       justify-content: center;
       gap: 10px;
     }
-    .stolen-banner { background: var(--danger); color: white; border: 2px solid #fca5a5; animation: blink 0.8s infinite; }
+    .stolen-banner { background: var(--danger); color: white; border: 2px solid #fca5a5; animation: blinker 0.8s infinite; }
     .disabled-banner { background: var(--disabled-blue); color: white; border: 2px solid #60a5fa; }
-    @keyframes blink { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
+    @keyframes blinker { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
 
     .table-wrap{margin-top:15px; overflow:auto; border-radius:12px; border:1px solid var(--line)}
     table{width:100%; border-collapse:collapse; min-width:520px}
@@ -136,13 +135,11 @@
     .kv{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
     .mini-card{background:rgba(255,255,255,.04); padding:10px; border-radius:12px; border:1px solid var(--line)}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-    .footer { margin-top:12px; color:var(--muted); font-size:12px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>שליפת נתוני רכב</h1>
-
     <div class="card">
       <div class="input-group">
         <label for="plate">מספר רכב</label>
@@ -160,7 +157,7 @@
         <button onclick="clearAll()">נקה</button>
       </div>
 
-      <div id="status" class="status">הכנס מספר רכב או לחץ על הכפתור הגדול</div>
+      <div id="status" class="status">הכנס מספר רכב</div>
 
       <div id="resultArea" style="display:none;">
         <div id="bannersArea"></div>
@@ -176,20 +173,18 @@
   </div>
 
 <script>
-  const API_BASE = "https://data.gov.il/api/3/action/datastore_search";
+  // שימוש בכתובת המקורית והיציבה שעבדה לך
+  const API_URL = "https://data.gov.il/api/3/action/datastore_search";
   const plateEl = document.getElementById("plate");
   const statusEl = document.getElementById("status");
   const micBtn = document.getElementById("micBtn");
   const micTxt = document.getElementById("micTxt");
-  const btnSearch = document.getElementById("btnSearch");
   const resultArea = document.getElementById("resultArea");
   const bannersArea = document.getElementById("bannersArea");
   const tbodyEl = document.getElementById("tbody");
   const quickKv = document.getElementById("quickKv");
 
   let lastRecord = null;
-  let isListening = false;
-  const HIDDEN_FIELDS = new Set(["zmig_kidmi", "zmig_ahori", "misgeret", "horaat_rishum", "tozeret_cd", "degem_cd", "degem_manoa", "tzeva_cd", "sug_degem", "_id", "rank"]);
 
   function setStatus(msg, kind=""){
     statusEl.className = "status" + (kind ? " " + kind : "");
@@ -198,87 +193,82 @@
 
   async function lookup() {
     const plate = plateEl.value.replace(/[^\d]/g,"");
-    if(!plate) { setStatus("חסר מספר רכב.", "warn"); return; }
+    if(!plate) { setStatus("חסר מספר רכב.", "err"); return; }
 
-    btnSearch.disabled = true;
-    setStatus("שולף נתונים...", "");
+    setStatus("מתחבר לשרת...", "");
     bannersArea.innerHTML = "";
     resultArea.style.display = "none";
 
     try {
-      // 1. נתוני רכב (העיקר)
-      const resVeh = await fetch(`${API_BASE}?resource_id=053cea08-09bc-40ec-8f7a-156f0677aff3&q=${plate}`);
-      const dataVeh = await resVeh.json();
-      const r = dataVeh.result.records[0];
+      // שלב 1: שליפת נתוני רכב (המאגר הכי יציב)
+      const response = await fetch(`${API_URL}?resource_id=053cea08-09bc-40ec-8f7a-156f0677aff3&q=${plate}`);
+      const data = await response.json();
+      const r = data.result.records[0];
 
       if(!r) {
-        setStatus("לא נמצאו נתונים למספר " + plate, "warn");
+        setStatus("רכב מספר " + plate + " לא נמצא במאגר.", "err");
         return;
       }
 
       lastRecord = r;
       resultArea.style.display = "block";
-      setStatus("נמצא רכב!", "ok");
+      setStatus("נתונים נשלפו בהצלחה!", "ok");
 
-      // 2. בדיקת נכה וגנוב בנפרד (כדי שלא יפילו את הדף)
-      checkExtra(plate);
-
-      // כרטיסיות מהירות
+      // שלב 2: בניית התצוגה (בדיוק כמו שהיה לך)
       quickKv.innerHTML = "";
       const pick = [["mispar_rechev","מספר"],["tozeret_nm","יצרן"],["degem_nm","דגם"],["shnat_yitzur","שנה"],["baalut","בעלות"],["tokef_dt","תוקף"]];
       pick.forEach(([k,ttl]) => {
-        if(r[k]) {
           const div = document.createElement("div");
           div.className = "mini-card";
-          div.innerHTML = `<div style="color:var(--muted);font-size:11px;font-weight:800;">${ttl}</div><div style="font-weight:800;">${r[k]}</div>`;
+          div.innerHTML = `<div style="color:var(--muted);font-size:11px;">${ttl}</div><div style="font-weight:800;">${r[k] || "-"}</div>`;
           quickKv.appendChild(div);
-        }
       });
 
-      // טבלה
       tbodyEl.innerHTML = "";
       Object.keys(r).forEach(k => {
-        if(!HIDDEN_FIELDS.has(k)) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `<td class="mono">${k}</td><td>${r[k] || ""}</td>`;
-          tbodyEl.appendChild(tr);
-        }
+          if(!["_id","rank"].includes(k)) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `<td class="mono">${k}</td><td>${r[k] || ""}</td>`;
+            tbodyEl.appendChild(tr);
+          }
       });
 
+      // שלב 3: בדיקות נוספות (בצורה שלא תוקעת את הדף)
+      checkDisabledAndStolen(plate);
+
     } catch(e) {
-      setStatus("שגיאת תקשורת עם השרת", "err");
-    } finally {
-      btnSearch.disabled = false;
+      setStatus("שגיאה בחיבור למאגר הממשלתי. נסה שוב.", "err");
     }
   }
 
-  async function checkExtra(plate) {
-    // בדיקת תו נכה
-    fetch(`${API_BASE}?resource_id=c8b9f9c8-4612-4019-ad23-380d6052029e&q=${plate}`)
+  // פונקציה לבדיקת נכה וגנוב - אם נכשלת, זה לא עוצר את הדף
+  function checkDisabledAndStolen(plate) {
+    // בדיקת נכה
+    fetch(`${API_URL}?resource_id=c8b9f9c8-4612-4019-ad23-380d6052029e&q=${plate}`)
       .then(res => res.json()).then(data => {
         if(data.result.records.length > 0) 
           bannersArea.innerHTML += `<div class="banner disabled-banner">♿ לרכב זה קיים תו נכה</div>`;
-      }).catch(e => console.log("נכה לא זמין"));
+      }).catch(e => {});
 
-    // בדיקת רכב גנוב
-    fetch(`${API_BASE}?resource_id=86733221-507c-47fc-8f64-4690382346f0&q=${plate}`)
+    // בדיקת גנוב
+    fetch(`${API_URL}?resource_id=86733221-507c-47fc-8f64-4690382346f0&q=${plate}`)
       .then(res => res.json()).then(data => {
         if(data.result.records.length > 0) 
           bannersArea.innerHTML += `<div class="banner stolen-banner">⚠️ זהירות: רכב גנוב! ⚠️</div>`;
-      }).catch(e => console.log("גנובים לא זמין"));
+      }).catch(e => {});
   }
 
   function toggleDictation() {
     const Recognition = window.webkitSpeechRecognition || window.speechRecognition;
-    if (!Recognition) return;
+    if (!Recognition) return alert("הדפדפן לא תומך בדיבור.");
     const rec = new Recognition();
     rec.lang = "he-IL";
-    rec.onstart = () => { isListening = true; micBtn.classList.add('recording'); micTxt.textContent = "מקשיב..."; };
+    rec.onstart = () => { micBtn.classList.add('recording'); micTxt.textContent = "מקשיב..."; };
     rec.onresult = (e) => { 
-      const cleaned = e.results[0][0].transcript.replace(/[^\d]/g, "");
-      if (cleaned) { plateEl.value = cleaned; lookup(); }
+      const val = e.results[0][0].transcript.replace(/[^\d]/g, "");
+      if (val) { plateEl.value = val; lookup(); }
     };
-    rec.onend = () => { isListening = false; micBtn.classList.remove('recording'); micTxt.textContent = "דבר (חיפוש קולי)"; };
+    rec.onend = () => { micBtn.classList.remove('recording'); micTxt.textContent = "דבר (חיפוש קולי)"; };
     rec.start();
   }
 
@@ -290,6 +280,8 @@
     if(!lastRecord) return;
     window.open(`https://wa.me/?text=רכב: ${lastRecord.mispar_rechev}`, "_blank");
   }
+
+  plateEl.addEventListener("keydown", (e) => e.key === "Enter" && lookup());
 </script>
 </body>
 </html>
