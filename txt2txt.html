@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>משווה מילים מדויק</title>
+    <title>משווה מילים מדויק עם שורות</title>
     <style>
         body { font-family: system-ui, sans-serif; margin: 0; padding: 15px; background: #f0f2f5; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
@@ -14,6 +14,9 @@
             margin-top: 20px; background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; 
             white-space: pre-wrap; line-height: 2; font-size: 17px; 
         }
+
+        /* עיצוב למספרי שורות */
+        .line-number { color: #999; font-size: 0.8em; margin-left: 8px; user-select: none; font-weight: normal; }
 
         /* צהוב רק למילה לפני ואחרי */
         .neighbor { background-color: #ffff00; padding: 2px 4px; border-radius: 4px; }
@@ -27,7 +30,7 @@
 <body>
 
 <div class="card">
-    <h2>השוואה ממוקדת (מילה לפני/אחרי)</h2>
+    <h2>השוואה ממוקדת (כולל מספרי שורות)</h2>
     
     <textarea id="t1" placeholder="הדבק טקסט מקור..."></textarea>
     <textarea id="t2" placeholder="הדבק טקסט לבדיקה..."></textarea>
@@ -50,42 +53,56 @@
             return;
         }
 
-        // פיצול למילים תוך שמירה על רווחים כאיברים במערך
-        const arr1 = s1.split(/(\s+)/);
-        const arr2 = s2.split(/(\s+)/);
+        const lines1 = s1.split('\n');
+        const lines2 = s2.split('\n');
         
         let resultHtml = "";
         let logs = [];
 
-        // רצים על המערך השני להשוואה
-        for (let i = 0; i < arr2.length; i++) {
-            const word1 = arr1[i] || "";
-            const word2 = arr2[i] || "";
+        // רצים שורה שורה
+        const maxLines = Math.max(lines1.length, lines2.length);
+        
+        for (let i = 0; i < maxLines; i++) {
+            const l1 = lines1[i] || "";
+            const l2 = lines2[i] || "";
+            
+            // הוספת מספר שורה בתחילת כל שורה בתוצאה
+            resultHtml += `<span class="line-number">${i + 1} |</span> `;
 
-            if (word1 !== word2) {
-                // מצאנו שינוי - נצבע באדום
-                let wordDisplay = word2 === "" ? "[ריק]" : word2;
-                if (word2.trim() === "") wordDisplay = "␣"; // סימון ויזואלי לרווח מיותר
-
-                resultHtml += `<span class="change">${escapeHtml(wordDisplay)}</span>`;
-                
-                // הסבר למטה
-                logs.push(`שינוי: הוחלף "${word1 || 'כלום'}" ב-"${word2 || 'כלום'}"`);
+            if (l1 === l2) {
+                resultHtml += escapeHtml(l2) + "\n";
             } else {
-                // האם המילה הזו היא לפני או אחרי שינוי?
-                const isBeforeChange = (arr2[i+1] !== undefined && arr2[i+1] !== arr1[i+1]);
-                const isAfterChange = (arr2[i-1] !== undefined && arr2[i-1] !== arr1[i-1]);
+                // אם השורה שונה, נשווה מילים בתוך השורה
+                const arr1 = l1.split(/(\s+)/);
+                const arr2 = l2.split(/(\s+)/);
+                
+                for (let j = 0; j < arr2.length; j++) {
+                    const word1 = arr1[j] || "";
+                    const word2 = arr2[j] || "";
 
-                if ((isBeforeChange || isAfterChange) && word2.trim() !== "") {
-                    resultHtml += `<span class="neighbor">${escapeHtml(word2)}</span>`;
-                } else {
-                    resultHtml += escapeHtml(word2);
+                    if (word1 !== word2) {
+                        let wordDisplay = word2 === "" ? "[ריק]" : word2;
+                        if (word2.trim() === "" && word2 !== "") wordDisplay = "␣"; 
+
+                        resultHtml += `<span class="change">${escapeHtml(wordDisplay)}</span>`;
+                        logs.push(`שורה ${i + 1}: הוחלף "${word1 || 'כלום'}" ב-"${word2 || 'כלום'}"`);
+                    } else {
+                        const isBeforeChange = (arr2[j+1] !== undefined && arr2[j+1] !== arr1[j+1]);
+                        const isAfterChange = (arr2[j-1] !== undefined && arr2[j-1] !== arr1[j-1]);
+
+                        if ((isBeforeChange || isAfterChange) && word2.trim() !== "") {
+                            resultHtml += `<span class="neighbor">${escapeHtml(word2)}</span>`;
+                        } else {
+                            resultHtml += escapeHtml(word2);
+                        }
+                    }
                 }
+                resultHtml += "\n";
             }
         }
 
         display.innerHTML = resultHtml;
-        details.innerHTML = logs.length > 0 ? "<strong>פירוט:</strong><br>" + logs.join("<br>") : "";
+        details.innerHTML = logs.length > 0 ? "<strong>פירוט שינויים:</strong><br>" + logs.join("<br>") : "";
     }
 
     function escapeHtml(text) {
