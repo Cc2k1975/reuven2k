@@ -220,7 +220,6 @@
     return map[field] || field;
   }
 
-  // לוגיקת מיקרופון מהירה (הוחזרה למצב הקודם)
   function toggleDictation() {
     const Recognition = window.webkitSpeechRecognition || window.speechRecognition;
     if (!Recognition) return alert("הדפדפן לא תומך בחיפוש קולי.");
@@ -247,7 +246,7 @@
       const cleaned = current.replace(/[^\d]/g, "");
       if (cleaned) {
         plateEl.value = cleaned;
-        if (cleaned.length >= 7 && cleaned.length <= 8) {
+        if (cleaned.length >= 7) {
           recognition.stop();
           lookup();
         }
@@ -274,18 +273,21 @@
     resultArea.style.display = "none";
 
     try {
-      const [resVeh, resDis, resSto] = await Promise.all([
+      // שאילתות במקביל - הוספנו מאגר שלישי לתו נכה
+      const [resVeh, resDis1, resDis2, resSto] = await Promise.all([
         fetch(`${API_BASE}?resource_id=053cea08-09bc-40ec-8f7a-156f0677aff3&q=${plate}`).then(r => r.json()),
         fetch(`${API_BASE}?resource_id=c8b9f9c8-4612-4019-ad23-380d6052029e&q=${plate}`).then(r => r.json()).catch(() => null),
+        fetch(`${API_BASE}?resource_id=23f04400-f926-4402-9a67-0c7f1a30f7b0&q=${plate}`).then(r => r.json()).catch(() => null),
         fetch(`${API_BASE}?resource_id=86733221-507c-47fc-8f64-4690382346f0&q=${plate}`).then(r => r.json()).catch(() => null)
       ]);
 
       const r = resVeh.result.records[0];
-      if(!r) { setStatus("לא נמצאו נתונים", "warn"); return; }
+      if(!r) { setStatus("לא נמצאו נתונים למספר " + plate, "warn"); return; }
 
       lastRecord = r;
       const isStolen = resSto && resSto.result.records.length > 0;
-      const isDisabled = resDis && resDis.result.records.length > 0;
+      // בדיקה בשני המאגרים של תו נכה
+      const isDisabled = (resDis1 && resDis1.result.records.length > 0) || (resDis2 && resDis2.result.records.length > 0);
 
       bannersArea.innerHTML = `
         <div class="banner ${isStolen ? 'stolen-true' : 'stolen-false'}">${isStolen ? '⚠️ גנוב!' : '✅ לא גנוב'}</div>
@@ -311,12 +313,13 @@
       });
 
       resultArea.style.display = "block";
-      setStatus("נמצא!", "ok");
-    } catch(e) { setStatus("שגיאה", "err"); }
+      setStatus("נמצא רכב!", "ok");
+
+    } catch(e) { setStatus("שגיאת תקשורת", "err"); }
   }
 
   function clearAll() {
-    plateEl.value = ""; resultArea.style.display = "none"; bannersArea.innerHTML = ""; setStatus("הכנס מספר", "");
+    plateEl.value = ""; resultArea.style.display = "none"; bannersArea.innerHTML = ""; setStatus("הכנס מספר רכב", "");
   }
 
   function sendWhatsApp() {
