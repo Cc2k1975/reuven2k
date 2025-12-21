@@ -32,7 +32,6 @@
       margin-bottom:14px;
     }
     h1{margin:0;font-size:20px;line-height:1.25}
-    .sub{color:var(--muted);font-size:13px;margin-top:6px;max-width:55ch}
     .card{
       background:rgba(17,28,51,.92);
       border:1px solid var(--line);
@@ -97,26 +96,16 @@
     td{font-size:14px}
     tr:last-child td{border-bottom:none}
     .kv{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-    .footer{
-      margin-top:12px;
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.4;
-    }
+    .footer{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.4}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   </style>
 
-  <!-- OCR (Tesseract.js) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
   <div class="wrap">
     <div class="title">
-      <div>
-        <h1>שליפת נתוני רכב לפי מספר רישוי</h1>
-        <!-- נמחק: שורת מקור הנתונים -->
-      </div>
-      <!-- נמחק: תג resource_id -->
+      <div><h1>שליפת נתוני רכב לפי מספר רישוי</h1></div>
     </div>
 
     <div class="card">
@@ -143,10 +132,7 @@
         <div class="table-wrap" style="margin-top:12px;">
           <table id="tbl">
             <thead>
-              <tr>
-                <th style="width:38%;">שדה</th>
-                <th>ערך</th>
-              </tr>
+              <tr><th style="width:38%;">שדה</th><th>ערך</th></tr>
             </thead>
             <tbody id="tbody"></tbody>
           </table>
@@ -206,25 +192,16 @@
     const map = {
       mispar_rechev: "מספר רכב",
       tozeret_nm: "שם תוצר / יצרן",
-      tozeret_cd: "קוד תוצר",
-      sug_degem: "סוג דגם (P=פרטי וכו')",
       degem_nm: "דגם",
-      degem_cd: "קוד דגם",
       ramat_gimur: "רמת גימור",
       ramat_eivzur_betihuty: "רמת אבזור בטיחותי",
       kvutzat_zihum: "קבוצת זיהום",
       shnat_yitzur: "שנת ייצור",
-      degem_manoa: "דגם מנוע",
       mivchan_acharon_dt: "טסט אחרון",
       tokef_dt: "תוקף רישוי",
       baalut: "בעלות (כללי)",
-      misgeret: "מספר שילדה",
       tzeva_rechev: "צבע",
-      tzeva_cd: "קוד צבע",
-      zmig_kidmi: "צמיג קדמי",
-      zmig_ahori: "צמיג אחורי",
       sug_delek_nm: "סוג דלק",
-      horaat_rishum: "מספר הוראת רישום",
       moed_aliya_lakvish: "מועד עלייה לכביש",
       kinuy_mishari: "כינוי מסחרי"
     };
@@ -238,9 +215,9 @@
     const preferredOrder = [
       "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
       "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
-      "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish",
-      "tzeva_rechev","zmig_kidmi","zmig_ahori","misgeret","horaat_rishum",
-      "tozeret_cd","degem_cd","degem_manoa","tzeva_cd","sug_degem","_id","rank"
+      "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev",
+      "zmig_kidmi","zmig_ahori","misgeret","horaat_rishum","tozeret_cd","degem_cd",
+      "degem_manoa","tzeva_cd","sug_degem","_id","rank"
     ];
 
     const ordered = [];
@@ -348,7 +325,6 @@
 
       resultArea.style.display = "block";
       setStatus("נמצא רכב – הנתונים מוצגים למטה.", "ok");
-
       footerNote.innerHTML = "";
 
     }catch(err){
@@ -419,22 +395,18 @@
     if(e.key === "Enter") lookup();
   });
 
-  // =========================================================
-  // ✅ סריקה משודרגת (בלי שינוי UI/עיצוב) – רק מאחורי הקלעים
-  // =========================================================
+  // =========================
+  // ✅ סריקה משודרגת מאוד
+  // =========================
 
   let ocrWorker = null;
 
-  async function getOcrWorker(){
+  async function getWorker(){
     if(ocrWorker) return ocrWorker;
 
-    if (typeof Tesseract === "undefined" || !Tesseract.createWorker){
-      throw new Error("OCR לא נטען. בדוק שיש אינטרנט/גישה ל-CDN.");
-    }
-
     ocrWorker = await Tesseract.createWorker({
-      logger: m => {
-        if (m && m.status === "recognizing text" && typeof m.progress === "number") {
+      logger: (m)=>{
+        if (m && m.status === "recognizing text" && typeof m.progress === "number"){
           const pct = Math.round(m.progress * 100);
           setStatus(`מזהה מספר לוחית… ${pct}%`, "");
         }
@@ -444,13 +416,11 @@
     await ocrWorker.loadLanguage("eng");
     await ocrWorker.initialize("eng");
 
-    // פרמטרים קריטיים ללוחיות: ספרות בלבד + שורה אחת
     await ocrWorker.setParameters({
       tessedit_char_whitelist: "0123456789",
-      preserve_interword_spaces: "1",
-      // PSM 7 = SINGLE_LINE (מעולה ללוחית)
-      tessedit_pageseg_mode: "7",
-      user_defined_dpi: "300"
+      tessedit_pageseg_mode: "7", // SINGLE_LINE
+      user_defined_dpi: "300",
+      classify_bln_numeric_mode: "1"
     });
 
     return ocrWorker;
@@ -461,7 +431,7 @@
     platePhoto.click();
   }
 
-  platePhoto.addEventListener("change", async () => {
+  platePhoto.addEventListener("change", async ()=>{
     const file = platePhoto.files && platePhoto.files[0];
     if(!file) return;
 
@@ -471,79 +441,68 @@
     try{
       const bmp = await createImageBitmap(file);
 
-      // כדי לא להכביד: מגביל רוחב
-      const maxW = 1280;
+      // להקטין רק אם ענק, כדי לשמור חדות
+      const maxW = 1600;
       const scale = bmp.width > maxW ? (maxW / bmp.width) : 1;
       const W = Math.round(bmp.width * scale);
       const H = Math.round(bmp.height * scale);
 
-      // קנבס בסיסי של התמונה
       const base = document.createElement("canvas");
       base.width = W; base.height = H;
-      const bctx = base.getContext("2d", { willReadFrequently: true });
+      const bctx = base.getContext("2d", { willReadFrequently:true });
+      bctx.imageSmoothingEnabled = true;
       bctx.drawImage(bmp, 0, 0, W, H);
 
-      // מייצר כמה חיתוכים אופייניים ללוחית
-      const crops = makeCropRects(W, H);
+      const crops = makeBetterCrops(W, H);
+      const worker = await getWorker();
 
-      const worker = await getOcrWorker();
+      let best = { plate:"", score:-1, raw:"" };
 
-      let bestCandidate = "";
-      let bestLen = 0;
+      for(let i=0;i<crops.length;i++){
+        const r = crops[i];
 
-      for(let i=0; i<crops.length; i++){
-        setStatus(`מנסה לזהות… ניסיון ${i+1}/${crops.length}`, "");
+        // חיתוך
+        const c = document.createElement("canvas");
+        c.width = r.w; c.height = r.h;
+        const ctx = c.getContext("2d", { willReadFrequently:true });
+        ctx.drawImage(base, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
 
-        const c = crops[i];
-        const cropCanvas = document.createElement("canvas");
-        cropCanvas.width = c.w;
-        cropCanvas.height = c.h;
+        // הגדלה (חשוב מאוד ללוחיות)
+        const up = upscaleCanvas(c, 2);
 
-        const cctx = cropCanvas.getContext("2d", { willReadFrequently: true });
-        cctx.drawImage(base, c.x, c.y, c.w, c.h, 0, 0, c.w, c.h);
+        // preprocess: Otsu + וגם inverted
+        const prep1 = toBW_Otsu(up, false);
+        const prep2 = toBW_Otsu(up, true);
 
-        // preprocess: שחור/לבן + קונטרסט
-        bwHighContrast(cctx, c.w, c.h);
+        // OCR על שניהם
+        const t1 = await recognizeDigits(worker, prep1);
+        const cand1 = scorePlateFromText(t1);
 
-        const { data } = await worker.recognize(cropCanvas);
-        const raw = (data && data.text) ? data.text : "";
-        const candidate = extractPlateNumber(raw);
+        if(cand1.score > best.score) best = cand1;
 
-        // מצא 8/7 ספרות? מעולה – עצור
-        if(candidate && (candidate.length === 8 || candidate.length === 7)){
-          bestCandidate = candidate;
-          break;
-        }
+        // אם כבר 8 ספרות, מספיק
+        if(best.score >= 100) break;
 
-        // אחרת, שמור את הכי ארוך שנמצא (fallback)
-        if(candidate && candidate.length > bestLen){
-          bestLen = candidate.length;
-          bestCandidate = candidate;
-        }
+        const t2 = await recognizeDigits(worker, prep2);
+        const cand2 = scorePlateFromText(t2);
+        if(cand2.score > best.score) best = cand2;
+
+        if(best.score >= 100) break;
       }
 
-      if(!bestCandidate){
-        setStatus(
-          "לא הצלחתי לזהות מספר בצורה בטוחה.\n" +
-          "טיפ מהיר: תצלם כשהלוחית ממלאת את התמונה, בלי פלאש/השקפות, ושהמספרים כהים.",
-          "warn"
-        );
+      if(!best.plate){
+        setStatus("לא הצלחתי לזהות מספר. נסה צילום קרוב יותר בלי השתקפות.", "warn");
         return;
       }
 
-      // שתילה אוטומטית
-      plateEl.value = bestCandidate;
+      plateEl.value = best.plate;
 
-      // אם זה לא 7/8 ספרות – עדיין נשתול כדי שתוכל לתקן, אבל נזהיר
-      if(bestCandidate.length !== 7 && bestCandidate.length !== 8){
-        setStatus(
-          `זיהיתי רצף חלקי: ${bestCandidate}\nבדוק/תקן אם צריך ואז לחץ “שלוף נתונים”.`,
-          "warn"
-        );
+      // אם זה לא 7/8 – לא נזרוק אותך: נשתול ונזהיר
+      if(best.plate.length !== 7 && best.plate.length !== 8){
+        setStatus(`זיהיתי חלקית: ${best.plate}\nבדוק/תקן ואז לחץ “שלוף נתונים”.`, "warn");
         return;
       }
 
-      // שליפה אוטומטית
       await lookup();
 
     }catch(err){
@@ -553,85 +512,130 @@
     }
   });
 
-  function makeCropRects(W, H){
-    // לוחית בד"כ במרכז/תחתית. אנחנו מנסים 3 אזורים.
+  function makeBetterCrops(W,H){
+    // חשוב: FULL WIDTH כדי לא לחתוך קצוות (בדיוק כמו התמונה שלך)
     const rects = [
-      // מרכז-תחתון רחב
-      { x: Math.round(W*0.08), y: Math.round(H*0.45), w: Math.round(W*0.84), h: Math.round(H*0.28) },
-      // מרכז
-      { x: Math.round(W*0.12), y: Math.round(H*0.35), w: Math.round(W*0.76), h: Math.round(H*0.28) },
-      // תחתון יותר
-      { x: Math.round(W*0.06), y: Math.round(H*0.55), w: Math.round(W*0.88), h: Math.round(H*0.30) }
+      // כל התמונה (fallback עליון)
+      {x:0,y:0,w:W,h:H},
+      // פס רחב באמצע/תחתון
+      {x:0,y:Math.round(H*0.18),w:W,h:Math.round(H*0.62)},
+      // פס רחב יותר נמוך
+      {x:0,y:Math.round(H*0.28),w:W,h:Math.round(H*0.60)},
+      // פס ממוקד באזור הספרות (אבל עם שוליים קטנים בלבד)
+      {x:Math.round(W*0.01),y:Math.round(H*0.20),w:Math.round(W*0.98),h:Math.round(H*0.55)}
     ];
 
-    // תיקון גבולות
-    return rects.map(r => {
-      let x=r.x, y=r.y, w=r.w, h=r.h;
-      if(x<0) x=0; if(y<0) y=0;
+    // גבולות
+    return rects.map(r=>{
+      let x=r.x,y=r.y,w=r.w,h=r.h;
+      if(x<0)x=0; if(y<0)y=0;
       if(x+w>W) w=W-x;
       if(y+h>H) h=H-y;
-      // מינימום כדי למנוע קנבס 0
-      w=Math.max(50,w); h=Math.max(50,h);
+      w=Math.max(80,w); h=Math.max(80,h);
       return {x,y,w,h};
     });
   }
 
-  function bwHighContrast(ctx, w, h){
-    const img = ctx.getImageData(0,0,w,h);
+  function upscaleCanvas(src, factor){
+    const c = document.createElement("canvas");
+    c.width = src.width * factor;
+    c.height = src.height * factor;
+    const ctx = c.getContext("2d", { willReadFrequently:true });
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(src, 0, 0, c.width, c.height);
+    return c;
+  }
+
+  async function recognizeDigits(worker, canvas){
+    const { data } = await worker.recognize(canvas);
+    return (data && data.text) ? data.text : "";
+  }
+
+  function scorePlateFromText(text){
+    // מוציא קבוצות ספרתיות ומנסה גם לחבר (כי לפעמים ה-OCR מפצל)
+    const groups = String(text || "").match(/\d+/g) || [];
+    let best = { plate:"", score:-1, raw:text };
+
+    // נסה מועמדים ישירים
+    for(const g of groups){
+      if(g.length === 8) return { plate:g, score:100, raw:text };
+      if(g.length === 7 && best.score < 95) best = { plate:g, score:95, raw:text };
+      if(g.length === 6 && best.score < 70) best = { plate:g, score:70, raw:text };
+    }
+
+    // נסה חיבור של 2-4 קבוצות
+    for(let i=0;i<groups.length;i++){
+      let s="";
+      for(let j=i;j<Math.min(i+4, groups.length); j++){
+        s += groups[j];
+        if(s.length === 8) return { plate:s, score:99, raw:text };
+        if(s.length === 7 && best.score < 90) best = { plate:s, score:90, raw:text };
+        if(s.length === 6 && best.score < 65) best = { plate:s, score:65, raw:text };
+      }
+    }
+
+    // fallback: הכי ארוך
+    let longest = "";
+    for(const g of groups) if(g.length > longest.length) longest = g;
+    if(longest && best.score < 50) best = { plate: longest, score:50, raw:text };
+
+    return best;
+  }
+
+  function toBW_Otsu(canvas, invert){
+    const c = document.createElement("canvas");
+    c.width = canvas.width;
+    c.height = canvas.height;
+    const ctx = c.getContext("2d", { willReadFrequently:true });
+    ctx.drawImage(canvas, 0, 0);
+
+    const img = ctx.getImageData(0,0,c.width,c.height);
     const d = img.data;
 
-    // קונטרסט חזק + בינאריזציה
-    const contrast = 2.0;  // 1.0 = בלי שינוי
-    const thresh = 150;    // סף שחור/לבן
+    // grayscale + histogram
+    const hist = new Uint32Array(256);
+    const gray = new Uint8Array(c.width*c.height);
+    for(let i=0, j=0; i<d.length; i+=4, j++){
+      const g = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) | 0;
+      gray[j]=g; hist[g]++;
+    }
 
-    for(let i=0; i<d.length; i+=4){
-      const r=d[i], g=d[i+1], b=d[i+2];
-      let gray = (0.299*r + 0.587*g + 0.114*b);
+    const thr = otsu(hist, gray.length);
 
-      // קונטרסט סביב 128
-      gray = (gray - 128) * contrast + 128;
-      if(gray < 0) gray = 0;
-      if(gray > 255) gray = 255;
-
-      const v = (gray > thresh) ? 255 : 0;
-
-      d[i] = d[i+1] = d[i+2] = v;
-      d[i+3] = 255;
+    for(let i=0, j=0; i<d.length; i+=4, j++){
+      let v = (gray[j] > thr) ? 255 : 0;
+      if(invert) v = 255 - v;
+      d[i]=d[i+1]=d[i+2]=v; d[i+3]=255;
     }
 
     ctx.putImageData(img,0,0);
+    return c;
   }
 
-  function extractPlateNumber(text){
-    const groups = String(text || "").match(/\d+/g) || [];
-    if(groups.length === 0) return "";
+  function otsu(hist, total){
+    let sum = 0;
+    for(let t=0;t<256;t++) sum += t * hist[t];
 
-    // 1) נסה לחבר קבוצות סמוכות (כי לוחית יכולה להופיע 2-3-3 וכו')
-    let best = "";
+    let sumB = 0, wB = 0, wF = 0;
+    let varMax = -1, threshold = 128;
 
-    for(let i=0; i<groups.length; i++){
-      let concat = "";
-      for(let j=i; j<Math.min(i+4, groups.length); j++){
-        concat += groups[j];
+    for(let t=0;t<256;t++){
+      wB += hist[t];
+      if(wB === 0) continue;
+      wF = total - wB;
+      if(wF === 0) break;
 
-        if(concat.length === 8) return concat; // הכי טוב
-        if(concat.length === 7) best = best || concat;
+      sumB += t * hist[t];
+      const mB = sumB / wB;
+      const mF = (sum - sumB) / wF;
+
+      const varBetween = wB * wF * (mB - mF) * (mB - mF);
+      if(varBetween > varMax){
+        varMax = varBetween;
+        threshold = t;
       }
     }
-    if(best) return best;
-
-    // 2) אם יש כבר 8 או 7 בקבוצות עצמן
-    const g8 = groups.find(s => s.length === 8);
-    if(g8) return g8;
-    const g7 = groups.find(s => s.length === 7);
-    if(g7) return g7;
-
-    // 3) fallback: הכי ארוך
-    let longest = "";
-    for(const s of groups){
-      if(s.length > longest.length) longest = s;
-    }
-    return longest;
+    return threshold;
   }
 </script>
 </body>
