@@ -3,88 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>משווה תווים מדויק</title>
+    <title>משווה מילים מדויק</title>
     <style>
         body { font-family: system-ui, sans-serif; margin: 0; padding: 15px; background: #f0f2f5; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        textarea { width: 100%; height: 80px; margin: 10px 0; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; margin-bottom: 20px; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        textarea { width: 100%; height: 90px; margin: 8px 0; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: #28a745; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
         
         .result-area { 
-            background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; 
-            white-space: pre-wrap; line-height: 2.2; font-size: 18px; font-family: monospace;
+            margin-top: 20px; background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 8px; 
+            white-space: pre-wrap; line-height: 2; font-size: 17px; 
         }
 
-        /* צהוב למילים שמסביב לשינוי */
-        .context { background-color: #ffff00; padding: 2px 0; }
+        /* צהוב רק למילה לפני ואחרי */
+        .neighbor { background-color: #ffff00; padding: 2px 4px; border-radius: 4px; }
         
-        /* אדום לשינוי עצמו (רווח או תו) */
-        .change { background-color: #ff4d4d; color: white; padding: 2px 4px; border-radius: 3px; font-weight: bold; }
+        /* אדום לשינוי עצמו */
+        .change { background-color: #ff4d4d; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
         
-        /* סימון מיוחד לרווחים כדי שיראו אותם באדום */
-        .space-change { background-color: #ff4d4d; display: inline-block; min-width: 10px; height: 1.2em; vertical-align: middle; }
-        
-        .info { margin-top: 15px; font-size: 14px; color: #555; border-right: 3px solid #ff4d4d; padding-right: 10px; }
+        .explanation { margin-top: 15px; padding: 10px; background: #f8f9fa; border-right: 4px solid #ff4d4d; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>בדיקת שינוי נקודתית</h2>
+    <h2>השוואה ממוקדת (מילה לפני/אחרי)</h2>
     
-    <textarea id="t1" placeholder="טקסט מקור..."></textarea>
-    <textarea id="t2" placeholder="טקסט לבדיקה (עם השינוי)..."></textarea>
-    <button onclick="compareExact()">בדוק הבדלים</button>
+    <textarea id="t1" placeholder="הדבק טקסט מקור..."></textarea>
+    <textarea id="t2" placeholder="הדבק טקסט לבדיקה..."></textarea>
+    <button onclick="compareWords()">השווה שינויים</button>
 
     <div id="display" class="result-area">התוצאה תופיע כאן...</div>
-    <div id="explanation" class="info"></div>
+    <div id="details" class="explanation"></div>
 </div>
 
 <script>
-    function compareExact() {
+    function compareWords() {
         const s1 = document.getElementById('t1').value;
         const s2 = document.getElementById('t2').value;
         const display = document.getElementById('display');
-        const explanation = document.getElementById('explanation');
+        const details = document.getElementById('details');
         
-        if (s1 === s2) {
-            display.innerHTML = "✅ הטקסטים זהים";
-            explanation.innerHTML = "";
+        if (s1 === s2 && s1 !== "") {
+            display.innerHTML = "✅ קוד זהה לחלוטין";
+            details.innerHTML = "";
             return;
         }
 
-        let html = "";
-        let diffCount = 0;
+        // פיצול למילים תוך שמירה על רווחים כאיברים במערך
+        const arr1 = s1.split(/(\s+)/);
+        const arr2 = s2.split(/(\s+)/);
+        
+        let resultHtml = "";
+        let logs = [];
 
-        // עוברים תו-תו כדי למצוא שינויים
-        for (let i = 0; i < s2.length; i++) {
-            const char1 = s1[i];
-            const char2 = s2[i];
+        // רצים על המערך השני להשוואה
+        for (let i = 0; i < arr2.length; i++) {
+            const word1 = arr1[i] || "";
+            const word2 = arr2[i] || "";
 
-            if (char1 !== char2) {
-                diffCount++;
-                // מצאנו שינוי! נצבע את התו באדום
-                let charDisplay = char2;
-                if (char2 === " ") charDisplay = "&nbsp;"; // טיפול ברווח
+            if (word1 !== word2) {
+                // מצאנו שינוי - נצבע באדום
+                let wordDisplay = word2 === "" ? "[ריק]" : word2;
+                if (word2.trim() === "") wordDisplay = "␣"; // סימון ויזואלי לרווח מיותר
+
+                resultHtml += `<span class="change">${escapeHtml(wordDisplay)}</span>`;
                 
-                html += `<span class="change">${charDisplay}</span>`;
+                // הסבר למטה
+                logs.push(`שינוי: הוחלף "${word1 || 'כלום'}" ב-"${word2 || 'כלום'}"`);
             } else {
-                // האם התו הקרוב לשינוי? אם כן נצבע בצהוב
-                const isNear = (s1[i+1] !== s2[i+1] || s1[i-1] !== s2[i-1]);
-                if (isNear) {
-                    html += `<span class="context">${escapeHtml(char2)}</span>`;
+                // האם המילה הזו היא לפני או אחרי שינוי?
+                const isBeforeChange = (arr2[i+1] !== undefined && arr2[i+1] !== arr1[i+1]);
+                const isAfterChange = (arr2[i-1] !== undefined && arr2[i-1] !== arr1[i-1]);
+
+                if ((isBeforeChange || isAfterChange) && word2.trim() !== "") {
+                    resultHtml += `<span class="neighbor">${escapeHtml(word2)}</span>`;
                 } else {
-                    html += escapeHtml(char2);
+                    resultHtml += escapeHtml(word2);
                 }
             }
         }
 
-        display.innerHTML = html;
-        explanation.innerHTML = `נמצאו ${diffCount} תווים שונים. השינויים מסומנים ב<span style="color:red">אדום</span>, והטקסט הצמוד אליהם ב<span style="background:yellow">צהוב</span>.`;
+        display.innerHTML = resultHtml;
+        details.innerHTML = logs.length > 0 ? "<strong>פירוט:</strong><br>" + logs.join("<br>") : "";
     }
 
     function escapeHtml(text) {
-        if (!text) return "";
         return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 </script>
