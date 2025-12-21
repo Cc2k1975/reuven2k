@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>שליפת נתוני רכב לפי מספר רישוי (data.gov.il)</title>
+  <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
   <style>
     :root{
       --bg:#0f172a;
@@ -76,6 +77,13 @@
       font-size:13px;
     }
     .mini:hover{color:var(--ink)}
+    /* עיצוב כפתור סרוק */
+    .scan-btn {
+      background: rgba(59, 130, 246, 0.14);
+      border: 1px solid rgba(59, 130, 246, 0.45);
+    }
+    .scan-btn:hover { background: rgba(59, 130, 246, 0.20); }
+
     .status{
       margin-top:12px;
       padding:10px 12px;
@@ -104,16 +112,45 @@
       line-height:1.4;
     }
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    
+    /* אלמנט הוידאו לסריקה */
+    #scanner-container {
+      display:none;
+      position: fixed;
+      top:0; left:0; width:100%; height:100%;
+      background: #000;
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #preview {
+      width: 100%;
+      max-width: 500px;
+      height: auto;
+      border: 2px solid var(--accent);
+    }
+    .close-scan {
+      margin-top: 20px;
+      background: var(--danger);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+    }
   </style>
 </head>
 <body>
+  <div id="scanner-container">
+    <video id="preview"></video>
+    <button class="close-scan" onclick="stopScanner()">ביטול סריקה</button>
+  </div>
+
   <div class="wrap">
     <div class="title">
       <div>
         <h1>שליפת נתוני רכב לפי מספר רישוי</h1>
-        <!-- נמחק: שורת מקור הנתונים -->
       </div>
-      <!-- נמחק: תג resource_id -->
     </div>
 
     <div class="card">
@@ -123,6 +160,7 @@
           <input id="plate" inputmode="numeric" autocomplete="off" placeholder="לדוגמה: 2623638" />
         </div>
         <button id="btn" onclick="lookup()">שלוף נתונים</button>
+        <button class="scan-btn" onclick="startScanner()">סרוק 📷</button>
         <button class="mini" onclick="sendWhatsApp()">ווצאפ</button>
         <button class="mini" onclick="clearAll()">נקה</button>
       </div>
@@ -161,23 +199,49 @@
   const quickKv  = document.getElementById("quickKv");
   const footerNote = document.getElementById("footerNote");
 
-  // נשמר בשביל ווצאפ (רק אחרי שנמצא רכב)
   let lastRecord = null;
+  let scanner = null;
 
-  // === שדות שמוסרים מהדף (לא יוצגו בטבלה ולא בכרטיסיות) ===
   const HIDDEN_FIELDS = new Set([
-    "zmig_kidmi",
-    "zmig_ahori",
-    "misgeret",
-    "horaat_rishum",
-    "tozeret_cd",
-    "degem_cd",
-    "degem_manoa",
-    "tzeva_cd",
-    "sug_degem",
-    "_id",
-    "rank"
+    "zmig_kidmi", "zmig_ahori", "misgeret", "horaat_rishum", "tozeret_cd",
+    "degem_cd", "degem_manoa", "tzeva_cd", "sug_degem", "_id", "rank"
   ]);
+
+  // פונקציות סורק
+  async function startScanner() {
+    document.getElementById('scanner-container').style.display = 'flex';
+    scanner = new Instascan.Scanner({ video: document.getElementById('preview'), mirror: false });
+    
+    scanner.addListener('scan', function (content) {
+      // אם הסורק מזהה ברקוד/QR שמכיל מספר, ננסה לחלץ אותו
+      const cleaned = content.replace(/[^\d]/g, "");
+      if(cleaned) {
+        plateEl.value = cleaned;
+        stopScanner();
+        lookup();
+      }
+    });
+
+    try {
+      const cameras = await Instascan.Camera.getCameras();
+      if (cameras.length > 0) {
+        // מנסה לבחור מצלמה אחורית
+        const backCam = cameras.find(c => c.name.toLowerCase().includes('back')) || cameras[0];
+        scanner.start(backCam);
+      } else {
+        alert('לא נמצאה מצלמה');
+        stopScanner();
+      }
+    } catch (e) {
+      console.error(e);
+      stopScanner();
+    }
+  }
+
+  function stopScanner() {
+    if (scanner) scanner.stop();
+    document.getElementById('scanner-container').style.display = 'none';
+  }
 
   function setStatus(msg, kind=""){
     statusEl.className = "status" + (kind ? " " + kind : "");
@@ -205,25 +269,16 @@
     const map = {
       mispar_rechev: "מספר רכב",
       tozeret_nm: "שם תוצר / יצרן",
-      tozeret_cd: "קוד תוצר",
-      sug_degem: "סוג דגם (P=פרטי וכו')",
       degem_nm: "דגם",
-      degem_cd: "קוד דגם",
       ramat_gimur: "רמת גימור",
       ramat_eivzur_betihuty: "רמת אבזור בטיחותי",
       kvutzat_zihum: "קבוצת זיהום",
       shnat_yitzur: "שנת ייצור",
-      degem_manoa: "דגם מנוע",
       mivchan_acharon_dt: "טסט אחרון",
       tokef_dt: "תוקף רישוי",
       baalut: "בעלות (כללי)",
-      misgeret: "מספר שילדה",
       tzeva_rechev: "צבע",
-      tzeva_cd: "קוד צבע",
-      zmig_kidmi: "צמיג קדמי",
-      zmig_ahori: "צמיג אחורי",
       sug_delek_nm: "סוג דלק",
-      horaat_rishum: "מספר הוראת רישום",
       moed_aliya_lakvish: "מועד עלייה לכביש",
       kinuy_mishari: "כינוי מסחרי"
     };
@@ -233,147 +288,6 @@
   function buildTable(record){
     tbodyEl.innerHTML = "";
     const keys = Object.keys(record);
-
-    const preferredOrder = [
-      "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
-      "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
-      "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish",
-      "tzeva_rechev","zmig_kidmi","zmig_ahori","misgeret","horaat_rishum",
-      "tozeret_cd","degem_cd","degem_manoa","tzeva_cd","sug_degem","_id","rank"
-    ];
-
-    const ordered = [];
-    preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
-    keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
-
-    for(const k of ordered){
-      if (HIDDEN_FIELDS.has(k)) continue;
-
-      let v = record[k];
-      if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="mono">${escapeHtml(labelForField(k))}</td>
-        <td>${escapeHtml(v)}</td>
-      `;
-      tbodyEl.appendChild(tr);
-    }
-  }
-
-  function buildQuickCards(record){
-    const pick = [
-      ["mispar_rechev","מספר רכב"],
-      ["tozeret_nm","יצרן"],
-      ["degem_nm","דגם"],
-      ["shnat_yitzur","שנת ייצור"],
-      ["sug_delek_nm","דלק"],
-      ["tokef_dt","תוקף רישוי"],
-      ["mivchan_acharon_dt","טסט אחרון"],
-      ["tzeva_rechev","צבע"]
-    ];
-
-    quickKv.innerHTML = "";
-
-    for(const [k,ttl] of pick){
-      if(record[k] === undefined) continue;
-      if (HIDDEN_FIELDS.has(k)) continue;
-
-      let val = record[k];
-      if (k === "tokef_dt" || k === "mivchan_acharon_dt") val = fmtDateMaybe(val);
-
-      const div = document.createElement("div");
-      div.className = "card";
-      div.style.padding = "10px 12px";
-      div.style.boxShadow = "none";
-      div.style.background = "rgba(255,255,255,.04)";
-      div.innerHTML = `
-        <div style="color:var(--muted);font-size:12px;font-weight:800;margin-bottom:4px;">${escapeHtml(ttl)}</div>
-        <div style="font-size:15px;font-weight:800;">${escapeHtml(val)}</div>
-      `;
-      quickKv.appendChild(div);
-    }
-  }
-
-  async function lookup(){
-    const plate = normalizePlate(plateEl.value);
-
-    if(!plate){
-      setStatus("חסר מספר רכב. הכנס מספר (רק ספרות).", "warn");
-      resultArea.style.display = "none";
-      lastRecord = null;
-      return;
-    }
-
-    btnEl.disabled = true;
-    setStatus("שולף נתונים…", "");
-
-    try{
-      const url = new URL(API_BASE);
-      url.searchParams.set("resource_id", RESOURCE_ID);
-      url.searchParams.set("q", plate);
-      url.searchParams.set("limit", "1");
-
-      const res = await fetch(url.toString(), { method:"GET" });
-
-      if(!res.ok){
-        throw new Error("שגיאת רשת: " + res.status + " " + res.statusText);
-      }
-
-      const data = await res.json();
-
-      if(!data || data.success !== true){
-        throw new Error("תשובה לא צפויה מהשרת.");
-      }
-
-      const records = (data.result && data.result.records) ? data.result.records : [];
-
-      if(records.length === 0){
-        setStatus(
-          "לא נמצאו נתונים למספר הזה במאגר.\n" +
-          "זה יכול להיות כי הרכב לא פעיל/לא עומד בתנאי המאגר/רכב ישן מאוד/משאית כבדה/אופנוע וכו'.",
-          "warn"
-        );
-        resultArea.style.display = "none";
-        lastRecord = null;
-        return;
-      }
-
-      const record = records[0];
-      lastRecord = record;
-
-      buildQuickCards(record);
-      buildTable(record);
-
-      resultArea.style.display = "block";
-      setStatus("נמצא רכב – הנתונים מוצגים למטה.", "ok");
-
-      footerNote.innerHTML = "";
-
-    }catch(err){
-      setStatus("שגיאה: " + (err?.message || String(err)), "err");
-      resultArea.style.display = "none";
-      lastRecord = null;
-    }finally{
-      btnEl.disabled = false;
-    }
-  }
-
-  function clearAll(){
-    plateEl.value = "";
-    setStatus("הכנס מספר רכב ולחץ “שלוף נתונים”.", "");
-    resultArea.style.display = "none";
-    tbodyEl.innerHTML = "";
-    quickKv.innerHTML = "";
-    footerNote.innerHTML = "";
-    lastRecord = null;
-    plateEl.focus();
-  }
-
-  function buildWhatsAppText(record){
-    // בונה טקסט רק מהשדות שמוצגים (מכבד HIDDEN_FIELDS)
-    const keys = Object.keys(record);
-
     const preferredOrder = [
       "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
       "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
@@ -384,47 +298,96 @@
     preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
     keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
 
-    const lines = [];
-    lines.push("נתוני רכב:");
     for(const k of ordered){
       if (HIDDEN_FIELDS.has(k)) continue;
       let v = record[k];
-      if (v === undefined || v === null || String(v).trim() === "") continue;
-
       if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td class="mono">${escapeHtml(labelForField(k))}</td><td>${escapeHtml(v)}</td>`;
+      tbodyEl.appendChild(tr);
+    }
+  }
 
-      lines.push(`${labelForField(k)}: ${v}`);
+  function buildQuickCards(record){
+    const pick = [
+      ["mispar_rechev","מספר רכב"],["tozeret_nm","יצרן"],["degem_nm","דגם"],
+      ["shnat_yitzur","שנת ייצור"],["sug_delek_nm","דלק"],["tokef_dt","תוקף רישוי"],
+      ["mivchan_acharon_dt","טסט אחרון"],["tzeva_rechev","צבע"]
+    ];
+    quickKv.innerHTML = "";
+    for(const [k,ttl] of pick){
+      if(record[k] === undefined || HIDDEN_FIELDS.has(k)) continue;
+      let val = record[k];
+      if (k === "tokef_dt" || k === "mivchan_acharon_dt") val = fmtDateMaybe(val);
+      const div = document.createElement("div");
+      div.className = "card";
+      div.style.padding = "10px 12px";
+      div.style.boxShadow = "none";
+      div.style.background = "rgba(255,255,255,.04)";
+      div.innerHTML = `<div style="color:var(--muted);font-size:12px;font-weight:800;margin-bottom:4px;">${escapeHtml(ttl)}</div><div style="font-size:15px;font-weight:800;">${escapeHtml(val)}</div>`;
+      quickKv.appendChild(div);
+    }
+  }
+
+  async function lookup(){
+    const plate = normalizePlate(plateEl.value);
+    if(!plate){
+      setStatus("חסר מספר רכב. הכנס מספר (רק ספרות).", "warn");
+      resultArea.style.display = "none";
+      return;
+    }
+    btnEl.disabled = true;
+    setStatus("שולף נתונים…", "");
+    try{
+      const url = new URL(API_BASE);
+      url.searchParams.set("resource_id", RESOURCE_ID);
+      url.searchParams.set("q", plate);
+      url.searchParams.set("limit", "1");
+      const res = await fetch(url.toString());
+      const data = await res.json();
+      const records = (data.result && data.result.records) ? data.result.records : [];
+      if(records.length === 0){
+        setStatus("לא נמצאו נתונים למספר הזה במאגר.", "warn");
+        resultArea.style.display = "none";
+        return;
+      }
+      lastRecord = records[0];
+      buildQuickCards(lastRecord);
+      buildTable(lastRecord);
+      resultArea.style.display = "block";
+      setStatus("נמצא רכב – הנתונים מוצגים למטה.", "ok");
+    }catch(err){
+      setStatus("שגיאה: " + (err?.message || String(err)), "err");
+    }finally{
+      btnEl.disabled = false;
+    }
+  }
+
+  function clearAll(){
+    plateEl.value = "";
+    setStatus("הכנס מספר רכב ולחץ “שלוף נתונים”.", "");
+    resultArea.style.display = "none";
+    lastRecord = null;
+    plateEl.focus();
+  }
+
+  function buildWhatsAppText(record){
+    const lines = ["נתוני רכב:"];
+    for(const k in record){
+      if (HIDDEN_FIELDS.has(k) || !record[k]) continue;
+      lines.push(`${labelForField(k)}: ${record[k]}`);
     }
     return lines.join("\n");
   }
 
   async function sendWhatsApp(){
-    if(!lastRecord){
-      setStatus("אין נתונים לשליחה. קודם תבצע שליפה של מספר רכב.", "warn");
-      return;
-    }
-
+    if(!lastRecord) return setStatus("אין נתונים לשליחה.", "warn");
     const text = buildWhatsAppText(lastRecord);
-
-    // אם יש Share API — זה יפתח ישירות חלון שיתוף (ובו וואטסאפ)
-    // אם אין — נפתח wa.me שמוביל לוואטסאפ עם הטקסט מוכן.
-    try{
-      if (navigator.share){
-        await navigator.share({ text });
-        return;
-      }
-    }catch(e){
-      // אם המשתמש ביטל — לא עושים כלום
-    }
-
-    const url = "https://wa.me/?text=" + encodeURIComponent(text);
-    window.open(url, "_blank");
+    try { if (navigator.share) { await navigator.share({ text }); return; } } catch(e) {}
+    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank");
   }
 
-  // Enter = חיפוש
-  plateEl.addEventListener("keydown", (e)=>{
-    if(e.key === "Enter") lookup();
-  });
+  plateEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") lookup(); });
 </script>
 </body>
 </html>
