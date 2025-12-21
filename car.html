@@ -121,9 +121,26 @@
       gap:10px;
       padding:12px 12px;
       border-bottom:1px solid var(--line);
+      flex-wrap:wrap;
     }
     .scanner-title{font-weight:900;font-size:14px;color:var(--ink)}
     .scanner-sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+    .zoomWrap{
+      display:none;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border:1px solid rgba(255,255,255,.14);
+      border-radius:12px;
+      background:rgba(255,255,255,.04);
+    }
+    .zoomLbl{font-weight:900;font-size:12px;color:var(--muted)}
+    input[type="range"].zoomR{
+      width:160px;
+      accent-color: var(--accent);
+    }
+
     .scanner-body{position:relative;background:#000}
     video#scanVideo{width:100%;height:auto;display:block;background:#000}
     .scan-frame{position:absolute;inset:0;pointer-events:none}
@@ -143,9 +160,6 @@
       left:10px; right:10px;
       top:10px;
       display:flex;
-      gap:10px;
-      align-items:center;
-      justify-content:space-between;
       pointer-events:none;
     }
     .hudBox{
@@ -216,7 +230,6 @@
         </div>
 
         <button class="mini" id="scanBtn" type="button">סרוק</button>
-
         <button id="btn" type="button">שלוף נתונים</button>
         <button class="mini" id="waBtn" type="button">ווצאפ</button>
         <button class="mini" id="clearBtn" type="button">נקה</button>
@@ -246,6 +259,14 @@
           <div class="scanner-title">סריקה בלייב – תעמיד את הלוחית בתוך המסגרת</div>
           <div class="scanner-sub">זיהוי 7/8 ספרות → מכניס לשדה → שולף נתונים אוטומטית</div>
         </div>
+
+        <!-- זום (מופיע רק אם המצלמה תומכת) -->
+        <div class="zoomWrap" id="zoomWrap">
+          <span class="zoomLbl">זום</span>
+          <input class="zoomR" id="zoomRange" type="range" min="1" max="1" step="0.1" value="1" />
+          <span class="zoomLbl" id="zoomVal">1.0×</span>
+        </div>
+
         <button class="mini" id="closeScanBtn" type="button">סגור</button>
       </div>
 
@@ -296,24 +317,20 @@ function setStatus(msg, kind=""){
   statusEl.className = "status" + (kind ? " " + kind : "");
   statusEl.textContent = msg;
 }
-
 function normalizePlate(raw){
   return (raw || "").toString().replace(/[^\d]/g,"").trim();
 }
-
 function fmtDateMaybe(v){
   if(!v) return "";
   const s = String(v);
   const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
   return m ? m[1] : s;
 }
-
 function escapeHtml(s){
   return String(s ?? "").replace(/[&<>"']/g, ch => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
   }[ch]));
 }
-
 function labelForField(field){
   const map = {
     mispar_rechev: "מספר רכב",
@@ -333,29 +350,22 @@ function labelForField(field){
   };
   return map[field] || field;
 }
-
 function buildTable(record){
   tbodyEl.innerHTML = "";
   const keys = Object.keys(record);
-
   const preferredOrder = [
     "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
     "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
-    "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev",
-    "zmig_kidmi","zmig_ahori","misgeret","horaat_rishum","tozeret_cd","degem_cd",
-    "degem_manoa","tzeva_cd","sug_degem","_id","rank"
+    "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev"
   ];
-
   const ordered = [];
   preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
   keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
 
   for(const k of ordered){
     if (HIDDEN_FIELDS.has(k)) continue;
-
     let v = record[k];
     if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
-
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="mono">${escapeHtml(labelForField(k))}</td>
@@ -364,7 +374,6 @@ function buildTable(record){
     tbodyEl.appendChild(tr);
   }
 }
-
 function buildQuickCards(record){
   const pick = [
     ["mispar_rechev","מספר רכב"],
@@ -376,16 +385,12 @@ function buildQuickCards(record){
     ["mivchan_acharon_dt","טסט אחרון"],
     ["tzeva_rechev","צבע"]
   ];
-
   quickKv.innerHTML = "";
-
   for(const [k,ttl] of pick){
     if(record[k] === undefined) continue;
     if (HIDDEN_FIELDS.has(k)) continue;
-
     let val = record[k];
     if (k === "tokef_dt" || k === "mivchan_acharon_dt") val = fmtDateMaybe(val);
-
     const div = document.createElement("div");
     div.className = "card";
     div.style.padding = "10px 12px";
@@ -398,20 +403,16 @@ function buildQuickCards(record){
     quickKv.appendChild(div);
   }
 }
-
 async function lookup(){
   const plate = normalizePlate(plateEl.value);
-
   if(!plate){
     setStatus("חסר מספר רכב. הכנס מספר (רק ספרות).", "warn");
     resultArea.style.display = "none";
     lastRecord = null;
     return;
   }
-
   btnEl.disabled = true;
   setStatus("שולף נתונים…", "");
-
   try{
     const url = new URL(API_BASE);
     url.searchParams.set("resource_id", RESOURCE_ID);
@@ -431,7 +432,6 @@ async function lookup(){
       lastRecord = null;
       return;
     }
-
     const record = records[0];
     lastRecord = record;
 
@@ -449,7 +449,6 @@ async function lookup(){
     btnEl.disabled = false;
   }
 }
-
 function clearAll(){
   plateEl.value = "";
   setStatus("הכנס מספר רכב ולחץ “שלוף נתונים”.", "");
@@ -460,7 +459,6 @@ function clearAll(){
   lastRecord = null;
   plateEl.focus();
 }
-
 function buildWhatsAppText(record){
   const keys = Object.keys(record);
   const preferredOrder = [
@@ -468,7 +466,6 @@ function buildWhatsAppText(record){
     "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
     "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev"
   ];
-
   const ordered = [];
   preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
   keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
@@ -483,28 +480,24 @@ function buildWhatsAppText(record){
   }
   return lines.join("\n");
 }
-
 async function sendWhatsApp(){
   if(!lastRecord){
     setStatus("אין נתונים לשליחה. קודם תבצע שליפה של מספר רכב.", "warn");
     return;
   }
-
   const text = buildWhatsAppText(lastRecord);
-
   try{
     if (navigator.share){
       await navigator.share({ text });
       return;
     }
   }catch(e){}
-
   const url = "https://wa.me/?text=" + encodeURIComponent(text);
   window.open(url, "_blank");
 }
 
 /* =========================
-   LIVE SCANNER (תיקון: fallback בין CDNs כדי שלא ייפול כמו אצלך)
+   LIVE SCANNER + ZOOM
    ========================= */
 const overlay = document.getElementById("scannerOverlay");
 const videoEl = document.getElementById("scanVideo");
@@ -513,6 +506,10 @@ const boxEl   = document.getElementById("scanBox");
 const hudMain = document.getElementById("hudMain");
 const hudSub  = document.getElementById("hudSub");
 const debugPanel = document.getElementById("debugPanel");
+
+const zoomWrap  = document.getElementById("zoomWrap");
+const zoomRange = document.getElementById("zoomRange");
+const zoomVal   = document.getElementById("zoomVal");
 
 const roiMini = document.getElementById("roiMini");
 const roiMiniCtx = roiMini.getContext("2d", { willReadFrequently:true });
@@ -530,28 +527,29 @@ let loopActive = false;
 let lastCandidate = "";
 let sameCount = 0;
 
-// *** חשוב: 2 מקורות מלאים שיש בהם גם tesseract.min.js וגם worker/core ***
-const TESS_BASES = [
-  { name: "jsdelivr", base: "https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist" },
-  { name: "unpkg",    base: "https://unpkg.com/tesseract.js@5.0.5/dist" }
+let videoTrack = null;
+let zoomCap = null;
+let currentZoom = 1.0;
+
+// ניסיון מקומי קודם (הפתרון שעוקף חסימות)
+const LOCAL_TESS_BASE = "./tess"; // ליד הקובץ שלך: /car.html + /tess/...
+const CDN_BASES = [
+  { name:"jsdelivr", base:"https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist" },
+  { name:"unpkg",    base:"https://unpkg.com/tesseract.js@5.0.5/dist" }
 ];
-let TESS_CHOSEN_BASE = null;
 
 function hud(text, sub, cls){
   hudMain.className = cls || "hudWarn";
   hudMain.textContent = text;
   hudSub.textContent = sub || "";
 }
-
 function dbg(msg){
   const t = new Date().toLocaleTimeString("he-IL");
   debugPanel.textContent = `[${t}] ${msg}\n` + debugPanel.textContent;
 }
-
 window.addEventListener("error", (e)=> dbg(`JS ERROR: ${e.message} @ ${e.filename}:${e.lineno}`));
 window.addEventListener("unhandledrejection", (e)=> dbg(`PROMISE ERROR: ${String(e.reason || e)}`));
-
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
 
 function loadScript(src){
   return new Promise((resolve, reject)=>{
@@ -564,33 +562,53 @@ function loadScript(src){
   });
 }
 
-async function ensureTesseractLoaded(){
-  if (window.Tesseract) return true;
-
-  for (const x of TESS_BASES){
-    try{
-      hud("טוען OCR…", `מנסה מקור: ${x.name}`, "hudWarn");
-      const url = x.base + "/tesseract.min.js";
-      await loadScript(url);
-      if (window.Tesseract){
-        TESS_CHOSEN_BASE = x;
-        dbg("Tesseract נטען מ: " + url);
-        return true;
-      }
-    }catch(err){
-      dbg(err.message || String(err));
-    }
+// בדיקת קובץ קיים (לוקאל/אינטרנט)
+async function headOk(url){
+  try{
+    const r = await fetch(url, { method:"HEAD", cache:"no-store" });
+    return r.ok;
+  }catch(e){
+    return false;
   }
-  return false;
 }
 
-async function tryCreateWorkerWithBase(x){
-  const base = x.base;
-  hud("מכין OCR…", `worker/core מ: ${x.name}`, "hudWarn");
+async function ensureTesseractLoaded(){
+  if (window.Tesseract) return { ok:true, base:null, source:"already" };
 
+  // 1) מקומי קודם
+  const localScript = `${LOCAL_TESS_BASE}/tesseract.min.js`;
+  if (await headOk(localScript)){
+    try{
+      hud("טוען OCR…", "מקור: מקומי", "hudWarn");
+      await loadScript(localScript);
+      if (window.Tesseract) return { ok:true, base:LOCAL_TESS_BASE, source:"local" };
+    }catch(e){
+      dbg(e.message || String(e));
+    }
+  }else{
+    dbg("לא נמצא מקומי: " + localScript);
+  }
+
+  // 2) CDN fallback
+  for (const x of CDN_BASES){
+    try{
+      hud("טוען OCR…", `מנסה מקור: ${x.name}`, "hudWarn");
+      await loadScript(x.base + "/tesseract.min.js");
+      if (window.Tesseract) return { ok:true, base:x.base, source:x.name };
+    }catch(e){
+      dbg(e.message || String(e));
+    }
+  }
+
+  return { ok:false, base:null, source:null };
+}
+
+async function tryCreateWorker(base){
+  // base יכול להיות ./tess או CDN
   const w = await Tesseract.createWorker("eng", 1, {
     workerPath: base + "/worker.min.js",
     corePath:   base + "/tesseract-core.wasm.js",
+    // אם תוסיף ENG מקומי: שים פה base במקום הכתובת
     langPath:   "https://tessdata.projectnaptha.com/4.0.0",
     logger: (m)=>{
       if(m && m.status){
@@ -609,73 +627,188 @@ async function tryCreateWorkerWithBase(x){
   return w;
 }
 
-async function ensureWorker(){
+async function ensureWorker(chosenBase){
   if (worker) return;
 
-  // קודם ננסה עם הבסיס ממנו נטען tesseract.min.js (אם קיים)
+  // קודם ננסה את ה-base שנבחר לטעינת tesseract.min.js
   const basesToTry = [];
-  if (TESS_CHOSEN_BASE) basesToTry.push(TESS_CHOSEN_BASE);
-  for (const b of TESS_BASES){
-    if (!basesToTry.find(x => x.name === b.name)) basesToTry.push(b);
+  if (chosenBase) basesToTry.push({name:"chosen", base:chosenBase});
+
+  // ננסה גם מקומי אם לא היה chosen מקומי
+  if (!basesToTry.find(x=>x.base===LOCAL_TESS_BASE)) basesToTry.unshift({name:"local", base:LOCAL_TESS_BASE});
+
+  // ואז CDNs
+  for (const c of CDN_BASES){
+    if (!basesToTry.find(x=>x.base===c.base)) basesToTry.push({name:c.name, base:c.base});
   }
 
   let lastErr = null;
-
   for (const b of basesToTry){
     try{
-      dbg("מנסה ליצור Worker עם: " + b.name);
-      worker = await tryCreateWorkerWithBase(b);
-      dbg("Worker OK עם: " + b.name);
-      hud("סורק בלייב", "תעמיד לוחית בתוך הירוק", "hudGood");
+      dbg("מנסה Worker עם: " + b.base);
+      hud("מכין OCR…", `Worker: ${b.name}`, "hudWarn");
+      worker = await tryCreateWorker(b.base);
+      dbg("Worker OK: " + b.base);
       return;
-    }catch(err){
-      lastErr = err;
-      dbg("Worker נכשל עם " + b.name + ": " + (err?.message || String(err)));
-      try{ if(worker && worker.terminate) await worker.terminate(); }catch(e){}
+    }catch(e){
+      lastErr = e;
+      dbg("Worker נכשל (" + b.name + "): " + (e?.message || String(e)));
+      try{ if(worker && worker.terminate) await worker.terminate(); }catch(_){}
       worker = null;
     }
   }
 
-  throw new Error("נכשל יצירת OCR Worker מכל המקורות. " + (lastErr?.message || ""));
+  throw new Error(
+    "נכשל יצירת OCR Worker מכל המקורות.\n" +
+    "פתרון 100%: תעלה קבצים לתיקייה /tess באתר שלך (מפורט למטה).\n" +
+    (lastErr?.message ? ("פרטים: " + lastErr.message) : "")
+  );
 }
 
-async function openLiveScanner(){
+/* ---------- ZOOM ---------- */
+function setupZoom(track){
+  zoomWrap.style.display = "none";
+  zoomCap = null;
+  videoTrack = track;
+
+  if (!track || !track.getCapabilities) return;
+
+  const caps = track.getCapabilities();
+  if (!caps || !caps.zoom) return; // המצלמה לא תומכת בזום API
+
+  zoomCap = caps.zoom; // {min,max,step}
+  const min = typeof zoomCap.min === "number" ? zoomCap.min : 1;
+  const max = typeof zoomCap.max === "number" ? zoomCap.max : 1;
+  const step = typeof zoomCap.step === "number" ? zoomCap.step : 0.1;
+
+  zoomRange.min = String(min);
+  zoomRange.max = String(max);
+  zoomRange.step = String(step);
+
+  // ערך התחלתי
+  const settings = track.getSettings ? track.getSettings() : {};
+  currentZoom = (typeof settings.zoom === "number") ? settings.zoom : min;
+
+  zoomRange.value = String(currentZoom);
+  zoomVal.textContent = Number(currentZoom).toFixed(1) + "×";
+  zoomWrap.style.display = "flex";
+
+  zoomRange.oninput = async ()=>{
+    const z = Number(zoomRange.value);
+    currentZoom = z;
+    zoomVal.textContent = z.toFixed(1) + "×";
+    try{
+      await track.applyConstraints({ advanced:[{ zoom: z }] });
+    }catch(e){
+      dbg("applyConstraints zoom נכשל: " + (e?.message || String(e)));
+    }
+  };
+}
+
+// פינץ׳ שתי אצבעות על הוידאו
+let pinchActive = false;
+let pinchStartDist = 0;
+let pinchStartZoom = 1;
+
+function dist(t1,t2){
+  const dx = t1.clientX - t2.clientX;
+  const dy = t1.clientY - t2.clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+videoEl.addEventListener("touchstart", (e)=>{
+  if (!zoomCap || !videoTrack) return;
+  if (e.touches && e.touches.length === 2){
+    pinchActive = true;
+    pinchStartDist = dist(e.touches[0], e.touches[1]);
+    pinchStartZoom = currentZoom;
+  }
+},{passive:true});
+
+videoEl.addEventListener("touchmove", async (e)=>{
+  if (!pinchActive || !zoomCap || !videoTrack) return;
+  if (e.touches && e.touches.length === 2){
+    const dNow = dist(e.touches[0], e.touches[1]);
+    const ratio = dNow / Math.max(1, pinchStartDist);
+    let z = pinchStartZoom * ratio;
+
+    // clamp
+    z = Math.max(zoomCap.min, Math.min(zoomCap.max, z));
+
+    // snap to step
+    const step = zoomCap.step || 0.1;
+    z = Math.round(z/step)*step;
+
+    if (Math.abs(z - currentZoom) >= step){
+      currentZoom = z;
+      zoomRange.value = String(z);
+      zoomVal.textContent = z.toFixed(1) + "×";
+      try{
+        await videoTrack.applyConstraints({ advanced:[{ zoom: z }] });
+      }catch(e2){
+        dbg("pinch zoom נכשל: " + (e2?.message || String(e2)));
+      }
+    }
+  }
+},{passive:true});
+
+videoEl.addEventListener("touchend", (e)=>{
+  if (!e.touches || e.touches.length < 2){
+    pinchActive = false;
+  }
+},{passive:true});
+
+/* ---------- LIVE SCAN ---------- */
+function openLiveScanner(){
   overlay.style.display = "block";
   debugPanel.textContent = "אם יש תקלה – היא תופיע כאן.";
   hud("פותח מצלמה…", "בודק הרשאות", "hudWarn");
-
   lastCandidate = "";
   sameCount = 0;
 
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal:"environment" }, width:{ideal:1280}, height:{ideal:720} },
-      audio:false
-    });
+  (async ()=>{
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal:"environment" }, width:{ideal:1280}, height:{ideal:720} },
+        audio:false
+      });
 
-    videoEl.srcObject = stream;
-    await videoEl.play();
-    hud("מצלמה OK", "טוען OCR…", "hudGood");
-    dbg("מצלמה פועלת");
+      videoEl.srcObject = stream;
+      await videoEl.play();
+      dbg("מצלמה פועלת");
 
-    const ok = await ensureTesseractLoaded();
-    if(!ok){
-      hud("תקלה", "מנוע OCR לא נטען (חסימת רשת/חוסם פרסומות)", "hudErr");
-      dbg("OCR לא נטען מכל המקורות");
-      return;
+      // Zoom setup
+      const track = stream.getVideoTracks()[0];
+      setupZoom(track);
+
+      hud("מצלמה OK", "טוען OCR…", "hudGood");
+
+      const t = await ensureTesseractLoaded();
+      if(!t.ok){
+        hud("תקלה", "מנוע OCR לא נטען. הפתרון: להעלות קבצים לתיקייה /tess באתר שלך.", "hudErr");
+        dbg("OCR לא נטען מכל המקורות");
+        return;
+      }
+
+      await ensureWorker(t.base || null);
+
+      hud("סורק בלייב", "תעמיד לוחית בתוך הירוק", "hudGood");
+      startLoop();
+
+    }catch(err){
+      hud("תקלה", (err?.message || String(err)), "hudErr");
+      dbg("openLiveScanner FAILED: " + (err?.message || String(err)));
     }
-
-    await ensureWorker();
-    startLoop();
-  }catch(err){
-    hud("תקלה", (err?.message || String(err)), "hudErr");
-    dbg("openLiveScanner FAILED: " + (err?.message || String(err)));
-  }
+  })();
 }
 
 function closeLiveScanner(){
   stopLoop();
   overlay.style.display = "none";
+
+  zoomWrap.style.display = "none";
+  zoomCap = null;
+  videoTrack = null;
+  pinchActive = false;
 
   if(stream){
     stream.getTracks().forEach(t => t.stop());
@@ -721,7 +854,6 @@ function startLoop(){
     }
   })();
 }
-
 function stopLoop(){ loopActive = false; }
 
 async function scanOnce(){
@@ -778,15 +910,11 @@ function extractPlate(text){
   const s = String(text || "");
   const groups = s.match(/\d+/g) || [];
   if(!groups.length) return "";
-
   const all = groups.join("");
-
   const m8 = all.match(/(\d{8})/);
   if(m8) return m8[1];
-
   const m7 = all.match(/(\d{7})/);
   if(m7) return m7[1];
-
   if(all.length >= 6) return all.slice(0, Math.min(8, all.length));
   return "";
 }
