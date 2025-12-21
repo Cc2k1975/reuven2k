@@ -2,67 +2,232 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>חיפוש רכב - GitHub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>שליפת נתוני רכב לפי מספר רישוי</title>
     <style>
-        body { font-family: sans-serif; background: #7195ba; display: flex; justify-content: center; padding: 20px; }
-        .card { background: white; width: 100%; max-width: 450px; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
-        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; text-align: center; font-size: 16px; }
-        button { padding: 12px 20px; background: #0088cc; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        #output { margin-top: 15px; white-space: pre-wrap; line-height: 1.6; font-size: 15px; display: none; }
-        .notice { font-size: 12px; color: #555; background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ffeeba; }
+        :root {
+            --bg-color: #0b1120;
+            --card-bg: #111827;
+            --input-bg: #1f2937;
+            --text-main: #f3f4f6;
+            --text-dim: #9ca3af;
+            --accent: #059669;
+            --border: #374151;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 { font-size: 24px; margin-bottom: 8px; }
+        .source-info { color: var(--text-dim); font-size: 13px; }
+
+        .search-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .search-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        input {
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            width: 250px;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            transition: 0.2s;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-secondary { background: #374151; color: white; }
+        .btn:hover { opacity: 0.9; }
+
+        .status-bar {
+            background: rgba(5, 150, 105, 0.1);
+            color: #34d399;
+            border: 1px solid var(--accent);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .info-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 15px 20px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .info-label { color: var(--text-dim); font-size: 14px; }
+        .info-value { font-weight: bold; font-size: 17px; }
+
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        th, td {
+            padding: 14px;
+            text-align: right;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th { color: var(--text-dim); font-weight: 500; font-size: 13px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <div class="notice">
-        <b>שימו לב:</b> אם זו פעם ראשונה, יש ללחוץ <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank">כאן</a> וללחוץ על הכפתור האדום כדי לאפשר גישה למאגר.
+<div class="container">
+    <header>
+        <h1>שליפת נתוני רכב לפי מספר רישוי</h1>
+        <div class="source-info">מקור הנתונים: מאגר data.gov.il "מספרי רישוי של כלי רכב פרטיים ומסחריים"</div>
+    </header>
+
+    <div class="search-card">
+        <div class="search-row">
+            <input type="text" id="carNum" value="31873704" placeholder="מספר רכב">
+            <label>מספר רכב (ללא מקפים)</label>
+            <button class="btn btn-primary" onclick="searchCar()">שלופ נתונים</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('carNum').value='31873704'">דוגמה</button>
+            <button class="btn btn-secondary" onclick="location.reload()">נקה</button>
+        </div>
+        
+        <div id="status" class="status-bar">נמצא רכב - הנתונים מוצגים למטה.</div>
     </div>
-    <div class="input-group">
-        <input type="text" id="carNum" placeholder="מספר רכב (למשל 20096003)">
-        <button onclick="search()">חפש</button>
+
+    <div id="results" class="hidden">
+        <div class="info-grid">
+            <div class="info-item"><span class="info-label">מספר רכב</span><span class="info-value" id="val_id"></span></div>
+            <div class="info-item"><span class="info-label">יצרן</span><span class="info-value" id="val_make"></span></div>
+            <div class="info-item"><span class="info-label">דגם</span><span class="info-value" id="val_model"></span></div>
+            <div class="info-item"><span class="info-label">שנת ייצור</span><span class="info-value" id="val_year"></span></div>
+            <div class="info-item"><span class="info-label">דלק</span><span class="info-value" id="val_fuel"></span></div>
+            <div class="info-item"><span class="info-label">תוקף רישוי</span><span class="info-value" id="val_license"></span></div>
+            <div class="info-item"><span class="info-label">טסט אחרון</span><span class="info-value" id="val_last_test"></span></div>
+            <div class="info-item"><span class="info-label">צבע</span><span class="info-value" id="val_color"></span></div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>שדה</th>
+                    <th>ערך</th>
+                </tr>
+            </thead>
+            <tbody id="fullTable"></tbody>
+        </table>
     </div>
-    <div id="status" style="text-align:center; color:#666;"></div>
-    <div id="output"></div>
 </div>
 
 <script>
-async function search() {
-    const id = document.getElementById('carNum').value.trim();
-    const out = document.getElementById('output');
-    const stat = document.getElementById('status');
-    
-    if(!id) return;
-    stat.innerText = "מושך נתונים...";
-    out.style.display = 'none';
-
-    // שימוש ב-Proxy היחיד שעובד עם הממשלה
-    const proxy = "https://cors-anywhere.herokuapp.com/";
-    const api = `https://data.gov.il/api/3/action/datastore_search?resource_id=053ad004-d6b0-461d-bc59-061749027582&filters={"mispar_rechev":"${id}"}`;
+async function searchCar() {
+    const num = document.getElementById('carNum').value.trim();
+    if(!num) return;
 
     try {
-        const response = await fetch(proxy + api);
+        // שימוש ב-Resource ID המדויק מהתמונה שלך
+        const resId = '053ad24a-f21d-4a23-bc19-ebf393d12d7a';
+        const url = `https://data.gov.il/api/3/action/datastore_search?resource_id=${resId}&q=${num}`;
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Network error');
+        
         const data = await response.json();
+        const car = data.result.records.find(r => String(r.mispar_rechev) === num);
 
-        if(data.result.records.length > 0) {
-            const r = data.result.records[0];
-            out.innerHTML = `<b>מספר רכב:</b> ${r.mispar_rechev}\n` +
-                          `<b>תוצר:</b> ${r.tozeret_nm}\n` +
-                          `<b>דגם:</b> ${r.kinuy_mishari}\n` +
-                          `<b>שנה:</b> ${r.shnat_yitzur}\n` +
-                          `<b>בעלות:</b> ${r.baalut}\n` +
-                          `<b>שלדה:</b> ${r.mispar_shilda}\n` +
-                          `<b>טסט עד:</b> ${r.tokef_taz_rechev}`;
-            out.style.display = 'block';
-            stat.innerText = "";
+        if (car) {
+            showData(car);
         } else {
-            stat.innerText = "לא נמצאו נתונים.";
+            alert("רכב לא נמצא במאגר");
         }
-    } catch (e) {
-        stat.innerText = "שגיאה. האם אישרת את הגישה בלינק למעלה?";
+    } catch (err) {
+        console.error(err);
+        alert("שגיאה בתקשורת עם המאגר. נסה לרענן את הדף.");
     }
 }
+
+function showData(car) {
+    document.getElementById('results').classList.remove('hidden');
+    document.getElementById('status').style.display = 'block';
+
+    // מילוי הריבועים
+    document.getElementById('val_id').innerText = car.mispar_rechev;
+    document.getElementById('val_make').innerText = car.tozeret_nm;
+    document.getElementById('val_model').innerText = car.kinuy_mishari || car.degem_nm;
+    document.getElementById('val_year').innerText = car.shnat_yitzur;
+    document.getElementById('val_fuel').innerText = car.sug_delek_nm;
+    document.getElementById('val_license').innerText = car.tokef_tast;
+    document.getElementById('val_last_test').innerText = car.mivchan_acharon_dt || 'אין נתון';
+    document.getElementById('val_color').innerText = car.tzeva_rechev;
+
+    // מילוי הטבלה (ללא הנתונים שביקשת להסיר)
+    const tableFields = [
+        {l: "מספר רכב", v: car.mispar_rechev},
+        {l: "שם תוצר / יצרן", v: car.tozeret_nm},
+        {l: "דגם", v: car.degem_nm},
+        {l: "כינוי מסחרי", v: car.kinuy_mishari},
+        {l: "רמת גימור", v: car.ramat_gimur},
+        {l: "שנת ייצור", v: car.shnat_yitzur},
+        {l: "סוג דלק", v: car.sug_delek_nm},
+        {l: "קבוצת זיהום", v: car.kvutzat_zihum}
+    ];
+
+    document.getElementById('fullTable').innerHTML = tableFields
+        .map(f => `<tr><td>${f.l}</td><td>${f.v || '-'}</td></tr>`).join('');
+}
 </script>
+
 </body>
 </html>
