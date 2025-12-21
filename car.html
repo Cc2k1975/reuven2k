@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>שליפת נתוני רכב לפי מספר רישוי (data.gov.il)</title>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <title>שליפת נתוני רכב לפי מספר רישוי</title>
   <style>
     :root{
       --bg:#0f172a;
@@ -33,6 +32,7 @@
       margin-bottom:14px;
     }
     h1{margin:0;font-size:20px;line-height:1.25}
+    .sub{color:var(--muted);font-size:13px;margin-top:6px;max-width:55ch}
     .card{
       background:rgba(17,28,51,.92);
       border:1px solid var(--line);
@@ -75,53 +75,48 @@
       font-weight:700;
       font-size:13px;
     }
-    .scan-btn { background: rgba(59, 130, 246, 0.14); border: 1px solid rgba(59, 130, 246, 0.45); }
-    
+    .mini:hover{color:var(--ink)}
     .status{
-      margin-top:12px; padding:10px 12px; border-radius:12px; border:1px solid var(--line);
-      background:rgba(255,255,255,.04); color:var(--muted); font-size:13px; line-height:1.4; white-space:pre-wrap;
+      margin-top:12px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.4;
+      white-space:pre-wrap;
     }
     .status.ok{border-color:rgba(34,197,94,.35); color:#d1fae5; background:rgba(34,197,94,.08)}
     .status.err{border-color:rgba(239,68,68,.35); color:#fee2e2; background:rgba(239,68,68,.08)}
     .status.warn{border-color:rgba(245,158,11,.35); color:#ffedd5; background:rgba(245,158,11,.08)}
-    
     .table-wrap{margin-top:12px; overflow:auto; border-radius:12px; border:1px solid var(--line)}
     table{width:100%; border-collapse:collapse; min-width:520px}
     th,td{padding:10px 12px; border-bottom:1px solid var(--line); text-align:right; vertical-align:top}
     th{background:rgba(255,255,255,.06); color:var(--muted); font-weight:800; font-size:12px}
     td{font-size:14px}
-    
-    /* מודל סריקה */
-    #scanner-container {
-      display:none; position: fixed; top:0; left:0; width:100%; height:100%;
-      background: rgba(15, 23, 42, 0.98); z-index: 9999; flex-direction: column; align-items: center; justify-content: center;
-      padding: 20px;
-    }
-    #preview { width: 100%; max-width: 500px; border-radius: 12px; border: 2px solid var(--accent); }
-    .scan-actions { display: flex; gap: 10px; margin-top: 20px; }
-    .capture-btn { background: var(--accent); color: #000; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; }
-    .close-scan { background: var(--danger); color: white; border: none; padding: 12px 24px; border-radius: 12px; }
-    
+    tr:last-child td{border-bottom:none}
     .kv{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-    .footer{margin-top:12px; color:var(--muted); font-size:12px; line-height:1.4;}
+    .footer{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.4;
+    }
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
   </style>
+
+  <!-- OCR (Tesseract.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
-
-  <div id="scanner-container">
-    <video id="preview" playsinline></video>
-    <div class="scan-actions">
-      <button class="capture-btn" onclick="captureAndIdentify()">ללכוד ולזהות</button>
-      <button class="close-scan" onclick="stopScanner()">ביטול</button>
-    </div>
-    <div id="scan-status" style="margin-top: 15px; font-size: 14px; color: var(--accent);"></div>
-    <canvas id="capture-canvas" style="display:none;"></canvas>
-  </div>
-
   <div class="wrap">
     <div class="title">
-      <h1>שליפת נתוני רכב לפי מספר רישוי</h1>
+      <div>
+        <h1>שליפת נתוני רכב לפי מספר רישוי</h1>
+        <!-- נמחק: שורת מקור הנתונים -->
+      </div>
+      <!-- נמחק: תג resource_id -->
     </div>
 
     <div class="card">
@@ -130,22 +125,33 @@
           <label for="plate">מספר רכב (ללא מקפים)</label>
           <input id="plate" inputmode="numeric" autocomplete="off" placeholder="לדוגמה: 2623638" />
         </div>
+
+        <button class="mini" id="scanBtn" onclick="startScan()">סרוק</button>
+
         <button id="btn" onclick="lookup()">שלוף נתונים</button>
-        <button class="scan-btn" onclick="startScanner()">סרוק 📷</button>
         <button class="mini" onclick="sendWhatsApp()">ווצאפ</button>
         <button class="mini" onclick="clearAll()">נקה</button>
+
+        <input id="platePhoto" type="file" accept="image/*" capture="environment" style="display:none" />
       </div>
 
       <div id="status" class="status">הכנס מספר רכב ולחץ “שלוף נתונים”.</div>
 
       <div id="resultArea" style="display:none;">
         <div class="kv" id="quickKv"></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th style="width:38%;">שדה</th><th>ערך</th></tr></thead>
+
+        <div class="table-wrap" style="margin-top:12px;">
+          <table id="tbl">
+            <thead>
+              <tr>
+                <th style="width:38%;">שדה</th>
+                <th>ערך</th>
+              </tr>
+            </thead>
             <tbody id="tbody"></tbody>
           </table>
         </div>
+
         <div class="footer" id="footerNote"></div>
       </div>
     </div>
@@ -161,138 +167,472 @@
   const resultArea = document.getElementById("resultArea");
   const tbodyEl  = document.getElementById("tbody");
   const quickKv  = document.getElementById("quickKv");
-  
+  const footerNote = document.getElementById("footerNote");
+
+  const scanBtn = document.getElementById("scanBtn");
+  const platePhoto = document.getElementById("platePhoto");
+
   let lastRecord = null;
-  let stream = null;
 
-  const HIDDEN_FIELDS = new Set(["zmig_kidmi", "zmig_ahori", "misgeret", "horaat_rishum", "tozeret_cd", "degem_cd", "degem_manoa", "tzeva_cd", "sug_degem", "_id", "rank"]);
+  const HIDDEN_FIELDS = new Set([
+    "zmig_kidmi","zmig_ahori","misgeret","horaat_rishum",
+    "tozeret_cd","degem_cd","degem_manoa","tzeva_cd",
+    "sug_degem","_id","rank"
+  ]);
 
-  // מנגנון סריקה OCR
-  async function startScanner() {
-    const container = document.getElementById('scanner-container');
-    const video = document.getElementById('preview');
-    container.style.display = 'flex';
-    
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" } 
-      });
-      video.srcObject = stream;
-      video.play();
-    } catch (err) {
-      alert("שגיאה בגישה למצלמה: " + err.message);
-      stopScanner();
-    }
-  }
-
-  async function captureAndIdentify() {
-    const video = document.getElementById('preview');
-    const canvas = document.getElementById('capture-canvas');
-    const scanStatus = document.getElementById('scan-status');
-    
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    
-    scanStatus.textContent = "מנתח תמונה... נא להמתין";
-    
-    try {
-      const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-      // חילוץ רק ספרות מהטקסט שזוהה
-      const plateNumber = text.replace(/[^\d]/g, "");
-      
-      if (plateNumber && plateNumber.length >= 6) {
-        plateEl.value = plateNumber;
-        scanStatus.textContent = "זוהה בהצלחה!";
-        setTimeout(() => {
-          stopScanner();
-          lookup();
-        }, 500);
-      } else {
-        scanStatus.textContent = "לא זוהה מספר תקין, נסה שוב מקרוב";
-      }
-    } catch (err) {
-      scanStatus.textContent = "שגיאה בניתוח התמונה";
-    }
-  }
-
-  function stopScanner() {
-    if (stream) stream.getTracks().forEach(track => track.stop());
-    document.getElementById('scanner-container').style.display = 'none';
-    document.getElementById('scan-status').textContent = "";
-  }
-
-  // שאר הפונקציות המקוריות (ללא שינוי לוגי)
   function setStatus(msg, kind=""){
     statusEl.className = "status" + (kind ? " " + kind : "");
     statusEl.textContent = msg;
   }
 
-  function normalizePlate(raw){ return (raw || "").toString().replace(/[^\d]/g,"").trim(); }
-  function fmtDateMaybe(v){ if(!v) return ""; const s = String(v); const m = s.match(/^(\d{4}-\d{2}-\d{2})/); return m ? m[1] : s; }
-  function escapeHtml(s){ return String(s ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch])); }
+  function normalizePlate(raw){
+    return (raw || "").toString().replace(/[^\d]/g,"").trim();
+  }
+
+  function fmtDateMaybe(v){
+    if(!v) return "";
+    const s = String(v);
+    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : s;
+  }
+
+  function escapeHtml(s){
+    return String(s ?? "").replace(/[&<>"']/g, ch => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[ch]));
+  }
 
   function labelForField(field){
-    const map = { mispar_rechev: "מספר רכב", tozeret_nm: "שם תוצר / יצרן", degem_nm: "דגם", ramat_gimur: "רמת גימור", shnat_yitzur: "שנת ייצור", mivchan_acharon_dt: "טסט אחרון", tokef_dt: "תוקף רישוי", baalut: "בעלות", tzeva_rechev: "צבע", sug_delek_nm: "סוג דלק" };
+    const map = {
+      mispar_rechev: "מספר רכב",
+      tozeret_nm: "שם תוצר / יצרן",
+      tozeret_cd: "קוד תוצר",
+      sug_degem: "סוג דגם (P=פרטי וכו')",
+      degem_nm: "דגם",
+      degem_cd: "קוד דגם",
+      ramat_gimur: "רמת גימור",
+      ramat_eivzur_betihuty: "רמת אבזור בטיחותי",
+      kvutzat_zihum: "קבוצת זיהום",
+      shnat_yitzur: "שנת ייצור",
+      degem_manoa: "דגם מנוע",
+      mivchan_acharon_dt: "טסט אחרון",
+      tokef_dt: "תוקף רישוי",
+      baalut: "בעלות (כללי)",
+      misgeret: "מספר שילדה",
+      tzeva_rechev: "צבע",
+      tzeva_cd: "קוד צבע",
+      zmig_kidmi: "צמיג קדמי",
+      zmig_ahori: "צמיג אחורי",
+      sug_delek_nm: "סוג דלק",
+      horaat_rishum: "מספר הוראת רישום",
+      moed_aliya_lakvish: "מועד עלייה לכביש",
+      kinuy_mishari: "כינוי מסחרי"
+    };
     return map[field] || field;
+  }
+
+  function buildTable(record){
+    tbodyEl.innerHTML = "";
+    const keys = Object.keys(record);
+
+    const preferredOrder = [
+      "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
+      "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
+      "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish",
+      "tzeva_rechev","zmig_kidmi","zmig_ahori","misgeret","horaat_rishum",
+      "tozeret_cd","degem_cd","degem_manoa","tzeva_cd","sug_degem","_id","rank"
+    ];
+
+    const ordered = [];
+    preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
+    keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
+
+    for(const k of ordered){
+      if (HIDDEN_FIELDS.has(k)) continue;
+
+      let v = record[k];
+      if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="mono">${escapeHtml(labelForField(k))}</td>
+        <td>${escapeHtml(v)}</td>
+      `;
+      tbodyEl.appendChild(tr);
+    }
+  }
+
+  function buildQuickCards(record){
+    const pick = [
+      ["mispar_rechev","מספר רכב"],
+      ["tozeret_nm","יצרן"],
+      ["degem_nm","דגם"],
+      ["shnat_yitzur","שנת ייצור"],
+      ["sug_delek_nm","דלק"],
+      ["tokef_dt","תוקף רישוי"],
+      ["mivchan_acharon_dt","טסט אחרון"],
+      ["tzeva_rechev","צבע"]
+    ];
+
+    quickKv.innerHTML = "";
+
+    for(const [k,ttl] of pick){
+      if(record[k] === undefined) continue;
+      if (HIDDEN_FIELDS.has(k)) continue;
+
+      let val = record[k];
+      if (k === "tokef_dt" || k === "mivchan_acharon_dt") val = fmtDateMaybe(val);
+
+      const div = document.createElement("div");
+      div.className = "card";
+      div.style.padding = "10px 12px";
+      div.style.boxShadow = "none";
+      div.style.background = "rgba(255,255,255,.04)";
+      div.innerHTML = `
+        <div style="color:var(--muted);font-size:12px;font-weight:800;margin-bottom:4px;">${escapeHtml(ttl)}</div>
+        <div style="font-size:15px;font-weight:800;">${escapeHtml(val)}</div>
+      `;
+      quickKv.appendChild(div);
+    }
   }
 
   async function lookup(){
     const plate = normalizePlate(plateEl.value);
-    if(!plate){ setStatus("חסר מספר רכב", "warn"); return; }
+
+    if(!plate){
+      setStatus("חסר מספר רכב. הכנס מספר (רק ספרות).", "warn");
+      resultArea.style.display = "none";
+      lastRecord = null;
+      return;
+    }
+
     btnEl.disabled = true;
     setStatus("שולף נתונים…", "");
+
     try{
-      const url = `${API_BASE}?resource_id=${RESOURCE_ID}&q=${plate}&limit=1`;
-      const res = await fetch(url);
+      const url = new URL(API_BASE);
+      url.searchParams.set("resource_id", RESOURCE_ID);
+      url.searchParams.set("q", plate);
+      url.searchParams.set("limit", "1");
+
+      const res = await fetch(url.toString(), { method:"GET" });
+
+      if(!res.ok){
+        throw new Error("שגיאת רשת: " + res.status + " " + res.statusText);
+      }
+
       const data = await res.json();
-      const records = data.result?.records || [];
+
+      if(!data || data.success !== true){
+        throw new Error("תשובה לא צפויה מהשרת.");
+      }
+
+      const records = (data.result && data.result.records) ? data.result.records : [];
+
       if(records.length === 0){
-        setStatus("לא נמצאו נתונים למספר הזה.", "warn");
+        setStatus(
+          "לא נמצאו נתונים למספר הזה במאגר.\n" +
+          "זה יכול להיות כי הרכב לא פעיל/לא עומד בתנאי המאגר/רכב ישן מאוד/משאית כבדה/אופנוע וכו'.",
+          "warn"
+        );
         resultArea.style.display = "none";
+        lastRecord = null;
         return;
       }
-      lastRecord = records[0];
-      renderData(lastRecord);
+
+      const record = records[0];
+      lastRecord = record;
+
+      buildQuickCards(record);
+      buildTable(record);
+
       resultArea.style.display = "block";
-      setStatus("נמצא רכב!", "ok");
-    } catch(err) {
-      setStatus("שגיאה בחיבור", "err");
-    } finally { btnEl.disabled = false; }
+      setStatus("נמצא רכב – הנתונים מוצגים למטה.", "ok");
+
+      footerNote.innerHTML = "";
+
+    }catch(err){
+      setStatus("שגיאה: " + (err?.message || String(err)), "err");
+      resultArea.style.display = "none";
+      lastRecord = null;
+    }finally{
+      btnEl.disabled = false;
+    }
   }
 
-  function renderData(record) {
+  function clearAll(){
+    plateEl.value = "";
+    setStatus("הכנס מספר רכב ולחץ “שלוף נתונים”.", "");
+    resultArea.style.display = "none";
     tbodyEl.innerHTML = "";
     quickKv.innerHTML = "";
-    const displayFields = ["mispar_rechev","tozeret_nm","degem_nm","shnat_yitzur","sug_delek_nm","tokef_dt","tzeva_rechev"];
-    
-    displayFields.forEach(k => {
-      let v = record[k];
-      if (k.includes('_dt')) v = fmtDateMaybe(v);
-      if(!v) return;
-      
-      const div = document.createElement("div");
-      div.className = "card"; div.style.padding = "10px"; div.style.background = "rgba(255,255,255,.04)";
-      div.innerHTML = `<div style="color:var(--muted);font-size:12px;font-weight:800;">${labelForField(k)}</div><div style="font-size:15px;font-weight:800;">${v}</div>`;
-      quickKv.appendChild(div);
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${labelForField(k)}</td><td>${v}</td>`;
-      tbodyEl.appendChild(tr);
-    });
+    footerNote.innerHTML = "";
+    lastRecord = null;
+    plateEl.focus();
   }
 
-  function clearAll(){ plateEl.value = ""; resultArea.style.display = "none"; setStatus("הכנס מספר רכב", ""); lastRecord = null; }
-  
+  function buildWhatsAppText(record){
+    const keys = Object.keys(record);
+
+    const preferredOrder = [
+      "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
+      "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
+      "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev"
+    ];
+
+    const ordered = [];
+    preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
+    keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
+
+    const lines = [];
+    lines.push("נתוני רכב:");
+    for(const k of ordered){
+      if (HIDDEN_FIELDS.has(k)) continue;
+      let v = record[k];
+      if (v === undefined || v === null || String(v).trim() === "") continue;
+      if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
+      lines.push(`${labelForField(k)}: ${v}`);
+    }
+    return lines.join("\n");
+  }
+
   async function sendWhatsApp(){
-    if(!lastRecord) return;
-    let txt = "נתוני רכב:\n";
-    ["mispar_rechev","tozeret_nm","degem_nm","shnat_yitzur"].forEach(k => { if(lastRecord[k]) txt += `${labelForField(k)}: ${lastRecord[k]}\n`});
-    const url = "https://wa.me/?text=" + encodeURIComponent(txt);
+    if(!lastRecord){
+      setStatus("אין נתונים לשליחה. קודם תבצע שליפה של מספר רכב.", "warn");
+      return;
+    }
+
+    const text = buildWhatsAppText(lastRecord);
+
+    try{
+      if (navigator.share){
+        await navigator.share({ text });
+        return;
+      }
+    }catch(e){}
+
+    const url = "https://wa.me/?text=" + encodeURIComponent(text);
     window.open(url, "_blank");
   }
 
-  plateEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") lookup(); });
+  plateEl.addEventListener("keydown", (e)=>{
+    if(e.key === "Enter") lookup();
+  });
+
+  // =========================================================
+  // ✅ סריקה משודרגת (בלי שינוי UI/עיצוב) – רק מאחורי הקלעים
+  // =========================================================
+
+  let ocrWorker = null;
+
+  async function getOcrWorker(){
+    if(ocrWorker) return ocrWorker;
+
+    if (typeof Tesseract === "undefined" || !Tesseract.createWorker){
+      throw new Error("OCR לא נטען. בדוק שיש אינטרנט/גישה ל-CDN.");
+    }
+
+    ocrWorker = await Tesseract.createWorker({
+      logger: m => {
+        if (m && m.status === "recognizing text" && typeof m.progress === "number") {
+          const pct = Math.round(m.progress * 100);
+          setStatus(`מזהה מספר לוחית… ${pct}%`, "");
+        }
+      }
+    });
+
+    await ocrWorker.loadLanguage("eng");
+    await ocrWorker.initialize("eng");
+
+    // פרמטרים קריטיים ללוחיות: ספרות בלבד + שורה אחת
+    await ocrWorker.setParameters({
+      tessedit_char_whitelist: "0123456789",
+      preserve_interword_spaces: "1",
+      // PSM 7 = SINGLE_LINE (מעולה ללוחית)
+      tessedit_pageseg_mode: "7",
+      user_defined_dpi: "300"
+    });
+
+    return ocrWorker;
+  }
+
+  function startScan(){
+    platePhoto.value = "";
+    platePhoto.click();
+  }
+
+  platePhoto.addEventListener("change", async () => {
+    const file = platePhoto.files && platePhoto.files[0];
+    if(!file) return;
+
+    scanBtn.disabled = true;
+    setStatus("מכין תמונה לסריקה…", "");
+
+    try{
+      const bmp = await createImageBitmap(file);
+
+      // כדי לא להכביד: מגביל רוחב
+      const maxW = 1280;
+      const scale = bmp.width > maxW ? (maxW / bmp.width) : 1;
+      const W = Math.round(bmp.width * scale);
+      const H = Math.round(bmp.height * scale);
+
+      // קנבס בסיסי של התמונה
+      const base = document.createElement("canvas");
+      base.width = W; base.height = H;
+      const bctx = base.getContext("2d", { willReadFrequently: true });
+      bctx.drawImage(bmp, 0, 0, W, H);
+
+      // מייצר כמה חיתוכים אופייניים ללוחית
+      const crops = makeCropRects(W, H);
+
+      const worker = await getOcrWorker();
+
+      let bestCandidate = "";
+      let bestLen = 0;
+
+      for(let i=0; i<crops.length; i++){
+        setStatus(`מנסה לזהות… ניסיון ${i+1}/${crops.length}`, "");
+
+        const c = crops[i];
+        const cropCanvas = document.createElement("canvas");
+        cropCanvas.width = c.w;
+        cropCanvas.height = c.h;
+
+        const cctx = cropCanvas.getContext("2d", { willReadFrequently: true });
+        cctx.drawImage(base, c.x, c.y, c.w, c.h, 0, 0, c.w, c.h);
+
+        // preprocess: שחור/לבן + קונטרסט
+        bwHighContrast(cctx, c.w, c.h);
+
+        const { data } = await worker.recognize(cropCanvas);
+        const raw = (data && data.text) ? data.text : "";
+        const candidate = extractPlateNumber(raw);
+
+        // מצא 8/7 ספרות? מעולה – עצור
+        if(candidate && (candidate.length === 8 || candidate.length === 7)){
+          bestCandidate = candidate;
+          break;
+        }
+
+        // אחרת, שמור את הכי ארוך שנמצא (fallback)
+        if(candidate && candidate.length > bestLen){
+          bestLen = candidate.length;
+          bestCandidate = candidate;
+        }
+      }
+
+      if(!bestCandidate){
+        setStatus(
+          "לא הצלחתי לזהות מספר בצורה בטוחה.\n" +
+          "טיפ מהיר: תצלם כשהלוחית ממלאת את התמונה, בלי פלאש/השקפות, ושהמספרים כהים.",
+          "warn"
+        );
+        return;
+      }
+
+      // שתילה אוטומטית
+      plateEl.value = bestCandidate;
+
+      // אם זה לא 7/8 ספרות – עדיין נשתול כדי שתוכל לתקן, אבל נזהיר
+      if(bestCandidate.length !== 7 && bestCandidate.length !== 8){
+        setStatus(
+          `זיהיתי רצף חלקי: ${bestCandidate}\nבדוק/תקן אם צריך ואז לחץ “שלוף נתונים”.`,
+          "warn"
+        );
+        return;
+      }
+
+      // שליפה אוטומטית
+      await lookup();
+
+    }catch(err){
+      setStatus("שגיאה בסריקה: " + (err?.message || String(err)), "err");
+    }finally{
+      scanBtn.disabled = false;
+    }
+  });
+
+  function makeCropRects(W, H){
+    // לוחית בד"כ במרכז/תחתית. אנחנו מנסים 3 אזורים.
+    const rects = [
+      // מרכז-תחתון רחב
+      { x: Math.round(W*0.08), y: Math.round(H*0.45), w: Math.round(W*0.84), h: Math.round(H*0.28) },
+      // מרכז
+      { x: Math.round(W*0.12), y: Math.round(H*0.35), w: Math.round(W*0.76), h: Math.round(H*0.28) },
+      // תחתון יותר
+      { x: Math.round(W*0.06), y: Math.round(H*0.55), w: Math.round(W*0.88), h: Math.round(H*0.30) }
+    ];
+
+    // תיקון גבולות
+    return rects.map(r => {
+      let x=r.x, y=r.y, w=r.w, h=r.h;
+      if(x<0) x=0; if(y<0) y=0;
+      if(x+w>W) w=W-x;
+      if(y+h>H) h=H-y;
+      // מינימום כדי למנוע קנבס 0
+      w=Math.max(50,w); h=Math.max(50,h);
+      return {x,y,w,h};
+    });
+  }
+
+  function bwHighContrast(ctx, w, h){
+    const img = ctx.getImageData(0,0,w,h);
+    const d = img.data;
+
+    // קונטרסט חזק + בינאריזציה
+    const contrast = 2.0;  // 1.0 = בלי שינוי
+    const thresh = 150;    // סף שחור/לבן
+
+    for(let i=0; i<d.length; i+=4){
+      const r=d[i], g=d[i+1], b=d[i+2];
+      let gray = (0.299*r + 0.587*g + 0.114*b);
+
+      // קונטרסט סביב 128
+      gray = (gray - 128) * contrast + 128;
+      if(gray < 0) gray = 0;
+      if(gray > 255) gray = 255;
+
+      const v = (gray > thresh) ? 255 : 0;
+
+      d[i] = d[i+1] = d[i+2] = v;
+      d[i+3] = 255;
+    }
+
+    ctx.putImageData(img,0,0);
+  }
+
+  function extractPlateNumber(text){
+    const groups = String(text || "").match(/\d+/g) || [];
+    if(groups.length === 0) return "";
+
+    // 1) נסה לחבר קבוצות סמוכות (כי לוחית יכולה להופיע 2-3-3 וכו')
+    let best = "";
+
+    for(let i=0; i<groups.length; i++){
+      let concat = "";
+      for(let j=i; j<Math.min(i+4, groups.length); j++){
+        concat += groups[j];
+
+        if(concat.length === 8) return concat; // הכי טוב
+        if(concat.length === 7) best = best || concat;
+      }
+    }
+    if(best) return best;
+
+    // 2) אם יש כבר 8 או 7 בקבוצות עצמן
+    const g8 = groups.find(s => s.length === 8);
+    if(g8) return g8;
+    const g7 = groups.find(s => s.length === 7);
+    if(g7) return g7;
+
+    // 3) fallback: הכי ארוך
+    let longest = "";
+    for(const s of groups){
+      if(s.length > longest.length) longest = s;
+    }
+    return longest;
+  }
 </script>
 </body>
 </html>
