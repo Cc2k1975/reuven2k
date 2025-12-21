@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>שליפת נתוני רכב לפי מספר רישוי</title>
+
   <style>
     :root{
       --bg:#0f172a;
@@ -27,10 +28,7 @@
       padding:18px;
     }
     .wrap{max-width:880px;margin:0 auto}
-    .title{
-      display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
-      margin-bottom:14px;
-    }
+    .title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
     h1{margin:0;font-size:20px;line-height:1.25}
     .card{
       background:rgba(17,28,51,.92);
@@ -98,10 +96,114 @@
     .kv{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
     .footer{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.4}
     .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+    /* =========================
+       שכבת סורק לייב (נפתחת רק בלחיצה על "סרוק")
+       ========================= */
+    .scanner-overlay{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.78);
+      display:none;
+      z-index:9999;
+      padding:14px;
+    }
+    .scanner-card{
+      max-width:860px;
+      margin:0 auto;
+      background:rgba(17,28,51,.96);
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+    .scanner-top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px 12px;
+      border-bottom:1px solid var(--line);
+    }
+    .scanner-title{
+      font-weight:900;
+      font-size:14px;
+      color:var(--ink);
+    }
+    .scanner-sub{
+      font-size:12px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+    .scanner-body{
+      position:relative;
+      background:#000;
+    }
+    video#scanVideo{
+      width:100%;
+      height:auto;
+      display:block;
+      background:#000;
+    }
+    .scan-frame{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+    }
+    /* מסגרת רמז ללוחית */
+    .scan-box{
+      position:absolute;
+      left:6%;
+      right:6%;
+      top:52%;
+      height:22%;
+      border:2px solid rgba(34,197,94,.75);
+      border-radius:14px;
+      box-shadow:0 0 0 9999px rgba(0,0,0,.10) inset;
+    }
+    .scan-hint{
+      position:absolute;
+      left:6%;
+      right:6%;
+      top:calc(52% + 22% + 10px);
+      color:rgba(248,250,252,.88);
+      font-size:12px;
+      line-height:1.35;
+      text-shadow:0 2px 10px rgba(0,0,0,.6);
+    }
+    .scanner-bottom{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      padding:12px;
+      border-top:1px solid var(--line);
+      background:rgba(255,255,255,.02);
+    }
+    .scan-pill{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .scan-live{
+      color:#d1fae5;
+      font-weight:900;
+    }
+    .scan-plate{
+      color:var(--ink);
+      font-weight:900;
+      font-size:16px;
+      letter-spacing:.5px;
+    }
   </style>
 
+  <!-- OCR -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
+
 <body>
   <div class="wrap">
     <div class="title">
@@ -115,13 +217,11 @@
           <input id="plate" inputmode="numeric" autocomplete="off" placeholder="לדוגמה: 2623638" />
         </div>
 
-        <button class="mini" id="scanBtn" onclick="startScan()">סרוק</button>
+        <button class="mini" id="scanBtn" onclick="openLiveScanner()">סרוק</button>
 
         <button id="btn" onclick="lookup()">שלוף נתונים</button>
         <button class="mini" onclick="sendWhatsApp()">ווצאפ</button>
         <button class="mini" onclick="clearAll()">נקה</button>
-
-        <input id="platePhoto" type="file" accept="image/*" capture="environment" style="display:none" />
       </div>
 
       <div id="status" class="status">הכנס מספר רכב ולחץ “שלוף נתונים”.</div>
@@ -143,7 +243,46 @@
     </div>
   </div>
 
+  <!-- שכבת סורק לייב -->
+  <div id="scannerOverlay" class="scanner-overlay">
+    <div class="scanner-card">
+      <div class="scanner-top">
+        <div>
+          <div class="scanner-title">סריקה בלייב – תעמיד את הלוחית בתוך המסגרת</div>
+          <div class="scanner-sub">כשתזוהה לוחית (7 או 8 ספרות) זה יכניס אוטומטית לשדה ויבצע “שלוף נתונים”.</div>
+        </div>
+        <button class="mini" onclick="closeLiveScanner()">סגור</button>
+      </div>
+
+      <div class="scanner-body">
+        <video id="scanVideo" playsinline muted></video>
+        <div class="scan-frame">
+          <div class="scan-box"></div>
+          <div class="scan-hint">
+            טיפ: תתקרב, בלי השתקפות, ותן ללוחית למלא את המסגרת.<br>
+            זה עובד גם ל־7 ספרות וגם ל־8 ספרות (עם/בלי מקפים).
+          </div>
+        </div>
+      </div>
+
+      <div class="scanner-bottom">
+        <div class="scan-pill">
+          <span class="scan-live">● LIVE</span>
+          <span>זיהוי:</span>
+          <span id="livePlate" class="scan-plate">—</span>
+          <span id="liveMsg"></span>
+        </div>
+        <div class="scan-pill">
+          <span id="liveProgress"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script>
+  // =========================
+  // API + טבלה (כמו אצלך)
+  // =========================
   const RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3";
   const API_BASE = "https://data.gov.il/api/3/action/datastore_search";
 
@@ -154,9 +293,6 @@
   const tbodyEl  = document.getElementById("tbody");
   const quickKv  = document.getElementById("quickKv");
   const footerNote = document.getElementById("footerNote");
-
-  const scanBtn = document.getElementById("scanBtn");
-  const platePhoto = document.getElementById("platePhoto");
 
   let lastRecord = null;
 
@@ -396,144 +532,218 @@
   });
 
   // =========================
-  // ✅ סריקה משודרגת מאוד
+  // ✅ LIVE SCANNER (וידאו)
   // =========================
+  const overlay = document.getElementById("scannerOverlay");
+  const videoEl = document.getElementById("scanVideo");
+  const livePlateEl = document.getElementById("livePlate");
+  const liveMsgEl = document.getElementById("liveMsg");
+  const liveProgressEl = document.getElementById("liveProgress");
 
-  let ocrWorker = null;
+  let stream = null;
+  let worker = null;
+  let scanLoopTimer = null;
+  let busy = false;
+  let lastGood = "";
+  let lastGoodTs = 0;
 
-  async function getWorker(){
-    if(ocrWorker) return ocrWorker;
+  // Canvas עבודה
+  const grabCanvas = document.createElement("canvas");
+  const grabCtx = grabCanvas.getContext("2d", { willReadFrequently:true });
 
-    ocrWorker = await Tesseract.createWorker({
-      logger: (m)=>{
-        if (m && m.status === "recognizing text" && typeof m.progress === "number"){
-          const pct = Math.round(m.progress * 100);
-          setStatus(`מזהה מספר לוחית… ${pct}%`, "");
-        }
-      }
-    });
-
-    await ocrWorker.loadLanguage("eng");
-    await ocrWorker.initialize("eng");
-
-    await ocrWorker.setParameters({
-      tessedit_char_whitelist: "0123456789",
-      tessedit_pageseg_mode: "7", // SINGLE_LINE
-      user_defined_dpi: "300",
-      classify_bln_numeric_mode: "1"
-    });
-
-    return ocrWorker;
-  }
-
-  function startScan(){
-    platePhoto.value = "";
-    platePhoto.click();
-  }
-
-  platePhoto.addEventListener("change", async ()=>{
-    const file = platePhoto.files && platePhoto.files[0];
-    if(!file) return;
-
-    scanBtn.disabled = true;
-    setStatus("מכין תמונה לסריקה…", "");
+  async function openLiveScanner(){
+    livePlateEl.textContent = "—";
+    liveMsgEl.textContent = "";
+    liveProgressEl.textContent = "";
+    overlay.style.display = "block";
 
     try{
-      const bmp = await createImageBitmap(file);
+      // פותח מצלמה אחורית
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width:  { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      });
 
-      // להקטין רק אם ענק, כדי לשמור חדות
-      const maxW = 1600;
-      const scale = bmp.width > maxW ? (maxW / bmp.width) : 1;
-      const W = Math.round(bmp.width * scale);
-      const H = Math.round(bmp.height * scale);
+      videoEl.srcObject = stream;
+      await videoEl.play();
 
-      const base = document.createElement("canvas");
-      base.width = W; base.height = H;
-      const bctx = base.getContext("2d", { willReadFrequently:true });
-      bctx.imageSmoothingEnabled = true;
-      bctx.drawImage(bmp, 0, 0, W, H);
-
-      const crops = makeBetterCrops(W, H);
-      const worker = await getWorker();
-
-      let best = { plate:"", score:-1, raw:"" };
-
-      for(let i=0;i<crops.length;i++){
-        const r = crops[i];
-
-        // חיתוך
-        const c = document.createElement("canvas");
-        c.width = r.w; c.height = r.h;
-        const ctx = c.getContext("2d", { willReadFrequently:true });
-        ctx.drawImage(base, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
-
-        // הגדלה (חשוב מאוד ללוחיות)
-        const up = upscaleCanvas(c, 2);
-
-        // preprocess: Otsu + וגם inverted
-        const prep1 = toBW_Otsu(up, false);
-        const prep2 = toBW_Otsu(up, true);
-
-        // OCR על שניהם
-        const t1 = await recognizeDigits(worker, prep1);
-        const cand1 = scorePlateFromText(t1);
-
-        if(cand1.score > best.score) best = cand1;
-
-        // אם כבר 8 ספרות, מספיק
-        if(best.score >= 100) break;
-
-        const t2 = await recognizeDigits(worker, prep2);
-        const cand2 = scorePlateFromText(t2);
-        if(cand2.score > best.score) best = cand2;
-
-        if(best.score >= 100) break;
+      // מכין OCR worker פעם אחת
+      if(!worker){
+        worker = await Tesseract.createWorker({
+          logger: (m)=>{
+            if(m && m.status === "recognizing text" && typeof m.progress === "number"){
+              liveProgressEl.textContent = `OCR ${Math.round(m.progress*100)}%`;
+            }
+          }
+        });
+        await worker.loadLanguage("eng");
+        await worker.initialize("eng");
+        await worker.setParameters({
+          tessedit_char_whitelist: "0123456789",
+          tessedit_pageseg_mode: "7", // SINGLE_LINE
+          user_defined_dpi: "300",
+          classify_bln_numeric_mode: "1"
+        });
       }
 
-      if(!best.plate){
-        setStatus("לא הצלחתי לזהות מספר. נסה צילום קרוב יותר בלי השתקפות.", "warn");
-        return;
-      }
-
-      plateEl.value = best.plate;
-
-      // אם זה לא 7/8 – לא נזרוק אותך: נשתול ונזהיר
-      if(best.plate.length !== 7 && best.plate.length !== 8){
-        setStatus(`זיהיתי חלקית: ${best.plate}\nבדוק/תקן ואז לחץ “שלוף נתונים”.`, "warn");
-        return;
-      }
-
-      await lookup();
+      // מתחיל לולאת סריקה (מוגבלת זמן כדי לא להעמיס)
+      startLiveLoop();
 
     }catch(err){
-      setStatus("שגיאה בסריקה: " + (err?.message || String(err)), "err");
-    }finally{
-      scanBtn.disabled = false;
+      liveMsgEl.textContent = "";
+      liveProgressEl.textContent = "";
+      livePlateEl.textContent = "שגיאה";
+      setStatus("לא ניתן לפתוח מצלמה: " + (err?.message || String(err)), "err");
+      closeLiveScanner();
     }
-  });
+  }
 
-  function makeBetterCrops(W,H){
-    // חשוב: FULL WIDTH כדי לא לחתוך קצוות (בדיוק כמו התמונה שלך)
-    const rects = [
-      // כל התמונה (fallback עליון)
-      {x:0,y:0,w:W,h:H},
-      // פס רחב באמצע/תחתון
-      {x:0,y:Math.round(H*0.18),w:W,h:Math.round(H*0.62)},
-      // פס רחב יותר נמוך
-      {x:0,y:Math.round(H*0.28),w:W,h:Math.round(H*0.60)},
-      // פס ממוקד באזור הספרות (אבל עם שוליים קטנים בלבד)
-      {x:Math.round(W*0.01),y:Math.round(H*0.20),w:Math.round(W*0.98),h:Math.round(H*0.55)}
+  function closeLiveScanner(){
+    stopLiveLoop();
+    overlay.style.display = "none";
+
+    if(stream){
+      const tracks = stream.getTracks();
+      tracks.forEach(t => t.stop());
+      stream = null;
+    }
+    videoEl.srcObject = null;
+  }
+
+  function startLiveLoop(){
+    stopLiveLoop();
+
+    // כל 700ms ניסיון OCR (איזון טוב בין מהירות לדיוק)
+    scanLoopTimer = setInterval(async ()=>{
+      if(!overlay || overlay.style.display !== "block") return;
+      if(busy) return;
+
+      // אם ממש עכשיו מצאנו – לא ממשיכים לטחון
+      const now = Date.now();
+      if(lastGood && (now - lastGoodTs) < 1500) return;
+
+      busy = true;
+      try{
+        const cand = await scanOneFrame();
+        if(cand){
+          livePlateEl.textContent = cand;
+          liveMsgEl.textContent = " ✓";
+          lastGood = cand;
+          lastGoodTs = Date.now();
+
+          // מצא 7/8 ספרות => סוגר ומבצע lookup
+          if(cand.length === 7 || cand.length === 8){
+            plateEl.value = cand;
+            closeLiveScanner();
+            await lookup();
+          }
+        }else{
+          liveMsgEl.textContent = "";
+        }
+      }catch(e){
+        // שקט: לא מפילים את הסורק
+      }finally{
+        busy = false;
+        liveProgressEl.textContent = "";
+      }
+    }, 700);
+  }
+
+  function stopLiveLoop(){
+    if(scanLoopTimer){
+      clearInterval(scanLoopTimer);
+      scanLoopTimer = null;
+    }
+    busy = false;
+  }
+
+  async function scanOneFrame(){
+    // וידאו עדיין לא מוכן
+    const vw = videoEl.videoWidth;
+    const vh = videoEl.videoHeight;
+    if(!vw || !vh) return "";
+
+    // תופסים פריים ומורידים רזולוציה לעבודה מהירה
+    const targetW = 900; // מאוזן: חדות + מהירות
+    const scale = targetW / vw;
+    const W = targetW;
+    const H = Math.round(vh * scale);
+
+    grabCanvas.width = W;
+    grabCanvas.height = H;
+    grabCtx.drawImage(videoEl, 0, 0, W, H);
+
+    // מייצר כמה חיתוכים — FULL WIDTH כדי לא לחתוך קצוות של לוחית
+    const crops = [
+      // מרכז-תחתון (לרוב הלוחית שם)
+      {x:0, y:Math.round(H*0.45), w:W, h:Math.round(H*0.30)},
+      // קצת יותר גבוה
+      {x:0, y:Math.round(H*0.35), w:W, h:Math.round(H*0.34)},
+      // fallback גדול
+      {x:0, y:Math.round(H*0.25), w:W, h:Math.round(H*0.45)}
     ];
 
-    // גבולות
-    return rects.map(r=>{
-      let x=r.x,y=r.y,w=r.w,h=r.h;
-      if(x<0)x=0; if(y<0)y=0;
-      if(x+w>W) w=W-x;
-      if(y+h>H) h=H-y;
-      w=Math.max(80,w); h=Math.max(80,h);
-      return {x,y,w,h};
-    });
+    // בכל טיק ננסה רק 1 crop (כדי לרוץ מהר), ונחליף ביניהם במחזור
+    scanOneFrame._i = (scanOneFrame._i || 0) + 1;
+    const r = crops[scanOneFrame._i % crops.length];
+
+    const cropC = document.createElement("canvas");
+    cropC.width = r.w;
+    cropC.height = r.h;
+    const cctx = cropC.getContext("2d", { willReadFrequently:true });
+    cctx.drawImage(grabCanvas, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+
+    // הגדלה (קריטי)
+    const up = upscaleCanvas(cropC, 2);
+
+    // preprocess: Otsu רגיל + הפוך (כי תאורה משתנה)
+    const bw1 = toBW_Otsu(up, false);
+    const bw2 = toBW_Otsu(up, true);
+
+    const t1 = await recognizeDigits(bw1);
+    const cand1 = pickPlateCandidate(t1);
+    if(cand1) return cand1;
+
+    const t2 = await recognizeDigits(bw2);
+    const cand2 = pickPlateCandidate(t2);
+    return cand2;
+  }
+
+  async function recognizeDigits(canvas){
+    const { data } = await worker.recognize(canvas);
+    return (data && data.text) ? data.text : "";
+  }
+
+  function pickPlateCandidate(text){
+    // מאפשר 7 או 8 ספרות + חיבור קבוצות אם OCR מפצל בגלל מקפים
+    const groups = String(text || "").match(/\d+/g) || [];
+    if(!groups.length) return "";
+
+    // מועמד מיידי 8/7
+    for(const g of groups){
+      if(g.length === 8) return g;
+      if(g.length === 7) return g;
+    }
+
+    // חיבור 2-4 קבוצות (לוחית בפורמט 3-2-3 או 2-3-2 וכו')
+    for(let i=0;i<groups.length;i++){
+      let s="";
+      for(let j=i;j<Math.min(i+4, groups.length); j++){
+        s += groups[j];
+        if(s.length === 8) return s;
+        if(s.length === 7) return s;
+      }
+    }
+
+    // fallback: אם מצא רצף ארוך (6) נציג בלייב אבל לא נסגור
+    let longest = "";
+    for(const g of groups) if(g.length > longest.length) longest = g;
+    if(longest.length >= 6) return longest;
+    return "";
   }
 
   function upscaleCanvas(src, factor){
@@ -546,42 +756,6 @@
     return c;
   }
 
-  async function recognizeDigits(worker, canvas){
-    const { data } = await worker.recognize(canvas);
-    return (data && data.text) ? data.text : "";
-  }
-
-  function scorePlateFromText(text){
-    // מוציא קבוצות ספרתיות ומנסה גם לחבר (כי לפעמים ה-OCR מפצל)
-    const groups = String(text || "").match(/\d+/g) || [];
-    let best = { plate:"", score:-1, raw:text };
-
-    // נסה מועמדים ישירים
-    for(const g of groups){
-      if(g.length === 8) return { plate:g, score:100, raw:text };
-      if(g.length === 7 && best.score < 95) best = { plate:g, score:95, raw:text };
-      if(g.length === 6 && best.score < 70) best = { plate:g, score:70, raw:text };
-    }
-
-    // נסה חיבור של 2-4 קבוצות
-    for(let i=0;i<groups.length;i++){
-      let s="";
-      for(let j=i;j<Math.min(i+4, groups.length); j++){
-        s += groups[j];
-        if(s.length === 8) return { plate:s, score:99, raw:text };
-        if(s.length === 7 && best.score < 90) best = { plate:s, score:90, raw:text };
-        if(s.length === 6 && best.score < 65) best = { plate:s, score:65, raw:text };
-      }
-    }
-
-    // fallback: הכי ארוך
-    let longest = "";
-    for(const g of groups) if(g.length > longest.length) longest = g;
-    if(longest && best.score < 50) best = { plate: longest, score:50, raw:text };
-
-    return best;
-  }
-
   function toBW_Otsu(canvas, invert){
     const c = document.createElement("canvas");
     c.width = canvas.width;
@@ -592,9 +766,9 @@
     const img = ctx.getImageData(0,0,c.width,c.height);
     const d = img.data;
 
-    // grayscale + histogram
     const hist = new Uint32Array(256);
     const gray = new Uint8Array(c.width*c.height);
+
     for(let i=0, j=0; i<d.length; i+=4, j++){
       const g = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) | 0;
       gray[j]=g; hist[g]++;
@@ -637,6 +811,11 @@
     }
     return threshold;
   }
+
+  // סגירה בלחיצה על הרקע (לא חובה, אבל נוח)
+  overlay.addEventListener("click", (e)=>{
+    if(e.target === overlay) closeLiveScanner();
+  });
 </script>
 </body>
 </html>
