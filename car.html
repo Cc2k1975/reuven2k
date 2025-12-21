@@ -80,7 +80,6 @@
       padding:12px;
     }
 
-    /* Live scanner */
     .scanner{
       margin-top:12px;
       display:none;
@@ -99,7 +98,6 @@
     }
     .frame{
       position:absolute;
-      /* אזור מסגרת – תחתית הפריים, רוחב גדול, יחס מתאים ללוחית */
       left:6%;
       width:88%;
       bottom:10%;
@@ -233,22 +231,11 @@
   // ====== CKAN / data.gov.il ======
   const RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3";
 
-  // שדות שלא מציגים (כמו שביקשת)
   const HIDE_FIELDS = new Set([
-    "zmig_kidmi",
-    "zmig_ahori",
-    "misgeret",
-    "mispar_horaa",
-    "tozeret_cd",
-    "degem_cd",
-    "degem_manoa",
-    "tzeva_cd",
-    "sug_degem",
-    "_id",
-    "rank"
+    "zmig_kidmi","zmig_ahori","misgeret","mispar_horaa","tozeret_cd","degem_cd",
+    "degem_manoa","tzeva_cd","sug_degem","_id","rank"
   ]);
 
-  // תרגום שמות שדות לתצוגה יפה (אפשר להרחיב בלי לשנות לוגיקה)
   const LABELS = {
     "mispar_rechev":"מספר רכב",
     "tozeret_nm":"יצרן / שם תוצר",
@@ -277,7 +264,6 @@
   const btnWhatsApp = $("btnWhatsApp");
   const scanner = $("scanner");
   const video = $("video");
-  const frame = $("frame");
   const status = $("status");
   const hudTitle = $("hudTitle");
   const hudSub = $("hudSub");
@@ -292,36 +278,49 @@
   let worker = null;
   let scanning = false;
   let busyOCR = false;
-  let lastGoodPlate = "";
   let lastRecord = null;
 
-  function setStatus(msg){
-    status.textContent = msg;
-  }
+  // הצבעה בין פריימים (מייצב טעויות ספרה אחת)
+  const votes = [];
+  const VOTE_WINDOW = 3;      // כמה תוצאות לשמור
+  const VOTE_NEED = 2;        // כמה פעמים אותו מספר כדי לאשר
 
-  function onlyDigits(s){
-    return (s || "").replace(/[^\d]/g,"");
-  }
+  function setStatus(msg){ status.textContent = msg; }
+
+  function onlyDigits(s){ return (s || "").replace(/[^\d]/g,""); }
 
   function extractPlate(text){
-    // מוציא רק ספרות גם אם OCR מחזיר נקודות/מקפים/רווחים
     const digits = onlyDigits(text);
     if (digits.length === 7 || digits.length === 8) return digits;
 
-    // נסה למצוא רצף 7-8 ספרות בתוך הטקסט
     const m = text.match(/\d{7,8}/g);
     if (m && m.length){
-      // בחר את הראשון עם 7/8
       const cand = m[0];
       if (cand.length === 7 || cand.length === 8) return cand;
     }
 
-    // לפעמים OCR מוסיף ספרה כפולה – ננסה "לגלח" לרצף הכי סביר
     if (digits.length > 8){
       const mm = digits.match(/\d{8}/);
       if (mm) return mm[0];
     }
     return "";
+  }
+
+  function pushVote(plate){
+    votes.push(plate);
+    while (votes.length > VOTE_WINDOW) votes.shift();
+
+    const counts = {};
+    for (const p of votes) counts[p] = (counts[p] || 0) + 1;
+
+    let best = "";
+    let bestCount = 0;
+    for (const [k,v] of Object.entries(counts)){
+      if (v > bestCount){
+        best = k; bestCount = v;
+      }
+    }
+    return { best, bestCount, window: votes.slice() };
   }
 
   async function loadScript(src){
@@ -345,7 +344,6 @@
     if (worker) return worker;
 
     await ensureTesseractLoaded();
-
     hudTitle.textContent = "מכין OCR…";
     setStatus("טוען OCR מקומי…\n" + LOCAL_TESS_BASE);
 
@@ -353,9 +351,7 @@
       workerPath: `${LOCAL_TESS_BASE}/worker.min.js`,
       corePath:   `${LOCAL_TESS_BASE}/tesseract-core.wasm.js`,
       langPath:   "https://tessdata.projectnaptha.com/4.0.0",
-      logger: (m)=> {
-        // אפשר לפתוח לוג אם תרצה
-      }
+      logger: ()=>{}
     });
 
     await worker.setParameters({
@@ -378,8 +374,8 @@
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal:"environment" },
-        width: { ideal: 1280 },
-        height:{ ideal: 720 }
+        width: { ideal: 1920 },
+        height:{ ideal: 1080 }
       },
       audio:false
     });
@@ -389,7 +385,6 @@
 
     track = stream.getVideoTracks()[0];
 
-    // Zoom capabilities
     const caps = track.getCapabilities ? track.getCapabilities() : null;
     if (caps && caps.zoom){
       zoomRange.min = caps.zoom.min;
@@ -410,15 +405,14 @@
       zoomVal.textContent = "×" + z.toFixed(1);
       try{
         await track.applyConstraints({ advanced: [{ zoom: z }] });
-      }catch(e){
-        // לא כל מכשיר תומך
-      }
+      }catch(e){}
     };
   }
 
   function closeCamera(){
     scanning = false;
     busyOCR = false;
+    votes.length = 0;
 
     if (stream){
       stream.getTracks().forEach(t=>t.stop());
@@ -431,34 +425,36 @@
   }
 
   function getFrameCropBox(videoW, videoH){
-    // התאמה לאחוזים של המסגרת הירוקה (לפי CSS)
-    // left 6%, width 88%, bottom 10%, height 22%
+    // התאמה למסגרת הירוקה (כמו קודם)
     const left = 0.06 * videoW;
     const width = 0.88 * videoW;
     const height = 0.22 * videoH;
     const top = videoH - (0.10 * videoH) - height;
 
-    // "חיתוך פנימי" קטן כדי להוריד שוליים ירוקים/מסגרת/רעש
-    const padX = width * 0.03;
-    const padY = height * 0.10;
+    // חיתוך פנימי להורדת שוליים
+    let x = left + width * 0.03;
+    let y = top + height * 0.10;
+    let w = width - 2*(width * 0.03);
+    let h = height - 2*(height * 0.10);
 
-    return {
-      x: Math.max(0, left + padX),
-      y: Math.max(0, top + padY),
-      w: Math.max(1, width - 2*padX),
-      h: Math.max(1, height - 2*padY)
-    };
+    // *** קריטי: להוריד את הפס הכחול של IL משמאל (מבלבל OCR) ***
+    const cutLeft = w * 0.14; // ~14% שמאל
+    x += cutLeft;
+    w -= cutLeft;
+
+    // וגם קצת ימין כדי להוריד שוליים/ברגים
+    const cutRight = w * 0.03;
+    w -= cutRight;
+
+    return { x: Math.max(0,x), y: Math.max(0,y), w: Math.max(1,w), h: Math.max(1,h) };
   }
 
-  function preprocessToCanvas(srcCanvas, mode){
-    const sw = srcCanvas.width, sh = srcCanvas.height;
-    const ctx = srcCanvas.getContext("2d", { willReadFrequently:true });
+  function preprocessToCanvas(c, mode){
+    const sw = c.width, sh = c.height;
+    const ctx = c.getContext("2d", { willReadFrequently:true });
     const img = ctx.getImageData(0,0,sw,sh);
     const d = img.data;
 
-    // Grayscale + contrast + (optional) threshold
-    // mode 1: threshold; mode 2: contrast only
-    // הגדרות שמכוונות ללוחית צהובה עם ספרות שחורות
     let sum = 0;
     for (let i=0;i<d.length;i+=4){
       const r=d[i], g=d[i+1], b=d[i+2];
@@ -467,22 +463,24 @@
     }
     const mean = sum / (d.length/4);
 
-    // קונטרסט
-    const contrast = 1.35; // 1.0 = ללא שינוי
-    const bias = -20;      // מוריד בהירות מעט
+    const contrast = 1.45;
+    const bias = -22;
 
     for (let i=0;i<d.length;i+=4){
       const r=d[i], g=d[i+1], b=d[i+2];
       let y = (0.299*r + 0.587*g + 0.114*b);
 
-      // contrast around mean
       y = (y - mean) * contrast + mean + bias;
       if (y<0) y=0; if (y>255) y=255;
 
       if (mode === 1){
-        // threshold דינמי: מעט מתחת לממוצע
-        const th = mean - 10;
+        const th = mean - 12;
         const v = (y < th) ? 0 : 255;
+        d[i]=d[i+1]=d[i+2]=v;
+      } else if (mode === 2){
+        // invert threshold (לפעמים OCR עובד יותר טוב הפוך)
+        const th = mean - 12;
+        const v = (y < th) ? 255 : 0;
         d[i]=d[i+1]=d[i+2]=v;
       } else {
         d[i]=d[i+1]=d[i+2]=y;
@@ -490,7 +488,7 @@
       d[i+3]=255;
     }
     ctx.putImageData(img,0,0);
-    return srcCanvas;
+    return c;
   }
 
   function makeROIFromVideo(){
@@ -500,8 +498,8 @@
 
     const box = getFrameCropBox(vw, vh);
 
-    // ROI canvas – הגדלה משמעותית לפני OCR
-    const scale = 2.6;
+    // הגדלה חזקה יותר לדיוק
+    const scale = 3.2;
     const outW = Math.round(box.w * scale);
     const outH = Math.round(box.h * scale);
 
@@ -510,69 +508,96 @@
     c.height = outH;
 
     const ctx = c.getContext("2d", { willReadFrequently:true });
-    ctx.imageSmoothingEnabled = false;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.drawImage(video, box.x, box.y, box.w, box.h, 0, 0, outW, outH);
 
     return c;
   }
 
+  async function recognizeWithModes(roi){
+    // 3 ניסיונות מהירים (threshold / invert / grayscale) + משחק קטן עם PSM
+    // PSM 7 עובד טוב ל"שורה אחת", PSM 8 לפעמים טוב ל"word"
+    const tries = [
+      { pre:1, psm:"7" },
+      { pre:2, psm:"7" },
+      { pre:3, psm:"8" }
+    ];
+
+    for (const t of tries){
+      const c = roi;
+      preprocessToCanvas(c, t.pre);
+
+      await worker.setParameters({
+        tessedit_pageseg_mode: t.psm,
+        tessedit_char_whitelist: "0123456789",
+        classify_bln_numeric_mode: "1"
+      });
+
+      const r = await worker.recognize(c);
+      const plate = extractPlate(r?.data?.text || "");
+      if (plate) return plate;
+    }
+    return "";
+  }
+
   async function scanLoop(){
     if (!scanning) return;
-    if (busyOCR) {
+    if (busyOCR){
       requestAnimationFrame(scanLoop);
       return;
     }
 
     const t0 = performance.now();
     try{
-      const roi = makeROIFromVideo();
-      if (!roi){
+      const roi0 = makeROIFromVideo();
+      if (!roi0){
         requestAnimationFrame(scanLoop);
         return;
       }
 
       busyOCR = true;
 
-      // ניסיון 1: threshold
-      const c1 = roi;
-      preprocessToCanvas(c1, 1);
-      const r1 = await worker.recognize(c1);
-      let plate = extractPlate(r1?.data?.text || "");
-
-      // ניסיון 2: אם לא מצא – contrast בלי threshold
-      if (!plate){
-        const c2 = makeROIFromVideo();
-        preprocessToCanvas(c2, 2);
-        const r2 = await worker.recognize(c2);
-        plate = extractPlate(r2?.data?.text || "");
-      }
+      // כדי שלא נהרוס את אותו קנבס בכל ניסיון, ניצור עותקים לכל ניסיון
+      const roiA = roi0;
+      let plate = await recognizeWithModes(roiA);
 
       const dt = performance.now() - t0;
 
       if (plate){
-        lastGoodPlate = plate;
-        hudTitle.textContent = "זוהה: " + plate;
-        hudSub.textContent = "מכניס לשדה ושולף נתונים…";
-        setStatus(`זוהה מספר: ${plate}\nפריים: ${dt.toFixed(0)}ms`);
+        const v = pushVote(plate);
 
-        // פידבק
-        try{ navigator.vibrate && navigator.vibrate(90); }catch(e){}
+        hudTitle.textContent = `סורק… (${dt.toFixed(0)}ms)`;
+        hudSub.textContent = `מועמד: ${plate} • הצבעה: ${v.bestCount}/${VOTE_WINDOW}`;
 
-        plateInput.value = plate;
-        closeCamera();
-        await fetchVehicle();
-        return;
+        setStatus(
+          `סורק…\nמועמד: ${plate}\nחלון הצבעה: ${v.window.join(" , ")}\nזמן פריים: ${dt.toFixed(0)}ms`
+        );
+
+        if (v.bestCount >= VOTE_NEED){
+          // מאשר מספר יציב
+          const finalPlate = v.best;
+          hudTitle.textContent = "זוהה: " + finalPlate;
+          hudSub.textContent = "מכניס לשדה ושולף נתונים…";
+          setStatus(`זוהה (יציב): ${finalPlate}\nפריים: ${dt.toFixed(0)}ms`);
+
+          try{ navigator.vibrate && navigator.vibrate(90); }catch(e){}
+          plateInput.value = finalPlate;
+
+          closeCamera();
+          await fetchVehicle();
+          return;
+        }
       } else {
         hudTitle.textContent = "סורק…";
         hudSub.textContent = "תקרב עוד קצת, תיישר, ותמלא את המסגרת בלוחית";
-        setStatus(`סורק…\nפריים: ${dt.toFixed(0)}ms • עדיין לא זוהה`);
+        setStatus(`סורק…\nזמן פריים: ${dt.toFixed(0)}ms • עדיין לא זוהה`);
       }
 
     } catch(e){
       setStatus("שגיאה בסריקה:\n" + (e?.message || e));
     } finally {
       busyOCR = false;
-      // throttle – לא כל מילישנייה (יותר יציב + פחות תקיעות)
       setTimeout(()=>requestAnimationFrame(scanLoop), 220);
     }
   }
@@ -600,19 +625,14 @@
 
     setStatus("שולף נתונים…");
 
-    const url = "https://data.gov.il/api/3/action/datastore_search";
-    const body = {
-      resource_id: RESOURCE_ID,
-      filters: { mispar_rechev: Number(plate) },
-      limit: 1
-    };
+    // ✅ GET כדי להימנע מבעיות preflight/CORS שגורמות ל-Failed to fetch באנדרואיד
+    const filters = encodeURIComponent(JSON.stringify({ mispar_rechev: Number(plate) }));
+    const url =
+      `https://data.gov.il/api/3/action/datastore_search?resource_id=${encodeURIComponent(RESOURCE_ID)}&filters=${filters}&limit=1`;
 
     try{
-      const res = await fetch(url, {
-        method:"POST",
-        headers: { "Content-Type":"application/json" },
-        body: JSON.stringify(body)
-      });
+      const res = await fetch(url, { method:"GET", cache:"no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
 
       const json = await res.json();
       const rec = json?.result?.records?.[0];
@@ -633,15 +653,16 @@
     }
   }
 
-  function prettyLabel(k){
-    return LABELS[k] || k;
+  function prettyLabel(k){ return LABELS[k] || k; }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, (c)=>({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[c]));
   }
 
   function renderRecord(rec){
-    // בונה טבלה לפי הרשומות (ומסתיר שדות שביקשת)
     const rows = [];
-
-    // תמיד נרצה שמספר רכב יהיה ראשון
     const keys = Object.keys(rec);
     keys.sort((a,b)=>{
       if (a === "mispar_rechev") return -1;
@@ -668,25 +689,17 @@
     btnWhatsApp.style.display = "inline-block";
   }
 
-  function escapeHtml(s){
-    return s.replace(/[&<>"']/g, (c)=>({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-    }[c]));
-  }
-
   function buildWhatsAppText(rec){
     const lines = [];
     const plate = rec?.mispar_rechev ? String(rec.mispar_rechev) : "";
     lines.push("נתוני רכב לפי מספר רישוי");
     if (plate) lines.push("מספר רכב: " + plate);
 
-    const keys = Object.keys(rec);
-    for (const k of keys){
+    for (const k of Object.keys(rec)){
       if (HIDE_FIELDS.has(k)) continue;
       const v = rec[k];
       if (v === null || v === undefined || v === "") continue;
-      const label = prettyLabel(k);
-      lines.push(`${label}: ${String(v)}`);
+      lines.push(`${prettyLabel(k)}: ${String(v)}`);
     }
 
     return lines.join("\n");
@@ -709,7 +722,6 @@
   btnWhatsApp.addEventListener("click", openWhatsApp);
 
   plateInput.addEventListener("input", ()=>{
-    // מאפשר למשתמש להקליד עם מקפים/נקודות – נשמור רק ספרות
     const d = onlyDigits(plateInput.value);
     if (plateInput.value !== d) plateInput.value = d;
   });
