@@ -183,14 +183,8 @@
       width:min(520px, 100%);
       accent-color: #22c55e;
     }
-    .zoom-badge{
-      color:var(--ink);
-      font-weight:900;
-    }
-    .zoom-note{
-      color:var(--muted);
-      font-size:12px;
-    }
+    .zoom-badge{color:var(--ink);font-weight:900}
+    .zoom-note{color:var(--muted);font-size:12px}
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -245,10 +239,10 @@
       <div class="scanner-body">
         <video id="scanVideo" playsinline muted></video>
         <div class="scan-frame">
-          <div class="scan-box"></div>
+          <div id="scanBox" class="scan-box"></div>
           <div class="scan-hint">
-            טיפ: תתקרב, בלי השתקפות, ותן ללוחית למלא את המסגרת.<br>
-            אפשר זום מה"רול" למטה אם המכשיר תומך.
+            טיפ: תמלא את המסגרת בלוחית, בלי השתקפות, תתקרב קצת אם צריך.<br>
+            הסריקה קוראת בדיוק את האזור הירוק (1:1).
           </div>
         </div>
       </div>
@@ -265,7 +259,6 @@
           <span id="liveProgress"></span>
         </div>
 
-        <!-- Zoom slider row -->
         <div class="zoom-row">
           <span>זום:</span>
           <input id="zoomRange" type="range" min="1" max="1" step="0.1" value="1" disabled />
@@ -514,10 +507,12 @@
   plateEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") lookup(); });
 
   // =========================
-  // LIVE SCANNER + ZOOM SLIDER
+  // LIVE SCANNER (FIXED ROI = GREEN BOX)
   // =========================
   const overlay = document.getElementById("scannerOverlay");
   const videoEl = document.getElementById("scanVideo");
+  const boxEl = document.getElementById("scanBox");
+
   const livePlateEl = document.getElementById("livePlate");
   const liveMsgEl = document.getElementById("liveMsg");
   const liveProgressEl = document.getElementById("liveProgress");
@@ -526,8 +521,8 @@
   const zoomVal = document.getElementById("zoomVal");
   const zoomNote = document.getElementById("zoomNote");
 
-  // סריקה כל 250ms (זה “כמעט רציף” ועדיין ריאלי)
-  const SCAN_INTERVAL_MS = 250;
+  // “רציף” אבל ריאלי
+  const SCAN_INTERVAL_MS = 220;
 
   let stream = null;
   let track = null;
@@ -539,13 +534,20 @@
   let lastGood = "";
   let lastGoodTs = 0;
 
-  const grabCanvas = document.createElement("canvas");
-  const grabCtx = grabCanvas.getContext("2d", { willReadFrequently:true });
+  // canvases reusable (מהיר ויציב)
+  const roiCanvas = document.createElement("canvas");
+  const roiCtx = roiCanvas.getContext("2d", { willReadFrequently:true });
+
+  const upCanvas = document.createElement("canvas");
+  const upCtx = upCanvas.getContext("2d", { willReadFrequently:true });
+
+  const bwCanvas = document.createElement("canvas");
+  const bwCtx = bwCanvas.getContext("2d", { willReadFrequently:true });
 
   async function openLiveScanner(){
     livePlateEl.textContent = "—";
     liveMsgEl.textContent = "";
-    liveProgressEl.textContent = "";
+    liveProgressEl.textContent = "טוען…";
     zoomNote.textContent = "";
     zoomVal.textContent = "x1.0";
     zoomRange.disabled = true;
@@ -566,7 +568,6 @@
       await videoEl.play();
 
       track = stream.getVideoTracks()[0];
-
       setupZoomControls(track);
 
       if(!worker){
@@ -579,14 +580,15 @@
         });
         await worker.loadLanguage("eng");
         await worker.initialize("eng");
+        // חשוב: לוחית = שורה אחת/מילה אחת של מספרים
         await worker.setParameters({
           tessedit_char_whitelist: "0123456789",
           tessedit_pageseg_mode: "7",
-          user_defined_dpi: "300",
           classify_bln_numeric_mode: "1"
         });
       }
 
+      liveProgressEl.textContent = "";
       startLiveLoop();
 
     }catch(err){
@@ -614,13 +616,12 @@
       if(overlay.style.display !== "block") return;
       if(busy) return;
 
-      // אם כבר זיהינו עכשיו, לא טוחנים
       const now = Date.now();
-      if(lastGood && (now - lastGoodTs) < 900) return;
+      if(lastGood && (now - lastGoodTs) < 700) return;
 
       busy = true;
       try{
-        const cand = await scanOneFrame();
+        const cand = await scanGreenBox();
         if(cand){
           livePlateEl.textContent = cand;
           liveMsgEl.textContent = " ✓";
@@ -636,10 +637,10 @@
           liveMsgEl.textContent = "";
         }
       }catch(e){
-        // לא מפילים את הסורק
+        // שקט
       }finally{
         busy = false;
-        liveProgressEl.textContent = "";
+        if(String(liveProgressEl.textContent).startsWith("OCR")) liveProgressEl.textContent = "";
       }
     }, SCAN_INTERVAL_MS);
   }
@@ -653,7 +654,6 @@
   }
 
   function setupZoomControls(videoTrack){
-    // תומך רק אם המכשיר מאפשר capabilities.zoom
     let caps = null;
     try{ caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : null; }catch(e){}
 
@@ -671,7 +671,6 @@
     zoomRange.max = String(max);
     zoomRange.step = String(step);
 
-    // ננסה לקרוא הגדרה נוכחית
     let cur = min;
     try{
       const s = videoTrack.getSettings ? videoTrack.getSettings() : {};
@@ -689,71 +688,85 @@
       try{
         await videoTrack.applyConstraints({ advanced: [{ zoom: z }] });
       }catch(e){
-        // אם נכשל — ננעל ונודיע
         zoomRange.disabled = true;
         zoomNote.textContent = "ניסיון זום נכשל (הדפדפן חסם).";
       }
     };
   }
 
-  async function scanOneFrame(){
+  // ✅ פה התיקון הקריטי: חותך בדיוק לפי המסגרת הירוקה (DOM -> פיקסלי וידאו)
+  async function scanGreenBox(){
     const vw = videoEl.videoWidth;
     const vh = videoEl.videoHeight;
     if(!vw || !vh) return "";
 
-    // מורידים קצת רזולוציה ל-OCR מהיר
-    const targetW = 900;
-    const scale = targetW / vw;
-    const W = targetW;
-    const H = Math.round(vh * scale);
+    const vRect = videoEl.getBoundingClientRect();
+    const bRect = boxEl.getBoundingClientRect();
 
-    grabCanvas.width = W;
-    grabCanvas.height = H;
-    grabCtx.drawImage(videoEl, 0, 0, W, H);
+    // אם משום מה לא חופף – אין מה לסרוק
+    if(vRect.width <= 0 || vRect.height <= 0) return "";
 
-    // חיתוך FULL WIDTH באזור הלוחית (בדרך כלל תחתון-אמצעי)
-    const crops = [
-      {x:0, y:Math.round(H*0.45), w:W, h:Math.round(H*0.30)},
-      {x:0, y:Math.round(H*0.35), w:W, h:Math.round(H*0.34)},
-      {x:0, y:Math.round(H*0.25), w:W, h:Math.round(H*0.45)}
-    ];
+    // מיקום המסגרת ביחס לוידאו
+    const relX = (bRect.left - vRect.left) / vRect.width;
+    const relY = (bRect.top  - vRect.top ) / vRect.height;
+    const relW = (bRect.width) / vRect.width;
+    const relH = (bRect.height) / vRect.height;
 
-    scanOneFrame._i = (scanOneFrame._i || 0) + 1;
-    const r = crops[scanOneFrame._i % crops.length];
+    // padding קטן סביב המסגרת כדי לא לחתוך ספרות
+    const pad = 0.12; // 12%
+    let x = (relX - pad) * vw;
+    let y = (relY - pad) * vh;
+    let w = (relW + 2*pad) * vw;
+    let h = (relH + 2*pad) * vh;
 
-    const cropC = document.createElement("canvas");
-    cropC.width = r.w;
-    cropC.height = r.h;
-    const cctx = cropC.getContext("2d", { willReadFrequently:true });
-    cctx.drawImage(grabCanvas, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+    // clamp
+    x = Math.max(0, Math.min(vw-1, x));
+    y = Math.max(0, Math.min(vh-1, y));
+    w = Math.max(1, Math.min(vw - x, w));
+    h = Math.max(1, Math.min(vh - y, h));
 
-    const up = upscaleCanvas(cropC, 2);
+    // קובע גודל יעד ל-OCR (חדות + מהירות)
+    const targetW = Math.min(1100, Math.max(700, Math.round(w * 1.0)));
+    const scale = targetW / w;
+    const targetH = Math.max(120, Math.round(h * scale));
 
-    const bw1 = toBW_Otsu(up, false);
-    const bw2 = toBW_Otsu(up, true);
+    roiCanvas.width = targetW;
+    roiCanvas.height = targetH;
 
-    const t1 = await recognizeDigits(bw1);
-    const cand1 = pickPlateCandidate(t1);
-    if(cand1) return cand1;
+    // מושך ROI מהוידאו ישירות
+    roiCtx.drawImage(videoEl, x, y, w, h, 0, 0, targetW, targetH);
 
-    const t2 = await recognizeDigits(bw2);
-    return pickPlateCandidate(t2);
+    // upscale *2
+    upCanvas.width = roiCanvas.width * 2;
+    upCanvas.height = roiCanvas.height * 2;
+    upCtx.imageSmoothingEnabled = false;
+    upCtx.drawImage(roiCanvas, 0, 0, upCanvas.width, upCanvas.height);
+
+    // שני ניסיונות: threshold רגיל + הפוך
+    const candA = await ocrFromCanvas(binarizeOtsu(upCanvas, false));
+    if(candA) return candA;
+
+    const candB = await ocrFromCanvas(binarizeOtsu(upCanvas, true));
+    return candB;
   }
 
-  async function recognizeDigits(canvas){
-    const { data } = await worker.recognize(canvas);
-    return (data && data.text) ? data.text : "";
+  async function ocrFromCanvas(c){
+    const { data } = await worker.recognize(c);
+    const text = (data && data.text) ? data.text : "";
+    return pickPlateCandidate(text);
   }
 
   function pickPlateCandidate(text){
     const groups = String(text || "").match(/\d+/g) || [];
     if(!groups.length) return "";
 
+    // הכי טוב: 8 או 7
     for(const g of groups){
       if(g.length === 8) return g;
       if(g.length === 7) return g;
     }
 
+    // חיבור קבוצות (מקפים/נקודות)
     for(let i=0;i<groups.length;i++){
       let s="";
       for(let j=i;j<Math.min(i+4, groups.length); j++){
@@ -763,41 +776,32 @@
       }
     }
 
+    // הצגה לייב גם אם 6 (לא נסגור)
     let longest = "";
     for(const g of groups) if(g.length > longest.length) longest = g;
-    if(longest.length >= 6) return longest; // רק להצגה בלייב
+    if(longest.length >= 6) return longest;
+
     return "";
   }
 
-  function upscaleCanvas(src, factor){
-    const c = document.createElement("canvas");
-    c.width = src.width * factor;
-    c.height = src.height * factor;
-    const ctx = c.getContext("2d", { willReadFrequently:true });
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(src, 0, 0, c.width, c.height);
-    return c;
-  }
+  function binarizeOtsu(srcCanvas, invert){
+    bwCanvas.width = srcCanvas.width;
+    bwCanvas.height = srcCanvas.height;
+    bwCtx.drawImage(srcCanvas, 0, 0);
 
-  function toBW_Otsu(canvas, invert){
-    const c = document.createElement("canvas");
-    c.width = canvas.width;
-    c.height = canvas.height;
-    const ctx = c.getContext("2d", { willReadFrequently:true });
-    ctx.drawImage(canvas, 0, 0);
-
-    const img = ctx.getImageData(0,0,c.width,c.height);
+    const img = bwCtx.getImageData(0,0,bwCanvas.width,bwCanvas.height);
     const d = img.data;
 
     const hist = new Uint32Array(256);
-    const gray = new Uint8Array(c.width*c.height);
+    const total = bwCanvas.width * bwCanvas.height;
+    const gray = new Uint8Array(total);
 
     for(let i=0, j=0; i<d.length; i+=4, j++){
       const g = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) | 0;
       gray[j]=g; hist[g]++;
     }
 
-    const thr = otsu(hist, gray.length);
+    const thr = otsu(hist, total);
 
     for(let i=0, j=0; i<d.length; i+=4, j++){
       let v = (gray[j] > thr) ? 255 : 0;
@@ -805,8 +809,8 @@
       d[i]=d[i+1]=d[i+2]=v; d[i+3]=255;
     }
 
-    ctx.putImageData(img,0,0);
-    return c;
+    bwCtx.putImageData(img,0,0);
+    return bwCanvas;
   }
 
   function otsu(hist, total){
@@ -835,7 +839,6 @@
     return threshold;
   }
 
-  // סגירה בלחיצה על הרקע
   overlay.addEventListener("click", (e)=>{ if(e.target === overlay) closeLiveScanner(); });
 </script>
 </body>
