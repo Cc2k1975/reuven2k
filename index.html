@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
-    <title>המועדפים שלי</title>
+    <title>iPhone Premium Dash - Secure</title>
     <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -18,7 +18,7 @@
             margin: 0; background-color: var(--ios-bg);
             font-family: 'Assistant', sans-serif; color: var(--text-color);
             display: flex; flex-direction: column; align-items: center;
-            min-height: 100vh; padding-bottom: 100px; /* צמצום המרווח התחתון */
+            min-height: 100vh; padding-bottom: 100px;
         }
 
         header {
@@ -98,7 +98,6 @@
             font-weight: 800; margin-top: 15px; cursor: pointer;
         }
 
-        /* סרגל תחתון קטן ועדין */
         .dock-actions {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: rgba(28, 28, 30, 0.85); backdrop-filter: blur(15px);
@@ -112,33 +111,29 @@
             border: none; padding: 8px 15px; border-radius: 12px;
             font-size: 13px; font-weight: 700; cursor: pointer; 
             display: flex; align-items: center; gap: 6px;
-            transition: opacity 0.2s;
         }
 
         .btn-add-circle {
             background: #2c2c2e; color: var(--icon-color);
             border: 1px solid var(--icon-color);
-            width: 32px; height: 32px; /* הקטנה משמעותית */
+            width: 32px; height: 32px;
             border-radius: 10px; font-size: 18px; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
         }
-
-        .btn-sync:active, .btn-add-circle:active { opacity: 0.6; }
-
     </style>
 </head>
 <body>
 
 <header>
     <h1>האפליקציות שלי</h1>
-    <button class="edit-mode-btn" onclick="toggleEditMode()">עריכה</button>
+    <button class="edit-mode-btn" onclick="checkPassAndToggle()">עריכה</button>
 </header>
 
 <div id="grid" class="grid"></div>
 
 <div class="dock-actions">
     <button class="btn-add-circle" onclick="openModalForAdd()">+</button>
-    <button class="btn-sync" onclick="finalSyncToGithub()">
+    <button class="btn-sync" onclick="checkPassAndSync()">
         <i data-lucide="github" size="14"></i>
         סנכרון GitHub
     </button>
@@ -157,6 +152,7 @@
 </div>
 
 <script>
+    const PASS = "4451";
     const JSON_PATH = "data/links.json";
     const GH_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/links.json";
     
@@ -212,7 +208,6 @@
         ICON_LIST.forEach(icon => {
             const opt = document.createElement("div");
             opt.className = `icon-option ${selectedIcon === icon ? 'selected' : ''}`;
-            opt.dataset.icon = icon;
             opt.innerHTML = `<i data-lucide="${icon}"></i>`;
             opt.onclick = () => {
                 selectedIcon = icon;
@@ -224,10 +219,32 @@
         lucide.createIcons();
     }
 
+    function checkPassAndToggle() {
+        if (isEditingMode) {
+            toggleEditMode(); // יציאה מעריכה לא דורשת סיסמה
+            return;
+        }
+        const input = prompt("הכנס סיסמה לכניסה למצב עריכה:");
+        if (input === PASS) {
+            toggleEditMode();
+        } else {
+            alert("סיסמה שגויה!");
+        }
+    }
+
     function toggleEditMode() {
         isEditingMode = !isEditingMode;
         document.body.classList.toggle('is-editing', isEditingMode);
         document.querySelector('.edit-mode-btn').textContent = isEditingMode ? 'סיום' : 'עריכה';
+    }
+
+    function checkPassAndSync() {
+        const input = prompt("הכנס סיסמה לסנכרון:");
+        if (input === PASS) {
+            finalSyncToGithub();
+        } else {
+            alert("סיסמה שגויה!");
+        }
     }
 
     function openModalForAdd() {
