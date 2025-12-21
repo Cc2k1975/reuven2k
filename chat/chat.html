@@ -587,11 +587,27 @@ function updatePresenceUI(role, data) {
 
     if (data.lastSeen) {
         const d = new Date(data.lastSeen);
+        const now = new Date();
         let h = d.getHours();
         let m = d.getMinutes();
         const hh = (h < 10 ? "0" + h : "" + h);
         const mm = (m < 10 ? "0" + m : "" + m);
-        timeEl.textContent = online ? "עכשיו" : hh + ":" + mm;
+        
+        // בדיקה אם זה היום
+        const isToday = d.getDate() === now.getDate() && 
+                        d.getMonth() === now.getMonth() && 
+                        d.getFullYear() === now.getFullYear();
+
+        if (online) {
+            timeEl.textContent = "עכשיו";
+        } else {
+            if (isToday) {
+                timeEl.textContent = hh + ":" + mm;
+            } else {
+                const dateStr = d.getDate() + "/" + (d.getMonth() + 1);
+                timeEl.textContent = dateStr + " " + hh + ":" + mm;
+            }
+        }
     } else {
         timeEl.textContent = "--:--";
     }
@@ -649,7 +665,7 @@ function forceReauth() {
     endCall(true); 
     updatePresenceOffline();
     document.getElementById("passInput").value = "";
-    document.getElementById("passError").textContent = "";
+    document.getElementById("passwordError").textContent = "";
     document.getElementById("passwordScreen").style.display = "flex";
     document.getElementById("roleSelect").style.display = "none";
 }
@@ -808,11 +824,23 @@ function addMessage(key, text, role, time) {
 function formatTime(time) {
     if (!time) return "";
     const d = new Date(time);
+    const now = new Date();
     let h = d.getHours();
     let m = d.getMinutes();
     const hh = (h < 10 ? "0" + h : "" + h);
     const mm = (m < 10 ? "0" + m : "" + m);
-    return hh + ":" + mm;
+    
+    // בדיקה אם זה היום
+    const isToday = d.getDate() === now.getDate() && 
+                    d.getMonth() === now.getMonth() && 
+                    d.getFullYear() === now.getFullYear();
+
+    if (isToday) {
+        return hh + ":" + mm;
+    } else {
+        const dateStr = d.getDate() + "/" + (d.getMonth() + 1);
+        return dateStr + " " + hh + ":" + mm;
+    }
 }
 
 /* מחיקת צ'אט */
