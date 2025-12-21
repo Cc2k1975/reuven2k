@@ -138,7 +138,7 @@
       box-shadow:0 0 0 9999px rgba(0,0,0,.10) inset;
     }
 
-    /* אינדיקציה גדולה שתמיד רואים */
+    /* HUD ברור */
     .hud{
       position:absolute;
       left:10px; right:10px;
@@ -205,36 +205,6 @@
       opacity:.92;
     }
   </style>
-
-  <!-- loader מרובה מקורות ל-Tesseract -->
-  <script>
-    (async function loadTesseractMulti(){
-      const urls = [
-        "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js",
-        "https://unpkg.com/tesseract.js@5/dist/tesseract.min.js",
-        "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.5/tesseract.min.js"
-      ];
-
-      function loadScript(src){
-        return new Promise((resolve, reject)=>{
-          const s=document.createElement("script");
-          s.src=src; s.async=true;
-          s.onload=()=>resolve(src);
-          s.onerror=()=>reject(new Error("נכשל טעינת OCR מ: " + src));
-          document.head.appendChild(s);
-        });
-      }
-
-      for(const u of urls){
-        try{
-          await loadScript(u);
-          window.__TESS_LOADED_FROM__ = u;
-          return;
-        }catch(e){}
-      }
-      window.__TESS_LOAD_FAILED__ = true;
-    })();
-  </script>
 </head>
 
 <body>
@@ -248,11 +218,12 @@
           <input id="plate" inputmode="numeric" autocomplete="off" placeholder="לדוגמה: 2623638" />
         </div>
 
-        <button class="mini" id="scanBtn" onclick="openLiveScanner()">סרוק</button>
+        <!-- כפתור סרוק – עובד תמיד (type=button כדי שלא יקרה submit בטעות) -->
+        <button class="mini" id="scanBtn" type="button">סרוק</button>
 
-        <button id="btn" onclick="lookup()">שלוף נתונים</button>
-        <button class="mini" onclick="sendWhatsApp()">ווצאפ</button>
-        <button class="mini" onclick="clearAll()">נקה</button>
+        <button id="btn" type="button">שלוף נתונים</button>
+        <button class="mini" id="waBtn" type="button">ווצאפ</button>
+        <button class="mini" id="clearBtn" type="button">נקה</button>
       </div>
 
       <div id="status" class="status">הכנס מספר רכב ולחץ “שלוף נתונים”.</div>
@@ -280,7 +251,7 @@
           <div class="scanner-title">סריקה בלייב – תעמיד את הלוחית בתוך המסגרת</div>
           <div class="scanner-sub">זיהוי 7/8 ספרות → מכניס לשדה → שולף נתונים אוטומטית</div>
         </div>
-        <button class="mini" onclick="closeLiveScanner()">סגור</button>
+        <button class="mini" id="closeScanBtn" type="button">סגור</button>
       </div>
 
       <div class="scanner-body">
@@ -290,346 +261,571 @@
           <div id="scanBox" class="scan-box"></div>
 
           <div class="hud">
-            <div class="hudBox" id="hudBox">
+            <div class="hudBox">
               <span id="hudMain" class="hudWarn">פותח מצלמה…</span>
               <span id="hudSub" class="hudSmall">—</span>
             </div>
           </div>
 
           <div class="roiPreview"><canvas id="roiMini"></canvas></div>
-          <div class="debugPanel" id="debugPanel">DEBUG יופיע פה רק אם יש תקלה.</div>
+          <div class="debugPanel" id="debugPanel">אם יש תקלה – היא תופיע כאן.</div>
         </div>
       </div>
     </div>
   </div>
 
 <script>
-  // =========================
-  // API + טבלה (לא נוגע בלוגיקה)
-  // =========================
-  const RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3";
-  const API_BASE = "https://data.gov.il/api/3/action/datastore_search";
+/* =========================
+   חלק 1: שליפה + טבלה + וואטסאפ
+   ========================= */
+const RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3";
+const API_BASE = "https://data.gov.il/api/3/action/datastore_search";
 
-  const statusEl = document.getElementById("status");
-  const plateEl  = document.getElementById("plate");
-  const btnEl    = document.getElementById("btn");
-  const resultArea = document.getElementById("resultArea");
-  const tbodyEl  = document.getElementById("tbody");
-  const quickKv  = document.getElementById("quickKv");
-  const footerNote = document.getElementById("footerNote");
+const statusEl = document.getElementById("status");
+const plateEl  = document.getElementById("plate");
+const btnEl    = document.getElementById("btn");
+const resultArea = document.getElementById("resultArea");
+const tbodyEl  = document.getElementById("tbody");
+const quickKv  = document.getElementById("quickKv");
+const footerNote = document.getElementById("footerNote");
 
-  let lastRecord = null;
+let lastRecord = null;
 
-  const HIDDEN_FIELDS = new Set([
-    "zmig_kidmi","zmig_ahori","misgeret","horaat_rishum",
-    "tozeret_cd","degem_cd","degem_manoa","tzeva_cd",
-    "sug_degem","_id","rank"
-  ]);
+const HIDDEN_FIELDS = new Set([
+  "zmig_kidmi","zmig_ahori","misgeret","horaat_rishum",
+  "tozeret_cd","degem_cd","degem_manoa","tzeva_cd",
+  "sug_degem","_id","rank"
+]);
 
-  function setStatus(msg, kind=""){
-    statusEl.className = "status" + (kind ? " " + kind : "");
-    statusEl.textContent = msg;
+function setStatus(msg, kind=""){
+  statusEl.className = "status" + (kind ? " " + kind : "");
+  statusEl.textContent = msg;
+}
+
+function normalizePlate(raw){
+  return (raw || "").toString().replace(/[^\d]/g,"").trim();
+}
+
+function fmtDateMaybe(v){
+  if(!v) return "";
+  const s = String(v);
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : s;
+}
+
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[ch]));
+}
+
+function labelForField(field){
+  const map = {
+    mispar_rechev: "מספר רכב",
+    tozeret_nm: "שם תוצר / יצרן",
+    degem_nm: "דגם",
+    ramat_gimur: "רמת גימור",
+    ramat_eivzur_betihuty: "רמת אבזור בטיחותי",
+    kvutzat_zihum: "קבוצת זיהום",
+    shnat_yitzur: "שנת ייצור",
+    mivchan_acharon_dt: "טסט אחרון",
+    tokef_dt: "תוקף רישוי",
+    baalut: "בעלות (כללי)",
+    tzeva_rechev: "צבע",
+    sug_delek_nm: "סוג דלק",
+    moed_aliya_lakvish: "מועד עלייה לכביש",
+    kinuy_mishari: "כינוי מסחרי"
+  };
+  return map[field] || field;
+}
+
+function buildTable(record){
+  tbodyEl.innerHTML = "";
+  const keys = Object.keys(record);
+
+  const preferredOrder = [
+    "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
+    "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
+    "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev",
+    "zmig_kidmi","zmig_ahori","misgeret","horaat_rishum","tozeret_cd","degem_cd",
+    "degem_manoa","tzeva_cd","sug_degem","_id","rank"
+  ];
+
+  const ordered = [];
+  preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
+  keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
+
+  for(const k of ordered){
+    if (HIDDEN_FIELDS.has(k)) continue;
+
+    let v = record[k];
+    if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="mono">${escapeHtml(labelForField(k))}</td>
+      <td>${escapeHtml(v)}</td>
+    `;
+    tbodyEl.appendChild(tr);
   }
+}
 
-  function normalizePlate(raw){
-    return (raw || "").toString().replace(/[^\d]/g,"").trim();
+function buildQuickCards(record){
+  const pick = [
+    ["mispar_rechev","מספר רכב"],
+    ["tozeret_nm","יצרן"],
+    ["degem_nm","דגם"],
+    ["shnat_yitzur","שנת ייצור"],
+    ["sug_delek_nm","דלק"],
+    ["tokef_dt","תוקף רישוי"],
+    ["mivchan_acharon_dt","טסט אחרון"],
+    ["tzeva_rechev","צבע"]
+  ];
+
+  quickKv.innerHTML = "";
+
+  for(const [k,ttl] of pick){
+    if(record[k] === undefined) continue;
+    if (HIDDEN_FIELDS.has(k)) continue;
+
+    let val = record[k];
+    if (k === "tokef_dt" || k === "mivchan_acharon_dt") val = fmtDateMaybe(val);
+
+    const div = document.createElement("div");
+    div.className = "card";
+    div.style.padding = "10px 12px";
+    div.style.boxShadow = "none";
+    div.style.background = "rgba(255,255,255,.04)";
+    div.innerHTML = `
+      <div style="color:var(--muted);font-size:12px;font-weight:800;margin-bottom:4px;">${escapeHtml(ttl)}</div>
+      <div style="font-size:15px;font-weight:800;">${escapeHtml(val)}</div>
+    `;
+    quickKv.appendChild(div);
   }
+}
 
-  function fmtDateMaybe(v){
-    if(!v) return "";
-    const s = String(v);
-    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
-    return m ? m[1] : s;
-  }
+async function lookup(){
+  const plate = normalizePlate(plateEl.value);
 
-  function escapeHtml(s){
-    return String(s ?? "").replace(/[&<>"']/g, ch => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-    }[ch]));
-  }
-
-  function labelForField(field){
-    const map = {
-      mispar_rechev: "מספר רכב",
-      tozeret_nm: "שם תוצר / יצרן",
-      degem_nm: "דגם",
-      ramat_gimur: "רמת גימור",
-      ramat_eivzur_betihuty: "רמת אבזור בטיחותי",
-      kvutzat_zihum: "קבוצת זיהום",
-      shnat_yitzur: "שנת ייצור",
-      mivchan_acharon_dt: "טסט אחרון",
-      tokef_dt: "תוקף רישוי",
-      baalut: "בעלות (כללי)",
-      tzeva_rechev: "צבע",
-      sug_delek_nm: "סוג דלק",
-      moed_aliya_lakvish: "מועד עלייה לכביש",
-      kinuy_mishari: "כינוי מסחרי"
-    };
-    return map[field] || field;
-  }
-
-  function buildTable(record){
-    tbodyEl.innerHTML = "";
-    const keys = Object.keys(record);
-
-    const preferredOrder = [
-      "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
-      "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
-      "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev",
-      "zmig_kidmi","zmig_ahori","misgeret","horaat_rishum","tozeret_cd","degem_cd",
-      "degem_manoa","tzeva_cd","sug_degem","_id","rank"
-    ];
-
-    const ordered = [];
-    preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
-    keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
-
-    for(const k of ordered){
-      if (HIDDEN_FIELDS.has(k)) continue;
-
-      let v = record[k];
-      if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td class="mono">${escapeHtml(labelForField(k))}</td>
-        <td>${escapeHtml(v)}</td>
-      `;
-      tbodyEl.appendChild(tr);
-    }
-  }
-
-  function buildQuickCards(record){
-    const pick = [
-      ["mispar_rechev","מספר רכב"],
-      ["tozeret_nm","יצרן"],
-      ["degem_nm","דגם"],
-      ["shnat_yitzur","שנת ייצור"],
-      ["sug_delek_nm","דלק"],
-      ["tokef_dt","תוקף רישוי"],
-      ["mivchan_acharon_dt","טסט אחרון"],
-      ["tzeva_rechev","צבע"]
-    ];
-
-    quickKv.innerHTML = "";
-
-    for(const [k,ttl] of pick){
-      if(record[k] === undefined) continue;
-      if (HIDDEN_FIELDS.has(k)) continue;
-
-      let val = record[k];
-      if (k === "tokef_dt" || k === "mivchan_acharon_dt") val = fmtDateMaybe(val);
-
-      const div = document.createElement("div");
-      div.className = "card";
-      div.style.padding = "10px 12px";
-      div.style.boxShadow = "none";
-      div.style.background = "rgba(255,255,255,.04)";
-      div.innerHTML = `
-        <div style="color:var(--muted);font-size:12px;font-weight:800;margin-bottom:4px;">${escapeHtml(ttl)}</div>
-        <div style="font-size:15px;font-weight:800;">${escapeHtml(val)}</div>
-      `;
-      quickKv.appendChild(div);
-    }
-  }
-
-  async function lookup(){
-    const plate = normalizePlate(plateEl.value);
-
-    if(!plate){
-      setStatus("חסר מספר רכב. הכנס מספר (רק ספרות).", "warn");
-      resultArea.style.display = "none";
-      lastRecord = null;
-      return;
-    }
-
-    btnEl.disabled = true;
-    setStatus("שולף נתונים…", "");
-
-    try{
-      const url = new URL(API_BASE);
-      url.searchParams.set("resource_id", RESOURCE_ID);
-      url.searchParams.set("q", plate);
-      url.searchParams.set("limit", "1");
-
-      const res = await fetch(url.toString(), { method:"GET" });
-      if(!res.ok) throw new Error("שגיאת רשת: " + res.status + " " + res.statusText);
-
-      const data = await res.json();
-      if(!data || data.success !== true) throw new Error("תשובה לא צפויה מהשרת.");
-
-      const records = (data.result && data.result.records) ? data.result.records : [];
-      if(records.length === 0){
-        setStatus("לא נמצאו נתונים למספר הזה במאגר.", "warn");
-        resultArea.style.display = "none";
-        lastRecord = null;
-        return;
-      }
-
-      const record = records[0];
-      lastRecord = record;
-
-      buildQuickCards(record);
-      buildTable(record);
-
-      resultArea.style.display = "block";
-      setStatus("נמצא רכב – הנתונים מוצגים למטה.", "ok");
-      footerNote.innerHTML = "";
-
-    }catch(err){
-      setStatus("שגיאה: " + (err?.message || String(err)), "err");
-      resultArea.style.display = "none";
-      lastRecord = null;
-    }finally{
-      btnEl.disabled = false;
-    }
-  }
-
-  function clearAll(){
-    plateEl.value = "";
-    setStatus("הכנס מספר רכב ולחץ “שלוף נתונים”.", "");
+  if(!plate){
+    setStatus("חסר מספר רכב. הכנס מספר (רק ספרות).", "warn");
     resultArea.style.display = "none";
-    tbodyEl.innerHTML = "";
-    quickKv.innerHTML = "";
-    footerNote.innerHTML = "";
     lastRecord = null;
-    plateEl.focus();
+    return;
   }
 
-  function buildWhatsAppText(record){
-    const keys = Object.keys(record);
-    const preferredOrder = [
-      "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
-      "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
-      "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev"
-    ];
+  btnEl.disabled = true;
+  setStatus("שולף נתונים…", "");
 
-    const ordered = [];
-    preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
-    keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
+  try{
+    const url = new URL(API_BASE);
+    url.searchParams.set("resource_id", RESOURCE_ID);
+    url.searchParams.set("q", plate);
+    url.searchParams.set("limit", "1");
 
-    const lines = ["נתוני רכב:"];
-    for(const k of ordered){
-      if (HIDDEN_FIELDS.has(k)) continue;
-      let v = record[k];
-      if (v === undefined || v === null || String(v).trim() === "") continue;
-      if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
-      lines.push(`${labelForField(k)}: ${v}`);
-    }
-    return lines.join("\n");
-  }
+    const res = await fetch(url.toString(), { method:"GET" });
+    if(!res.ok) throw new Error("שגיאת רשת: " + res.status + " " + res.statusText);
 
-  async function sendWhatsApp(){
-    if(!lastRecord){
-      setStatus("אין נתונים לשליחה. קודם תבצע שליפה של מספר רכב.", "warn");
+    const data = await res.json();
+    if(!data || data.success !== true) throw new Error("תשובה לא צפויה מהשרת.");
+
+    const records = (data.result && data.result.records) ? data.result.records : [];
+    if(records.length === 0){
+      setStatus("לא נמצאו נתונים למספר הזה במאגר.", "warn");
+      resultArea.style.display = "none";
+      lastRecord = null;
       return;
     }
-    const text = buildWhatsAppText(lastRecord);
+
+    const record = records[0];
+    lastRecord = record;
+
+    buildQuickCards(record);
+    buildTable(record);
+
+    resultArea.style.display = "block";
+    setStatus("נמצא רכב – הנתונים מוצגים למטה.", "ok");
+    footerNote.innerHTML = "";
+
+  }catch(err){
+    setStatus("שגיאה: " + (err?.message || String(err)), "err");
+    resultArea.style.display = "none";
+    lastRecord = null;
+  }finally{
+    btnEl.disabled = false;
+  }
+}
+
+function clearAll(){
+  plateEl.value = "";
+  setStatus("הכנס מספר רכב ולחץ “שלוף נתונים”.", "");
+  resultArea.style.display = "none";
+  tbodyEl.innerHTML = "";
+  quickKv.innerHTML = "";
+  footerNote.innerHTML = "";
+  lastRecord = null;
+  plateEl.focus();
+}
+
+function buildWhatsAppText(record){
+  const keys = Object.keys(record);
+  const preferredOrder = [
+    "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
+    "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
+    "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev"
+  ];
+
+  const ordered = [];
+  preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
+  keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
+
+  const lines = ["נתוני רכב:"];
+  for(const k of ordered){
+    if (HIDDEN_FIELDS.has(k)) continue;
+    let v = record[k];
+    if (v === undefined || v === null || String(v).trim() === "") continue;
+    if (k === "tokef_dt" || k === "mivchan_acharon_dt") v = fmtDateMaybe(v);
+    lines.push(`${labelForField(k)}: ${v}`);
+  }
+  return lines.join("\n");
+}
+
+async function sendWhatsApp(){
+  if(!lastRecord){
+    setStatus("אין נתונים לשליחה. קודם תבצע שליפה של מספר רכב.", "warn");
+    return;
+  }
+
+  const text = buildWhatsAppText(lastRecord);
+
+  try{
+    if (navigator.share){
+      await navigator.share({ text });
+      return;
+    }
+  }catch(e){}
+
+  const url = "https://wa.me/?text=" + encodeURIComponent(text);
+  window.open(url, "_blank");
+}
+
+/* =========================
+   חלק 2: סורק לייב (יציב) + אינדיקציות
+   ========================= */
+const overlay = document.getElementById("scannerOverlay");
+const videoEl = document.getElementById("scanVideo");
+const boxEl   = document.getElementById("scanBox");
+
+const hudMain = document.getElementById("hudMain");
+const hudSub  = document.getElementById("hudSub");
+const debugPanel = document.getElementById("debugPanel");
+
+const roiMini = document.getElementById("roiMini");
+const roiMiniCtx = roiMini.getContext("2d", { willReadFrequently:true });
+
+const roiCanvas = document.createElement("canvas");
+const roiCtx = roiCanvas.getContext("2d", { willReadFrequently:true });
+
+const prepCanvas = document.createElement("canvas");
+const prepCtx = prepCanvas.getContext("2d", { willReadFrequently:true });
+
+let stream = null;
+let worker = null;
+let loopActive = false;
+
+let lastCandidate = "";
+let sameCount = 0;
+
+function hud(text, sub, cls){
+  hudMain.className = cls || "hudWarn";
+  hudMain.textContent = text;
+  hudSub.textContent = sub || "";
+}
+
+function dbg(msg){
+  const t = new Date().toLocaleTimeString("he-IL");
+  debugPanel.textContent = `[${t}] ${msg}\n` + debugPanel.textContent;
+}
+
+window.addEventListener("error", (e)=>{
+  dbg(`JS ERROR: ${e.message} @ ${e.filename}:${e.lineno}`);
+});
+window.addEventListener("unhandledrejection", (e)=>{
+  dbg(`PROMISE ERROR: ${String(e.reason || e)}`);
+});
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function loadTesseractIfNeeded(){
+  if(window.Tesseract) return true;
+
+  const urls = [
+    "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js",
+    "https://unpkg.com/tesseract.js@5/dist/tesseract.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.5/tesseract.min.js"
+  ];
+
+  function loadScript(src){
+    return new Promise((resolve, reject)=>{
+      const s = document.createElement("script");
+      s.src = src;
+      s.async = true;
+      s.onload = ()=>resolve(src);
+      s.onerror = ()=>reject(new Error("נכשל טעינת OCR: " + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  for(const u of urls){
     try{
-      if (navigator.share){
-        await navigator.share({ text });
-        return;
+      const used = await loadScript(u);
+      dbg("Tesseract נטען מ: " + used);
+      return true;
+    }catch(e){
+      dbg(e.message || String(e));
+    }
+  }
+  return false;
+}
+
+async function ensureWorker(){
+  if(worker) return;
+
+  // נתיבים מפורשים כדי להקטין “לא קורה כלום”
+  const base = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist";
+  hud("מכין OCR…", "פעם ראשונה יכול לקחת כמה שניות", "hudWarn");
+
+  worker = await Tesseract.createWorker("eng", 1, {
+    workerPath: base + "/worker.min.js",
+    corePath:   base + "/tesseract-core.wasm.js",
+    langPath:   "https://tessdata.projectnaptha.com/4.0.0",
+    logger: (m)=>{
+      if(m && m.status){
+        const p = (typeof m.progress === "number") ? Math.round(m.progress*100) + "%" : "";
+        hud("OCR נטען…", (m.status + " " + p).trim(), "hudWarn");
       }
-    }catch(e){}
-    const url = "https://wa.me/?text=" + encodeURIComponent(text);
-    window.open(url, "_blank");
-  }
-
-  plateEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") lookup(); });
-
-  // =========================
-  // LIVE SCANNER (עם אינדיקציות + DEBUG + ROI PREVIEW)
-  // =========================
-  const overlay = document.getElementById("scannerOverlay");
-  const videoEl = document.getElementById("scanVideo");
-  const boxEl   = document.getElementById("scanBox");
-
-  const hudMain = document.getElementById("hudMain");
-  const hudSub  = document.getElementById("hudSub");
-  const debugPanel = document.getElementById("debugPanel");
-
-  const roiMini = document.getElementById("roiMini");
-  const roiMiniCtx = roiMini.getContext("2d", { willReadFrequently:true });
-
-  const roiCanvas = document.createElement("canvas");
-  const roiCtx = roiCanvas.getContext("2d", { willReadFrequently:true });
-
-  const prepCanvas = document.createElement("canvas");
-  const prepCtx = prepCanvas.getContext("2d", { willReadFrequently:true });
-
-  let stream = null;
-  let worker = null;
-  let loopActive = false;
-
-  let lastCandidate = "";
-  let sameCount = 0;
-
-  function dbg(msg){
-    const t = new Date().toLocaleTimeString("he-IL");
-    debugPanel.textContent = `[${t}] ${msg}\n` + debugPanel.textContent;
-  }
-
-  window.addEventListener("error", (e)=>{
-    dbg(`JS ERROR: ${e.message} @ ${e.filename}:${e.lineno}`);
-  });
-  window.addEventListener("unhandledrejection", (e)=>{
-    dbg(`PROMISE ERROR: ${String(e.reason || e)}`);
+    }
   });
 
-  function hud(stateText, subText, cls){
-    hudMain.className = cls || "hudWarn";
-    hudMain.textContent = stateText;
-    hudSub.textContent = subText || "";
-  }
+  await worker.setParameters({
+    tessedit_char_whitelist: "0123456789",
+    tessedit_pageseg_mode: "7",
+    classify_bln_numeric_mode: "1"
+  });
 
-  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+  dbg("Worker OCR מוכן");
+}
 
-  async function openLiveScanner(){
-    overlay.style.display = "block";
-    debugPanel.textContent = "DEBUG יופיע פה רק אם יש תקלה.";
-    hud("פותח מצלמה…", "בודק הרשאות", "hudWarn");
+function openLiveScanner(){
+  // תמיד רואים משהו – גם אם OCR לא נטען
+  overlay.style.display = "block";
+  debugPanel.textContent = "אם יש תקלה – היא תופיע כאן.";
+  hud("פותח מצלמה…", "בודק הרשאות", "hudWarn");
 
-    lastCandidate = "";
-    sameCount = 0;
+  lastCandidate = "";
+  sameCount = 0;
 
+  (async ()=>{
     try{
-      // מצלמה
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal:"environment" }, width:{ideal:1280}, height:{ideal:720} },
         audio:false
       });
+
       videoEl.srcObject = stream;
       await videoEl.play();
       hud("מצלמה OK", "טוען OCR…", "hudGood");
+      dbg("מצלמה פועלת");
 
-      // חכה שהסקריפט ייטען (multi CDN)
-      for(let i=0;i<30;i++){
-        if(window.__TESS_LOAD_FAILED__) break;
-        if(window.Tesseract) break;
-        await sleep(100);
+      const ok = await loadTesseractIfNeeded();
+      if(!ok){
+        hud("תקלה", "מנוע OCR לא נטען (חסימת CDN/AdBlock/אין רשת)", "hudErr");
+        dbg("OCR לא נטען – בדוק חוסמי פרסומות/רשת");
+        return;
       }
-      if(window.__TESS_LOAD_FAILED__ || !window.Tesseract){
-        throw new Error("מנוע OCR לא נטען (חסימת CDN/AdBlock/אין רשת).");
+
+      await ensureWorker();
+
+      hud("סורק בלייב", "תעמיד לוחית בתוך הירוק", "hudGood");
+      startLoop();
+
+    }catch(err){
+      hud("תקלה", (err?.message || String(err)), "hudErr");
+      dbg("openLiveScanner FAILED: " + (err?.message || String(err)));
+    }
+  })();
+}
+
+function closeLiveScanner(){
+  stopLoop();
+  overlay.style.display = "none";
+
+  if(stream){
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+  videoEl.srcObject = null;
+}
+
+function startLoop(){
+  stopLoop();
+  loopActive = true;
+
+  (async function tick(){
+    while(loopActive && overlay.style.display === "block"){
+      const t0 = performance.now();
+      let cand = "";
+
+      try{
+        cand = await scanOnce();
+      }catch(e){
+        dbg("scanOnce error: " + (e?.message || String(e)));
       }
-      dbg(`Tesseract נטען מ: ${window.__TESS_LOADED_FROM__ || "לא ידוע"}`);
 
-      // worker (עם נתיבים מפורשים כדי לא ליפול על חסימה)
-      if(!worker){
-        hud("מכין OCR…", "פעם ראשונה לוקח כמה שניות", "hudWarn");
+      const ms = Math.round(performance.now() - t0);
 
-        const commonBase = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist";
-        worker = await Tesseract.createWorker("eng", 1, {
-          workerPath: commonBase + "/worker.min.js",
-          corePath:   commonBase + "/tesseract-core.wasm.js",
-          langPath:   "https://tessdata.projectnaptha.com/4.0.0",
-          logger: (m)=>{
-            if(m && m.status){
-              hud("OCR נטען…", `${m.status} ${m.progress ? Math.round(m.progress*100)+"%" : ""}`.trim(), "hudWarn");
-            }
-          }
-        });
+      if(cand){
+        if(cand === lastCandidate) sameCount++;
+        else { lastCandidate = cand; sameCount = 1; }
 
-        await worker.setParameters({
-          tessedit_char_whitelist: "0123456789",
-          tessedit_pageseg_mode: "7",
-          classify_bln_numeri
+        hud("זוהה: " + cand, `פריים: ${ms}ms • נעילה: ${sameCount}/2`, "hudGood");
+
+        if((cand.length === 7 || cand.length === 8) && sameCount >= 2){
+          plateEl.value = cand;
+          closeLiveScanner();
+          await lookup();
+          return;
+        }
+      }else{
+        hud("סורק…", `פריים: ${ms}ms • עדיין לא זוהה`, "hudWarn");
+      }
+
+      await sleep(140);
+    }
+  })();
+}
+
+function stopLoop(){ loopActive = false; }
+
+async function scanOnce(){
+  if(!worker) return "";
+
+  const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+  if(!vw || !vh) return "";
+
+  const vRect = videoEl.getBoundingClientRect();
+  const bRect = boxEl.getBoundingClientRect();
+  if(vRect.width <= 0 || vRect.height <= 0) return "";
+
+  const relX = (bRect.left - vRect.left) / vRect.width;
+  const relY = (bRect.top  - vRect.top ) / vRect.height;
+  const relW = (bRect.width) / vRect.width;
+  const relH = (bRect.height) / vRect.height;
+
+  const pad = 0.12;
+  let x = (relX - pad) * vw;
+  let y = (relY - pad) * vh;
+  let w = (relW + 2*pad) * vw;
+  let h = (relH + 2*pad) * vh;
+
+  x = Math.max(0, Math.min(vw-1, x));
+  y = Math.max(0, Math.min(vh-1, y));
+  w = Math.max(1, Math.min(vw - x, w));
+  h = Math.max(1, Math.min(vh - y, h));
+
+  const targetW = 760;
+  const scale = targetW / w;
+  const targetH = Math.max(120, Math.round(h * scale));
+
+  roiCanvas.width = targetW; roiCanvas.height = targetH;
+  roiCtx.drawImage(videoEl, x, y, w, h, 0, 0, targetW, targetH);
+
+  // ROI preview – כדי שתראה שה-OCR קורא את המקום הנכון
+  roiMini.width = roiCanvas.width;
+  roiMini.height = roiCanvas.height;
+  roiMiniCtx.drawImage(roiCanvas, 0, 0);
+
+  const cand1 = await ocr(preprocess(roiCanvas, false));
+  if(cand1) return cand1;
+
+  const cand2 = await ocr(preprocess(roiCanvas, true));
+  return cand2;
+}
+
+async function ocr(canvas){
+  const { data } = await worker.recognize(canvas);
+  const txt = (data && data.text) ? data.text : "";
+  return extractPlate(txt);
+}
+
+function extractPlate(text){
+  const s = String(text || "");
+  const groups = s.match(/\d+/g) || [];
+  if(!groups.length) return "";
+
+  const all = groups.join("");
+
+  const m8 = all.match(/(\d{8})/);
+  if(m8) return m8[1];
+
+  const m7 = all.match(/(\d{7})/);
+  if(m7) return m7[1];
+
+  if(all.length >= 6) return all.slice(0, Math.min(8, all.length));
+  return "";
+}
+
+function preprocess(srcCanvas, invert){
+  const w = srcCanvas.width, h = srcCanvas.height;
+  prepCanvas.width = w;
+  prepCanvas.height = h;
+  prepCtx.drawImage(srcCanvas, 0, 0);
+
+  const img = prepCtx.getImageData(0,0,w,h);
+  const d = img.data;
+
+  let min=255, max=0;
+  for(let i=0;i<d.length;i+=4){
+    const g = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2])|0;
+    if(g<min) min=g;
+    if(g>max) max=g;
+  }
+  const range = Math.max(1, max-min);
+  const thr = 155;
+
+  for(let i=0;i<d.length;i+=4){
+    let g = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2])|0;
+    g = ((g - min) * 255 / range) | 0;
+    let v = (g > thr) ? 255 : 0;
+    if(invert) v = 255 - v;
+    d[i]=d[i+1]=d[i+2]=v; d[i+3]=255;
+  }
+  prepCtx.putImageData(img,0,0);
+  return prepCanvas;
+}
+
+/* =========================
+   חיבורים ללחצנים (חשוב! בלי onclick כדי שלא "לא יקרה כלום")
+   ========================= */
+document.getElementById("scanBtn").addEventListener("click", ()=>{
+  // אינדיקציה מיידית שהלחיצה נקלטה
+  // (לא משנה עיצוב/לוגיקה – רק מבטיח שלא יהיה מצב "שום דבר")
+  openLiveScanner();
+});
+
+document.getElementById("closeScanBtn").addEventListener("click", closeLiveScanner);
+document.getElementById("btn").addEventListener("click", lookup);
+document.getElementById("waBtn").addEventListener("click", sendWhatsApp);
+document.getElementById("clearBtn").addEventListener("click", clearAll);
+
+plateEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") lookup(); });
+
+// סגירה בלחיצה על הרקע
+overlay.addEventListener("click", (e)=>{ if(e.target === overlay) closeLiveScanner(); });
+
+// חשיפה גלובלית (למקרה שתרצה לקרוא מבחוץ)
+window.openLiveScanner = openLiveScanner;
+window.closeLiveScanner = closeLiveScanner;
+</script>
+</body>
+</html>
