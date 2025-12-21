@@ -8,14 +8,10 @@
   <style>
     :root{
       --bg1:#0b1224; --bg2:#071024;
-      --card:rgba(255,255,255,.06);
-      --card2:rgba(255,255,255,.08);
       --stroke:rgba(255,255,255,.10);
       --txt:#eaf0ff;
       --muted:rgba(234,240,255,.72);
       --accent:#22c55e;
-      --accent2:#16a34a;
-      --danger:#ef4444;
       --radius:18px;
       --shadow: 0 20px 60px rgba(0,0,0,.45);
     }
@@ -57,9 +53,7 @@
       border-color: rgba(34,197,94,.45);
       color:#052012;
     }
-    .btn.ghost{
-      background: rgba(255,255,255,.04);
-    }
+    .btn.ghost{ background: rgba(255,255,255,.04); }
     .input{
       flex:1;
       min-width:220px;
@@ -80,52 +74,43 @@
       padding:12px;
     }
 
-    .scanner{
-      margin-top:12px;
-      display:none;
-      background: rgba(0,0,0,.25);
+    /* === Scanner (רק חלון הלוחית) === */
+    .scanner{ margin-top:12px; display:none; }
+    .scanner.on{ display:block; }
+
+    /* הווידאו נשאר פעיל אבל מוסתר (לא מציגים אותו) */
+    video#video{
+      position:absolute;
+      left:-99999px;
+      top:-99999px;
+      width:2px;
+      height:2px;
+      opacity:0;
+      pointer-events:none;
+    }
+
+    .scanCard{
       border:1px solid var(--stroke);
       border-radius:18px;
+      background: rgba(0,0,0,.20);
       overflow:hidden;
-      position:relative;
     }
-    .scanner.on{display:block}
-    video{
-      width:100%;
-      height:auto;
-      display:block;
-      background:#000;
-    }
-    .frame{
-      position:absolute;
-      left:6%;
-      width:88%;
-      bottom:10%;
-      height:22%;
-      border:3px solid rgba(34,197,94,.95);
-      border-radius:18px;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,.18) inset;
-      pointer-events:none;
-    }
-    .hud{
-      position:absolute;
-      top:10px;
-      left:10px;
-      right:10px;
+
+    .hudBar{
       display:flex;
       gap:10px;
-      align-items:center;
       flex-wrap:wrap;
+      align-items:center;
       justify-content:space-between;
-      pointer-events:none;
+      padding:12px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.22);
     }
     .hudBox{
-      pointer-events:auto;
-      background: rgba(0,0,0,.45);
-      border:1px solid rgba(255,255,255,.16);
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.14);
       border-radius:16px;
       padding:10px 12px;
-      backdrop-filter: blur(8px);
       display:flex;
       align-items:center;
       gap:10px;
@@ -133,16 +118,38 @@
     }
     .hudTitle{font-weight:900}
     .hudSub{color:rgba(255,255,255,.75);font-weight:800;font-size:12px}
+
     .zoomWrap{
       display:flex;
       align-items:center;
       gap:10px;
       width:100%;
     }
-    .range{
-      width:100%;
-      accent-color: var(--accent);
+    .range{ width:100%; accent-color: var(--accent); }
+
+    /* חלון תצוגה של ROI */
+    .previewWrap{
+      position:relative;
+      padding:12px;
+      background: rgba(0,0,0,.18);
     }
+    .previewBox{
+      width:100%;
+      aspect-ratio: 4.8 / 1; /* חלון רחב ללוחית */
+      border:3px solid rgba(34,197,94,.95);
+      border-radius:18px;
+      overflow:hidden;
+      background:#000;
+      box-shadow: 0 0 0 1px rgba(34,197,94,.15) inset;
+      position:relative;
+    }
+    canvas#preview{
+      width:100%;
+      height:100%;
+      display:block;
+      background:#000;
+    }
+
     .status{
       margin-top:10px;
       padding:10px 12px;
@@ -194,25 +201,33 @@
     </div>
 
     <div class="scanner" id="scanner">
-      <div class="hud">
-        <div class="hudBox">
-          <div>
-            <div class="hudTitle" id="hudTitle">מכין OCR…</div>
-            <div class="hudSub" id="hudSub">תתקרב, בלי השתקפויות, ולוחית גדולה בפריים</div>
+      <div class="scanCard">
+        <div class="hudBar">
+          <div class="hudBox">
+            <div>
+              <div class="hudTitle" id="hudTitle">מכין OCR…</div>
+              <div class="hudSub" id="hudSub">תקרב ותיישר עד שהספרות חדות בחלון</div>
+            </div>
+          </div>
+
+          <div class="hudBox" style="flex:1;min-width:260px;">
+            <div style="font-weight:900;">זום</div>
+            <div class="zoomWrap">
+              <span class="mono" id="zoomVal">×1.0</span>
+              <input class="range" id="zoomRange" type="range" min="1" max="3" step="0.1" value="1" />
+            </div>
           </div>
         </div>
 
-        <div class="hudBox" style="flex:1;min-width:260px;">
-          <div style="font-weight:900;">זום</div>
-          <div class="zoomWrap">
-            <span class="mono" id="zoomVal">×1.0</span>
-            <input class="range" id="zoomRange" type="range" min="1" max="1" step="0.1" value="1" />
+        <div class="previewWrap">
+          <div class="previewBox">
+            <canvas id="preview"></canvas>
           </div>
         </div>
       </div>
 
+      <!-- הווידאו מוסתר בכוונה (משמש רק ל-capture/ocr) -->
       <video id="video" playsinline muted></video>
-      <div class="frame" id="frame"></div>
     </div>
 
     <div class="status" id="status">מוכן.</div>
@@ -270,6 +285,9 @@
   const resultTable = $("resultTable");
   const resultMeta = $("resultMeta");
 
+  const preview = $("preview");
+  const pctx = preview.getContext("2d", { willReadFrequently:true });
+
   let stream = null;
   let track = null;
   let worker = null;
@@ -277,13 +295,18 @@
   let busyOCR = false;
   let lastRecord = null;
 
-  // === שיפור מהירות ===
-  const FAST_SCALE = 2.2;        // היה 3.2 (כבד)
-  const LOOP_DELAY_MS = 110;     // כמה מהר מנסים שוב (מהיר אבל לא חונק)
-  const HEAVY_EVERY_MS = 1100;   // ניסיון "כבד" רק פעם בשנייה בערך
-  const CONF_FAST_ACCEPT = 82;   // אם OCR בטוח – מאשר מיד
+  // Zoom וירטואלי תמיד עובד
+  let zoomFactor = 1.0;
 
-  // הצבעה בין פריימים (מייצב טעויות)
+  // אם יש זום אמיתי במצלמה – נשתמש גם בו (ממופה מהסליידר)
+  let hwZoomCaps = null;
+
+  // === טיונינג מהירות ===
+  const FAST_SCALE = 2.2;
+  const LOOP_DELAY_MS = 110;
+  const HEAVY_EVERY_MS = 1100;
+  const CONF_FAST_ACCEPT = 82;
+
   const votes = [];
   const VOTE_WINDOW = 3;
   const VOTE_NEED = 2;
@@ -357,14 +380,13 @@
       logger: ()=>{}
     });
 
-    // קיבוע פרמטרים פעם אחת (חוסך זמן)
     await worker.setParameters({
       tessedit_char_whitelist: "0123456789",
       tessedit_pageseg_mode: "7",
       classify_bln_numeric_mode: "1"
     });
 
-    // Warm-up: גורם ל-WASM "להתחמם" לפני הלייב (מבטל תקיעות של קריאה ראשונה)
+    // Warm-up
     const warm = document.createElement("canvas");
     warm.width = 80; warm.height = 30;
     const wctx = warm.getContext("2d");
@@ -376,6 +398,17 @@
     hudTitle.textContent = "Worker OK";
     setStatus("Worker OK.\nמוכן לסריקה בלייב.");
     return worker;
+  }
+
+  function resizePreviewCanvas(){
+    // קובע רזולוציה פנימית ל-canvas לפי הגודל בפועל
+    const rect = preview.getBoundingClientRect();
+    const w = Math.max(2, Math.round(rect.width));
+    const h = Math.max(2, Math.round(rect.height));
+    if (preview.width !== w || preview.height !== h){
+      preview.width = w;
+      preview.height = h;
+    }
   }
 
   async function openCamera(){
@@ -398,28 +431,36 @@
 
     track = stream.getVideoTracks()[0];
 
+    // Zoom HW (אם קיים)
     const caps = track.getCapabilities ? track.getCapabilities() : null;
-    if (caps && caps.zoom){
-      zoomRange.min = caps.zoom.min;
-      zoomRange.max = caps.zoom.max;
-      zoomRange.step = (caps.zoom.step || 0.1);
-      zoomRange.value = (track.getSettings().zoom || caps.zoom.min);
-      zoomVal.textContent = "×" + Number(zoomRange.value).toFixed(1);
-      zoomRange.disabled = false;
-    } else {
-      zoomRange.value = 1;
-      zoomVal.textContent = "×1.0";
-      zoomRange.disabled = true;
-    }
+    hwZoomCaps = (caps && caps.zoom) ? caps.zoom : null;
+
+    // זום תמיד פעיל (דיגיטלי), 1..3
+    zoomRange.min = 1;
+    zoomRange.max = 3;
+    zoomRange.step = 0.1;
+    zoomRange.value = 1;
+    zoomFactor = 1.0;
+    zoomVal.textContent = "×1.0";
 
     zoomRange.oninput = async () => {
-      if (!track || !track.applyConstraints) return;
       const z = Number(zoomRange.value);
+      zoomFactor = z;
       zoomVal.textContent = "×" + z.toFixed(1);
-      try{
-        await track.applyConstraints({ advanced: [{ zoom: z }] });
-      }catch(e){}
+
+      // אם יש זום אמיתי – ניישם גם אותו (ממופה ל-min..max)
+      if (track && track.applyConstraints && hwZoomCaps){
+        const min = hwZoomCaps.min;
+        const max = hwZoomCaps.max;
+        const t = (z - 1) / (3 - 1); // 0..1
+        const hw = min + t * (max - min);
+        try{ await track.applyConstraints({ advanced: [{ zoom: hw }] }); }catch(e){}
+      }
     };
+
+    // Canvas size
+    resizePreviewCanvas();
+    window.addEventListener("resize", resizePreviewCanvas, { passive:true });
   }
 
   function closeCamera(){
@@ -436,9 +477,13 @@
     scanner.classList.remove("on");
     btnClose.style.display = "none";
     hudTitle.textContent = "מוכן.";
+    setStatus("מוכן.");
   }
 
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
   function getFrameCropBox(videoW, videoH){
+    // בסיס – אזור הלוחית (כמו קודם)
     const left = 0.06 * videoW;
     const width = 0.88 * videoW;
     const height = 0.22 * videoH;
@@ -449,20 +494,49 @@
     let w = width - 2*(width * 0.03);
     let h = height - 2*(height * 0.10);
 
-    // הורדת פס IL משמאל (קריטי)
+    // חיתוך פס IL
     const cutLeft = w * 0.14;
     x += cutLeft;
     w -= cutLeft;
 
-    // מעט ימין
+    // קצת ימין
     const cutRight = w * 0.03;
     w -= cutRight;
 
-    // גם קצת למעלה/למטה כדי להתרכז בספרות בלבד
+    // עוד קצת למעלה/למטה (רק ספרות)
     y += h * 0.06;
     h -= h * 0.12;
 
-    return { x: Math.max(0,x), y: Math.max(0,y), w: Math.max(1,w), h: Math.max(1,h) };
+    // === זום דיגיטלי (תמיד עובד) ===
+    const z = clamp(zoomFactor, 1, 3);
+    const cx = x + w/2;
+    const cy = y + h/2;
+    w = w / z;
+    h = h / z;
+    x = cx - w/2;
+    y = cy - h/2;
+
+    // גבולות
+    x = clamp(x, 0, videoW - w);
+    y = clamp(y, 0, videoH - h);
+
+    return { x, y, w: Math.max(1,w), h: Math.max(1,h) };
+  }
+
+  function drawPreviewROI(){
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) return;
+
+    resizePreviewCanvas();
+
+    const box = getFrameCropBox(vw, vh);
+
+    // מצייר "בדיוק מה שנסרק" בחלון
+    pctx.imageSmoothingEnabled = true;
+    pctx.imageSmoothingQuality = "high";
+    pctx.clearRect(0,0,preview.width, preview.height);
+    pctx.drawImage(video, box.x, box.y, box.w, box.h, 0,0,preview.width, preview.height);
   }
 
   function preprocessFastBinary(c){
@@ -486,7 +560,7 @@
       const r=d[i], g=d[i+1], b=d[i+2];
       let y = (0.299*r + 0.587*g + 0.114*b);
       y = (y - mean) * contrast + mean + bias;
-      if (y<0) y=0; if (y>255) y=255;
+      y = clamp(y,0,255);
       const v = (y < th) ? 0 : 255;
       d[i]=d[i+1]=d[i+2]=v;
       d[i+3]=255;
@@ -544,7 +618,6 @@
   }
 
   async function recognizeFast(roi){
-    // ניסיון מהיר אחד בלבד (PSM 7)
     preprocessFastBinary(roi);
     const r = await worker.recognize(roi);
     const plate = extractPlate(r?.data?.text || "");
@@ -553,7 +626,6 @@
   }
 
   async function recognizeHeavy(roi){
-    // ניסיון "כבד" נדיר (invert + PSM 8)
     preprocessHeavyInvert(roi);
     await worker.setParameters({ tessedit_pageseg_mode: "8" });
     const r = await worker.recognize(roi);
@@ -565,6 +637,9 @@
 
   async function scanLoop(){
     if (!scanning) return;
+
+    // כל לולאה: מעדכן חלון תצוגה (רק הלוחית)
+    try{ drawPreviewROI(); }catch(e){}
 
     if (busyOCR){
       setTimeout(scanLoop, 20);
@@ -581,13 +656,11 @@
 
       busyOCR = true;
 
-      // FAST try
       let { plate, conf } = await recognizeFast(roi);
 
       const now = Date.now();
       let usedHeavy = false;
 
-      // אם לא מצא – רק פעם בשנייה תן ניסיון כבד
       if (!plate && (now - lastHeavyTryAt) > HEAVY_EVERY_MS){
         lastHeavyTryAt = now;
         const roi2 = makeROIFromVideo();
@@ -602,12 +675,10 @@
       const dt = performance.now() - t0;
 
       if (plate){
-        // אם confidence גבוה – מאשר מייד (מקצר זמן בצורה דרמטית)
         if (conf >= CONF_FAST_ACCEPT){
           hudTitle.textContent = "זוהה: " + plate;
           hudSub.textContent = `אושר מיד (conf ${conf.toFixed(0)})`;
           setStatus(`זוהה: ${plate}\nconf: ${conf.toFixed(0)}\n${dt.toFixed(0)}ms`);
-
           try{ navigator.vibrate && navigator.vibrate(90); }catch(e){}
           plateInput.value = plate;
           closeCamera();
@@ -615,11 +686,9 @@
           return;
         }
 
-        // אחרת: הצבעה קצרה כמו קודם
         const v = pushVote(plate);
         hudTitle.textContent = `סורק… (${dt.toFixed(0)}ms)`;
         hudSub.textContent = `מועמד: ${plate} • הצבעה: ${v.bestCount}/${VOTE_WINDOW} • conf ${conf.toFixed(0)}${usedHeavy ? " • heavy" : ""}`;
-
         setStatus(
           `סורק…\nמועמד: ${plate}\nconf: ${conf.toFixed(0)}\nחלון הצבעה: ${v.window.join(" , ")}\nזמן: ${dt.toFixed(0)}ms`
         );
@@ -629,10 +698,8 @@
           hudTitle.textContent = "זוהה: " + finalPlate;
           hudSub.textContent = "מכניס לשדה ושולף נתונים…";
           setStatus(`זוהה (יציב): ${finalPlate}\n${dt.toFixed(0)}ms`);
-
           try{ navigator.vibrate && navigator.vibrate(90); }catch(e){}
           plateInput.value = finalPlate;
-
           closeCamera();
           await fetchVehicle();
           return;
@@ -640,7 +707,7 @@
 
       } else {
         hudTitle.textContent = "סורק…";
-        hudSub.textContent = usedHeavy ? "ניסיון heavy בוצע — תיישר ותקרב עוד קצת" : "תקרב עוד קצת ותמלא את המסגרת בלוחית";
+        hudSub.textContent = usedHeavy ? "ניסיון heavy בוצע — תיישר ותקרב עוד קצת" : "תקרב עוד קצת עד שהספרות חדות בחלון";
         setStatus(`סורק…\n${dt.toFixed(0)}ms • עדיין לא זוהה${usedHeavy ? " (heavy)" : ""}`);
       }
 
@@ -750,7 +817,6 @@
       if (v === null || v === undefined || v === "") continue;
       lines.push(`${prettyLabel(k)}: ${String(v)}`);
     }
-
     return lines.join("\n");
   }
 
