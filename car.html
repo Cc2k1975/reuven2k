@@ -112,7 +112,6 @@
     .status.err{border-color:rgba(239,68,68,.35); color:#fee2e2; background:rgba(239,68,68,.08)}
     .status.warn{border-color:rgba(245,158,11,.35); color:#ffedd5; background:rgba(245,158,11,.08)}
     
-    /* עיצוב באנרים */
     .banner {
       padding: 15px;
       border-radius: 12px;
@@ -125,17 +124,8 @@
       justify-content: center;
       gap: 10px;
     }
-    .stolen-banner {
-      background: var(--danger);
-      color: white;
-      border: 2px solid #fca5a5;
-      animation: blink 0.8s infinite;
-    }
-    .disabled-banner {
-      background: var(--disabled-blue);
-      color: white;
-      border: 2px solid #60a5fa;
-    }
+    .stolen-banner { background: var(--danger); color: white; border: 2px solid #fca5a5; animation: blink 0.8s infinite; }
+    .disabled-banner { background: var(--disabled-blue); color: white; border: 2px solid #60a5fa; }
     @keyframes blink { 0% {opacity:1} 50% {opacity:0.6} 100% {opacity:1} }
 
     .table-wrap{margin-top:15px; overflow:auto; border-radius:12px; border:1px solid var(--line)}
@@ -151,7 +141,7 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>שליפת נתוני רכב מקיפה</h1>
+    <h1>שליפת נתוני רכב</h1>
 
     <div class="card">
       <div class="input-group">
@@ -175,30 +165,18 @@
       <div id="resultArea" style="display:none;">
         <div id="bannersArea"></div>
         <div class="kv" id="quickKv"></div>
-        
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th style="width:38%;">שדה</th>
-                <th>ערך</th>
-              </tr>
-            </thead>
+            <thead><tr><th style="width:38%;">שדה</th><th>ערך</th></tr></thead>
             <tbody id="tbody"></tbody>
           </table>
         </div>
-        <div class="footer" id="footerNote"></div>
       </div>
     </div>
   </div>
 
 <script>
-  // מזהי משאבים
-  const RES_VEHICLE = "053cea08-09bc-40ec-8f7a-156f0677aff3"; // מאגר רכב כללי
-  const RES_DISABLED = "c8b9f9c8-4612-4019-ad23-380d6052029e"; // מאגר תו נכה
-  const RES_STOLEN = "86733221-507c-47fc-8f64-4690382346f0"; // מאגר רכבים גנובים
   const API_BASE = "https://data.gov.il/api/3/action/datastore_search";
-
   const plateEl = document.getElementById("plate");
   const statusEl = document.getElementById("status");
   const micBtn = document.getElementById("micBtn");
@@ -208,71 +186,14 @@
   const bannersArea = document.getElementById("bannersArea");
   const tbodyEl = document.getElementById("tbody");
   const quickKv = document.getElementById("quickKv");
-  
+
   let lastRecord = null;
-  let recognition = null;
   let isListening = false;
-
   const HIDDEN_FIELDS = new Set(["zmig_kidmi", "zmig_ahori", "misgeret", "horaat_rishum", "tozeret_cd", "degem_cd", "degem_manoa", "tzeva_cd", "sug_degem", "_id", "rank"]);
-
-  function toggleDictation() {
-    const Recognition = window.webkitSpeechRecognition || window.speechRecognition;
-    if (!Recognition) return alert("הדפדפן לא תומך בחיפוש קולי.");
-    if (isListening) { recognition.stop(); return; }
-    recognition = new Recognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "he-IL";
-    recognition.onstart = () => {
-      isListening = true;
-      micBtn.classList.add('recording');
-      micTxt.textContent = "מקשיב...";
-      setStatus("מקשיב למספר רכב...", "warn");
-    };
-    recognition.onresult = (e) => {
-      let current = "";
-      for (let i = e.resultIndex; i < e.results.length; ++i) current += e.results[i][0].transcript;
-      const cleaned = current.replace(/[^\d]/g, "");
-      if (cleaned) {
-        plateEl.value = cleaned;
-        if (cleaned.length >= 7 && cleaned.length <= 9) {
-          recognition.stop();
-          lookup();
-        }
-      }
-    };
-    recognition.onend = stopMic;
-    recognition.onerror = stopMic;
-    recognition.start();
-  }
-
-  function stopMic() {
-    isListening = false;
-    micBtn.classList.remove('recording');
-    micTxt.textContent = "דבר (חיפוש קולי)";
-  }
 
   function setStatus(msg, kind=""){
     statusEl.className = "status" + (kind ? " " + kind : "");
     statusEl.textContent = msg;
-  }
-
-  function fmtDateMaybe(v){
-    if(!v) return "";
-    const s = String(v);
-    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
-    return m ? m[1] : s;
-  }
-
-  function labelForField(field){
-    const map = {
-      mispar_rechev: "מספר רכב", tozeret_nm: "שם תוצר / יצרן", degem_nm: "דגם",
-      ramat_gimur: "רמת גימור", shnat_yitzur: "שנת ייצור", mivchan_acharon_dt: "טסט אחרון",
-      tokef_dt: "תוקף רישוי", baalut: "בעלות / יד", tzeva_rechev: "צבע",
-      sug_delek_nm: "סוג דלק", moed_aliya_lakvish: "מועד עלייה לכביש", kinuy_mishari: "כינוי מסחרי",
-      ramat_eivzur_betihuty: "אבזור בטיחותי", kvutzat_zihum: "קבוצת זיהום"
-    };
-    return map[field] || field;
   }
 
   async function lookup() {
@@ -280,101 +201,95 @@
     if(!plate) { setStatus("חסר מספר רכב.", "warn"); return; }
 
     btnSearch.disabled = true;
-    setStatus("סורק את כל המאגרים...", "");
+    setStatus("שולף נתונים...", "");
     bannersArea.innerHTML = "";
+    resultArea.style.display = "none";
 
     try {
-      // ביצוע 3 שאילתות במקביל לכל המאגרים
-      const [resVeh, resDis, resSto] = await Promise.all([
-        fetch(`${API_BASE}?resource_id=${RES_VEHICLE}&q=${plate}`).then(r => r.json()),
-        fetch(`${API_BASE}?resource_id=${RES_DISABLED}&q=${plate}`).then(r => r.json()),
-        fetch(`${API_BASE}?resource_id=${RES_STOLEN}&q=${plate}`).then(r => r.json())
-      ]);
+      // 1. נתוני רכב (העיקר)
+      const resVeh = await fetch(`${API_BASE}?resource_id=053cea08-09bc-40ec-8f7a-156f0677aff3&q=${plate}`);
+      const dataVeh = await resVeh.json();
+      const r = dataVeh.result.records[0];
 
-      const r = resVeh.result.records[0];
       if(!r) {
         setStatus("לא נמצאו נתונים למספר " + plate, "warn");
-        resultArea.style.display = "none";
         return;
       }
 
       lastRecord = r;
-      const isStolen = resSto.result.records.length > 0;
-      const isDisabled = resDis.result.records.length > 0;
+      resultArea.style.display = "block";
+      setStatus("נמצא רכב!", "ok");
 
-      setStatus(isStolen ? "אזהרה: רכב גנוב!" : "נמצא רכב - הנתונים מוצגים מטה", isStolen ? "err" : "ok");
+      // 2. בדיקת נכה וגנוב בנפרד (כדי שלא יפילו את הדף)
+      checkExtra(plate);
 
-      // הצגת באנרים לפי הצורך
-      if(isStolen) bannersArea.innerHTML += `<div class="banner stolen-banner">⚠️ זהירות: רכב גנוב! ⚠️</div>`;
-      if(isDisabled) bannersArea.innerHTML += `<div class="banner disabled-banner">♿ לרכב זה קיים תו נכה</div>`;
-
-      // 1. כרטיסיות מהירות (כולל בעלות/יד)
-      const pick = [
-        ["mispar_rechev","מספר רכב"],["tozeret_nm","יצרן"],["degem_nm","דגם"],
-        ["shnat_yitzur","שנה"],["baalut","בעלות / יד"],["tokef_dt","תוקף"]
-      ];
+      // כרטיסיות מהירות
       quickKv.innerHTML = "";
+      const pick = [["mispar_rechev","מספר"],["tozeret_nm","יצרן"],["degem_nm","דגם"],["shnat_yitzur","שנה"],["baalut","בעלות"],["tokef_dt","תוקף"]];
       pick.forEach(([k,ttl]) => {
-        const div = document.createElement("div");
-        div.className = "mini-card";
-        let val = r[k] || "-";
-        if(k.includes('dt')) val = fmtDateMaybe(val);
-        div.innerHTML = `<div style="color:var(--muted);font-size:11px;font-weight:800;margin-bottom:4px;">${ttl}</div><div style="font-weight:800; font-size:15px;">${val}</div>`;
-        quickKv.appendChild(div);
+        if(r[k]) {
+          const div = document.createElement("div");
+          div.className = "mini-card";
+          div.innerHTML = `<div style="color:var(--muted);font-size:11px;font-weight:800;">${ttl}</div><div style="font-weight:800;">${r[k]}</div>`;
+          quickKv.appendChild(div);
+        }
       });
 
-      // 2. טבלה מלאה
+      // טבלה
       tbodyEl.innerHTML = "";
-      const preferredOrder = [
-        "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
-        "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
-        "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev"
-      ];
-      
-      const keys = Object.keys(r);
-      const ordered = [];
-      preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
-      keys.forEach(k => { if(!ordered.includes(k)) ordered.push(k); });
-
-      ordered.forEach(k => {
+      Object.keys(r).forEach(k => {
         if(!HIDDEN_FIELDS.has(k)) {
-          let v = r[k];
-          if (k.includes('_dt') || k === "moed_aliya_lakvish") v = fmtDateMaybe(v);
           const tr = document.createElement("tr");
-          tr.innerHTML = `<td class="mono">${labelForField(k)}</td><td>${v || ""}</td>`;
+          tr.innerHTML = `<td class="mono">${k}</td><td>${r[k] || ""}</td>`;
           tbodyEl.appendChild(tr);
         }
       });
 
-      resultArea.style.display = "block";
     } catch(e) {
-      setStatus("שגיאה בתקשורת עם השרת", "err");
+      setStatus("שגיאת תקשורת עם השרת", "err");
     } finally {
       btnSearch.disabled = false;
     }
   }
 
+  async function checkExtra(plate) {
+    // בדיקת תו נכה
+    fetch(`${API_BASE}?resource_id=c8b9f9c8-4612-4019-ad23-380d6052029e&q=${plate}`)
+      .then(res => res.json()).then(data => {
+        if(data.result.records.length > 0) 
+          bannersArea.innerHTML += `<div class="banner disabled-banner">♿ לרכב זה קיים תו נכה</div>`;
+      }).catch(e => console.log("נכה לא זמין"));
+
+    // בדיקת רכב גנוב
+    fetch(`${API_BASE}?resource_id=86733221-507c-47fc-8f64-4690382346f0&q=${plate}`)
+      .then(res => res.json()).then(data => {
+        if(data.result.records.length > 0) 
+          bannersArea.innerHTML += `<div class="banner stolen-banner">⚠️ זהירות: רכב גנוב! ⚠️</div>`;
+      }).catch(e => console.log("גנובים לא זמין"));
+  }
+
+  function toggleDictation() {
+    const Recognition = window.webkitSpeechRecognition || window.speechRecognition;
+    if (!Recognition) return;
+    const rec = new Recognition();
+    rec.lang = "he-IL";
+    rec.onstart = () => { isListening = true; micBtn.classList.add('recording'); micTxt.textContent = "מקשיב..."; };
+    rec.onresult = (e) => { 
+      const cleaned = e.results[0][0].transcript.replace(/[^\d]/g, "");
+      if (cleaned) { plateEl.value = cleaned; lookup(); }
+    };
+    rec.onend = () => { isListening = false; micBtn.classList.remove('recording'); micTxt.textContent = "דבר (חיפוש קולי)"; };
+    rec.start();
+  }
+
   function clearAll() {
-    plateEl.value = "";
-    resultArea.style.display = "none";
-    bannersArea.innerHTML = "";
-    setStatus("הכנס מספר רכב", "");
-    lastRecord = null;
-    plateEl.focus();
+    plateEl.value = ""; resultArea.style.display = "none"; bannersArea.innerHTML = ""; setStatus("הכנס מספר רכב", "");
   }
 
   function sendWhatsApp() {
     if(!lastRecord) return;
-    let txt = "*נתוני רכב מקיפים*\n";
-    const labels = {mispar_rechev:"מספר", tozeret_nm:"יצרן", degem_nm:"דגם", shnat_yitzur:"שנה", baalut:"בעלות"};
-    for(let k in labels) {
-        let v = lastRecord[k];
-        if(v) txt += `${labels[k]}: ${v}\n`;
-    }
-    window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank");
+    window.open(`https://wa.me/?text=רכב: ${lastRecord.mispar_rechev}`, "_blank");
   }
-
-  plateEl.addEventListener("keydown", (e) => e.key === "Enter" && lookup());
 </script>
 </body>
 </html>
