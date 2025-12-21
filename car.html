@@ -133,60 +133,108 @@
       right:6%;
       top:52%;
       height:22%;
-      border:2px solid rgba(34,197,94,.75);
+      border:2px solid rgba(34,197,94,.85);
       border-radius:14px;
       box-shadow:0 0 0 9999px rgba(0,0,0,.10) inset;
     }
-    .scan-hint{
+
+    /* אינדיקציה גדולה שתמיד רואים */
+    .hud{
       position:absolute;
-      left:6%;
-      right:6%;
-      top:calc(52% + 22% + 10px);
-      color:rgba(248,250,252,.88);
-      font-size:12px;
-      line-height:1.35;
-      text-shadow:0 2px 10px rgba(0,0,0,.6);
-    }
-    .scanner-bottom{
+      left:10px; right:10px;
+      top:10px;
       display:flex;
-      flex-wrap:wrap;
       gap:10px;
       align-items:center;
       justify-content:space-between;
-      padding:12px;
-      border-top:1px solid var(--line);
-      background:rgba(255,255,255,.02);
+      pointer-events:none;
     }
-    .scan-pill{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      color:var(--muted);
-      font-size:12px;
-    }
-    .scan-live{color:#d1fae5;font-weight:900}
-    .scan-plate{color:var(--ink);font-weight:900;font-size:16px;letter-spacing:.5px}
-
-    .zoom-row{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-      color:var(--muted);
-      font-size:12px;
+    .hudBox{
+      background:rgba(0,0,0,.55);
+      border:1px solid rgba(255,255,255,.18);
+      border-radius:12px;
+      padding:10px 12px;
+      color:#fff;
+      font-weight:900;
+      font-size:14px;
+      text-shadow:0 2px 10px rgba(0,0,0,.6);
       width:100%;
-      margin-top:6px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
     }
-    .zoom-row input[type="range"]{
-      width:min(520px, 100%);
-      accent-color: #22c55e;
+    .hudSmall{font-weight:800; font-size:12px; opacity:.9}
+    .hudGood{color:#d1fae5}
+    .hudWarn{color:#ffedd5}
+    .hudErr{color:#fee2e2}
+
+    /* ROI preview */
+    .roiPreview{
+      position:absolute;
+      right:10px;
+      bottom:10px;
+      width:160px;
+      height:80px;
+      border-radius:10px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.22);
+      background:#000;
+      box-shadow:0 10px 24px rgba(0,0,0,.35);
+      pointer-events:none;
     }
-    .zoom-badge{color:var(--ink);font-weight:900}
-    .zoom-note{color:var(--muted);font-size:12px}
+    .roiPreview canvas{width:100%;height:100%;display:block}
+
+    /* Debug panel */
+    .debugPanel{
+      position:absolute;
+      left:10px;
+      bottom:10px;
+      width:min(520px,calc(100% - 190px));
+      max-height:130px;
+      overflow:auto;
+      border-radius:10px;
+      background:rgba(0,0,0,.55);
+      border:1px solid rgba(255,255,255,.18);
+      color:#fff;
+      font-size:12px;
+      line-height:1.35;
+      padding:8px 10px;
+      white-space:pre-wrap;
+      pointer-events:none;
+      opacity:.92;
+    }
   </style>
 
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- loader מרובה מקורות ל-Tesseract -->
+  <script>
+    (async function loadTesseractMulti(){
+      const urls = [
+        "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js",
+        "https://unpkg.com/tesseract.js@5/dist/tesseract.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.5/tesseract.min.js"
+      ];
+
+      function loadScript(src){
+        return new Promise((resolve, reject)=>{
+          const s=document.createElement("script");
+          s.src=src; s.async=true;
+          s.onload=()=>resolve(src);
+          s.onerror=()=>reject(new Error("נכשל טעינת OCR מ: " + src));
+          document.head.appendChild(s);
+        });
+      }
+
+      for(const u of urls){
+        try{
+          await loadScript(u);
+          window.__TESS_LOADED_FROM__ = u;
+          return;
+        }catch(e){}
+      }
+      window.__TESS_LOAD_FAILED__ = true;
+    })();
+  </script>
 </head>
 
 <body>
@@ -230,39 +278,26 @@
       <div class="scanner-top">
         <div>
           <div class="scanner-title">סריקה בלייב – תעמיד את הלוחית בתוך המסגרת</div>
-          <div class="scanner-sub">כשתזוהה לוחית (7 או 8 ספרות) זה יכניס אוטומטית לשדה ויבצע “שלוף נתונים”.</div>
+          <div class="scanner-sub">זיהוי 7/8 ספרות → מכניס לשדה → שולף נתונים אוטומטית</div>
         </div>
         <button class="mini" onclick="closeLiveScanner()">סגור</button>
       </div>
 
       <div class="scanner-body">
         <video id="scanVideo" playsinline muted></video>
+
         <div class="scan-frame">
           <div id="scanBox" class="scan-box"></div>
-          <div class="scan-hint">
-            טיפ: תמלא את המסגרת בלוחית. בלי השתקפות. תתקרב/זום במידת הצורך.<br>
-            הסריקה קוראת בדיוק את האזור הירוק (ROI אמיתי).
+
+          <div class="hud">
+            <div class="hudBox" id="hudBox">
+              <span id="hudMain" class="hudWarn">פותח מצלמה…</span>
+              <span id="hudSub" class="hudSmall">—</span>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div class="scanner-bottom">
-        <div class="scan-pill">
-          <span class="scan-live">● LIVE</span>
-          <span>זיהוי:</span>
-          <span id="livePlate" class="scan-plate">—</span>
-          <span id="liveMsg"></span>
-        </div>
-
-        <div class="scan-pill">
-          <span id="liveProgress"></span>
-        </div>
-
-        <div class="zoom-row">
-          <span>זום:</span>
-          <input id="zoomRange" type="range" min="1" max="1" step="0.1" value="1" disabled />
-          <span class="zoom-badge" id="zoomVal">x1.0</span>
-          <span class="zoom-note" id="zoomNote"></span>
+          <div class="roiPreview"><canvas id="roiMini"></canvas></div>
+          <div class="debugPanel" id="debugPanel">DEBUG יופיע פה רק אם יש תקלה.</div>
         </div>
       </div>
     </div>
@@ -270,7 +305,7 @@
 
 <script>
   // =========================
-  // API + טבלה
+  // API + טבלה (לא נוגע בלוגיקה)
   // =========================
   const RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3";
   const API_BASE = "https://data.gov.il/api/3/action/datastore_search";
@@ -489,16 +524,13 @@
       setStatus("אין נתונים לשליחה. קודם תבצע שליפה של מספר רכב.", "warn");
       return;
     }
-
     const text = buildWhatsAppText(lastRecord);
-
     try{
       if (navigator.share){
         await navigator.share({ text });
         return;
       }
     }catch(e){}
-
     const url = "https://wa.me/?text=" + encodeURIComponent(text);
     window.open(url, "_blank");
   }
@@ -506,301 +538,98 @@
   plateEl.addEventListener("keydown", (e)=>{ if(e.key === "Enter") lookup(); });
 
   // =========================
-  // LIVE SCANNER (PROPER LOOP + TRUE ROI)
+  // LIVE SCANNER (עם אינדיקציות + DEBUG + ROI PREVIEW)
   // =========================
   const overlay = document.getElementById("scannerOverlay");
   const videoEl = document.getElementById("scanVideo");
-  const boxEl = document.getElementById("scanBox");
+  const boxEl   = document.getElementById("scanBox");
 
-  const livePlateEl = document.getElementById("livePlate");
-  const liveMsgEl = document.getElementById("liveMsg");
-  const liveProgressEl = document.getElementById("liveProgress");
+  const hudMain = document.getElementById("hudMain");
+  const hudSub  = document.getElementById("hudSub");
+  const debugPanel = document.getElementById("debugPanel");
 
-  const zoomRange = document.getElementById("zoomRange");
-  const zoomVal = document.getElementById("zoomVal");
-  const zoomNote = document.getElementById("zoomNote");
+  const roiMini = document.getElementById("roiMini");
+  const roiMiniCtx = roiMini.getContext("2d", { willReadFrequently:true });
 
-  let stream = null;
-  let track = null;
-  let worker = null;
-
-  let loopActive = false;
-
-  // “נעילה” למספר אמיתי: צריך פעמיים רצוף
-  let lastCandidate = "";
-  let sameCount = 0;
-
-  // canvases reusable
   const roiCanvas = document.createElement("canvas");
   const roiCtx = roiCanvas.getContext("2d", { willReadFrequently:true });
 
   const prepCanvas = document.createElement("canvas");
   const prepCtx = prepCanvas.getContext("2d", { willReadFrequently:true });
 
+  let stream = null;
+  let worker = null;
+  let loopActive = false;
+
+  let lastCandidate = "";
+  let sameCount = 0;
+
+  function dbg(msg){
+    const t = new Date().toLocaleTimeString("he-IL");
+    debugPanel.textContent = `[${t}] ${msg}\n` + debugPanel.textContent;
+  }
+
+  window.addEventListener("error", (e)=>{
+    dbg(`JS ERROR: ${e.message} @ ${e.filename}:${e.lineno}`);
+  });
+  window.addEventListener("unhandledrejection", (e)=>{
+    dbg(`PROMISE ERROR: ${String(e.reason || e)}`);
+  });
+
+  function hud(stateText, subText, cls){
+    hudMain.className = cls || "hudWarn";
+    hudMain.textContent = stateText;
+    hudSub.textContent = subText || "";
+  }
+
+  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
   async function openLiveScanner(){
-    livePlateEl.textContent = "—";
-    liveMsgEl.textContent = "";
-    liveProgressEl.textContent = "טוען OCR…";
-    zoomNote.textContent = "";
-    zoomVal.textContent = "x1.0";
-    zoomRange.disabled = true;
-    zoomRange.value = "1";
     overlay.style.display = "block";
+    debugPanel.textContent = "DEBUG יופיע פה רק אם יש תקלה.";
+    hud("פותח מצלמה…", "בודק הרשאות", "hudWarn");
 
     lastCandidate = "";
     sameCount = 0;
 
     try{
-      if(!window.Tesseract){
-        throw new Error("Tesseract לא נטען (CDN חסום/אין רשת).");
-      }
-
+      // מצלמה
       stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width:  { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
+        video: { facingMode: { ideal:"environment" }, width:{ideal:1280}, height:{ideal:720} },
+        audio:false
       });
-
       videoEl.srcObject = stream;
       await videoEl.play();
+      hud("מצלמה OK", "טוען OCR…", "hudGood");
 
-      track = stream.getVideoTracks()[0];
-      setupZoomControls(track);
+      // חכה שהסקריפט ייטען (multi CDN)
+      for(let i=0;i<30;i++){
+        if(window.__TESS_LOAD_FAILED__) break;
+        if(window.Tesseract) break;
+        await sleep(100);
+      }
+      if(window.__TESS_LOAD_FAILED__ || !window.Tesseract){
+        throw new Error("מנוע OCR לא נטען (חסימת CDN/AdBlock/אין רשת).");
+      }
+      dbg(`Tesseract נטען מ: ${window.__TESS_LOADED_FROM__ || "לא ידוע"}`);
 
+      // worker (עם נתיבים מפורשים כדי לא ליפול על חסימה)
       if(!worker){
-        worker = await Tesseract.createWorker({
+        hud("מכין OCR…", "פעם ראשונה לוקח כמה שניות", "hudWarn");
+
+        const commonBase = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist";
+        worker = await Tesseract.createWorker("eng", 1, {
+          workerPath: commonBase + "/worker.min.js",
+          corePath:   commonBase + "/tesseract-core.wasm.js",
+          langPath:   "https://tessdata.projectnaptha.com/4.0.0",
           logger: (m)=>{
-            // אם רוצים לראות עומס - רק פה
+            if(m && m.status){
+              hud("OCR נטען…", `${m.status} ${m.progress ? Math.round(m.progress*100)+"%" : ""}`.trim(), "hudWarn");
+            }
           }
         });
-        await worker.loadLanguage("eng");
-        await worker.initialize("eng");
+
         await worker.setParameters({
           tessedit_char_whitelist: "0123456789",
           tessedit_pageseg_mode: "7",
-          classify_bln_numeric_mode: "1",
-          tessedit_ocr_engine_mode: "1"
-        });
-      }
-
-      liveProgressEl.textContent = "מוכן. מחפש מספר…";
-      startProperLoop();
-
-    }catch(err){
-      liveProgressEl.textContent = "";
-      setStatus("סורק לא עלה: " + (err?.message || String(err)), "err");
-      closeLiveScanner();
-    }
-  }
-
-  function closeLiveScanner(){
-    stopProperLoop();
-    overlay.style.display = "none";
-
-    if(stream){
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-    track = null;
-    videoEl.srcObject = null;
-  }
-
-  function startProperLoop(){
-    stopProperLoop();
-    loopActive = true;
-    (async function tick(){
-      while(loopActive && overlay.style.display === "block"){
-        const t0 = performance.now();
-
-        // מחפש מספר פעם אחת, לא “כל 200ms” (זה הדבר שהפיל אותך)
-        let cand = "";
-        try{
-          cand = await scanGreenBoxOnce();
-        }catch(e){
-          // שקט
-        }
-
-        const ms = Math.round(performance.now() - t0);
-        liveProgressEl.textContent = `עיבוד פריים: ${ms}ms`;
-
-        if(cand){
-          livePlateEl.textContent = cand;
-          liveMsgEl.textContent = " ✓";
-
-          if(cand === lastCandidate) sameCount++;
-          else { lastCandidate = cand; sameCount = 1; }
-
-          // מקבלים רק 7/8 ורק אחרי 2 רצוף
-          if((cand.length === 7 || cand.length === 8) && sameCount >= 2){
-            plateEl.value = cand;
-            closeLiveScanner();
-            await lookup();
-            return;
-          }
-        }else{
-          liveMsgEl.textContent = "";
-          // לא מאפסים lastCandidate כדי לא לאבד יציבות כשיש פריים “ריק” מדי פעם
-        }
-
-        // דיליי קטן כדי לשמור ביצועים (עדיין מרגיש “לייב”)
-        await sleep(120);
-      }
-    })();
-  }
-
-  function stopProperLoop(){
-    loopActive = false;
-  }
-
-  function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-  function setupZoomControls(videoTrack){
-    let caps = null;
-    try{ caps = videoTrack.getCapabilities ? videoTrack.getCapabilities() : null; }catch(e){}
-
-    if(!caps || !caps.zoom){
-      zoomRange.disabled = true;
-      zoomNote.textContent = "הזום לא נתמך במכשיר/דפדפן הזה.";
-      return;
-    }
-
-    const min = caps.zoom.min ?? 1;
-    const max = caps.zoom.max ?? 1;
-    const step = caps.zoom.step ?? 0.1;
-
-    zoomRange.min = String(min);
-    zoomRange.max = String(max);
-    zoomRange.step = String(step);
-
-    let cur = min;
-    try{
-      const s = videoTrack.getSettings ? videoTrack.getSettings() : {};
-      if(typeof s.zoom === "number") cur = s.zoom;
-    }catch(e){}
-
-    zoomRange.value = String(cur);
-    zoomVal.textContent = `x${Number(cur).toFixed(1)}`;
-    zoomRange.disabled = false;
-    zoomNote.textContent = "";
-
-    zoomRange.oninput = async ()=>{
-      const z = Number(zoomRange.value);
-      zoomVal.textContent = `x${z.toFixed(1)}`;
-      try{
-        await videoTrack.applyConstraints({ advanced: [{ zoom: z }] });
-      }catch(e){
-        zoomRange.disabled = true;
-        zoomNote.textContent = "ניסיון זום נכשל (הדפדפן חסם).";
-      }
-    };
-  }
-
-  // ✅ ROI אמיתי לפי המסגרת הירוקה + preprocessing קל שעובד על לוחית צהובה
-  async function scanGreenBoxOnce(){
-    const vw = videoEl.videoWidth;
-    const vh = videoEl.videoHeight;
-    if(!vw || !vh) return "";
-
-    const vRect = videoEl.getBoundingClientRect();
-    const bRect = boxEl.getBoundingClientRect();
-    if(vRect.width <= 0 || vRect.height <= 0) return "";
-
-    const relX = (bRect.left - vRect.left) / vRect.width;
-    const relY = (bRect.top  - vRect.top ) / vRect.height;
-    const relW = (bRect.width) / vRect.width;
-    const relH = (bRect.height) / vRect.height;
-
-    // padding סביב המסגרת
-    const pad = 0.12;
-    let x = (relX - pad) * vw;
-    let y = (relY - pad) * vh;
-    let w = (relW + 2*pad) * vw;
-    let h = (relH + 2*pad) * vh;
-
-    x = Math.max(0, Math.min(vw-1, x));
-    y = Math.max(0, Math.min(vh-1, y));
-    w = Math.max(1, Math.min(vw - x, w));
-    h = Math.max(1, Math.min(vh - y, h));
-
-    // יעד OCR: לא גדול מדי (אחרת זה נהיה “איטי ונראה תקוע”)
-    const targetW = 760;
-    const scale = targetW / w;
-    const targetH = Math.max(120, Math.round(h * scale));
-
-    roiCanvas.width = targetW;
-    roiCanvas.height = targetH;
-    roiCtx.drawImage(videoEl, x, y, w, h, 0, 0, targetW, targetH);
-
-    // preprocessing: grayscale + contrast stretch + threshold קבוע (ועוד ניסיון הפוך)
-    const cand1 = await ocrTry( preprocess(roiCanvas, false) );
-    if(cand1) return cand1;
-
-    const cand2 = await ocrTry( preprocess(roiCanvas, true) );
-    return cand2;
-  }
-
-  async function ocrTry(canvas){
-    const { data } = await worker.recognize(canvas);
-    const txt = (data && data.text) ? data.text : "";
-    return extractPlate(txt);
-  }
-
-  function extractPlate(text){
-    const s = String(text || "");
-    const groups = s.match(/\d+/g) || [];
-    if(!groups.length) return "";
-
-    // כל הספרות ביחד (מתעלמים מנקודות/מקפים)
-    const all = groups.join("");
-
-    // מחפש רצף 8 קודם ואז 7 בכל מקום
-    const m8 = all.match(/(\d{8})/);
-    if(m8) return m8[1];
-
-    const m7 = all.match(/(\d{7})/);
-    if(m7) return m7[1];
-
-    // להצגה בלייב (לא סוגר)
-    if(all.length >= 6) return all.slice(0, Math.min(8, all.length));
-    return "";
-  }
-
-  function preprocess(srcCanvas, invert){
-    const w = srcCanvas.width, h = srcCanvas.height;
-    prepCanvas.width = w;
-    prepCanvas.height = h;
-
-    prepCtx.drawImage(srcCanvas, 0, 0);
-    const img = prepCtx.getImageData(0,0,w,h);
-    const d = img.data;
-
-    // grayscale + find min/max
-    let min=255, max=0;
-    for(let i=0;i<d.length;i+=4){
-      const g = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2])|0;
-      if(g<min) min=g;
-      if(g>max) max=g;
-    }
-    const range = Math.max(1, max-min);
-
-    // contrast stretch + threshold
-    const thr = 155; // מותאם ללוחית צהובה/שחור, עובד טוב במציאות
-    for(let i=0;i<d.length;i+=4){
-      let g = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2])|0;
-      g = ((g - min) * 255 / range) | 0; // stretch
-      let v = (g > thr) ? 255 : 0;
-      if(invert) v = 255 - v;
-      d[i]=d[i+1]=d[i+2]=v;
-      d[i+3]=255;
-    }
-    prepCtx.putImageData(img,0,0);
-    return prepCanvas;
-  }
-
-  overlay.addEventListener("click", (e)=>{ if(e.target === overlay) closeLiveScanner(); });
-</script>
-</body>
-</html>
+          classify_bln_numeri
