@@ -8,58 +8,25 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { 
-            font-family: sans-serif; 
-            text-align: center; 
-            background: #1a1a1a; 
-            color: white; 
-            margin: 0; 
-            padding: 20px; 
-        }
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
         
-        /* אזור הוידאו - עכשיו הוא חלק מהדף ולא מעליו */
+        /* הריבוע של הוידאו - מוגדר לחצי גובה מסך בערך */
         #videoArea { 
             display: none; 
-            width: 90%; 
-            max-width: 400px; 
-            aspect-ratio: 4 / 3; /* שומר על יחס תמונה של מצלמה */
+            width: 100%; 
+            max-width: 450px; 
+            height: 40vh; /* תופס 40% מגובה המסך */
             background: #000; 
             margin: 20px auto; 
-            border: 2px solid #28a745; 
+            border: 3px solid #81efff; 
             border-radius: 15px; 
             overflow: hidden; 
-            position: relative;
         }
         
-        video { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-        }
-
-        button#startBtn { 
-            padding: 20px 40px; 
-            font-size: 22px; 
-            border-radius: 50px; 
-            border: none; 
-            background: #28a745; 
-            color: white; 
-            margin-top: 50px; 
-            cursor: pointer;
-        }
-
-        #status { 
-            margin-top: 20px; 
-            font-size: 20px; 
-            font-weight: bold;
-            color: #81efff; 
-        }
+        video { width: 100%; height: 100%; object-fit: cover; }
         
-        .ringing-text {
-            color: #ff3b3b;
-            animation: blink 0.8s infinite;
-        }
-        @keyframes blink { 0% {opacity:1} 50% {opacity:0.3} 100% {opacity:1} }
+        button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; border: none; background: #28a745; color: white; margin-top: 50px; cursor: pointer; }
+        #status { margin-top: 20px; font-size: 20px; color: #81efff; }
     </style>
 </head>
 <body>
@@ -92,40 +59,36 @@
         };
 
         function initSystem() {
-            const startBtn = document.getElementById('startBtn');
-            const statusDiv = document.getElementById('status');
-            const videoArea = document.getElementById('videoArea');
+            document.getElementById('startBtn').style.display = "none";
+            document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
             const audio = document.getElementById('ringtone');
-
-            startBtn.style.display = "none";
-            statusDiv.innerText = "מחובר. ממתין לקריאה...";
-            
-            // אישור סאונד
             audio.play().then(() => audio.pause());
 
-            const peer = new Peer();
+            // חשוב: השתמש באותו מזהה Peer שעבד מקודם
+            const peer = new Peer(); 
+            
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
             firebase.database().ref('calls/apt' + aptNumber).on('value', (snapshot) => {
                 const data = snapshot.val();
-                
                 if (data && data.action === "ring" && data.callerId) {
-                    statusDiv.innerText = "מישהו בדלת!";
-                    statusDiv.classList.add("ringing-text");
                     audio.play();
-
-                    // התחברות לוידאו של השלט
+                    
+                    // התחברות לשלט
                     const call = peer.call(data.callerId, null);
+                    
                     call.on('stream', (remoteStream) => {
-                        document.getElementById('remoteVideo').srcObject = remoteStream;
-                        videoArea.style.display = "block"; // מציג את הריבוע
+                        const videoArea = document.getElementById('videoArea');
+                        const remoteVideo = document.getElementById('remoteVideo');
+                        
+                        remoteVideo.srcObject = remoteStream;
+                        videoArea.style.display = "block"; // מציג את הריבוע הקטן
+                        document.getElementById('status').innerText = "מישהו בדלת!";
                     });
 
-                    // סגירה אוטומטית אחרי 10 שניות
                     setTimeout(() => {
-                        videoArea.style.display = "none";
-                        statusDiv.innerText = "מחובר. ממתין לקריאה...";
-                        statusDiv.classList.remove("ringing-text");
+                        document.getElementById('videoArea').style.display = "none";
+                        document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
                         audio.pause();
                         audio.currentTime = 0;
                     }, 10000);
