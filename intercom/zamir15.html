@@ -3,73 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apartment Unit - Full Screen</title>
+    <title>Apartment Unit</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
-        
-        /* פופ-אפ וידאו על כל המסך - המצב שעבד */
-        #videoPopup { 
-            display: none; 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: #000; 
-            z-index: 1000; 
-        }
-        
-        video { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-        }
-
-        button#startBtn { 
-            padding: 20px 40px; 
-            font-size: 22px; 
-            border-radius: 50px; 
-            border: none; 
-            background: #28a745; 
-            color: white; 
-            margin-top: 50px; 
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-
-        #status { 
-            margin-top: 20px; 
-            font-size: 18px; 
-            color: #888; 
-        }
-
-        .overlay-text {
-            position: absolute;
-            bottom: 30px;
-            width: 100%;
-            text-align: center;
-            font-size: 24px;
-            color: white;
-            text-shadow: 2px 2px 5px #000;
-            pointer-events: none;
-        }
+        #videoPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; border: none; background: #28a745; color: white; margin-top: 50px; cursor: pointer; }
+        #status { margin-top: 20px; font-size: 18px; color: #888; }
+        .overlay-text { position: absolute; bottom: 30px; width: 100%; text-align: center; font-size: 24px; text-shadow: 2px 2px 5px #000; }
     </style>
 </head>
 <body>
-
-    <h1 id="aptDisplay">טוען...</h1>
-    
-    <button id="startBtn" onclick="initSystem()">הפעל מערכת אינטרקום</button>
-    
-    <div id="status">יש ללחוץ על הכפתור הירוק להפעלה</div>
 
     <div id="videoPopup">
         <video id="remoteVideo" autoplay playsinline></video>
         <div class="overlay-text">שידור חי מהכניסה</div>
     </div>
+
+    <h1 id="aptDisplay">טוען...</h1>
+    <button id="startBtn" onclick="initSystem()">הפעל מערכת אינטרקום</button>
+    <div id="status">יש ללחוץ על הכפתור הירוק להפעלה</div>
 
     <audio id="ringtone" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
 
@@ -92,39 +48,30 @@
             document.getElementById('startBtn').style.display = "none";
             document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
             const audio = document.getElementById('ringtone');
-            
-            // אישור הפעלת סאונד בדפדפן
             audio.play().then(() => audio.pause());
 
             // יצירת חיבור Peer
             const peer = new Peer(); 
-            
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
-            // האזנה לשינויים ב-Firebase
             firebase.database().ref('calls/apt' + aptNumber).on('value', (snapshot) => {
                 const data = snapshot.val();
-                
                 if (data && data.action === "ring" && data.callerId) {
                     audio.play();
                     
-                    // ביצוע שיחה אקטיבית לשלט כדי למשוך את הוידאו
+                    // התחברות אקטיבית לשלט כדי לקבל את הזרם
                     const call = peer.call(data.callerId, null);
                     
                     call.on('stream', (remoteStream) => {
                         const popup = document.getElementById('videoPopup');
-                        const remoteVideo = document.getElementById('remoteVideo');
-                        
-                        remoteVideo.srcObject = remoteStream;
-                        popup.style.display = "block"; // פתיחת המסך המלא
+                        document.getElementById('remoteVideo').srcObject = remoteStream;
+                        popup.style.display = "block";
                     });
 
-                    // סגירה אוטומטית אחרי 10 שניות
                     setTimeout(() => {
                         document.getElementById('videoPopup').style.display = "none";
                         audio.pause();
                         audio.currentTime = 0;
-                        // ניקוי הקריאה מהדאטהבייס
                         firebase.database().ref('calls/apt' + aptNumber).set(null);
                     }, 10000);
                 }
