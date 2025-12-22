@@ -3,44 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Intercom Control Panel</title>
+    <title>Intercom Control</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
-        
-        .grid { 
-            display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(8, 1fr); 
-            gap: 12px; height: 100vh; width: 100vw; padding: 15px; 
-            background: radial-gradient(circle, #1a1a1a 0%, #000 100%);
-        }
-
-        button { 
-            background: linear-gradient(145deg, #3d3d3d, #1a1a1a); border: 1px solid #444; border-radius: 8px;
-            color: #81efff; font-size: 5vh; font-weight: bold; cursor: pointer;
-            text-shadow: 0 0 10px rgba(129, 239, 255, 0.7); transition: all 0.1s;
-        }
-
-        button:active { background: #00d1b2; color: #000; transform: scale(0.95); }
-
-        /* תצוגה מקדימה קטנה של המצלמה אצלך בשלט */
-        #videoPopup { 
-            display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 25%; 
-            background: #222; border: 2px solid #81efff; border-radius: 15px; z-index: 100; 
-            overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.8);
-        }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(8, 1fr); gap: 12px; height: 100vh; width: 100vw; padding: 15px; }
+        button { background: linear-gradient(145deg, #3d3d3d, #1a1a1a); border: 1px solid #444; border-radius: 8px; color: #81efff; font-size: 5vh; font-weight: bold; cursor: pointer; }
+        button:active { background: #00d1b2; transform: scale(0.95); }
+        #vPopup { display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 25%; background: #222; border: 2px solid #81efff; border-radius: 15px; z-index: 100; overflow: hidden; }
         video { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body>
-
-    <div id="videoPopup">
-        <video id="localVideo" autoplay playsinline muted></video>
-    </div>
-
-    <div class="grid" id="buttonsContainer"></div>
+    <div id="vPopup"><video id="lVid" autoplay playsinline muted></video></div>
+    <div class="grid" id="btnCont"></div>
 
     <script>
         const firebaseConfig = {
@@ -52,14 +31,15 @@
             messagingSenderId: "827508017014",
             appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
         };
-        
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // יצירת חיבור Peer - חשוב שיהיה מחוץ לפונקציה
-        const peer = new Peer();
+        // הוספת שרתי גוגל כדי שהוידאו יעבור דרך האינטרנט
+        const peer = new Peer({
+            config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]}
+        });
 
-        const container = document.getElementById('buttonsContainer');
+        const container = document.getElementById('btnCont');
         for (let i = 1; i <= 24; i++) {
             const btn = document.createElement('button');
             btn.innerText = i;
@@ -67,35 +47,26 @@
             container.appendChild(btn);
         }
 
-        async function ring(aptNumber) {
+        async function ring(apt) {
             try {
-                // 1. פתיחת המצלמה
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                document.getElementById('localVideo').srcObject = stream;
-                document.getElementById('videoPopup').style.display = "block";
+                document.getElementById('lVid').srcObject = stream;
+                document.getElementById('vPopup').style.display = "block";
 
-                // 2. עדכון פיירבייס עם ה-ID של השלט
-                database.ref('calls/apt' + aptNumber).set({
+                database.ref('calls/apt' + apt).set({
                     action: "ring",
-                    callerId: peer.id, // זה המזהה שהדייר מחפש
+                    callerId: peer.id,
                     time: Date.now()
                 });
 
-                // 3. האזנה ל"מענה" של הדייר - כאן עובר הוידאו
-                peer.on('call', (call) => {
-                    call.answer(stream);
-                });
+                peer.on('call', (call) => { call.answer(stream); });
 
-                // 4. סגירה אחרי 10 שניות
                 setTimeout(() => {
-                    stream.getTracks().forEach(track => track.stop());
-                    document.getElementById('videoPopup').style.display = "none";
-                    database.ref('calls/apt' + aptNumber).set(null);
+                    stream.getTracks().forEach(t => t.stop());
+                    document.getElementById('vPopup').style.display = "none";
+                    database.ref('calls/apt' + apt).set(null);
                 }, 10000);
-
-            } catch (err) {
-                alert("שגיאה בגישה למצלמה: " + err.message);
-            }
+            } catch (err) { alert("מצלמה חסומה: " + err.message); }
         }
     </script>
 </body>
