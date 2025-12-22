@@ -50,7 +50,7 @@
       font-weight: bold;
     }
     input:focus{border-color:var(--accent); box-shadow:0 0 0 4px rgba(34,197,94,.15)}
-    
+
     /* הלחצן הגדול */
     .big-mic-btn {
       width: 100%;
@@ -92,7 +92,7 @@
       font-size: 15px;
     }
     .btn-search { background: var(--accent); color: #000; border: none; }
-    
+
     @keyframes pulse {
       0% { transform: scale(1); }
       50% { transform: scale(1.02); opacity: 0.8; }
@@ -112,7 +112,7 @@
     .status.ok{border-color:rgba(34,197,94,.35); color:#d1fae5; background:rgba(34,197,94,.08)}
     .status.err{border-color:rgba(239,68,68,.35); color:#fee2e2; background:rgba(239,68,68,.08)}
     .status.warn{border-color:rgba(245,158,11,.35); color:#ffedd5; background:rgba(245,158,11,.08)}
-    
+
     .table-wrap{margin-top:15px; overflow:auto; border-radius:12px; border:1px solid var(--line)}
     table{width:100%; border-collapse:collapse; min-width:520px}
     th,td{padding:12px; border-bottom:1px solid var(--line); text-align:right; vertical-align:top}
@@ -149,7 +149,7 @@
 
       <div id="resultArea" style="display:none;">
         <div class="kv" id="quickKv"></div>
-        
+
         <div class="table-wrap">
           <table>
             <thead>
@@ -167,12 +167,14 @@
   </div>
 
 <script>
-  // רשימת מזהי המאגרים לסריקה (פרטי, כבד, אופנועים)
-  const RESOURCE_IDS = [
-    "053cea08-09bc-40ec-8f7a-156f0677aff3", // רכב פרטי ומסחרי עד 3.5 טון
-    "cd3acc68-7a72-4cce-9601-745409643f0f", // רכב כבד (משאיות ואוטובוסים)
-    "bf68115e-da60-466c-8971-55e141873998"  // אופנועים וקטנועים
-  ];
+  // --- מאגרים (resource_id) ---
+  // 1) פרטי + מסחרי עד 3.5 טון (הקיים אצלך)
+  const RESOURCE_PRIVATE = "053cea08-09bc-40ec-8f7a-156f0677aff3";
+  // 2) דו-גלגלי (אופנועים/קטנועים)
+  const RESOURCE_MOTO    = "bf9df4e2-d90d-4c0a-a400-19e15af8e95f";
+  // 3) מעל 3.5 טון / חסרי קוד דגם (כבדים)
+  const RESOURCE_HEAVY   = "cd3acc5c-03c3-4c89-9c54-d40f93c0d790";
+
   const API_BASE = "https://data.gov.il/api/3/action/datastore_search";
 
   const plateEl = document.getElementById("plate");
@@ -183,12 +185,16 @@
   const resultArea = document.getElementById("resultArea");
   const tbodyEl = document.getElementById("tbody");
   const quickKv = document.getElementById("quickKv");
-  
+  const footerNote = document.getElementById("footerNote");
+
   let lastRecord = null;
   let recognition = null;
   let isListening = false;
 
-  const HIDDEN_FIELDS = new Set(["zmig_kidmi", "zmig_ahori", "misgeret", "horaat_rishum", "tozeret_cd", "degem_cd", "degem_manoa", "tzeva_cd", "sug_degem", "_id", "rank"]);
+  const HIDDEN_FIELDS = new Set([
+    "zmig_kidmi","zmig_ahori","misgeret","horaat_rishum","tozeret_cd","degem_cd","degem_manoa",
+    "tzeva_cd","sug_degem","_id","rank"
+  ]);
 
   function toggleDictation() {
     const Recognition = window.webkitSpeechRecognition || window.speechRecognition;
@@ -248,13 +254,59 @@
 
   function labelForField(field){
     const map = {
-      mispar_rechev: "מספר רכב", tozeret_nm: "שם תוצר / יצרן", degem_nm: "דגם",
-      ramat_gimur: "רמת גימור", shnat_yitzur: "שנת ייצור", mivchan_acharon_dt: "טסט אחרון",
-      tokef_dt: "תוקף רישוי", baalut: "בעלות (כללי)", tzeva_rechev: "צבע",
-      sug_delek_nm: "סוג דלק", moed_aliya_lakvish: "מועד עלייה לכביש", kinuy_mishari: "כינוי מסחרי",
-      ramat_eivzur_betihuty: "אבזור בטיחותי", kvutzat_zihum: "קבוצת זיהום"
+      // כללי/פרטי
+      mispar_rechev: "מספר רכב",
+      tozeret_nm: "שם תוצר / יצרן",
+      degem_nm: "דגם",
+      kinuy_mishari: "כינוי מסחרי",
+      ramat_gimur: "רמת גימור",
+      shnat_yitzur: "שנת ייצור",
+      sug_delek_nm: "סוג דלק",
+      tokef_dt: "תוקף רישוי",
+      mivchan_acharon_dt: "טסט אחרון",
+      moed_aliya_lakvish: "מועד עלייה לכביש",
+      tzeva_rechev: "צבע",
+      baalut: "בעלות (כללי)",
+      ramat_eivzur_betihuty: "אבזור בטיחותי",
+      kvutzat_zihum: "קבוצת זיהום",
+
+      // נפוצים בדו-גלגלי/כבדים (לא פוגע אם לא קיים)
+      mispar_rishuy: "מספר רישוי",
+      yatzran: "יצרן",
+      yatzran_eretz: "יצרן וארץ ייצור",
+      mishkal: "משקל",
+      mishkal_kolel: "משקל כולל",
+      sug_rechev: "סוג רכב",
+      sug_rechev_nm: "סוג רכב",
+      nefach_manoa: "נפח מנוע",
+      koach_sus: "כוח (כ\"ס)",
+      mas_rechev: "מס רכב",
+      mispar_shilda: "מספר שילדה"
     };
     return map[field] || field;
+  }
+
+  function firstNonEmpty(record, keys){
+    for(const k of keys){
+      const v = record && record[k];
+      if(v !== undefined && v !== null && String(v).trim() !== "") return v;
+    }
+    return "";
+  }
+
+  async function fetchOne(resourceId, plate, signal){
+    const url = `${API_BASE}?resource_id=${encodeURIComponent(resourceId)}&q=${encodeURIComponent(plate)}&limit=1`;
+    const res = await fetch(url, { signal });
+    const data = await res.json();
+    const records = (data && data.result && data.result.records) ? data.result.records : [];
+    return records.length ? records[0] : null;
+  }
+
+  function datasetNameById(resourceId){
+    if(resourceId === RESOURCE_PRIVATE) return "רכב פרטי/מסחרי (עד 3.5 טון)";
+    if(resourceId === RESOURCE_MOTO) return "דו-גלגלי (אופנוע/קטנוע)";
+    if(resourceId === RESOURCE_HEAVY) return "כבד (מעל 3.5 טון / חסרי קוד דגם)";
+    return "מאגר";
   }
 
   async function lookup() {
@@ -265,61 +317,104 @@
     }
 
     btnSearch.disabled = true;
-    setStatus("סורק מאגרי נתונים...", "");
+    setStatus("שולף נתונים מהשרת...", "");
+
+    // כדי לא לפגוע במהירות:
+    // 1) קודם ניסיון מהיר במאגר הקיים (כמו היום)
+    // 2) אם אין תוצאה — עושים ניסיון מקביל לשני מאגרים נוספים, ומציגים את הראשון שמחזיר תוצאה
+    const timeoutMsPrimary = 8000;
+    const timeoutMsFallback = 9000;
+
+    const ac1 = new AbortController();
+    const t1 = setTimeout(() => ac1.abort(), timeoutMsPrimary);
 
     try {
-      // יצירת מערך של הבטחות (Promises) לסריקה בכל המאגרים במקביל
-      const fetchPromises = RESOURCE_IDS.map(resId => 
-        fetch(`${API_BASE}?resource_id=${resId}&q=${plate}&limit=1`).then(res => res.json())
-      );
-
-      const results = await Promise.all(fetchPromises);
-      
-      // מציאת התוצאה הראשונה שחזרה עם רשומה תואמת
       let r = null;
-      for (const data of results) {
-        if (data.result && data.result.records && data.result.records.length > 0) {
-          r = data.result.records[0];
-          break;
+      let usedResource = RESOURCE_PRIVATE;
+
+      // ניסיון 1 (כמו היום)
+      r = await fetchOne(RESOURCE_PRIVATE, plate, ac1.signal);
+
+      if(!r){
+        // ניסיון 2+3 במקביל (דו-גלגלי + כבד) — רק אם לא נמצא במאגר הראשי
+        const ac2 = new AbortController();
+        const t2 = setTimeout(() => ac2.abort(), timeoutMsFallback);
+
+        try{
+          const motoP  = fetchOne(RESOURCE_MOTO, plate, ac2.signal).then(x => ({rec:x, rid:RESOURCE_MOTO}));
+          const heavyP = fetchOne(RESOURCE_HEAVY, plate, ac2.signal).then(x => ({rec:x, rid:RESOURCE_HEAVY}));
+
+          const results = await Promise.all([motoP, heavyP]);
+          const found = results.find(x => x && x.rec);
+
+          if(found && found.rec){
+            r = found.rec;
+            usedResource = found.rid;
+          }
+        } finally {
+          clearTimeout(t2);
         }
       }
 
       if(!r) {
         setStatus("לא נמצאו נתונים למספר " + plate, "warn");
         resultArea.style.display = "none";
+        lastRecord = null;
         return;
       }
 
       lastRecord = r;
-      setStatus("נמצאו נתונים - מוצגים מטה", "ok");
+      setStatus("נמצא רכב - הנתונים מוצגים מטה", "ok");
 
-      // 1. כרטיסיות מהירות
-      const pick = [
-        ["mispar_rechev","מספר רכב"],["tozeret_nm","יצרן"],["degem_nm","דגם"],
-        ["shnat_yitzur","שנה"],["sug_delek_nm","דלק"],["tokef_dt","תוקף"]
+      // כרטיסיות מהירות (עם התאמות חכמות בלי לשנות עיצוב)
+      const quick = [
+        { title:"מספר רכב", keys:["mispar_rechev","mispar_rishuy","mispar"] },
+        { title:"יצרן",     keys:["tozeret_nm","yatzran","yatzran_eretz","tozeret"] },
+        { title:"דגם",      keys:["degem_nm","degem","model","kinuy_mishari"] },
+        { title:"שנה",      keys:["shnat_yitzur","shnat_yitzor","year"] },
+        { title:"דלק",      keys:["sug_delek_nm","sug_delek","fuel"] },
+        { title:"תוקף",     keys:["tokef_dt","tokef","tokef_rishayon"] }
       ];
+
       quickKv.innerHTML = "";
-      pick.forEach(([k,ttl]) => {
-        // בודקים אם קיים ערך בשדה (תומך גם בשדות המקבילים במאגרי אופנועים/משאיות)
-        const val = r[k] || r[k + "_nm"] || r[k + "_he"];
-        if(val) {
+      quick.forEach(item => {
+        const valRaw = firstNonEmpty(r, item.keys);
+        if(valRaw){
+          let val = valRaw;
+          // תאריכים
+          if(String(item.keys.join("|")).includes("dt") || item.title === "תוקף") val = fmtDateMaybe(valRaw);
           const div = document.createElement("div");
           div.className = "mini-card";
-          let displayVal = val;
-          if(k.includes('dt')) displayVal = fmtDateMaybe(displayVal);
-          div.innerHTML = `<div style="color:var(--muted);font-size:11px;font-weight:800;margin-bottom:4px;">${ttl}</div><div style="font-weight:800; font-size:15px;">${displayVal}</div>`;
+          div.innerHTML =
+            `<div style="color:var(--muted);font-size:11px;font-weight:800;margin-bottom:4px;">${item.title}</div>
+             <div style="font-weight:800; font-size:15px;">${val}</div>`;
           quickKv.appendChild(div);
         }
       });
 
-      // 2. טבלה מלאה
+      // טבלה מלאה (כמו אצלך: סדר מועדף ואז כל השאר)
       tbodyEl.innerHTML = "";
+
       const preferredOrder = [
-        "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
-        "shnat_yitzur","sug_delek_nm","kvutzat_zihum","ramat_eivzur_betihuty",
-        "baalut","tokef_dt","mivchan_acharon_dt","moed_aliya_lakvish","tzeva_rechev"
+        "mispar_rechev","mispar_rishuy",
+        "tozeret_nm","yatzran","yatzran_eretz",
+        "degem_nm","degem","kinuy_mishari",
+        "ramat_gimur",
+        "shnat_yitzur",
+        "sug_delek_nm",
+        "kvutzat_zihum",
+        "ramat_eivzur_betihuty",
+        "baalut",
+        "tokef_dt",
+        "mivchan_acharon_dt",
+        "moed_aliya_lakvish",
+        "tzeva_rechev",
+        "mishkal","mishkal_kolel",
+        "sug_rechev","sug_rechev_nm",
+        "nefach_manoa","koach_sus",
+        "mispar_shilda"
       ];
-      
+
       const keys = Object.keys(r);
       const ordered = [];
       preferredOrder.forEach(k => { if(keys.includes(k)) ordered.push(k); });
@@ -330,15 +425,18 @@
           let v = r[k];
           if (k.includes('_dt') || k === "moed_aliya_lakvish") v = fmtDateMaybe(v);
           const tr = document.createElement("tr");
-          tr.innerHTML = `<td class="mono">${labelForField(k)}</td><td>${v || ""}</td>`;
+          tr.innerHTML = `<td class="mono">${labelForField(k)}</td><td>${(v === undefined || v === null) ? "" : v}</td>`;
           tbodyEl.appendChild(tr);
         }
       });
 
+      footerNote.textContent = "מקור נתונים: " + datasetNameById(usedResource);
       resultArea.style.display = "block";
+
     } catch(e) {
       setStatus("שגיאה בתקשורת עם השרת", "err");
     } finally {
+      clearTimeout(t1);
       btnSearch.disabled = false;
     }
   }
@@ -353,13 +451,22 @@
 
   function sendWhatsApp() {
     if(!lastRecord) return;
+
+    // מייצר הודעה "חכמה": לוקח שדות עיקריים עם נפילות (גם לאופנוע/כבד)
+    const num  = firstNonEmpty(lastRecord, ["mispar_rechev","mispar_rishuy","mispar"]);
+    const make = firstNonEmpty(lastRecord, ["tozeret_nm","yatzran","yatzran_eretz","tozeret"]);
+    const model= firstNonEmpty(lastRecord, ["degem_nm","degem","model","kinuy_mishari"]);
+    const year = firstNonEmpty(lastRecord, ["shnat_yitzur","shnat_yitzor","year"]);
+    let valid  = firstNonEmpty(lastRecord, ["tokef_dt","tokef","tokef_rishayon"]);
+    valid = fmtDateMaybe(valid);
+
     let txt = "*נתוני רכב*\n";
-    const labels = {mispar_rechev:"מספר", tozeret_nm:"יצרן", degem_nm:"דגם", shnat_yitzur:"שנה", tokef_dt:"תוקף"};
-    for(let k in labels) {
-        let v = lastRecord[k];
-        if(k.includes('dt')) v = fmtDateMaybe(v);
-        if(v) txt += `${labels[k]}: ${v}\n`;
-    }
+    if(num)  txt += `מספר: ${num}\n`;
+    if(make) txt += `יצרן: ${make}\n`;
+    if(model)txt += `דגם: ${model}\n`;
+    if(year) txt += `שנה: ${year}\n`;
+    if(valid)txt += `תוקף: ${valid}\n`;
+
     window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, "_blank");
   }
 
@@ -367,3 +474,4 @@
 </script>
 </body>
 </html>
+```0
