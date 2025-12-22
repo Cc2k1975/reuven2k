@@ -1,0 +1,69 @@
+﻿<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מכשיר קצה</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #222; color: white; padding: 50px 20px; }
+        #status { font-size: 24px; margin-top: 20px; }
+        .active { color: #28a745; }
+        button { padding: 15px 30px; font-size: 20px; border-radius: 50px; border: none; background: #ff4757; color: white; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>מערכת קבלת קריאות</h1>
+    <button id="startBtn" onclick="enableAudio()">לחץ כאן להפעלת המערכת</button>
+    <div id="status">המערכת לא פעילה</div>
+    
+    <audio id="ringtone" src="https://www.soundjay.com/phone/phone-ringing-01.mp3" preload="auto"></audio>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA5g_stbjtOv577cm47scGQ61SI5MbND4g",
+            authDomain: "intercom-62434.firebaseapp.com",
+            databaseURL: "https://intercom-62434-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "intercom-62434",
+            storageBucket: "intercom-62434.firebasestorage.app",
+            messagingSenderId: "827508017014",
+            appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // שנה את השם כאן לכל טלפון (למשל 'avi', 'yossi' וכו')
+        const myName = "avi"; 
+
+        const audio = document.getElementById('ringtone');
+        const statusDiv = document.getElementById('status');
+
+        function enableAudio() {
+            audio.play().then(() => {
+                audio.pause(); // רק כדי לקבל אישור מהדפדפן
+                statusDiv.innerText = "המערכת בהאזנה עבור: " + myName;
+                statusDiv.className = "active";
+                document.getElementById('startBtn').style.display = "none";
+                startListening();
+            });
+        }
+
+        function startListening() {
+            database.ref('calls/' + myName).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.action === "ring") {
+                    audio.play();
+                    statusDiv.innerText = "מתקשרים אליך!";
+                    
+                    // מאפס את הקריאה אחרי 5 שניות
+                    setTimeout(() => {
+                        database.ref('calls/' + myName).set(null);
+                        statusDiv.innerText = "המערכת בהאזנה עבור: " + myName;
+                    }, 5000);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
