@@ -9,21 +9,28 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
-        #vPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
+        #videoPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; background: #28a745; color: white; cursor: pointer; border: none; margin-top: 50px; }
+        button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; border: none; background: #28a745; color: white; margin-top: 50px; cursor: pointer; }
+        #status { margin-top: 20px; font-size: 18px; color: #888; }
     </style>
 </head>
 <body>
-    <div id="vPopup"><video id="rVid" autoplay playsinline></video></div>
+    <div id="videoPopup">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div style="position:absolute; bottom:30px; width:100%; text-align:center; font-size:24px; text-shadow: 2px 2px 5px #000;">שידור חי מהכניסה</div>
+    </div>
+
     <h1 id="aptDisplay">טוען...</h1>
-    <button id="startBtn" onclick="init()">הפעל מערכת</button>
-    <audio id="ring" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
+    <button id="startBtn" onclick="initSystem()">הפעל מערכת אינטרקום</button>
+    <div id="status">יש ללחוץ על הכפתור הירוק להפעלה</div>
+
+    <audio id="ringtone" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const aptNum = urlParams.get('apt') || "1";
-        document.getElementById('aptDisplay').innerText = "דירה " + aptNum;
+        const aptNumber = urlParams.get('apt') || "1";
+        document.getElementById('aptDisplay').innerText = "דירה " + aptNumber;
 
         const firebaseConfig = {
             apiKey: "AIzaSyA5g_stbjtOv577cm47scGQ61SI5MbND4g",
@@ -35,29 +42,32 @@
             appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
         };
 
-        function init() {
+        function initSystem() {
             document.getElementById('startBtn').style.display = "none";
-            const audio = document.getElementById('ring');
+            document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
+            const audio = document.getElementById('ringtone');
             audio.play().then(() => audio.pause());
 
             const peer = new Peer({
-                config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]}
+                config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }, { url: 'stun:stun1.l.google.com:19302' }]}
             });
 
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
-            firebase.database().ref('calls/apt' + aptNum).on('value', (snap) => {
-                const data = snap.val();
+            firebase.database().ref('calls/apt' + aptNumber).on('value', (snapshot) => {
+                const data = snapshot.val();
                 if (data && data.action === "ring" && data.callerId) {
                     audio.play();
                     const call = peer.call(data.callerId, null);
-                    call.on('stream', (stream) => {
-                        document.getElementById('rVid').srcObject = stream;
-                        document.getElementById('vPopup').style.display = "block";
+                    call.on('stream', (remoteStream) => {
+                        const popup = document.getElementById('videoPopup');
+                        document.getElementById('remoteVideo').srcObject = remoteStream;
+                        popup.style.display = "block";
                     });
+
                     setTimeout(() => {
-                        document.getElementById('vPopup').style.display = "none";
-                        audio.pause();
+                        document.getElementById('videoPopup').style.display = "none";
+                        audio.pause(); audio.currentTime = 0;
                     }, 10000);
                 }
             });
