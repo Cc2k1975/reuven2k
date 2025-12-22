@@ -1,1 +1,94 @@
 
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>יחידת קצה - אינטרקום</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; padding: 50px 20px; }
+        #status { font-size: 20px; margin-top: 20px; padding: 20px; border-radius: 12px; }
+        .waiting { background: #333; }
+        .active { background: #28a745; border: 2px solid #fff; }
+        .ringing { background: #dc3545; animation: blink 0.5s infinite; font-size: 30px !important; }
+        @keyframes blink { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
+        button { padding: 25px; font-size: 22px; border-radius: 50px; border: none; background: #007bff; color: white; cursor: pointer; width: 80%; max-width: 300px; }
+        .info { margin-bottom: 30px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <div id="setup">
+        <h1 id="aptDisplay">טוען דירה...</h1>
+        <button onclick="initSystem()">הפעל האזנה לדירה</button>
+        <p>חובה ללחוץ כדי לשמוע צלצולים</p>
+    </div>
+    
+    <div id="status" class="waiting" style="display:none;">מתחבר...</div>
+    
+    <audio id="ringtone" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyA5g_stbjtOv577cm47scGQ61SI5MbND4g",
+            authDomain: "intercom-62434.firebaseapp.com",
+            databaseURL: "https://intercom-62434-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "intercom-62434",
+            storageBucket: "intercom-62434.firebasestorage.app",
+            messagingSenderId: "827508017014",
+            appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
+        };
+
+        // פונקציה שמוציאה את מספר הדירה מהכתובת (למשל ?apt=5)
+        const urlParams = new URLSearchParams(window.location.search);
+        let aptNumber = urlParams.get('apt') || "1"; // ברירת מחדל דירה 1
+        const myName = "apt" + aptNumber;
+
+        document.getElementById('aptDisplay').innerText = "דירה מספר " + aptNumber;
+
+        function initSystem() {
+            const audio = document.getElementById('ringtone');
+            const statusDiv = document.getElementById('status');
+            const setupDiv = document.getElementById('setup');
+
+            setupDiv.style.display = "none";
+            statusDiv.style.display = "block";
+
+            // אישור סאונד
+            audio.play().then(() => { audio.pause(); audio.currentTime = 0; });
+
+            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+            // האזנה לדירה הספציפית
+            const dbRef = firebase.database().ref('calls/' + myName);
+
+            // בדיקת חיבור
+            firebase.database().ref(".info/connected").on("value", (snap) => {
+                if (snap.val() === true) {
+                    statusDiv.innerText = "מחובר! דירה " + aptNumber + " בהאזנה...";
+                    statusDiv.className = "active";
+                }
+            });
+
+            // קבלת צלצול
+            dbRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.action === "ring") {
+                    statusDiv.innerText = "מישהו בחוץ קורא לכם!";
+                    statusDiv.className = "ringing";
+                    audio.play();
+
+                    setTimeout(() => {
+                        audio.pause();
+                        audio.currentTime = 0;
+                        dbRef.set(null); // מנקה את הקריאה
+                        statusDiv.innerText = "מחובר! דירה " + aptNumber + " בהאזנה...";
+                        statusDiv.className = "active";
+                    }, 10000); // מצלצל ל-10 שניות
+                }
+            });
+        }
+    </script>
+</body>
+</html>
