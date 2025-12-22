@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Luxury Intercom with Video</title>
+    <title>Intercom Control Panel</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -16,23 +16,13 @@
             color: #81efff; font-size: 5vh; font-weight: bold; cursor: pointer;
             text-shadow: 0 0 10px rgba(129, 239, 255, 0.7); transition: all 0.1s;
         }
-        button:active { background: #00d1b2; color: #000; transform: scale(0.96); }
-
-        /* פופ-אפ וידאו בשלט */
-        #videoPopup {
-            display: none; position: fixed; top: 10%; left: 10%; width: 80%; height: 30%;
-            background: #222; border: 2px solid #81efff; border-radius: 15px; z-index: 100;
-            overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.8);
-        }
+        button:active { background: #00d1b2; color: #000; transform: scale(0.95); }
+        #videoPopup { display: none; position: fixed; top: 5%; left: 5%; width: 90%; height: 25%; background: #222; border: 2px solid #81efff; border-radius: 15px; z-index: 100; overflow: hidden; }
         video { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body>
-
-    <div id="videoPopup">
-        <video id="localVideo" autoplay playsinline muted></video>
-    </div>
-
+    <div id="videoPopup"><video id="localVideo" autoplay playsinline muted></video></div>
     <div class="grid" id="buttonsContainer"></div>
 
     <script>
@@ -47,9 +37,7 @@
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-
-        // יצירת מזהה ייחודי לשלט
-        const peer = new Peer('intercom-panel-main');
+        const peer = new Peer(); // ID אוטומטי
 
         const container = document.getElementById('buttonsContainer');
         for (let i = 1; i <= 24; i++) {
@@ -60,32 +48,25 @@
         }
 
         async function ring(aptNumber) {
-            const popup = document.getElementById('videoPopup');
-            const videoElement = document.getElementById('localVideo');
-            
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                videoElement.srcObject = stream;
-                popup.style.display = "block";
+                document.getElementById('localVideo').srcObject = stream;
+                document.getElementById('videoPopup').style.display = "block";
 
-                // התקשרות לדייר דרך PeerJS
-                peer.call('apt-' + aptNumber, stream);
-
-                // עדכון פיירבייס לגיבוי והפעלת צלצול
                 database.ref('calls/apt' + aptNumber).set({
                     action: "ring",
+                    callerId: peer.id, // שולח את המזהה לדייר
                     time: Date.now()
                 });
 
-                // סגירה אחרי 10 שניות
-                setTimeout(() => {
-                    stream.getTracks().forEach(track => track.stop());
-                    popup.style.display = "none";
-                }, 10000);
+                peer.on('call', (call) => { call.answer(stream); });
 
-            } catch (err) {
-                alert("שגיאה בגישה למצלמה: " + err.message);
-            }
+                setTimeout(() => {
+                    stream.getTracks().forEach(t => t.stop());
+                    document.getElementById('videoPopup').style.display = "none";
+                    database.ref('calls/apt' + aptNumber).set(null);
+                }, 10000);
+            } catch (err) { alert("שגיאה במצלמה: " + err.message); }
         }
     </script>
 </body>
