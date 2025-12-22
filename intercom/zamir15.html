@@ -3,36 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>דייר - וידאו אינטרקום</title>
+    <title>Apartment Unit</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
-        #status { font-size: 20px; padding: 20px; border-radius: 12px; margin-top: 20px; }
-        .active { background: #28a745; }
-        
-        /* פופ-אפ וידאו אצל הדייר */
-        #videoPopup {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 1000;
-        }
+        #videoPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .overlay-text { position: absolute; bottom: 30px; width: 100%; text-align: center; font-size: 24px; text-shadow: 2px 2px 5px #000; }
-        
-        button#startBtn { padding: 20px 40px; font-size: 20px; border-radius: 50px; border: none; background: #007bff; color: white; cursor: pointer; margin-top: 40px; }
+        button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; border: none; background: #28a745; color: white; margin-top: 50px; box-shadow: 0 5px 15px rgba(40,167,69,0.4); }
+        #status { margin-top: 20px; font-size: 18px; color: #888; }
     </style>
 </head>
 <body>
-
     <div id="videoPopup">
         <video id="remoteVideo" autoplay playsinline></video>
-        <div class="overlay-text">שידור חי מהכניסה...</div>
+        <div style="position:absolute; bottom:30px; width:100%; text-align:center; font-size:24px;">שידור חי מהכניסה</div>
     </div>
 
     <h1 id="aptDisplay">טוען...</h1>
-    <button id="startBtn" onclick="initSystem()">הפעל מערכת וידאו</button>
-    <div id="status" style="display:none;"></div>
+    <button id="startBtn" onclick="initSystem()">הפעל מערכת אינטרקום</button>
+    <div id="status">יש ללחוץ על הכפתור הירוק להפעלה</div>
 
     <audio id="ringtone" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
 
@@ -53,44 +44,30 @@
 
         function initSystem() {
             document.getElementById('startBtn').style.display = "none";
-            const statusDiv = document.getElementById('status');
-            statusDiv.style.display = "block";
-            statusDiv.innerText = "מתחבר לוידאו...";
-            statusDiv.className = "active";
-
+            document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
             const audio = document.getElementById('ringtone');
-            audio.play().then(() => { audio.pause(); });
+            audio.play().then(() => audio.pause());
 
-            // יצירת מזהה PeerJS לפי מספר דירה
-            const peer = new Peer('apt-' + aptNumber);
-
+            const peer = new Peer();
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
-            // האזנה לשיחות נכנסות (וידאו)
-            peer.on('call', (call) => {
-                call.answer(); // מענה אוטומטי
-                const popup = document.getElementById('videoPopup');
-                const remoteVideo = document.getElementById('remoteVideo');
-                
-                call.on('stream', (remoteStream) => {
-                    remoteVideo.srcObject = remoteStream;
-                    popup.style.display = "block";
-                    audio.play();
-                });
-
-                setTimeout(() => {
-                    popup.style.display = "none";
-                    audio.pause();
-                    audio.currentTime = 0;
-                }, 10000);
-            });
-
-            // האזנה לפיירבייס לגיבוי
             firebase.database().ref('calls/apt' + aptNumber).on('value', (snapshot) => {
                 const data = snapshot.val();
-                if (data && data.action === "ring") {
-                    // הוידאו יופעל דרך ה-Peer.on('call') לעיל
-                    setTimeout(() => firebase.database().ref('calls/apt' + aptNumber).set(null), 10000);
+                if (data && data.action === "ring" && data.callerId) {
+                    audio.play();
+                    // התחברות אקטיבית לשלט
+                    const call = peer.call(data.callerId, null);
+                    call.on('stream', (remoteStream) => {
+                        const popup = document.getElementById('videoPopup');
+                        document.getElementById('remoteVideo').srcObject = remoteStream;
+                        popup.style.display = "block";
+                    });
+
+                    setTimeout(() => {
+                        document.getElementById('videoPopup').style.display = "none";
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }, 10000);
                 }
             });
         }
