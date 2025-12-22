@@ -167,7 +167,12 @@
   </div>
 
 <script>
-  const RESOURCE_ID = "053cea08-09bc-40ec-8f7a-156f0677aff3";
+  // רשימת מזהי המאגרים לסריקה (פרטי, כבד, אופנועים)
+  const RESOURCE_IDS = [
+    "053cea08-09bc-40ec-8f7a-156f0677aff3", // רכב פרטי ומסחרי עד 3.5 טון
+    "cd3acc68-7a72-4cce-9601-745409643f0f", // רכב כבד (משאיות ואוטובוסים)
+    "bf68115e-da60-466c-8971-55e141873998"  // אופנועים וקטנועים
+  ];
   const API_BASE = "https://data.gov.il/api/3/action/datastore_search";
 
   const plateEl = document.getElementById("plate");
@@ -260,23 +265,33 @@
     }
 
     btnSearch.disabled = true;
-    setStatus("שולף נתונים מהשרת...", "");
+    setStatus("סורק מאגרי נתונים...", "");
 
     try {
-      const url = `${API_BASE}?resource_id=${RESOURCE_ID}&q=${plate}&limit=1`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const records = (data.result && data.result.records) ? data.result.records : [];
+      // יצירת מערך של הבטחות (Promises) לסריקה בכל המאגרים במקביל
+      const fetchPromises = RESOURCE_IDS.map(resId => 
+        fetch(`${API_BASE}?resource_id=${resId}&q=${plate}&limit=1`).then(res => res.json())
+      );
 
-      if(records.length === 0) {
+      const results = await Promise.all(fetchPromises);
+      
+      // מציאת התוצאה הראשונה שחזרה עם רשומה תואמת
+      let r = null;
+      for (const data of results) {
+        if (data.result && data.result.records && data.result.records.length > 0) {
+          r = data.result.records[0];
+          break;
+        }
+      }
+
+      if(!r) {
         setStatus("לא נמצאו נתונים למספר " + plate, "warn");
         resultArea.style.display = "none";
         return;
       }
 
-      const r = records[0];
       lastRecord = r;
-      setStatus("נמצא רכב - הנתונים מוצגים מטה", "ok");
+      setStatus("נמצאו נתונים - מוצגים מטה", "ok");
 
       // 1. כרטיסיות מהירות
       const pick = [
@@ -285,17 +300,19 @@
       ];
       quickKv.innerHTML = "";
       pick.forEach(([k,ttl]) => {
-        if(r[k]) {
+        // בודקים אם קיים ערך בשדה (תומך גם בשדות המקבילים במאגרי אופנועים/משאיות)
+        const val = r[k] || r[k + "_nm"] || r[k + "_he"];
+        if(val) {
           const div = document.createElement("div");
           div.className = "mini-card";
-          let val = r[k];
-          if(k.includes('dt')) val = fmtDateMaybe(val);
-          div.innerHTML = `<div style="color:var(--muted);font-size:11px;font-weight:800;margin-bottom:4px;">${ttl}</div><div style="font-weight:800; font-size:15px;">${val}</div>`;
+          let displayVal = val;
+          if(k.includes('dt')) displayVal = fmtDateMaybe(displayVal);
+          div.innerHTML = `<div style="color:var(--muted);font-size:11px;font-weight:800;margin-bottom:4px;">${ttl}</div><div style="font-weight:800; font-size:15px;">${displayVal}</div>`;
           quickKv.appendChild(div);
         }
       });
 
-      // 2. טבלה מלאה (בדיוק כמו בקוד הקודם)
+      // 2. טבלה מלאה
       tbodyEl.innerHTML = "";
       const preferredOrder = [
         "mispar_rechev","tozeret_nm","degem_nm","kinuy_mishari","ramat_gimur",
