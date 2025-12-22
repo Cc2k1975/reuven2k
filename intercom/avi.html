@@ -8,27 +8,27 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; padding: 50px 20px; }
-        #status { font-size: 22px; margin-top: 20px; padding: 15px; border-radius: 8px; }
+        #status { font-size: 20px; margin-top: 20px; padding: 15px; border-radius: 8px; transition: 0.3s; }
         .waiting { background: #333; }
-        .active { background: #28a745; color: white; }
+        .active { background: #28a745; }
         .ringing { background: #dc3545; animation: blink 0.5s infinite; }
         @keyframes blink { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
-        button { padding: 20px 40px; font-size: 20px; border-radius: 50px; border: none; background: #ff4757; color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(255,71,87,0.4); }
+        button { padding: 20px 40px; font-size: 20px; border-radius: 50px; border: none; background: #007bff; color: white; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h1>מערכת קבלת קריאות</h1>
+    <h1>אינטרקום - אבי</h1>
+    
     <div id="setup">
-        <button onclick="initSystem()">לחץ כאן להפעלת המערכת</button>
-        <p>חובה ללחוץ כדי לאפשר צליל</p>
+        <button onclick="initSystem()">הפעל האזנה</button>
+        <p>לחץ כדי לאפשר קבלת צלצולים</p>
     </div>
     
-    <div id="status" class="waiting" style="display:none;">מתחבר לשרת...</div>
+    <div id="status" class="waiting" style="display:none;">מנסה להתחבר לשרת...</div>
     
-    <audio id="ringtone" src="https://www.soundjay.com/phone/phone-ringing-01.mp3" preload="auto" loop></audio>
+    <audio id="ringtone" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
 
     <script>
-        // ההגדרות שלך מהתמונה
         const firebaseConfig = {
             apiKey: "AIzaSyA5g_stbjtOv577cm47scGQ61SI5MbND4g",
             authDomain: "intercom-62434.firebaseapp.com",
@@ -39,51 +39,64 @@
             appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
         };
 
-        const myName = "avi"; // שם המכשיר
+        const myName = "avi";
 
         function initSystem() {
-            // 1. אתחול פיירבייס
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            
             const audio = document.getElementById('ringtone');
             const statusDiv = document.getElementById('status');
             const setupDiv = document.getElementById('setup');
 
-            // 2. ניסיון ניגון ראשוני (כדי "לפתוח" את הסאונד בדפדפן)
+            // הסתרת כפתור הפעלה
+            setupDiv.style.display = "none";
+            statusDiv.style.display = "block";
+
+            // ניסיון ניגון קצר כדי "לפתוח" את האודיו בדפדפן
             audio.play().then(() => {
                 audio.pause();
                 audio.currentTime = 0;
-                
-                setupDiv.style.display = "none";
-                statusDiv.style.display = "block";
-                statusDiv.innerText = "המערכת בהאזנה עבור: " + myName;
-                statusDiv.className = "active";
+            }).catch(e => console.log("Audio unlock failed", e));
 
-                // 3. האזנה לשינויים ב-Database
-                const dbRef = firebase.database().ref('calls/' + myName);
-                dbRef.on('value', (snapshot) => {
-                    const data = snapshot.val();
-                    if (data && data.action === "ring") {
-                        audio.play();
-                        statusDiv.innerText = "קריאה נכנסת!!!";
-                        statusDiv.className = "ringing";
-                        
-                        // הפסקת הצלצול אוטומטית אחרי 10 שניות וניקוי הנתונים
-                        setTimeout(() => {
-                            audio.pause();
-                            audio.currentTime = 0;
-                            dbRef.set(null); // מוחק את הקריאה מהשרת
-                            statusDiv.innerText = "המערכת בהאזנה עבור: " + myName;
-                            statusDiv.className = "active";
-                        }, 10000);
-                    }
-                });
-            }).catch(err => {
-                alert("שגיאה בהפעלת סאונד: " + err);
+            // אתחול Firebase
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+
+            const dbRef = firebase.database().ref('calls/' + myName);
+
+            // בדיקת חיבור
+            firebase.database().ref(".info/connected").on("value", (snap) => {
+                if (snap.val() === true) {
+                    statusDiv.innerText = "מחובר בהצלחה! ממתין לקריאה...";
+                    statusDiv.className = "active";
+                } else {
+                    statusDiv.innerText = "אין חיבור לאינטרנט...";
+                    statusDiv.className = "waiting";
+                }
+            });
+
+            // האזנה לצלצול
+            dbRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.action === "ring") {
+                    statusDiv.innerText = "קריאה נכנסת מאבי!";
+                    statusDiv.className = "ringing";
+                    
+                    audio.play().catch(err => {
+                        alert("שגיאה בניגון: " + err.message);
+                    });
+
+                    // איפוס אחרי 7 שניות
+                    setTimeout(() => {
+                        audio.pause();
+                        audio.currentTime = 0;
+                        dbRef.set(null); 
+                        statusDiv.innerText = "מחובר בהצלחה! ממתין לקריאה...";
+                        statusDiv.className = "active";
+                    }, 7000);
+                }
             });
         }
     </script>
 </body>
 </html>
+
