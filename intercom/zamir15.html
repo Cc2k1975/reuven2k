@@ -11,16 +11,14 @@
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
         #videoPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; border: none; background: #28a745; color: white; margin-top: 50px; cursor: pointer; }
+        button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; border: none; background: #28a745; color: white; margin-top: 50px; box-shadow: 0 5px 15px rgba(40,167,69,0.4); }
         #status { margin-top: 20px; font-size: 18px; color: #888; }
-        .overlay-text { position: absolute; bottom: 30px; width: 100%; text-align: center; font-size: 24px; text-shadow: 2px 2px 5px #000; }
     </style>
 </head>
 <body>
-
     <div id="videoPopup">
         <video id="remoteVideo" autoplay playsinline></video>
-        <div class="overlay-text">שידור חי מהכניסה</div>
+        <div style="position:absolute; bottom:30px; width:100%; text-align:center; font-size:24px;">שידור חי מהכניסה</div>
     </div>
 
     <h1 id="aptDisplay">טוען...</h1>
@@ -50,18 +48,15 @@
             const audio = document.getElementById('ringtone');
             audio.play().then(() => audio.pause());
 
-            // יצירת חיבור Peer
-            const peer = new Peer(); 
+            const peer = new Peer();
             if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 
             firebase.database().ref('calls/apt' + aptNumber).on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data && data.action === "ring" && data.callerId) {
                     audio.play();
-                    
-                    // התחברות אקטיבית לשלט כדי לקבל את הזרם
+                    // התחברות אקטיבית לשלט
                     const call = peer.call(data.callerId, null);
-                    
                     call.on('stream', (remoteStream) => {
                         const popup = document.getElementById('videoPopup');
                         document.getElementById('remoteVideo').srcObject = remoteStream;
@@ -72,7 +67,6 @@
                         document.getElementById('videoPopup').style.display = "none";
                         audio.pause();
                         audio.currentTime = 0;
-                        firebase.database().ref('calls/apt' + aptNumber).set(null);
                     }, 10000);
                 }
             });
