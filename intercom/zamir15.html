@@ -1,104 +1,134 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apartment Unit</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
-        #videoPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; border: none; background: #28a745; color: white; margin-top: 50px; cursor: pointer; }
-        #status { margin-top: 20px; font-size: 18px; color: #81efff; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apartment Unit</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
+    #videoPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; border: none; background: #28a745; color: white; margin-top: 50px; cursor: pointer; }
+    #status { margin-top: 20px; font-size: 18px; color: #81efff; }
+  </style>
 </head>
 <body>
-    <div id="videoPopup">
-        <video id="remoteVideo" autoplay playsinline></video>
-        <div style="position:absolute; bottom:30px; width:100%; text-align:center; font-size:24px; text-shadow: 2px 2px 5px #000;">שידור חי מהכניסה</div>
+  <div id="videoPopup">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <div style="position:absolute; bottom:30px; width:100%; text-align:center; font-size:24px; text-shadow: 2px 2px 5px #000;">
+      שידור חי מהכניסה
     </div>
+  </div>
 
-    <h1 id="aptDisplay">טוען...</h1>
-    <button id="startBtn" onclick="initSystem()">הפעל מערכת אינטרקום</button>
-    <div id="status">יש ללחוץ על הכפתור הירוק להפעלה</div>
+  <h1 id="aptDisplay">טוען...</h1>
+  <button id="startBtn" onclick="initSystem()">הפעל מערכת אינטרקום</button>
+  <div id="status">יש ללחוץ על הכפתור הירוק להפעלה</div>
 
-    <audio id="ringtone" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
+  <audio id="ringtone" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" preload="auto"></audio>
 
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const aptNumber = urlParams.get('apt') || "1";
-        document.getElementById('aptDisplay').innerText = "דירה " + aptNumber;
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const aptNumber = urlParams.get('apt') || "1";
+    document.getElementById('aptDisplay').innerText = "דירה " + aptNumber;
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyA5g_stbjtOv577cm47scGQ61SI5MbND4g",
-            authDomain: "intercom-62434.firebaseapp.com",
-            databaseURL: "https://intercom-62434-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "intercom-62434",
-            storageBucket: "intercom-62434.firebasestorage.app",
-            messagingSenderId: "827508017014",
-            appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
+    const firebaseConfig = {
+      apiKey: "AIzaSyA5g_stbjtOv577cm47scGQ61SI5MbND4g",
+      authDomain: "intercom-62434.firebaseapp.com",
+      databaseURL: "https://intercom-62434-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "intercom-62434",
+      storageBucket: "intercom-62434.firebasestorage.app",
+      messagingSenderId: "827508017014",
+      appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
+    };
+
+    let peer = null;
+    let peerReady = false;
+    let callBusy = false;
+
+    function initSystem() {
+      document.getElementById('startBtn').style.display = "none";
+      document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
+
+      const audio = document.getElementById('ringtone');
+      audio.play().then(() => audio.pause()).catch(()=>{});
+
+      if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+      peer = new Peer({
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        }
+      });
+
+      peer.on('open', (id) => {
+        peerReady = true;
+        console.log("Apt peer ready:", id);
+      });
+
+      peer.on('error', (e) => console.log("Peer error:", e));
+
+      // מאזין לפיירבייס
+      firebase.database().ref('calls/apt' + aptNumber).on('value', async (snapshot) => {
+        const data = snapshot.val();
+        if (!data || data.action !== "ring" || !data.callerId) return;
+
+        if (!peerReady || !peer || !peer.id) {
+          console.log("Peer not ready yet, ignoring ring");
+          return;
+        }
+
+        if (callBusy) return;
+        callBusy = true;
+
+        audio.currentTime = 0;
+        audio.play().catch(()=>{});
+        document.getElementById('status').innerText = "מתחבר לווידאו...";
+
+        // להתחבר: לא לשלוח null
+        const doCall = () => {
+          try {
+            const call = peer.call(data.callerId);
+            call.on('stream', (remoteStream) => {
+              console.log("וידאו התקבל בהצלחה!");
+              const popup = document.getElementById('videoPopup');
+              const video = document.getElementById('remoteVideo');
+              video.srcObject = remoteStream;
+              popup.style.display = "block";
+            });
+
+            call.on('error', (e) => console.log("Call error:", e));
+          } catch (e) {
+            console.log("Call failed:", e);
+          }
         };
 
-        function initSystem() {
-            document.getElementById('startBtn').style.display = "none";
-            document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
-            const audio = document.getElementById('ringtone');
-            audio.play().then(() => audio.pause());
+        // חיבור ראשון + ניסיון חוזר קצר
+        doCall();
+        setTimeout(() => {
+          if (document.getElementById('videoPopup').style.display !== "block") {
+            console.log("מנסה חיבור חוזר...");
+            doCall();
+          }
+        }, 3000);
 
-            // שימוש בשרתי גוגל למעבר חומות אש
-            const peer = new Peer({
-                config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }, { url: 'stun:stun1.l.google.com:19302' }]}
-            });
-
-            if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-
-            firebase.database().ref('calls/apt' + aptNumber).on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data && data.action === "ring" && data.callerId) {
-                    audio.play();
-                    document.getElementById('status').innerText = "מתחבר לווידאו...";
-
-                    // המתנה קלה של שנייה כדי לוודא שהמצלמה בשלט נפתחה לגמרי
-                    setTimeout(() => {
-                        const call = peer.call(data.callerId, null);
-                        
-                        call.on('stream', (remoteStream) => {
-                            console.log("וידאו התקבל בהצלחה!");
-                            const popup = document.getElementById('videoPopup');
-                            const video = document.getElementById('remoteVideo');
-                            video.srcObject = remoteStream;
-                            popup.style.display = "block";
-                        });
-
-                        // אם אחרי 5 שניות לא התקבל סטרים, נסה שוב
-                        setTimeout(() => {
-                            if (document.getElementById('videoPopup').style.display !== "block") {
-                                console.log("מנסה חיבור חוזר...");
-                                peer.call(data.callerId, null).on('stream', (s) => {
-                                    document.getElementById('remoteVideo').srcObject = s;
-                                    document.getElementById('videoPopup').style.display = "block";
-                                });
-                            }
-                        }, 5000);
-
-                    }, 1500);
-
-                    // סגירה אחרי 15 שניות
-                    setTimeout(() => {
-                        document.getElementById('videoPopup').style.display = "none";
-                        audio.pause();
-                        audio.currentTime = 0;
-                        document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
-                        firebase.database().ref('calls/apt' + aptNumber).set(null);
-                    }, 15000);
-                }
-            });
-        }
-    </script>
+        // סגירה אחרי 15 שניות
+        setTimeout(async () => {
+          document.getElementById('videoPopup').style.display = "none";
+          audio.pause();
+          audio.currentTime = 0;
+          document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
+          callBusy = false;
+          try { await firebase.database().ref('calls/apt' + aptNumber).set(null); } catch(e){}
+        }, 15000);
+      });
+    }
+  </script>
 </body>
 </html>
-
-1
+2
