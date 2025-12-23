@@ -1,145 +1,174 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <link rel="manifest" href="manifest.json">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#000000">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#000000">
 
-    <title>Intercom Control Panel</title>
-    
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    
-    <style>
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
-        
-        html, body { 
-            margin: 0; padding: 0; height: 100vh; width: 100vw; 
-            overflow: hidden; background: #000; font-family: sans-serif;
-            position: fixed;
-        }
-        
-        .grid { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            grid-template-rows: repeat(8, 1fr); 
-            gap: 8px; 
-            height: 100vh; 
-            width: 100vw; 
-            padding: 5px;
-            padding-top: env(safe-area-inset-top, 5px);
-            padding-bottom: env(safe-area-inset-bottom, 5px);
-        }
+  <title>Intercom Control Panel</title>
 
-        button { 
-            background: linear-gradient(135deg, #454545 0%, #1a1a1a 50%, #000000 100%);
-            border-top: 2px solid #666;
-            border-left: 2px solid #555;
-            border-right: 2px solid #111;
-            border-bottom: 2px solid #000;
-            border-radius: 10px;
-            color: #81efff; 
-            font-size: 5.5vh; 
-            font-weight: 900; 
-            cursor: pointer;
-            text-shadow: 0 0 10px rgba(129, 239, 255, 0.7); 
-            box-shadow: 3px 3px 10px rgba(0,0,0,0.8);
-            transition: all 0.05s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 
-        button:active { 
-            background: #00d1b2; 
-            color: #fff; 
-            transform: scale(0.95);
-            text-shadow: 0 0 20px #fff;
-            border: none;
-        }
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
 
-        #vPopup { 
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 30%; 
-            background: #000; border-bottom: 2px solid #81efff; z-index: 1000;
-        }
-        video { width: 100%; height: 100%; object-fit: cover; }
-    </style>
+    html, body {
+      margin: 0; padding: 0; height: 100vh; width: 100vw;
+      overflow: hidden; background: #000; font-family: sans-serif;
+      position: fixed;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      gap: 8px;
+      height: 100vh;
+      width: 100vw;
+      padding: 5px;
+      padding-top: env(safe-area-inset-top, 5px);
+      padding-bottom: env(safe-area-inset-bottom, 5px);
+    }
+
+    button {
+      background: linear-gradient(135deg, #454545 0%, #1a1a1a 50%, #000000 100%);
+      border-top: 2px solid #666;
+      border-left: 2px solid #555;
+      border-right: 2px solid #111;
+      border-bottom: 2px solid #000;
+      border-radius: 10px;
+      color: #81efff;
+      font-size: 5.5vh;
+      font-weight: 900;
+      cursor: pointer;
+      text-shadow: 0 0 10px rgba(129, 239, 255, 0.7);
+      box-shadow: 3px 3px 10px rgba(0,0,0,0.8);
+      transition: all 0.05s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    button:active {
+      background: #00d1b2;
+      color: #fff;
+      transform: scale(0.95);
+      text-shadow: 0 0 20px #fff;
+      border: none;
+    }
+
+    #vPopup {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 30%;
+      background: #000; border-bottom: 2px solid #81efff; z-index: 1000;
+    }
+    video { width: 100%; height: 100%; object-fit: cover; }
+  </style>
 </head>
 <body>
 
-    <div id="vPopup"><video id="lVid" autoplay playsinline muted></video></div>
-    <div class="grid" id="btnCont"></div>
+  <div id="vPopup"><video id="lVid" autoplay playsinline muted></video></div>
+  <div class="grid" id="btnCont"></div>
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyA5g_stbjtOv577cm47scGQ61SI5MbND4g",
-            authDomain: "intercom-62434.firebaseapp.com",
-            databaseURL: "https://intercom-62434-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "intercom-62434",
-            storageBucket: "intercom-62434.firebasestorage.app",
-            messagingSenderId: "827508017014",
-            appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
-        };
-        
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyA5g_stbjtOv577cm47scGQ61SI5MbND4g",
+      authDomain: "intercom-62434.firebaseapp.com",
+      databaseURL: "https://intercom-62434-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "intercom-62434",
+      storageBucket: "intercom-62434.firebasestorage.app",
+      messagingSenderId: "827508017014",
+      appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
+    };
 
-        const peer = new Peer({
-            config: {'iceServers': [
-                { url: 'stun:stun.l.google.com:19302' },
-                { url: 'stun:stun1.l.google.com:19302' }
-            ]}
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // ICE: להשתמש ב-urls (סטנדרטי)
+    const peer = new Peer({
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      }
+    });
+
+    let peerReady = false;
+    peer.on('open', (id) => {
+      peerReady = true;
+      console.log("Peer ready:", id);
+    });
+
+    peer.on('error', (e) => console.log("Peer error:", e));
+
+    // מאזין לשיחות פעם אחת בלבד (לא בתוך ring)
+    let currentStream = null;
+    peer.on('call', (call) => {
+      if (currentStream) {
+        call.answer(currentStream);
+      } else {
+        // אם משום מה אין סטרים עדיין - לא עונים
+        console.log("No stream to answer with yet.");
+      }
+    });
+
+    const container = document.getElementById('btnCont');
+    for (let i = 1; i <= 24; i++) {
+      const btn = document.createElement('button');
+      btn.innerText = i;
+      btn.onclick = () => ring(i);
+      container.appendChild(btn);
+    }
+
+    async function ring(apt) {
+      try {
+        if (!peerReady || !peer.id) {
+          alert("המערכת עוד נטענת, נסה שוב בעוד רגע.");
+          return;
+        }
+
+        // פתח מצלמה
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480 },
+          audio: true
         });
 
-        const container = document.getElementById('btnCont');
-        for (let i = 1; i <= 24; i++) {
-            const btn = document.createElement('button');
-            btn.innerText = i;
-            btn.onclick = () => ring(i);
-            container.appendChild(btn);
-        }
+        currentStream = stream;
 
-        async function ring(apt) {
-            try {
-                // פתיחת מצלמה לפני הכל
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 640, height: 480 }, 
-                    audio: true 
-                });
-                
-                const localVid = document.getElementById('lVid');
-                localVid.srcObject = stream;
-                localVid.play();
-                document.getElementById('vPopup').style.display = "block";
+        const localVid = document.getElementById('lVid');
+        localVid.srcObject = stream;
+        await localVid.play();
+        document.getElementById('vPopup').style.display = "block";
 
-                // עדכון Firebase
-                database.ref('calls/apt' + apt).set({
-                    action: "ring",
-                    callerId: peer.id,
-                    time: Date.now()
-                });
+        // כתיבה ל-Firebase
+        await database.ref('calls/apt' + apt).set({
+          action: "ring",
+          callerId: peer.id,
+          time: Date.now()
+        });
 
-                // האזנה למענה מהדירה
-                peer.on('call', (call) => {
-                    call.answer(stream);
-                });
-
-                // סגירה אוטומטית
-                setTimeout(() => {
-                    stream.getTracks().forEach(t => t.stop());
-                    document.getElementById('vPopup').style.display = "none";
-                    database.ref('calls/apt' + apt).set(null);
-                }, 15000);
-
-            } catch (err) {
-                alert("שגיאת מצלמה: " + err.message);
+        // סגירה אוטומטית
+        setTimeout(async () => {
+          try {
+            if (currentStream) {
+              currentStream.getTracks().forEach(t => t.stop());
+              currentStream = null;
             }
-        }
-    </script>
+            document.getElementById('vPopup').style.display = "none";
+            await database.ref('calls/apt' + apt).set(null);
+          } catch (e) {}
+        }, 15000);
+
+      } catch (err) {
+        alert("שגיאת מצלמה: " + err.message);
+      }
+    }
+  </script>
 </body>
 </html>
