@@ -12,7 +12,7 @@
         #videoPopup { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
         video { width: 100%; height: 100%; object-fit: cover; }
         button#startBtn { padding: 20px 40px; font-size: 22px; border-radius: 50px; border: none; background: #28a745; color: white; margin-top: 50px; cursor: pointer; }
-        #status { margin-top: 20px; font-size: 18px; color: #888; }
+        #status { margin-top: 20px; font-size: 18px; color: #81efff; }
     </style>
 </head>
 <body>
@@ -48,6 +48,7 @@
             const audio = document.getElementById('ringtone');
             audio.play().then(() => audio.pause());
 
+            // שימוש בשרתי גוגל למעבר חומות אש
             const peer = new Peer({
                 config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }, { url: 'stun:stun1.l.google.com:19302' }]}
             });
@@ -58,17 +59,41 @@
                 const data = snapshot.val();
                 if (data && data.action === "ring" && data.callerId) {
                     audio.play();
-                    const call = peer.call(data.callerId, null);
-                    call.on('stream', (remoteStream) => {
-                        const popup = document.getElementById('videoPopup');
-                        document.getElementById('remoteVideo').srcObject = remoteStream;
-                        popup.style.display = "block";
-                    });
+                    document.getElementById('status').innerText = "מתחבר לווידאו...";
 
+                    // המתנה קלה של שנייה כדי לוודא שהמצלמה בשלט נפתחה לגמרי
+                    setTimeout(() => {
+                        const call = peer.call(data.callerId, null);
+                        
+                        call.on('stream', (remoteStream) => {
+                            console.log("וידאו התקבל בהצלחה!");
+                            const popup = document.getElementById('videoPopup');
+                            const video = document.getElementById('remoteVideo');
+                            video.srcObject = remoteStream;
+                            popup.style.display = "block";
+                        });
+
+                        // אם אחרי 5 שניות לא התקבל סטרים, נסה שוב
+                        setTimeout(() => {
+                            if (document.getElementById('videoPopup').style.display !== "block") {
+                                console.log("מנסה חיבור חוזר...");
+                                peer.call(data.callerId, null).on('stream', (s) => {
+                                    document.getElementById('remoteVideo').srcObject = s;
+                                    document.getElementById('videoPopup').style.display = "block";
+                                });
+                            }
+                        }, 5000);
+
+                    }, 1500);
+
+                    // סגירה אחרי 15 שניות
                     setTimeout(() => {
                         document.getElementById('videoPopup').style.display = "none";
-                        audio.pause(); audio.currentTime = 0;
-                    }, 10000);
+                        audio.pause();
+                        audio.currentTime = 0;
+                        document.getElementById('status').innerText = "מחובר. ממתין לקריאה...";
+                        firebase.database().ref('calls/apt' + aptNumber).set(null);
+                    }, 15000);
                 }
             });
         }
