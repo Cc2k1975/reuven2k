@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
+    <link rel="manifest" href="manifest.json">
+    
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
     <title>Intercom Control</title>
@@ -16,11 +18,20 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     
     <style>
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+            outline: none; 
+        }
         
         html, body { 
-            margin: 0; padding: 0; height: 100%; width: 100%; 
-            overflow: hidden; background: #000; font-family: sans-serif;
+            margin: 0; 
+            padding: 0; 
+            height: 100%; 
+            width: 100%; 
+            overflow: hidden; 
+            background: #000; 
+            font-family: sans-serif;
             position: fixed; /* מונע גלילה שמגלה את שורת הכתובת */
         }
         
@@ -28,13 +39,13 @@
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
             grid-template-rows: repeat(8, 1fr); 
-            gap: 12px; 
+            gap: 10px; 
             height: 100vh; 
             width: 100vw; 
-            padding: 15px;
-            /* התאמה לאייפונים עם "נוץ'" */
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
+            padding: 10px;
+            /* התאמה למסכים עם מגרעת (Notch) */
+            padding-top: env(safe-area-inset-top, 10px);
+            padding-bottom: env(safe-area-inset-bottom, 10px);
         }
 
         button { 
@@ -57,18 +68,35 @@
             text-shadow: none;
         }
 
-        /* חלון הוידאו הקטן בשלט */
+        /* חלון הוידאו הקטן שמופיע בשלט בזמן שיחה */
         #vPopup { 
-            display: none; position: fixed; top: 2%; left: 5%; width: 90%; height: 22%; 
-            background: #000; border: 2px solid #81efff; border-radius: 20px; 
-            z-index: 1000; overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,1);
+            display: none; 
+            position: fixed; 
+            top: 2%; 
+            left: 5%; 
+            width: 90%; 
+            height: 22%; 
+            background: #000; 
+            border: 2px solid #81efff; 
+            border-radius: 20px; 
+            z-index: 1000; 
+            overflow: hidden; 
+            box-shadow: 0 0 30px rgba(0,0,0,1);
         }
-        video { width: 100%; height: 100%; object-fit: cover; }
+        
+        video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+        }
     </style>
 </head>
 <body>
 
-    <div id="vPopup"><video id="lVid" autoplay playsinline muted></video></div>
+    <div id="vPopup">
+        <video id="lVid" autoplay playsinline muted></video>
+    </div>
+
     <div class="grid" id="btnCont"></div>
 
     <script>
@@ -81,9 +109,11 @@
             messagingSenderId: "827508017014",
             appId: "1:827508017014:web:c34e8ed05bc28c2a56dc57"
         };
+        
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
+        // הגדרת Peer עם שרת STUN למעבר וידאו חלק
         const peer = new Peer({
             config: {'iceServers': [{ url: 'stun:stun.l.google.com:19302' }]}
         });
@@ -103,17 +133,24 @@
                 document.getElementById('vPopup').style.display = "block";
 
                 database.ref('calls/apt' + apt).set({
-                    action: "ring", callerId: peer.id, time: Date.now()
+                    action: "ring",
+                    callerId: peer.id,
+                    time: Date.now()
                 });
 
-                peer.on('call', (call) => { call.answer(stream); });
+                peer.on('call', (call) => {
+                    call.answer(stream);
+                });
 
                 setTimeout(() => {
                     stream.getTracks().forEach(t => t.stop());
                     document.getElementById('vPopup').style.display = "none";
                     database.ref('calls/apt' + apt).set(null);
                 }, 10000);
-            } catch (err) { alert("חובה לאשר מצלמה"); }
+
+            } catch (err) {
+                alert("חובה לאשר גישה למצלמה!");
+            }
         }
     </script>
 </body>
