@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>שלח מיקום בוואטסאפ לפי מספר בהקראה</title>
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:#0b1220;
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+    .wrap{
+      width:min(900px, 100%);
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+      align-items:center;
+      justify-content:center;
+    }
+    #bigBtn{
+      width:100%;
+      height:min(70vh, 520px);
+      border:none;
+      border-radius:28px;
+      font-size:clamp(28px, 5vw, 54px);
+      font-weight:800;
+      cursor:pointer;
+      background:linear-gradient(135deg, #22c55e, #16a34a);
+      color:#04120a;
+      box-shadow:0 16px 40px rgba(0,0,0,.45);
+      padding:22px;
+      line-height:1.1;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #bigBtn:active{ transform:scale(.995) }
+    #bigBtn[disabled]{
+      opacity:.6;
+      cursor:not-allowed;
+      transform:none;
+    }
+    .status{
+      width:100%;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px;
+      padding:12px 14px;
+      font-size:16px;
+      line-height:1.5;
+    }
+    .row{
+      width:100%;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:center;
+    }
+    .pill{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:14px;
+      color:rgba(255,255,255,.9);
+    }
+    .warn{ color:#ffd38a }
+    .ok{ color:#9effb6 }
+    .err{ color:#ff9aa2 }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <button id="bigBtn">לחץ והקרא מספר טלפון<br/>ואשלח לו וואטסאפ עם המיקום שלך</button>
+
+    <div class="status" id="status">
+      סטטוס: מוכן. לחץ על הכפתור, אשר מיקרופון, והקרא מספר טלפון (10 ספרות).
+      <div style="margin-top:8px;opacity:.9">
+        הערה מקצועית: מהדפדפן אי אפשר “לשלוח” אוטומטית עד הסוף — אפשר לפתוח את WhatsApp עם הודעה מוכנה, ואתה תלחץ “שלח”.
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="pill">נדרש: Chrome/Edge באנדרואיד</div>
+      <div class="pill">נדרש: אישור מיקרופון + מיקום</div>
+      <div class="pill warn">אם אמרת “אפס/אחת/שתיים” וכו׳ — אני ממיר לספרות</div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const bigBtn = document.getElementById('bigBtn');
+  const statusEl = document.getElementById('status');
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function setStatus(html, cls="") {
+    statusEl.innerHTML = `סטטוס: <span class="${cls}">${html}</span>`;
+  }
+
+  function normalizePhoneTo10Digits(rawDigits) {
+    // Keep digits only
+    let d = (rawDigits || "").replace(/\D/g, "");
+
+    // Common IL patterns:
+    // 10 digits already: 05XXXXXXXX / 0XXXXXXXXX
+    if (d.length === 10) return d;
+
+    // If user said without leading 0 (e.g., 5XXXXXXXX) -> add 0
+    if (d.length === 9) return "0" + d;
+
+    // If includes country code 972...:
+    // +9725XXXXXXXX -> 9725XXXXXXXX (12 digits) or 97205... etc
+    if (d.startsWith("972")) {
+      d = d.slice(3);
+      if (d.startsWith("0")) d = d.slice(1);
+      // Now try to rebuild
+      if (d.length === 9) return "0" + d;
+      if (d.length === 10) return d;
+    }
+
+    // If too long, try to find last 10 digits that look like an Israeli mobile starting with 05
+    if (d.length > 10) {
+      const tail10 = d.slice(-10);
+      if (tail10.startsWith("05") || tail10.startsWith("0")) return tail10;
+    }
+
+    return null;
+  }
+
+  const hebWords = [
+    // each entry: [regex, digitChar]
+    [/אפס|0/gi, "0"],
+    [/אחת|אחד|1/gi, "1"],
+    [/שתיים|שניים|שתים|2/gi, "2"],
+    [/שלוש|שלושה|3/gi, "3"],
+    [/ארבע|ארבעה|4/gi, "4"],
+    [/חמש|חמישה|5/gi, "5"],
+    [/שש|שישה|6/gi, "6"],
+    [/שבע|שבעה|7/gi, "7"],
+    [/שמונה|8/gi, "8"],
+    [/תשע|תשעה|9/gi, "9"],
+  ];
+
+  function extractDigitsFromTranscript(t) {
+    if (!t) return "";
+    let s = t.toString();
+
+    // Replace Hebrew number words with digits
+    for (const [re, dig] of hebWords) {
+      s = s.replace(re, ` ${dig} `);
+    }
+
+    // Also handle common separators and filler words
+    s = s.replace(/[^\d]/g, " ");
+
+    // Collect digits in order
+    const digits = s.replace(/\s+/g, "");
+    return digits;
+  }
+
+  async function getLocationHighAccuracy() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("המכשיר/דפדפן לא תומך במיקום."));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve(pos),
+        (err) => reject(err),
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        }
+      );
+    });
+  }
+
+  function openWhatsApp(phone10, lat, lon, accMeters) {
+    // WhatsApp number must be in international format, without +
+    // For Israel: 972 + (phone without leading 0)
+    const local = phone10.startsWith("0") ? phone10.slice(1) : phone10;
+    const international = "972" + local;
+
+    const mapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
+    const accTxt = (typeof accMeters === "number")
+      ? ` (דיוק משוער: ${Math.round(accMeters)} מטר)`
+      : "";
+
+    const msg =
+      `זה המיקום הנוכחי שלי${accTxt}:\n` +
+      `${mapsLink}\n\n` +
+      `קואורדינטות: ${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+    const url = `https://wa.me/${international}?text=${encodeURIComponent(msg)}`;
+    window.location.href = url;
+  }
+
+  function runFlow() {
+    if (!SpeechRecognition) {
+      setStatus("הדפדפן לא תומך בזיהוי דיבור. נסה Chrome באנדרואיד.", "err");
+      return;
+    }
+
+    const rec = new SpeechRecognition();
+    rec.lang = "he-IL";
+    rec.interimResults = true;
+    rec.continuous = true;
+
+    let collected = "";
+    let locked = false;
+
+    bigBtn.disabled = true;
+    bigBtn.textContent = "מקשיב... הקרא 10 ספרות";
+
+    setStatus("מקשיב עכשיו… תדבר ברור, ספרה־ספרה.", "ok");
+
+    const stopAll = () => {
+      try { rec.stop(); } catch(e) {}
+      bigBtn.disabled = false;
+      bigBtn.innerHTML = "לחץ והקרא מספר טלפון<br/>ואשלח לו וואטסאפ עם המיקום שלך";
+    };
+
+    rec.onresult = async (event) => {
+      if (locked) return;
+
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += " " + event.results[i][0].transcript;
+      }
+
+      const newDigits = extractDigitsFromTranscript(transcript);
+      if (newDigits) {
+        // append but avoid duplicating too aggressively:
+        // We'll just merge by keeping the longest suffix logic.
+        collected = (collected + newDigits).replace(/\D/g, "");
+        // keep reasonable length
+        if (collected.length > 20) collected = collected.slice(-20);
+      }
+
+      const maybe10 = normalizePhoneTo10Digits(collected);
+      const showDigits = (collected || "").replace(/\D/g, "");
+      setStatus(`שמעתי: <b>${transcript.trim() || "..."}</b><br/>ספרות שנאספו: <b>${showDigits}</b>`, "ok");
+
+      if (maybe10) {
+        locked = true;
+        setStatus(`זיהיתי 10 ספרות: <b>${maybe10}</b><br/>עכשיו מביא מיקום מדויק…`, "ok");
+
+        try {
+          // Stop listening once we have the 10 digits
+          try { rec.stop(); } catch(e) {}
+
+          const pos = await getLocationHighAccuracy();
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const acc = pos.coords.accuracy;
+
+          setStatus(
+            `מיקום התקבל ✅<br/>פותח WhatsApp למספר: <b>${maybe10}</b><br/>אם WhatsApp נפתח—לחץ "שלח".`,
+            "ok"
+          );
+
+          // small delay for UX
+          setTimeout(() => openWhatsApp(maybe10, lat, lon, acc), 600);
+        } catch (e) {
+          setStatus(`לא הצלחתי להביא מיקום: ${e.message || e}`, "err");
+          stopAll();
+        }
+      }
+    };
+
+    rec.onerror = (e) => {
+      setStatus(`שגיאת זיהוי דיבור: ${e.error || e.message || e}`, "err");
+      stopAll();
+    };
+
+    rec.onend = () => {
+      // If ended before we locked digits, re-enable
+      if (!locked) {
+        setStatus("ההאזנה הסתיימה לפני שזיהיתי 10 ספרות. לחץ שוב ונסה להקריא ספרה־ספרה.", "warn");
+        stopAll();
+      } else {
+        // keep disabled until WhatsApp opens; we re-enable anyway
+        bigBtn.disabled = false;
+      }
+    };
+
+    try {
+      rec.start();
+    } catch (e) {
+      setStatus("לא הצלחתי להתחיל זיהוי דיבור. נסה לרענן את הדף ולאשר הרשאות.", "err");
+      stopAll();
+    }
+  }
+
+  bigBtn.addEventListener('click', () => {
+    // Geolocation permission must be triggered by user gesture – but we fetch it after digits.
+    runFlow();
+  });
+})();
+</script>
+</body>
+</html>
