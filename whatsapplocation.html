@@ -80,26 +80,39 @@
     });
   }
 
-  function openWA(phone,lat,lon){
-    const local = phone.startsWith("0") ? phone.slice(1) : phone;
-    const num = "972" + local;
+  function tryOpenWhatsAppDirect(phoneIntl, msg){
+    // ניסיון לפתוח ישירות את האפליקציה (ברוב המקרים זה ייכנס ישר למסך שליחה)
+    const deep = `whatsapp://send?phone=${phoneIntl}&text=${encodeURIComponent(msg)}`;
+    const web  = `https://wa.me/${phoneIntl}?text=${encodeURIComponent(msg)}`;
+
+    // ניסיון deep-link
+    location.href = deep;
+
+    // נפילה ל-web אם deep לא נתפס
+    setTimeout(() => {
+      // אם כבר עברנו אפליקציה - הטיימר לא מפריע בפועל
+      location.href = web;
+    }, 650);
+  }
+
+  function openWA(phone10,lat,lon){
+    const local = phone10.startsWith("0") ? phone10.slice(1) : phone10;
+    const phoneIntl = "972" + local;
 
     const waze = `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`;
     const maps = `https://www.google.com/maps?q=${lat},${lon}`;
 
-    // WhatsApp supports *bold* with asterisks
     const msg =
       `*זה המיקום שלי*\n\n` +
       `קישור לווייז:\n${waze}\n\n` +
       `קישור לגוגל מפות:\n${maps}`;
 
-    location.href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+    tryOpenWhatsAppDirect(phoneIntl, msg);
   }
 
   btn.onclick = () => {
     if(!SpeechRecognition) return;
 
-    // שינוי טקסט הכפתור בעת לחיצה
     btn.textContent = "נא להקריא את המספר טלפון";
     btn.disabled = true;
 
