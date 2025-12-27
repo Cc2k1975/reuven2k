@@ -80,50 +80,57 @@
   }
 
   function openWA(phone,lat,lon){
-    const local=phone.startsWith("0")?phone.slice(1):phone;
-    const num="972"+local;
-    const msg=`זה המיקום הנוכחי שלי:\nhttps://www.google.com/maps?q=${lat},${lon}`;
-    location.href=`https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+    const local = phone.startsWith("0") ? phone.slice(1) : phone;
+    const num = "972" + local;
+
+    const waze = `waze://?ll=${lat},${lon}&navigate=yes`;
+    const maps = `https://www.google.com/maps?q=${lat},${lon}`;
+
+    const msg =
+      `קישור לווייז:\n${waze}\n\n` +
+      `קישור לגוגל מפות:\n${maps}`;
+
+    location.href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
   }
 
-  btn.onclick=()=>{
+  btn.onclick = () => {
     if(!SpeechRecognition) return;
 
-    btn.disabled=true;
+    btn.disabled = true;
 
-    const locPromise=getLocationSnapshot();
-    let loc=null;
-    locPromise.then(l=>loc=l);
+    const locPromise = getLocationSnapshot();
+    let loc = null;
+    locPromise.then(l => loc = l);
 
-    const rec=new SpeechRecognition();
-    rec.lang="he-IL";
-    rec.continuous=true;
-    rec.interimResults=true;
+    const rec = new SpeechRecognition();
+    rec.lang = "he-IL";
+    rec.continuous = true;
+    rec.interimResults = true;
 
-    let collected="";
-    let locked=false;
+    let collected = "";
+    let locked = false;
 
-    rec.onresult=async e=>{
+    rec.onresult = async e => {
       if(locked) return;
-      let t="";
+      let t = "";
       for(let i=e.resultIndex;i<e.results.length;i++){
-        t+=" "+e.results[i][0].transcript;
+        t += " " + e.results[i][0].transcript;
       }
-      collected+=extractDigits(t);
-      const phone=normalize(collected);
+      collected += extractDigits(t);
+      const phone = normalize(collected);
       if(phone){
-        locked=true;
+        locked = true;
         rec.stop();
         try{
-          const L=loc||await locPromise;
-          openWA(phone,L.lat,L.lon);
+          const L = loc || await locPromise;
+          openWA(phone, L.lat, L.lon);
         }catch{}
-        btn.disabled=false;
+        btn.disabled = false;
       }
     };
 
-    rec.onerror=()=>{btn.disabled=false};
-    rec.onend=()=>{if(!locked) btn.disabled=false};
+    rec.onerror = () => { btn.disabled = false };
+    rec.onend   = () => { if(!locked) btn.disabled = false };
 
     rec.start();
   };
