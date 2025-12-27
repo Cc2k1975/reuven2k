@@ -20,7 +20,7 @@
       height:80vh;
       border:none;
       border-radius:30px;
-      font-size:clamp(44px,8vw,92px);
+      font-size:clamp(48px,8vw,96px);
       font-weight:900;
       background:linear-gradient(135deg,#22c55e,#16a34a);
       color:#04120a;
@@ -30,102 +30,72 @@
     }
     button:active{transform:scale(.98)}
     button:disabled{opacity:.75; cursor:not-allowed; transform:none;}
-    input[type="file"]{display:none}
   </style>
 </head>
 <body>
 
 <button id="btn">שלח מיקום</button>
-<input id="file" type="file" accept="application/json,.json" />
 
 <script>
 (() => {
   const btn = document.getElementById("btn");
-  const fileInput = document.getElementById("file");
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  // ====== Utils ======
-  const hebDigitMap = [
+  const hebMap = [
     [/אפס|0/gi,"0"],[/אחת|אחד|1/gi,"1"],[/שתיים|שניים|שתים|2/gi,"2"],
     [/שלוש|שלושה|3/gi,"3"],[/ארבע|ארבעה|4/gi,"4"],
     [/חמש|חמישה|5/gi,"5"],[/שש|שישה|6/gi,"6"],
     [/שבע|שבעה|7/gi,"7"],[/שמונה|8/gi,"8"],[/תשע|תשעה|9/gi,"9"]
   ];
 
-  function extractDigitsFromTranscript(t){
-    let s = (t || "").toString();
-    for (const [re, dig] of hebDigitMap) s = s.replace(re, " " + dig + " ");
-    return s.replace(/[^\d]/g, "");
+  function extractDigits(t){
+    let s=t||"";
+    hebMap.forEach(([r,d])=>s=s.replace(r," "+d+" "));
+    return s.replace(/[^\d]/g,"");
   }
 
-  function normalizePhoneTo10Digits(raw){
-    let d = (raw || "").replace(/\D/g,"");
-    if (d.length === 10) return d;
-    if (d.length === 9) return "0" + d;
-    if (d.startsWith("972")){
-      d = d.slice(3);
-      if (d.startsWith("0")) d = d.slice(1);
-      if (d.length === 9) return "0" + d;
-      if (d.length === 10) return d;
+  function normalize(d){
+    d=d.replace(/\D/g,"");
+    if(d.length===10) return d;
+    if(d.length===9) return "0"+d;
+    if(d.startsWith("972")){
+      d=d.slice(3);
+      if(d.startsWith("0")) d=d.slice(1);
+      if(d.length===9) return "0"+d;
     }
-    if (d.length > 10){
-      const tail10 = d.slice(-10);
-      if (tail10.startsWith("0")) return tail10;
+    if(d.length>10){
+      const t=d.slice(-10);
+      if(t.startsWith("0")) return t;
     }
     return null;
   }
 
-  function normalizeName(s){
-    if (!s) return "";
-    return s
-      .toString()
-      .toLowerCase()
-      .replace(/[׳״"']/g,"")
-      .replace(/[^\p{L}\p{N}\s]/gu," ")
-      .replace(/\s+/g," ")
-      .trim();
-  }
-
-  function extractTargetName(transcript){
-    let s = normalizeName(transcript);
-
-    // remove common command words
-    s = s
-      .replace(/\bשלח\b/gu," ")
-      .replace(/\bלשלוח\b/gu," ")
-      .replace(/\bתשלח\b/gu," ")
-      .replace(/\bהודעה\b/gu," ")
-      .replace(/\bוואטסאפ\b/gu," ")
-      .replace(/\bאל\b/gu," ")
-      .replace(/\bל\b/gu," ")
-      .replace(/\bל\-?/gu," ")
-      .replace(/\bמספר\b/gu," ")
-      .replace(/\bטלפון\b/gu," ")
-      .replace(/\s+/g," ")
-      .trim();
-
-    // If user said only "מאיר" etc. keep it
-    return s;
-  }
-
   function getLocationSnapshot(){
-    return new Promise((res, rej) => {
+    return new Promise((res,rej)=>{
       navigator.geolocation.getCurrentPosition(
-        p => res({ lat: p.coords.latitude, lon: p.coords.longitude }),
-        e => rej(e),
-        { enableHighAccuracy:true, timeout:15000, maximumAge:0 }
+        p=>res({lat:p.coords.latitude,lon:p.coords.longitude}),
+        e=>rej(e),
+        {enableHighAccuracy:true,timeout:15000,maximumAge:0}
       );
     });
   }
 
   function tryOpenWhatsAppDirect(phoneIntl, msg){
+    // ניסיון לפתוח ישירות את האפליקציה (ברוב המקרים זה ייכנס ישר למסך שליחה)
     const deep = `whatsapp://send?phone=${phoneIntl}&text=${encodeURIComponent(msg)}`;
     const web  = `https://wa.me/${phoneIntl}?text=${encodeURIComponent(msg)}`;
+
+    // ניסיון deep-link
     location.href = deep;
-    setTimeout(() => { location.href = web; }, 650);
+
+    // נפילה ל-web אם deep לא נתפס
+    setTimeout(() => {
+      // אם כבר עברנו אפליקציה - הטיימר לא מפריע בפועל
+      location.href = web;
+    }, 650);
   }
 
-  function openWAtoPhone10(phone10, lat, lon){
+  function openWA(phone10,lat,lon){
     const local = phone10.startsWith("0") ? phone10.slice(1) : phone10;
     const phoneIntl = "972" + local;
 
@@ -140,259 +110,57 @@
     tryOpenWhatsAppDirect(phoneIntl, msg);
   }
 
-  // ====== Contacts handling (local JSON) ======
-  const LS_KEY = "contacts_cache_v1";
-  let contacts = [];
+  btn.onclick = () => {
+    if(!SpeechRecognition) return;
 
-  function loadContactsFromStorage(){
-    try{
-      const raw = localStorage.getItem(LS_KEY);
-      if(!raw) return false;
-      const arr = JSON.parse(raw);
-      if(!Array.isArray(arr)) return false;
-      contacts = arr
-        .filter(x => x && typeof x.name === "string" && typeof x.phone10 === "string")
-        .map(x => ({ name: x.name, nameN: normalizeName(x.name), phone10: x.phone10 }));
-      return contacts.length > 0;
-    }catch{
-      return false;
-    }
-  }
-
-  function saveContactsToStorage(arr){
-    localStorage.setItem(LS_KEY, JSON.stringify(arr));
-  }
-
-  function pickFirstPhoneFromObject(obj){
-    if(!obj || typeof obj !== "object") return null;
-
-    // Direct fields
-    const directFields = ["phone","tel","number","mobile","טלפון","מספר","פלאפון"];
-    for (const f of directFields){
-      if (obj[f]) {
-        const p = normalizePhoneTo10Digits(String(obj[f]));
-        if (p) return p;
-      }
-    }
-
-    // phoneNumbers arrays (common formats)
-    const candidates = [];
-    if (Array.isArray(obj.phoneNumbers)) candidates.push(...obj.phoneNumbers);
-    if (Array.isArray(obj.phones)) candidates.push(...obj.phones);
-    if (Array.isArray(obj.numbers)) candidates.push(...obj.numbers);
-
-    for (const c of candidates){
-      if (typeof c === "string"){
-        const p = normalizePhoneTo10Digits(c);
-        if (p) return p;
-      } else if (c && typeof c === "object"){
-        const v = c.value || c.number || c.phone || c.tel;
-        if (v){
-          const p = normalizePhoneTo10Digits(String(v));
-          if (p) return p;
-        }
-      }
-    }
-
-    return null;
-  }
-
-  function pickNameFromObject(obj){
-    if(!obj || typeof obj !== "object") return null;
-
-    const direct = obj.name || obj.fullName || obj.displayName || obj.שם || obj.כינוי;
-    if (direct) return String(direct).trim();
-
-    const given = obj.givenName || obj.firstName || obj.שםפרטי || obj["שם פרטי"];
-    const family = obj.familyName || obj.lastName || obj.שםמשפחה || obj["שם משפחה"];
-    const combo = [given, family].filter(Boolean).join(" ").trim();
-    if (combo) return combo;
-
-    // Some exports: { "names": [{ "displayName": "..." }]}
-    if (Array.isArray(obj.names) && obj.names[0]){
-      const n = obj.names[0].displayName || obj.names[0].unstructuredName;
-      if (n) return String(n).trim();
-    }
-
-    return null;
-  }
-
-  function parseContactsJSON(json){
-    // supports:
-    // 1) Array of contact objects
-    // 2) {contacts:[...]} or {data:[...]} etc
-    let arr = null;
-
-    if (Array.isArray(json)) arr = json;
-    else if (json && typeof json === "object"){
-      const possible = ["contacts","data","items","results","people"];
-      for (const k of possible){
-        if (Array.isArray(json[k])) { arr = json[k]; break; }
-      }
-      // Google People API export sometimes nested
-      if (!arr && Array.isArray(json.connections)) arr = json.connections;
-    }
-
-    if (!arr) return [];
-
-    const cleaned = [];
-    for (const item of arr){
-      const name = pickNameFromObject(item);
-      const phone10 = pickFirstPhoneFromObject(item);
-      if (!name || !phone10) continue;
-      cleaned.push({ name: name.trim(), phone10 });
-    }
-
-    // De-dup by name+phone
-    const seen = new Set();
-    const out = [];
-    for (const c of cleaned){
-      const key = normalizeName(c.name) + "|" + c.phone10;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ name: c.name, phone10: c.phone10 });
-    }
-    return out;
-  }
-
-  function findContactBySpokenName(spoken){
-    const q = normalizeName(spoken);
-    if (!q) return null;
-
-    // Exact match
-    let exact = contacts.find(c => c.nameN === q);
-    if (exact) return exact;
-
-    // Starts with (best)
-    let starts = contacts.find(c => c.nameN.startsWith(q));
-    if (starts) return starts;
-
-    // Contains
-    let contains = contacts.find(c => c.nameN.includes(q));
-    if (contains) return contains;
-
-    // If spoken has multiple words, try each word
-    const parts = q.split(" ").filter(Boolean);
-    for (const p of parts){
-      if (p.length < 2) continue;
-      const hit = contacts.find(c => c.nameN.includes(p));
-      if (hit) return hit;
-    }
-
-    return null;
-  }
-
-  async function loadContactsViaFilePicker(){
-    return new Promise((resolve) => {
-      fileInput.value = "";
-      fileInput.onchange = async () => {
-        try{
-          const f = fileInput.files && fileInput.files[0];
-          if(!f) { resolve(false); return; }
-          const txt = await f.text();
-          const json = JSON.parse(txt);
-          const parsed = parseContactsJSON(json);
-          if (!parsed.length){ resolve(false); return; }
-          saveContactsToStorage(parsed);
-          contacts = parsed.map(x => ({ name: x.name, nameN: normalizeName(x.name), phone10: x.phone10 }));
-          resolve(true);
-        }catch{
-          resolve(false);
-        }
-      };
-      fileInput.click();
-    });
-  }
-
-  // ====== Flow ======
-  async function startFlow(){
-    if (!navigator.geolocation) return;
-    if (!SpeechRecognition) return;
-
-    // ensure contacts loaded (local json)
-    if (!contacts.length) {
-      btn.disabled = true;
-      btn.textContent = "בחר קובץ JSON";
-      const ok = await loadContactsViaFilePicker();
-      btn.disabled = false;
-      btn.textContent = "שלח מיקום";
-      if (!ok) return;
-    }
-
-    // Lock location at click
-    btn.disabled = true;
     btn.textContent = "נא להקריא את המספר טלפון";
+    btn.disabled = true;
 
     const locPromise = getLocationSnapshot();
     let loc = null;
-    locPromise.then(l => loc = l).catch(()=>{});
+    locPromise.then(l => loc = l);
 
     const rec = new SpeechRecognition();
     rec.lang = "he-IL";
     rec.continuous = true;
     rec.interimResults = true;
 
-    let collectedDigits = "";
+    let collected = "";
     let locked = false;
 
-    const cleanup = () => {
+    rec.onresult = async e => {
+      if(locked) return;
+      let t = "";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        t += " " + e.results[i][0].transcript;
+      }
+      collected += extractDigits(t);
+      const phone = normalize(collected);
+      if(phone){
+        locked = true;
+        rec.stop();
+        try{
+          const L = loc || await locPromise;
+          openWA(phone, L.lat, L.lon);
+        }catch{}
+        btn.disabled = false;
+        btn.textContent = "שלח מיקום";
+      }
+    };
+
+    rec.onerror = () => {
       btn.disabled = false;
       btn.textContent = "שלח מיקום";
     };
-
-    rec.onresult = async (e) => {
-      if (locked) return;
-
-      let transcript = "";
-      for (let i = e.resultIndex; i < e.results.length; i++){
-        transcript += " " + e.results[i][0].transcript;
-      }
-      transcript = transcript.trim();
-
-      // Option 1: number spoken
-      const newDigits = extractDigitsFromTranscript(transcript);
-      if (newDigits) {
-        collectedDigits += newDigits;
-        const phone10 = normalizePhoneTo10Digits(collectedDigits);
-        if (phone10){
-          locked = true;
-          rec.stop();
-          try{
-            const L = loc || await locPromise;
-            openWAtoPhone10(phone10, L.lat, L.lon);
-          }catch{}
-          cleanup();
-          return;
-        }
-      }
-
-      // Option 2: name spoken ("שלח למאיר" / "מאיר")
-      const targetName = extractTargetName(transcript);
-      if (targetName){
-        const hit = findContactBySpokenName(targetName);
-        if (hit && hit.phone10){
-          locked = true;
-          rec.stop();
-          try{
-            const L = loc || await locPromise;
-            openWAtoPhone10(hit.phone10, L.lat, L.lon);
-          }catch{}
-          cleanup();
-          return;
-        }
+    rec.onend = () => {
+      if(!locked){
+        btn.disabled = false;
+        btn.textContent = "שלח מיקום";
       }
     };
 
-    rec.onerror = () => cleanup();
-    rec.onend = () => { if (!locked) cleanup(); };
-
-    try { rec.start(); } catch { cleanup(); }
-  }
-
-  // init
-  loadContactsFromStorage();
-
-  btn.onclick = () => { startFlow(); };
+    rec.start();
+  };
 })();
 </script>
 
