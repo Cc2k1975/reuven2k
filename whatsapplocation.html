@@ -29,6 +29,7 @@
       -webkit-tap-highlight-color:transparent;
     }
     button:active{transform:scale(.98)}
+    button:disabled{opacity:.75; cursor:not-allowed; transform:none;}
   </style>
 </head>
 <body>
@@ -86,7 +87,9 @@
     const waze = `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`;
     const maps = `https://www.google.com/maps?q=${lat},${lon}`;
 
+    // WhatsApp supports *bold* with asterisks
     const msg =
+      `*זה המיקום שלי*\n\n` +
       `קישור לווייז:\n${waze}\n\n` +
       `קישור לגוגל מפות:\n${maps}`;
 
@@ -96,6 +99,8 @@
   btn.onclick = () => {
     if(!SpeechRecognition) return;
 
+    // שינוי טקסט הכפתור בעת לחיצה
+    btn.textContent = "נא להקריא את המספר טלפון";
     btn.disabled = true;
 
     const locPromise = getLocationSnapshot();
@@ -126,11 +131,20 @@
           openWA(phone, L.lat, L.lon);
         }catch{}
         btn.disabled = false;
+        btn.textContent = "שלח מיקום";
       }
     };
 
-    rec.onerror = () => { btn.disabled = false };
-    rec.onend   = () => { if(!locked) btn.disabled = false };
+    rec.onerror = () => {
+      btn.disabled = false;
+      btn.textContent = "שלח מיקום";
+    };
+    rec.onend = () => {
+      if(!locked){
+        btn.disabled = false;
+        btn.textContent = "שלח מיקום";
+      }
+    };
 
     rec.start();
   };
