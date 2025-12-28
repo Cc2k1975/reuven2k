@@ -148,10 +148,20 @@
     }
     .month-row{
       display:flex;
-      justify-content:space-between;
-      padding:4px 2px;
+      flex-direction: column;
+      padding:6px 2px;
       border-bottom:1px solid #dde1ee;
       font-size:14px;
+    }
+    .month-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+    }
+    .month-counts {
+      font-size: 12px;
+      color: #666;
+      margin-top: 2px;
     }
     .month-total-all{
       margin-top:6px;
@@ -267,7 +277,7 @@
       const now = new Date();
       const y = now.getFullYear();
       const m = String(now.getMonth() + 1).padStart(2, '0');
-      const d = String(now.getDate()).toString(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
       return `${y}-${m}-${d}`;
     }
 
@@ -318,6 +328,18 @@
         .catch(err => console.error("Firestore delete error:", err));
     }
 
+    // פונקציית עזר לספירת פריטים
+    function getCounts(items) {
+      const counts = { customers: 0, mask: 0, spray: 0, device: 0 };
+      items.forEach(e => {
+        if (e.label.includes('פן 50') || e.label.includes('פן 60') || e.label.includes('פן 70')) counts.customers++;
+        if (e.label.includes('מסכת שיער')) counts.mask++;
+        if (e.label.includes('ספריי לשיער')) counts.spray++;
+        if (e.label.includes('מכשיר פן')) counts.device++;
+      });
+      return counts;
+    }
+
     function renderAll() {
       const todayIso = getTodayIso();
       document.getElementById('todayDate').textContent =
@@ -354,7 +376,8 @@
       }
 
       const sum = todayEntries.reduce((acc, e) => acc + e.amount, 0);
-      todayTotalEl.textContent = 'סה״כ היום: ' + sum + ' ₪';
+      const c = getCounts(todayEntries);
+      todayTotalEl.innerHTML = `סה״כ היום: ${sum} ₪ <br><span style="font-size:14px; color:#555;">(לקוחות: ${c.customers}, מסכה: ${c.mask}, ספריי: ${c.spray}, מכשיר פן: ${c.device})</span>`;
     }
 
     function renderHistoryDays() {
@@ -372,10 +395,11 @@
         byDate[e.date].push(e);
       });
 
-      const dates = Object.keys(byDate).sort(); // מהישן לחדש
+      const dates = Object.keys(byDate).sort().reverse(); 
       container.innerHTML = dates.map(dateIso => {
         const list = byDate[dateIso];
         const sum = list.reduce((acc, e) => acc + e.amount, 0);
+        const c = getCounts(list);
         const amountsStr = list.map(e => {
           if (e.label && e.label.trim() !== '') {
             return `${e.label} (${e.amount} ₪)`;
@@ -387,6 +411,9 @@
             <div class="history-day-header">
               <span>${formatDateHeb(dateIso)}</span>
               <span>${sum} ₪</span>
+            </div>
+            <div style="font-size:12px; color:#0a5; margin-bottom:4px;">
+              לקוחות: ${c.customers} | מסכה: ${c.mask} | ספריי: ${c.spray} | מכשיר: ${c.device}
             </div>
             <div class="history-day-amounts">
               ${amountsStr ? 'מכירות: ' + amountsStr : ''}
@@ -408,31 +435,38 @@
       }
 
       const byMonth = {};
-      let grandTotal = 0;
+      let totalSum = 0;
 
       entries.forEach(e => {
         const [y, m] = e.date.split('-');
         const monthKey = `${y}-${m}`;
-        if (!byMonth[monthKey]) byMonth[monthKey] = 0;
-        byMonth[monthKey] += e.amount;
-        grandTotal += e.amount;
+        if (!byMonth[monthKey]) byMonth[monthKey] = { sum: 0, items: [] };
+        byMonth[monthKey].sum += e.amount;
+        byMonth[monthKey].items.push(e);
+        totalSum += e.amount;
       });
 
-      const months = Object.keys(byMonth).sort();
+      const months = Object.keys(byMonth).sort().reverse();
 
       container.innerHTML = months.map(mKey => {
         const [y, m] = mKey.split('-');
         const label = `${m}/${y}`;
-        const total = byMonth[mKey];
+        const data = byMonth[mKey];
+        const c = getCounts(data.items);
         return `
           <div class="month-row">
-            <span>חודש ${label}</span>
-            <span>${total} ₪</span>
+            <div class="month-header">
+               <span>חודש ${label}</span>
+               <span>${data.sum} ₪</span>
+            </div>
+            <div class="month-counts">
+               פן (לקוחות): ${c.customers} | מסכה: ${c.mask} | ספריי: ${c.spray} | מכשירי פן: ${c.device}
+            </div>
           </div>
         `;
       }).join('');
 
-      grandTotalEl.textContent = 'סה״כ כל התקופה: ' + grandTotal + ' ₪';
+      grandTotalEl.textContent = 'סה״כ כל התקופה: ' + totalSum + ' ₪';
     }
 
     // --- טעינה מהשרת, ואם נכשל – מהלוקאל ---
