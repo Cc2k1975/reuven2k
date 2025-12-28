@@ -91,7 +91,8 @@
   </div>
 
   <div class="hint">
-    <b>לחיצה על תמונה</b> משנה רק אותה: <b>Cover</b> ↔ <b>Contain+Blur</b> (ב־Contain אין חיתוך).
+    <b>לחיצה קצרה על תמונה</b>: Cover ↔ Contain+Blur (ב־Contain אין חיתוך).<br>
+    <b>לחיצה ארוכה 3 שניות</b>: החלפת התמונה שנלחצה (ייפתח בורר תמונות).
   </div>
 </div>
 
@@ -103,6 +104,9 @@
   </div>
 </div>
 
+<!-- input נסתר להחלפת תמונה בודדת -->
+<input id="replaceOne" type="file" accept="image/*" style="display:none">
+
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -111,6 +115,8 @@
   const ctx = canvas.getContext('2d');
 
   const files = $('files');
+  const replaceOne = $('replaceOne');
+
   const gap = $('gap'), rad = $('rad'), blur = $('blur');
   const gapL = $('gapL'), radL = $('radL'), blurL = $('blurL');
 
@@ -160,7 +166,6 @@
   }
 
   function chooseCols(n, W, H, gapPx){
-    // בוחר עמודות כך שהקולאז' ימלא מסך ויתאים למובייל
     const aspect = W/H;
     let best = {cols:1, score:-Infinity};
 
@@ -219,7 +224,6 @@
       ctx.filter = 'none';
       drawCover(img, x,y,w,h);
     }else{
-      // רקע מטושטש + התמונה ללא חיתוך (contain)
       ctx.filter = `blur(${blurPx}px)`;
       drawCover(img, x,y,w,h);
       ctx.filter = 'none';
@@ -261,7 +265,6 @@
       const remaining = n - idx;
       const colsThisRow = Math.min(cols, remaining);
 
-      // ✅ שורה אחרונה מתרחבת כדי למלא את המסך (אין שחור)
       const cellW = (W - gapPx*(colsThisRow-1))/colsThisRow;
 
       for(let c=0;c<colsThisRow;c++){
@@ -318,16 +321,68 @@
       await new Promise(r=>requestAnimationFrame(r));
       const loaded = await loadFile(list[i]);
       images.push(loaded);
-      modes.push(0); // default cover
+      modes.push(0);
     }
     hideLoading();
     updateLabels();
     render();
   });
 
-  // לחיצה על תמונה: החלפת מצב פר-תמונה
+  // ----------- לחיצה קצרה / ארוכה -----------
+  const LONG_MS = 3000;
+  let longTimer = null;
+  let longIndex = -1;
+  let longTriggered = false;
+  let downPos = null;
+
+  function clearLong(){
+    if(longTimer){ clearTimeout(longTimer); longTimer = null; }
+    longIndex = -1;
+    longTriggered = false;
+    downPos = null;
+  }
+
+  canvas.addEventListener('pointerdown', (ev)=>{
+    if(!images.length) return;
+
+    const p = canvasPointFromClient(ev.clientX, ev.clientY);
+    const idx = hitTile(p.x,p.y);
+    if(idx < 0) return;
+
+    downPos = {x:p.x,y:p.y};
+    longIndex = idx;
+    longTriggered = false;
+
+    longTimer = setTimeout(()=>{
+      longTriggered = true;
+      // פותחים בורר תמונות להחלפת התמונה שנלחצה
+      replaceOne.value = '';
+      replaceOne.click();
+    }, LONG_MS);
+  });
+
+  canvas.addEventListener('pointermove', (ev)=>{
+    if(!downPos || longIndex < 0) return;
+    const p = canvasPointFromClient(ev.clientX, ev.clientY);
+    const dx = p.x - downPos.x;
+    const dy = p.y - downPos.y;
+    // אם גררת קצת - מבטל long-press כדי שלא ייפתח בטעות
+    if(Math.hypot(dx,dy) > 12){
+      if(longTimer){ clearTimeout(longTimer); longTimer = null; }
+    }
+  });
+
+  canvas.addEventListener('pointerup', ()=>{
+    if(longTimer){ clearTimeout(longTimer); longTimer = null; }
+    // אם לא הופעלה ארוכה - הלחיצה הקצרה תטופל באירוע click הרגיל
+  });
+
+  canvas.addEventListener('pointercancel', clearLong);
+
+  // לחיצה קצרה על תמונה: החלפת מצב (נשאר כמו שהיה)
   canvas.addEventListener('click', (ev)=>{
     if(!images.length) return;
+    if(longTriggered) { clearLong(); return; } // מונע שינוי מצב אחרי long-press
     const p = canvasPointFromClient(ev.clientX, ev.clientY);
     const idx = hitTile(p.x,p.y);
     if(idx>=0){
@@ -335,6 +390,38 @@
       render();
     }
   });
+
+  // החלפת תמונה בודדת אחרי long-press
+  replaceOne.addEventListener('change', async ()=>{
+    try{
+      const f = replaceOne.files && replaceOne.files[0];
+      if(!f){ clearLong(); return; }
+
+      showLoading('טוען…', 'מחליף תמונה…');
+      await new Promise(r=>requestAnimationFrame(r));
+
+      const loaded = await loadFile(f);
+
+      // מחליף רק את התמונה באינדקס שנלחץ
+      if(longIndex >= 0 && longIndex < images.length){
+        // מנקה URL ישן
+        URL.revokeObjectURL(images[longIndex].url);
+        images[longIndex] = loaded;
+      }else{
+        // fallback (לא אמור לקרות)
+        URL.revokeObjectURL(loaded.url);
+      }
+
+      hideLoading();
+      render();
+    }catch(e){
+      hideLoading();
+      alert('לא הצלחתי להחליף תמונה. נסה שוב.');
+    }finally{
+      clearLong();
+    }
+  });
+  // -----------------------------------------
 
   ['gap','rad','blur'].forEach(id=>{
     $(id).addEventListener('input', ()=>{
@@ -358,7 +445,6 @@
     }, 'image/png', 1.0);
   });
 
-  // init
   function init(){
     updateLabels();
     render();
