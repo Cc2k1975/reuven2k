@@ -17,13 +17,7 @@
       color:#fff;
       transition:opacity .18s ease, transform .18s ease;
     }
-
-    /* מצב "תצוגה נקייה" */
-    body.ui-hidden .ui{
-      opacity:0;
-      transform:translateY(-10px);
-      pointer-events:none;
-    }
+    body.ui-hidden .ui{opacity:0;transform:translateY(-10px);pointer-events:none}
 
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .grow{flex:1 1 260px}
@@ -49,7 +43,6 @@
     .chip input[type=range]{width:140px}
     .chip b{min-width:34px;text-align:center}
     .meta{font-size:13px;opacity:.9}
-    .hint{margin-top:8px;font-size:12.5px;opacity:.92;line-height:1.35}
 
     .loading{
       position:fixed;inset:0;display:none;align-items:center;justify-content:center;
@@ -72,7 +65,6 @@
     }
     @keyframes spin{to{transform:rotate(360deg)}}
 
-    /* כפתור עין צף */
     .eyeBtn{
       position:fixed;
       left:12px;
@@ -86,17 +78,13 @@
       color:#fff;
       display:flex;align-items:center;justify-content:center;
       cursor:pointer;
-      transition:transform .12s ease, background .12s ease, opacity .12s ease;
+      transition:transform .12s ease, background .12s ease;
       user-select:none;
       -webkit-tap-highlight-color: transparent;
     }
     .eyeBtn:active{transform:scale(.97)}
     .eyeBtn svg{width:26px;height:26px;opacity:.92}
-    /* כשהפאנל מוסתר – הכפתור נהיה קצת יותר בולט */
-    body.ui-hidden .eyeBtn{
-      background:rgba(0,0,0,.55);
-      border-color:rgba(255,255,255,.26);
-    }
+    body.ui-hidden .eyeBtn{background:rgba(0,0,0,.55);border-color:rgba(255,255,255,.26)}
   </style>
 </head>
 <body>
@@ -121,16 +109,9 @@
       <span id="count">0</span> תמונות • <span id="grid">—</span>
     </div>
   </div>
-
-  <div class="hint">
-    <b>לחיצה קצרה על תמונה</b>: Cover ↔ Contain+Blur (ב־Contain אין חיתוך).<br>
-    <b>לחיצה ארוכה 3 שניות</b>: החלפת התמונה שנלחצה (ייפתח בורר תמונות).
-  </div>
 </div>
 
-<!-- כפתור עין -->
-<button class="eyeBtn" id="eyeBtn" aria-label="הצג/הסתר תפריט">
-  <!-- Eye icon -->
+<button class="eyeBtn" id="eyeBtn" aria-label="הצג/הסתר פאנל">
   <svg viewBox="0 0 24 24" fill="none">
     <path d="M2.2 12s3.2-7 9.8-7 9.8 7 9.8 7-3.2 7-9.8 7S2.2 12 2.2 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -145,7 +126,6 @@
   </div>
 </div>
 
-<!-- input נסתר להחלפת תמונה בודדת -->
 <input id="replaceOne" type="file" accept="image/*" style="display:none">
 
 <script>
@@ -168,14 +148,10 @@
   const loadTitle = $('loadTitle');
   const loadSub = $('loadSub');
 
-  // עין: הצג/הסתר פאנל
   const eyeBtn = $('eyeBtn');
-  const panel = $('panel');
 
-  // משמר מצב מקומית
   const UI_KEY = 'collage_ui_hidden';
-  const savedHidden = localStorage.getItem(UI_KEY) === '1';
-  if(savedHidden) document.body.classList.add('ui-hidden');
+  if(localStorage.getItem(UI_KEY) === '1') document.body.classList.add('ui-hidden');
 
   eyeBtn.addEventListener('click', () => {
     const hidden = document.body.classList.toggle('ui-hidden');
@@ -184,7 +160,7 @@
 
   let images = [];   // [{img, url}]
   let modes  = [];   // 0=cover, 1=contain+blur
-  let tiles  = [];   // rects למסך
+  let tiles  = [];   // hit rects
 
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 
@@ -319,7 +295,6 @@
     for(let r=0;r<rows;r++){
       const remaining = n - idx;
       const colsThisRow = Math.min(cols, remaining);
-
       const cellW = (W - gapPx*(colsThisRow-1))/colsThisRow;
 
       for(let c=0;c<colsThisRow;c++){
@@ -383,7 +358,6 @@
     render();
   });
 
-  // ----------- לחיצה קצרה / ארוכה -----------
   const LONG_MS = 3000;
   let longTimer = null;
   let longIndex = -1;
@@ -431,7 +405,6 @@
 
   canvas.addEventListener('pointercancel', clearLong);
 
-  // לחיצה קצרה: החלפת מצב
   canvas.addEventListener('click', (ev)=>{
     if(!images.length) return;
     if(longTriggered) { clearLong(); return; }
@@ -443,7 +416,6 @@
     }
   });
 
-  // החלפת תמונה בודדת אחרי long-press
   replaceOne.addEventListener('change', async ()=>{
     try{
       const f = replaceOne.files && replaceOne.files[0];
@@ -465,12 +437,11 @@
       render();
     }catch(e){
       hideLoading();
-      alert('לא הצלחתי להחליף תמונה. נסה שוב.');
+      alert('לא הצלחתי להחליף תמונה.');
     }finally{
       clearLong();
     }
   });
-  // -----------------------------------------
 
   ['gap','rad','blur'].forEach(id=>{
     $(id).addEventListener('input', ()=>{
@@ -494,13 +465,11 @@
     }, 'image/png', 1.0);
   });
 
-  function init(){
-    updateLabels();
-    render();
-  }
   addEventListener('resize', render);
-  init();
+  updateLabels();
+  render();
 })();
 </script>
+
 </body>
 </html>
