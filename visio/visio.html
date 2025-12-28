@@ -2,12 +2,12 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מתכנן חדר - פניקספרס אודליה</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+    <title>מתכנן חדר מקצועי - פניקספרס</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root { --bg: #f0f2f5; --panel: #ffffff; --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
-        body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; touch-action: none; }
         
         .toolbar { background: var(--panel); padding: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 100; border-bottom: 1px solid #ddd; }
         .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 5px; }
@@ -15,20 +15,39 @@
         input[type="number"] { width: 65px; }
         button { background: var(--accent); color: white; border: none; font-weight: bold; cursor: pointer; }
 
-        #viewport { flex: 1; position: relative; overflow: auto; display: flex; align-items: flex-start; justify-content: center; padding: 40px; }
+        #viewport { 
+            flex: 1; 
+            position: relative; 
+            overflow: hidden; /* נשלט על ידי ה-JS לזום */
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: #d0d0d0;
+        }
         
-        /* אזור החדר שיצולם */
-        #room-export-area { position: relative; padding: 10px; background: var(--bg); }
+        #zoom-container {
+            transform-origin: center;
+            transition: transform 0.1s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #room-export-area { position: relative; padding: 50px; background: #d0d0d0; }
         
         #room-canvas { 
             background: #ffffff; position: relative; border: 3px solid #000;
             background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: none;
+            overflow: visible;
         }
 
-        .furniture, .wall { position: absolute; touch-action: none; cursor: move; display: flex; align-items: center; justify-content: center; }
+        .furniture, .wall, .eraser { position: absolute; touch-action: none; cursor: move; display: flex; align-items: center; justify-content: center; z-index: 10; }
         .furniture svg { width: 100%; height: 100%; overflow: visible; }
         
+        .eraser { background: #ffffff; border: 1px dashed #ccc; z-index: 5; opacity: 0.8; }
+        .wall { background: #333; border: 1px solid #000; }
+
         .label { 
             position: absolute; bottom: -20px; font-size: 11px; font-weight: bold; 
             color: #000; background: rgba(255,255,255,0.8); padding: 1px 4px; border-radius: 3px; white-space: nowrap; pointer-events: none;
@@ -38,8 +57,7 @@
             font-size: 12px; font-weight: bold; color: #2c3e50; text-align: center; width: 85%; pointer-events: none;
         }
 
-        .selected { outline: 2px dashed var(--accent); z-index: 500 !important; background: rgba(52, 152, 219, 0.05); }
-        .wall { background: #555; border: 1px solid #000; }
+        .selected { outline: 3px solid var(--accent); z-index: 500 !important; }
 
         #ruler-line { position: absolute; height: 2px; background: red; transform-origin: top left; z-index: 1000; display: none; pointer-events: none; }
         #ruler-text { position: absolute; color: red; font-weight: bold; font-size: 14px; background: white; padding: 2px; border: 1px solid red; display: none; z-index: 1001; }
@@ -47,12 +65,11 @@
         #fab { 
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: #2c3e50; padding: 10px 20px; border-radius: 50px;
-            display: none; align-items: center; gap: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 1000;
+            display: none; align-items: center; gap: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 2000;
         }
         .fab-btn { color: white; font-size: 20px; cursor: pointer; user-select: none; }
         .size-tool { display: flex; flex-direction: column; align-items: center; border-right: 1px solid #555; padding-right: 10px; color: white; font-size: 10px; }
         
-        /* קרדיט בתחתית השרטוט */
         .watermark { position: absolute; bottom: 5px; right: 10px; font-size: 12px; color: #888; display: none; }
     </style>
 </head>
@@ -64,7 +81,7 @@
         <input type="number" id="roomH" placeholder="אורך" value="500">
         <button onclick="initRoom()">חדר חדש</button>
         <button onclick="saveToLocal()" style="background:#8e44ad">שמור</button>
-        <button onclick="exportToPNG()" style="background:#2c3e50">📸 שמור PNG</button>
+        <button onclick="exportToPNG()" style="background:#2c3e50">📸 תמונה</button>
         <button id="rulerBtn" onclick="toggleRuler()" style="background:#e67e22">📏 מדוד</button>
     </div>
     
@@ -73,33 +90,35 @@
             <option value="bed">מיטה</option>
             <option value="chair">כיסא</option>
             <option value="table">שולחן/ארון</option>
-            <option value="sofa">ספה</option>
             <option value="door">דלת</option>
-            <option value="wall">קיר פנימי</option>
+            <option value="wall">קיר/עמוד</option>
+            <option value="eraser">מגרעת (לבן)</option>
         </select>
-        <input type="text" id="itemName" placeholder="שם" style="width: 80px;">
-        <input type="number" id="itemW" placeholder="W" value="160">
-        <input type="number" id="itemH" placeholder="H" value="200">
+        <input type="text" id="itemName" placeholder="שם" style="width: 70px;">
+        <input type="number" id="itemW" placeholder="W" value="100">
+        <input type="number" id="itemH" placeholder="H" value="100">
         <button onclick="addFurniture()" style="background:var(--success)">+ הוסף</button>
     </div>
 </div>
 
 <div id="viewport">
-    <div id="room-export-area">
-        <div id="room-canvas">
-            <div id="ruler-line"></div>
-            <div id="ruler-text"></div>
+    <div id="zoom-container">
+        <div id="room-export-area">
+            <div id="room-canvas">
+                <div id="ruler-line"></div>
+                <div id="ruler-text"></div>
+            </div>
+            <div class="watermark" id="watermark-text">פניקספרס אודליה | 0507449001</div>
         </div>
-        <div class="watermark" id="watermark-text">פניקספרס אודליה | 0507449001</div>
     </div>
 </div>
 
 <div id="fab">
     <div class="size-tool">
-        W <div style="display:flex;gap:5px"><span onclick="resizeItem('w', -5)">-</span><span onclick="resizeItem('w', 5)">+</span></div>
+        W <div style="display:flex;gap:5px"><span onclick="resizeItem('w', -2)">-</span><span onclick="resizeItem('w', 2)">+</span></div>
     </div>
     <div class="size-tool">
-        H <div style="display:flex;gap:5px"><span onclick="resizeItem('h', -5)">-</span><span onclick="resizeItem('h', 5)">+</span></div>
+        H <div style="display:flex;gap:5px"><span onclick="resizeItem('h', -2)">-</span><span onclick="resizeItem('h', 2)">+</span></div>
     </div>
     <div class="fab-btn" onclick="rotateItem()">🔄</div>
     <div class="fab-btn" onclick="deleteItem()" style="color:#ff6b6b">🗑️</div>
@@ -107,21 +126,47 @@
 </div>
 
 <script>
-    let scale = 1, selected = null, zIdx = 10, rulerMode = false;
+    let scale = 1, currentZoom = 1, selected = null, zIdx = 10, rulerMode = false;
+    const zoomContainer = document.getElementById('zoom-container');
+
+    // לוגיקת צביטה להגדלה (Pinch to Zoom)
+    let evCache = [];
+    let prevDiff = -1;
+
+    document.getElementById('viewport').onpointerdown = e => { evCache.push(e); };
+    document.getElementById('viewport').onpointermove = e => {
+        const index = evCache.findIndex(ev => ev.pointerId === e.pointerId);
+        evCache[index] = e;
+
+        if (evCache.length === 2) {
+            const curDiff = Math.hypot(evCache[0].clientX - evCache[1].clientX, evCache[0].clientY - evCache[1].clientY);
+            if (prevDiff > 0) {
+                if (curDiff > prevDiff) currentZoom += 0.02;
+                if (curDiff < prevDiff) currentZoom -= 0.02;
+                currentZoom = Math.max(0.4, Math.min(3, currentZoom));
+                zoomContainer.style.transform = `scale(${currentZoom})`;
+            }
+            prevDiff = curDiff;
+        }
+    };
+    document.getElementById('viewport').onpointerup = e => {
+        evCache = evCache.filter(ev => ev.pointerId !== e.pointerId);
+        if (evCache.length < 2) prevDiff = -1;
+    };
 
     const getSvg = (type) => {
         const stroke = "#000", sw = 2.5;
         if(type==='bed') return `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="5" fill="none" stroke="${stroke}" stroke-width="${sw}"/><rect x="10" y="10" width="35" height="25" rx="2" fill="none" stroke="${stroke}" stroke-width="${sw/1.5}"/><rect x="55" y="10" width="35" height="25" rx="2" fill="none" stroke="${stroke}" stroke-width="${sw/1.5}"/></svg>`;
-        if(type==='chair') return `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="${stroke}" stroke-width="${sw}"/><path d="M25,35 Q50,25 75,35" fill="none" stroke="${stroke}" stroke-width="${sw}"/></svg>`;
-        if(type==='sofa') return `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="10" fill="none" stroke="${stroke}" stroke-width="${sw}"/><rect x="2" y="75" width="96" height="23" rx="5" fill="none" stroke="${stroke}" stroke-width="${sw/1.5}"/></svg>`;
-        if(type==='door') return `<svg viewBox="0 0 100 100" style="overflow:visible"><path d="M 100,0 A 100,100 0 0 0 0,100" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="4"/><line x1="0" y1="0" x2="0" y2="100" stroke="${stroke}" stroke-width="5"/></svg>`;
+        if(type==='chair') return `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="${stroke}" stroke-width="${sw}"/></svg>`;
+        if(type==='door') return `<svg viewBox="0 0 100 100" style="overflow:visible"><path d="M 100,0 A 100,100 0 0 0 0,100" fill="none" stroke="${stroke}" stroke-width="2" stroke-dasharray="4"/><line x1="0" y1="0" x2="0" y2="100" stroke="${stroke}" stroke-width="6"/></svg>`;
+        if(type==='eraser') return "";
         return `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" fill="none" stroke="${stroke}" stroke-width="${sw}"/></svg>`;
     };
 
     function initRoom() {
         const w = document.getElementById('roomW').value, h = document.getElementById('roomH').value;
         const canvas = document.getElementById('room-canvas');
-        scale = (window.innerWidth * 0.8) / w;
+        scale = (window.innerWidth * 0.7) / w;
         canvas.style.display = 'block';
         canvas.style.width = (w * scale) + 'px';
         canvas.style.height = (h * scale) + 'px';
@@ -139,15 +184,16 @@
         const canvas = document.getElementById('room-canvas');
 
         const el = document.createElement('div');
-        el.className = type === 'wall' ? 'wall' : 'furniture';
+        el.className = type === 'wall' ? 'wall' : (type === 'eraser' ? 'eraser' : 'furniture');
         el.dataset.type = type; el.dataset.name = name; el.dataset.w = w; el.dataset.h = h;
         el.dataset.rot = data ? data.rot : 0;
         
         updateElStyle(el);
-        el.innerHTML = (type !== 'wall' ? getSvg(type) : "") + `<div class="custom-name">${name}</div><div class="label">${w}x${h}</div>`;
+        const labels = type === 'eraser' ? "" : `<div class="custom-name">${name}</div><div class="label">${w}x${h}</div>`;
+        el.innerHTML = getSvg(type) + labels;
 
         if(data) { el.style.left = data.x; el.style.top = data.y; }
-        else { el.style.top = "20px"; el.style.left = "20px"; }
+        else { el.style.top = "50px"; el.style.left = "50px"; }
 
         el.onpointerdown = dragHandler;
         canvas.appendChild(el);
@@ -163,15 +209,18 @@
 
     function dragHandler(e) {
         if(rulerMode) return;
+        e.stopPropagation();
         const el = this;
         if(selected) selected.classList.remove('selected');
         selected = el; el.classList.add('selected'); el.style.zIndex = zIdx++;
         document.getElementById('fab').style.display = 'flex';
         
-        let startX = e.clientX - el.offsetLeft, startY = e.clientY - el.offsetTop;
-        function onMove(e) {
-            let x = Math.max(0, Math.min(e.clientX - startX, document.getElementById('room-canvas').offsetWidth - el.offsetWidth));
-            let y = Math.max(0, Math.min(e.clientY - startY, document.getElementById('room-canvas').offsetHeight - el.offsetHeight));
+        let startX = e.clientX / currentZoom - el.offsetLeft;
+        let startY = e.clientY / currentZoom - el.offsetTop;
+
+        function onMove(me) {
+            let x = me.clientX / currentZoom - startX;
+            let y = me.clientY / currentZoom - startY;
             el.style.left = x + 'px'; el.style.top = y + 'px';
         }
         function onUp() { document.removeEventListener('pointermove', onMove); }
@@ -186,66 +235,58 @@
         updateElStyle(selected);
     }
 
-    function rotateItem() { if(selected) { selected.dataset.rot = (parseInt(selected.dataset.rot) + 90) % 360; updateElStyle(selected); } }
+    function rotateItem() { if(selected) { selected.dataset.rot = (parseInt(selected.dataset.rot) + 45) % 360; updateElStyle(selected); } }
     function deleteItem() { if(selected) { selected.remove(); deselect(); } }
     function deselect() { if(selected) selected.classList.remove('selected'); selected = null; document.getElementById('fab').style.display = 'none'; }
 
     function exportToPNG() {
         deselect();
-        const exportArea = document.getElementById('room-export-area');
-        html2canvas(exportArea).then(canvas => {
-            const link = document.createElement('a');
-            link.download = 'plan-room-odelia.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        });
+        currentZoom = 1; zoomContainer.style.transform = "scale(1)";
+        setTimeout(() => {
+            html2canvas(document.getElementById('room-export-area')).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'plan.png'; link.href = canvas.toDataURL(); link.click();
+            });
+        }, 300);
     }
 
     function saveToLocal() {
-        const items = Array.from(document.querySelectorAll('.furniture, .wall')).map(el => ({
+        const items = Array.from(document.querySelectorAll('.furniture, .wall, .eraser')).map(el => ({
             type: el.dataset.type, name: el.dataset.name, w: el.dataset.w, h: el.dataset.h, 
             rot: el.dataset.rot, x: el.style.left, y: el.style.top
         }));
-        localStorage.setItem('room_plan', JSON.stringify({ w: document.getElementById('roomW').value, h: document.getElementById('roomH').value, items }));
-        alert("נשמר בהצלחה!");
+        localStorage.setItem('room_plan_v2', JSON.stringify({ w: document.getElementById('roomW').value, h: document.getElementById('roomH').value, items }));
+        alert("נשמר!");
     }
 
     function toggleRuler() {
         rulerMode = !rulerMode;
-        const btn = document.getElementById('rulerBtn');
-        btn.style.background = rulerMode ? "red" : "#e67e22";
-        const canvas = document.getElementById('room-canvas');
-        if(rulerMode) canvas.onpointerdown = startRuler;
-        else canvas.onpointerdown = null;
+        document.getElementById('rulerBtn').style.background = rulerMode ? "red" : "#e67e22";
     }
 
-    function startRuler(e) {
-        const line = document.getElementById('ruler-line'), text = document.getElementById('ruler-text');
+    document.getElementById('room-canvas').addEventListener('pointerdown', function(e) {
+        if(!rulerMode) return;
         const rect = this.getBoundingClientRect();
-        const x1 = e.clientX - rect.left, y1 = e.clientY - rect.top;
+        const x1 = (e.clientX - rect.left) / currentZoom;
+        const y1 = (e.clientY - rect.top) / currentZoom;
+        const line = document.getElementById('ruler-line');
+        const text = document.getElementById('ruler-text');
         line.style.display = 'block'; text.style.display = 'block';
+
         const onMove = (me) => {
-            const x2 = me.clientX - rect.left, y2 = me.clientY - rect.top;
+            const x2 = (me.clientX - rect.left) / currentZoom;
+            const y2 = (me.clientY - rect.top) / currentZoom;
             const dist = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
             const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
             line.style.width = dist + 'px'; line.style.left = x1 + 'px'; line.style.top = y1 + 'px';
             line.style.transform = `rotate(${angle}deg)`;
-            text.style.left = x2 + 'px'; text.style.top = (y2-25) + 'px';
+            text.style.left = x2 + 'px'; text.style.top = (y2-30) + 'px';
             text.innerText = Math.round(dist / scale) + " cm";
         };
         document.addEventListener('pointermove', onMove);
         document.addEventListener('pointerup', () => document.removeEventListener('pointermove', onMove), {once:true});
-    }
+    });
 
-    window.onload = () => {
-        const saved = localStorage.getItem('room_plan');
-        if(saved) {
-            const data = JSON.parse(saved);
-            document.getElementById('roomW').value = data.w; document.getElementById('roomH').value = data.h;
-            initRoom();
-            data.items.forEach(item => addFurniture(item));
-        }
-    };
 </script>
 
 </body>
