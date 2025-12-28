@@ -8,32 +8,46 @@
     <style>
         :root { --bg: #f0f2f5; --panel: #ffffff; --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
         body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        .toolbar { background: var(--panel); padding: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 100; border-bottom: 1px solid #ddd; }
+        .toolbar { background: var(--panel); padding: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000; border-bottom: 1px solid #ddd; }
         .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 5px; }
         input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
         input[type="number"] { width: 65px; }
         button { background: var(--accent); color: white; border: none; font-weight: bold; cursor: pointer; }
+        
         #viewport { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #ccc; touch-action: none; }
         #zoom-wrapper { transform-origin: center; transition: transform 0.1s ease-out; }
         #room-export-area { position: relative; padding: 40px; background: #ccc; }
+        
         #room-canvas { 
             background: #ffffff; position: relative; border: 3px solid #000;
             background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: none;
             overflow: visible; 
         }
-        .furniture, .wall { position: absolute; touch-action: none; cursor: move; display: flex; align-items: center; justify-content: center; z-index: 10; border: 2px solid transparent; transition: border-color 0.2s; }
-        .furniture svg { width: 100%; height: 100%; overflow: visible; }
-        .wall { background: #333; border: 1px solid #000; z-index: 5; }
-        
-        /* עדכון: מסגרת תכולה קבועה לאובייקט נבחר */
-        .selected { border: 2px solid #3498db !important; z-index: 500 !important; box-shadow: 0 0 5px rgba(52, 152, 219, 0.5); }
 
-        .label { position: absolute; bottom: -20px; font-size: 11px; font-weight: bold; color: #000; background: rgba(255,255,255,0.8); padding: 1px 4px; border-radius: 3px; white-space: nowrap; pointer-events: none; }
+        .furniture, .wall { 
+            position: absolute; touch-action: none; cursor: move; 
+            display: flex; align-items: center; justify-content: center; 
+            z-index: 10; box-sizing: border-box;
+        }
+        
+        .furniture svg { width: 100%; height: 100%; overflow: visible; }
+        .wall { background: #333; z-index: 5; }
+        
+        /* מסגרת תכולה קבועה ומודגשת כשהאובייקט נבחר */
+        .selected { 
+            outline: 4px solid #3498db !important; 
+            outline-offset: 2px;
+            z-index: 999 !important; 
+        }
+
+        .label { position: absolute; bottom: -22px; font-size: 11px; font-weight: bold; color: #000; background: rgba(255,255,255,0.9); padding: 1px 4px; border-radius: 3px; white-space: nowrap; pointer-events: none; border: 1px solid #ccc; }
         .custom-name { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: bold; color: #2c3e50; text-align: center; width: 85%; pointer-events: none; }
-        #ruler-line { position: absolute; height: 2px; background: red; transform-origin: top left; z-index: 1000; display: none; pointer-events: none; }
-        #ruler-text { position: absolute; color: red; font-weight: bold; font-size: 14px; background: white; padding: 2px; border: 1px solid red; display: none; z-index: 1001; }
-        #fab { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #2c3e50; padding: 10px 20px; border-radius: 50px; display: none; align-items: center; gap: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 1000; }
+        
+        #ruler-line { position: absolute; height: 2px; background: red; transform-origin: top left; z-index: 1001; display: none; pointer-events: none; }
+        #ruler-text { position: absolute; color: red; font-weight: bold; font-size: 14px; background: white; padding: 2px; border: 1px solid red; display: none; z-index: 1002; }
+        
+        #fab { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #2c3e50; padding: 10px 20px; border-radius: 50px; display: none; align-items: center; gap: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 2000; }
         .fab-btn { color: white; font-size: 20px; cursor: pointer; user-select: none; }
         .size-tool { display: flex; flex-direction: column; align-items: center; border-right: 1px solid #555; padding-right: 10px; color: white; font-size: 10px; }
     </style>
@@ -92,7 +106,7 @@
     viewport.onpointerdown = e => { evCache.push(e); };
     viewport.onpointermove = e => {
         const index = evCache.findIndex(ev => ev.pointerId === e.pointerId);
-        evCache[index] = e;
+        if (index > -1) evCache[index] = e;
         if (evCache.length === 2) {
             const curDiff = Math.hypot(evCache[0].clientX - evCache[1].clientX, evCache[0].clientY - evCache[1].clientY);
             if (prevDiff > 0) {
@@ -132,48 +146,67 @@
         el.style.left = data ? data.x : "50px"; el.style.top = data ? data.y : "50px";
         el.onpointerdown = dragHandler;
         canvas.appendChild(el);
+        if(!data) selectElement(el);
     }
 
     function updateElStyle(el) {
         el.style.width = (el.dataset.w * scale) + 'px';
         el.style.height = (el.dataset.h * scale) + 'px';
         el.style.transform = `rotate(${el.dataset.rot}deg)`;
+        const label = el.querySelector('.label');
+        if(label) label.innerText = `${el.dataset.w}x${el.dataset.h}`;
+    }
+
+    function selectElement(el) {
+        if(selected) selected.classList.remove('selected');
+        selected = el;
+        selected.classList.add('selected');
+        selected.style.zIndex = ++zIdx;
+        document.getElementById('fab').style.display = 'flex';
     }
 
     function dragHandler(e) {
         if(rulerMode) return;
+        e.preventDefault();
         e.stopPropagation();
-        const el = this, canvas = document.getElementById('room-canvas');
-        if(selected) selected.classList.remove('selected');
-        selected = el; el.classList.add('selected'); el.style.zIndex = zIdx++;
-        document.getElementById('fab').style.display = 'flex';
+        const el = this;
+        const canvas = document.getElementById('room-canvas');
+        selectElement(el);
         
         let startX = e.clientX / currentZoom - el.offsetLeft;
         let startY = e.clientY / currentZoom - el.offsetTop;
 
-        function onMove(me) {
+        const onMove = (me) => {
             let L = me.clientX / currentZoom - startX;
             let T = me.clientY / currentZoom - startY;
 
+            // מגנט קירות חיצוניים
             if (Math.abs(L) < SNAP) L = 0;
             if (Math.abs(L + el.offsetWidth - canvas.offsetWidth) < SNAP) L = canvas.offsetWidth - el.offsetWidth;
             if (Math.abs(T) < SNAP) T = 0;
             if (Math.abs(T + el.offsetHeight - canvas.offsetHeight) < SNAP) T = canvas.offsetHeight - el.offsetHeight;
 
+            // מגנט לאובייקטים אחרים
             document.querySelectorAll('.furniture, .wall').forEach(other => {
                 if (other === el) return;
                 let oL = other.offsetLeft, oT = other.offsetTop, oW = other.offsetWidth, oH = other.offsetHeight;
                 if (Math.abs(L - (oL + oW)) < SNAP) L = oL + oW;
                 if (Math.abs((L + el.offsetWidth) - oL) < SNAP) L = oL - el.offsetWidth;
                 if (Math.abs(T - (oT + oH)) < SNAP) T = oT + oH;
-                if (Math.abs((T + eh) - oT) < SNAP) T = oT - el.offsetHeight;
+                if (Math.abs((T + el.offsetHeight) - oT) < SNAP) T = oT - el.offsetHeight;
             });
 
             el.style.left = L + 'px';
             el.style.top = T + 'px';
-        }
+        };
+
+        const onUp = () => {
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+        };
+
         document.addEventListener('pointermove', onMove);
-        document.addEventListener('pointerup', () => document.removeEventListener('pointermove', onMove), {once:true});
+        document.addEventListener('pointerup', onUp);
     }
 
     function resizeItem(dim, val) {
@@ -185,7 +218,7 @@
     function rotateItem() { if(selected) { selected.dataset.rot = (parseInt(selected.dataset.rot) + 45) % 360; updateElStyle(selected); } }
     function deleteItem() { if(selected) { selected.remove(); deselect(); } }
     function deselect() { if(selected) selected.classList.remove('selected'); selected = null; document.getElementById('fab').style.display = 'none'; }
-    function exportToPNG() { deselect(); html2canvas(document.getElementById('room-export-area')).then(c => { const a = document.createElement('a'); a.download = 'plan.png'; a.href = c.toDataURL(); a.click(); }); }
+    function exportToPNG() { deselect(); html2canvas(document.getElementById('room-export-area')).then(c => { const a = document.createElement('a'); a.download = 'plan.png'; a.href = c.toToDataURL(); a.click(); }); }
     function saveToLocal() { alert("נשמר!"); }
     function toggleRuler() { rulerMode = !rulerMode; document.getElementById('rulerBtn').style.background = rulerMode ? "red" : "#e67e22"; }
 </script>
