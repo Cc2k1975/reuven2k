@@ -106,7 +106,7 @@
       <div class="chip"><span>טשטוש</span><input id="blur" type="range" min="6" max="45" step="1" value="18"><b id="blurL">18</b><span class="meta">px</span></div>
     </div>
     <div class="meta">
-      <span id="count">0</span> תמונות • <span id="grid">—</span>
+      <span id="count">0</span> • <span id="grid">—</span>
     </div>
   </div>
 </div>
@@ -161,6 +161,9 @@
   let images = [];   // [{img, url}]
   let modes  = [];   // 0=cover, 1=contain+blur
   let tiles  = [];   // hit rects
+
+  // === FIX קריטי למובייל: אינדקס החלפה "קשיח" שלא נמחק ב-pointercancel ===
+  let pendingReplaceIndex = -1;
 
   const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 
@@ -338,6 +341,7 @@
     images = [];
     modes = [];
     tiles = [];
+    pendingReplaceIndex = -1;
 
     if(!list.length){
       updateLabels();
@@ -360,14 +364,11 @@
 
   const LONG_MS = 3000;
   let longTimer = null;
-  let longIndex = -1;
   let longTriggered = false;
   let downPos = null;
 
-  function clearLong(){
+  function cancelLongTimer(){
     if(longTimer){ clearTimeout(longTimer); longTimer = null; }
-    longIndex = -1;
-    longTriggered = false;
     downPos = null;
   }
 
@@ -379,37 +380,43 @@
     if(idx < 0) return;
 
     downPos = {x:p.x,y:p.y};
-    longIndex = idx;
     longTriggered = false;
 
+    cancelLongTimer();
     longTimer = setTimeout(()=>{
       longTriggered = true;
+
+      // === FIX: שומרים אינדקס כאן ולא מאבדים אותו ב-pointercancel ===
+      pendingReplaceIndex = idx;
+
       replaceOne.value = '';
       replaceOne.click();
     }, LONG_MS);
-  });
+  }, {passive:true});
 
   canvas.addEventListener('pointermove', (ev)=>{
-    if(!downPos || longIndex < 0) return;
+    if(!downPos) return;
     const p = canvasPointFromClient(ev.clientX, ev.clientY);
     const dx = p.x - downPos.x;
     const dy = p.y - downPos.y;
     if(Math.hypot(dx,dy) > 12){
-      if(longTimer){ clearTimeout(longTimer); longTimer = null; }
+      cancelLongTimer();
     }
-  });
+  }, {passive:true});
 
   canvas.addEventListener('pointerup', ()=>{
-    if(longTimer){ clearTimeout(longTimer); longTimer = null; }
-  });
+    cancelLongTimer();
+  }, {passive:true});
 
-  canvas.addEventListener('pointercancel', clearLong);
+  // === FIX: לא מאפסים pendingReplaceIndex כאן ===
+  canvas.addEventListener('pointercancel', ()=>{
+    cancelLongTimer();
+  }, {passive:true});
 
-  // חשוב: לא מנקים longIndex בזמן ה-click של הלחיצה הארוכה,
-  // כי אחרת ההחלפה לא יודעת איפה לשים את התמונה.
+  // לחיצה קצרה – החלפת מצב
   canvas.addEventListener('click', (ev)=>{
     if(!images.length) return;
-    if(longTriggered) return;
+    if(longTriggered) return; // אחרי long-press אל תעשה toggle
 
     const p = canvasPointFromClient(ev.clientX, ev.clientY);
     const idx = hitTile(p.x,p.y);
@@ -419,19 +426,23 @@
     }
   });
 
+  // החלפת תמונה (אחרי בחירה מהדפדפן)
   replaceOne.addEventListener('change', async ()=>{
-    try{
-      const f = replaceOne.files && replaceOne.files[0];
-      if(!f){ clearLong(); return; }
+    const f = replaceOne.files && replaceOne.files[0];
+    if(!f) { longTriggered = false; return; }
 
+    try{
       showLoading('טוען…', 'מחליף תמונה…');
       await new Promise(r=>requestAnimationFrame(r));
 
       const loaded = await loadFile(f);
 
-      if(longIndex >= 0 && longIndex < images.length){
-        URL.revokeObjectURL(images[longIndex].url);
-        images[longIndex] = loaded;
+      const idx = pendingReplaceIndex;
+
+      if(idx >= 0 && idx < images.length){
+        URL.revokeObjectURL(images[idx].url);
+        images[idx] = loaded;        // שומר את אותה משבצת
+        // mode נשאר כמו שהיה
       }else{
         URL.revokeObjectURL(loaded.url);
       }
@@ -442,7 +453,8 @@
       hideLoading();
       alert('לא הצלחתי להחליף תמונה.');
     }finally{
-      clearLong();
+      pendingReplaceIndex = -1;
+      longTriggered = false;
     }
   });
 
@@ -476,4 +488,3 @@
 
 </body>
 </html>
-```0
