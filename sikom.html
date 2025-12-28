@@ -46,7 +46,7 @@
     }
     .buttons-row{
       display:grid;
-      grid-template-columns:repeat(3,1fr); /* 3 כפתורים בכל שורה */
+      grid-template-columns:repeat(3,1fr);
       gap:8px;
       margin-bottom:10px;
     }
@@ -86,6 +86,25 @@
       font-size:18px;
       font-weight:600;
       margin-bottom:6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sort-btns{
+      display: flex;
+      gap: 4px;
+    }
+    .btn-sort{
+      font-size: 11px;
+      padding: 3px 6px;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .btn-sort.active{
+      background: #0a5;
+      color: white;
+      border-color: #084;
     }
     .today-total{
       margin-top:6px;
@@ -171,7 +190,6 @@
       direction:ltr;
     }
 
-    /* מעטפת הפירוט – מוסתרת עם אנימציה */
     .details-wrapper{
       max-height:0;
       opacity:0;
@@ -179,7 +197,7 @@
       transition:max-height 0.4s ease, opacity 0.4s ease;
     }
     .details-wrapper.open{
-      max-height:2000px; /* מספיק גדול לכל התוכן */
+      max-height:2000px;
       opacity:1;
     }
   </style>
@@ -214,7 +232,13 @@
       </div>
 
       <div class="section" style="margin-top:16px;">
-        <div class="section-title">היסטוריה יומית</div>
+        <div class="section-title">
+          <span>היסטוריה יומית</span>
+          <div class="sort-btns">
+            <button class="btn-sort active" id="sortByDate">תאריך</button>
+            <button class="btn-sort" id="sortByCustomers">לקוחות</button>
+          </div>
+        </div>
         <div class="list" id="historyDays"></div>
       </div>
 
@@ -227,21 +251,19 @@
   </div>
 
   <script>
-    // --- מנגנון סיסמה בכניסה (הוסף חדש) ---
+    let currentSortMode = 'date'; // 'date' or 'customers'
+
     (function checkLogin() {
       let entered = "";
-      // לולאה שתרוץ כל עוד הסיסמה אינה 4451
       while (entered !== "4451") {
         entered = prompt("האתר נעול. נא להקיש סיסמה לכניסה:");
         if (entered !== "4451") {
           alert("סיסמה שגויה, נסה שוב.");
         }
       }
-      // אם הגענו לפה - הסיסמה נכונה, נציג את האפליקציה
       document.getElementById('mainApp').style.display = 'block';
     })();
 
-    // --- Firebase config שלך ---
     const firebaseConfig = {
       apiKey: "AIzaSyCg7xjTPHeRemfCyz0xG5uoolMR8tvVve8",
       authDomain: "sikom-2b922.firebaseapp.com",
@@ -312,7 +334,6 @@
       }).catch(err => console.error("Firestore save error:", err));
     }
 
-    // מחיקה עם סיסמה 4451
     function deleteEntry(id) {
       const pass = prompt("הכנס סיסמה למחיקה:");
       if (pass !== "4451") {
@@ -328,7 +349,6 @@
         .catch(err => console.error("Firestore delete error:", err));
     }
 
-    // פונקציית עזר לספירת פריטים
     function getCounts(items) {
       const counts = { customers: 0, mask: 0, spray: 0, device: 0 };
       items.forEach(e => {
@@ -342,8 +362,7 @@
 
     function renderAll() {
       const todayIso = getTodayIso();
-      document.getElementById('todayDate').textContent =
-        'היום: ' + formatDateHeb(todayIso);
+      document.getElementById('todayDate').textContent = 'היום: ' + formatDateHeb(todayIso);
       renderToday(todayIso);
       renderHistoryDays();
       renderHistoryMonths();
@@ -352,17 +371,13 @@
     function renderToday(todayIso) {
       const todayListEl = document.getElementById('todayList');
       const todayTotalEl = document.getElementById('todayTotal');
-
       const todayEntries = entries.filter(e => e.date === todayIso);
 
       if (todayEntries.length === 0) {
-        todayListEl.innerHTML =
-          '<div style="font-size:14px;color:#777;">אין עדיין רשומות להיום.</div>';
+        todayListEl.innerHTML = '<div style="font-size:14px;color:#777;">אין עדיין רשומות להיום.</div>';
       } else {
         todayListEl.innerHTML = todayEntries.map(e => {
-          const labelText = e.label && e.label.trim() !== ''
-            ? `${e.label} (${e.amount} ₪)`
-            : (e.amount + ' ₪');
+          const labelText = e.label && e.label.trim() !== '' ? `${e.label} (${e.amount} ₪)` : (e.amount + ' ₪');
           return `
           <div class="entry-row">
             <div class="entry-main">
@@ -382,10 +397,8 @@
 
     function renderHistoryDays() {
       const container = document.getElementById('historyDays');
-
       if (entries.length === 0) {
-        container.innerHTML =
-          '<div style="font-size:14px;color:#777;">אין עדיין היסטוריה.</div>';
+        container.innerHTML = '<div style="font-size:14px;color:#777;">אין עדיין היסטוריה.</div>';
         return;
       }
 
@@ -395,17 +408,23 @@
         byDate[e.date].push(e);
       });
 
-      const dates = Object.keys(byDate).sort().reverse(); 
+      let dates = Object.keys(byDate);
+
+      if (currentSortMode === 'date') {
+        dates.sort().reverse();
+      } else if (currentSortMode === 'customers') {
+        dates.sort((a, b) => {
+          const countA = getCounts(byDate[a]).customers;
+          const countB = getCounts(byDate[b]).customers;
+          return countB - countA;
+        });
+      }
+
       container.innerHTML = dates.map(dateIso => {
         const list = byDate[dateIso];
         const sum = list.reduce((acc, e) => acc + e.amount, 0);
         const c = getCounts(list);
-        const amountsStr = list.map(e => {
-          if (e.label && e.label.trim() !== '') {
-            return `${e.label} (${e.amount} ₪)`;
-          }
-          return e.amount + ' ₪';
-        }).join(', ');
+        const amountsStr = list.map(e => (e.label && e.label.trim() !== '' ? `${e.label} (${e.amount} ₪)` : e.amount + ' ₪')).join(', ');
         return `
           <div class="history-day">
             <div class="history-day-header">
@@ -415,9 +434,7 @@
             <div style="font-size:12px; color:#0a5; margin-bottom:4px;">
               לקוחות: ${c.customers} | מסכה: ${c.mask} | ספריי: ${c.spray} | מכשיר: ${c.device}
             </div>
-            <div class="history-day-amounts">
-              ${amountsStr ? 'מכירות: ' + amountsStr : ''}
-            </div>
+            <div class="history-day-amounts">${amountsStr ? 'מכירות: ' + amountsStr : ''}</div>
           </div>
         `;
       }).join('');
@@ -426,17 +443,14 @@
     function renderHistoryMonths() {
       const container = document.getElementById('historyMonths');
       const grandTotalEl = document.getElementById('grandTotal');
-
       if (entries.length === 0) {
-        container.innerHTML =
-          '<div style="font-size:14px;color:#777;">אין נתונים לחישוב חודשי.</div>';
+        container.innerHTML = '<div style="font-size:14px;color:#777;">אין נתונים לחישוב חודשי.</div>';
         grandTotalEl.textContent = '';
         return;
       }
 
       const byMonth = {};
       let totalSum = 0;
-
       entries.forEach(e => {
         const [y, m] = e.date.split('-');
         const monthKey = `${y}-${m}`;
@@ -447,16 +461,14 @@
       });
 
       const months = Object.keys(byMonth).sort().reverse();
-
       container.innerHTML = months.map(mKey => {
         const [y, m] = mKey.split('-');
-        const label = `${m}/${y}`;
         const data = byMonth[mKey];
         const c = getCounts(data.items);
         return `
           <div class="month-row">
             <div class="month-header">
-               <span>חודש ${label}</span>
+               <span>חודש ${m}/${y}</span>
                <span>${data.sum} ₪</span>
             </div>
             <div class="month-counts">
@@ -465,65 +477,55 @@
           </div>
         `;
       }).join('');
-
       grandTotalEl.textContent = 'סה״כ כל התקופה: ' + totalSum + ' ₪';
     }
 
-    // --- טעינה מהשרת, ואם נכשל – מהלוקאל ---
     async function loadFromServer() {
       try {
-        const snap = await db.collection("incomeEntries")
-                      .orderBy("date")
-                      .get();
-
+        const snap = await db.collection("incomeEntries").orderBy("date").get();
         const serverEntries = [];
         snap.forEach(doc => {
           const data = doc.data();
           if (!data.date || !data.amount) return;
-          serverEntries.push({
-            id: data.id || doc.id,
-            date: data.date,
-            time: data.time || "",
-            amount: Number(data.amount),
-            label: data.label || ''
-          });
+          serverEntries.push({ id: data.id || doc.id, date: data.date, time: data.time || "", amount: Number(data.amount), label: data.label || '' });
         });
-
         if (serverEntries.length > 0) {
           entries = serverEntries;
           saveToStorage();
           return;
         }
-      } catch (err) {
-        console.error("Load from server failed:", err);
-      }
-
+      } catch (err) { console.error("Load from server failed:", err); }
       entries = loadFromStorage();
     }
 
     document.addEventListener('click', function(ev){
       const btnAmount = ev.target.closest('.btn-amount');
       if (btnAmount) {
-        const amount = btnAmount.getAttribute('data-amount');
-        const label = btnAmount.getAttribute('data-label') || '';
-        addEntry(amount, label);
+        addEntry(btnAmount.getAttribute('data-amount'), btnAmount.getAttribute('data-label') || '');
         return;
       }
-
       const delBtn = ev.target.closest('.btn-delete');
       if (delBtn) {
-        const id = delBtn.getAttribute('data-delete-id');
-        deleteEntry(id);
+        deleteEntry(delBtn.getAttribute('data-delete-id'));
         return;
+      }
+      if (ev.target.id === 'sortByDate') {
+        currentSortMode = 'date';
+        document.getElementById('sortByDate').classList.add('active');
+        document.getElementById('sortByCustomers').classList.remove('active');
+        renderHistoryDays();
+      }
+      if (ev.target.id === 'sortByCustomers') {
+        currentSortMode = 'customers';
+        document.getElementById('sortByCustomers').classList.add('active');
+        document.getElementById('sortByDate').classList.remove('active');
+        renderHistoryDays();
       }
     });
 
-    // כפתור פירוט – פתיחה/סגירה עם אפקט
-    const detailsWrapper = document.getElementById('detailsWrapper');
     const toggleDetailsBtn = document.getElementById('toggleDetails');
-
     toggleDetailsBtn.addEventListener('click', () => {
-      const isOpen = detailsWrapper.classList.toggle('open');
+      const isOpen = document.getElementById('detailsWrapper').classList.toggle('open');
       toggleDetailsBtn.textContent = isOpen ? 'הסתר פירוט' : 'פירוט';
     });
 
