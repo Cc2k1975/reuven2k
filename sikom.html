@@ -251,7 +251,7 @@
   </div>
 
   <script>
-    let currentSortMode = 'date'; // 'date' or 'customers'
+    let currentSortMode = 'date';
 
     (function checkLogin() {
       let entered = "";
@@ -290,9 +290,7 @@
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        return [];
-      }
+      } catch (e) { return []; }
     }
 
     function getTodayIso() {
@@ -323,11 +321,9 @@
         amount: Number(amount),
         label: label || ''
       };
-
       entries.push(entry);
       saveToStorage();
       renderAll();
-
       db.collection("incomeEntries").doc(entry.id).set({
         ...entry,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -340,11 +336,9 @@
         alert("סיסמה שגויה – המחיקה בוטלה.");
         return;
       }
-
       entries = entries.filter(e => e.id !== id);
       saveToStorage();
       renderAll();
-
       db.collection("incomeEntries").doc(id).delete()
         .catch(err => console.error("Firestore delete error:", err));
     }
@@ -389,7 +383,6 @@
         `;
         }).join('');
       }
-
       const sum = todayEntries.reduce((acc, e) => acc + e.amount, 0);
       const c = getCounts(todayEntries);
       todayTotalEl.innerHTML = `סה״כ היום: ${sum} ₪ <br><span style="font-size:14px; color:#555;">(לקוחות: ${c.customers}, מסכה: ${c.mask}, ספריי: ${c.spray}, מכשיר פן: ${c.device})</span>`;
@@ -401,7 +394,6 @@
         container.innerHTML = '<div style="font-size:14px;color:#777;">אין עדיין היסטוריה.</div>';
         return;
       }
-
       const byDate = {};
       entries.forEach(e => {
         if (!byDate[e.date]) byDate[e.date] = [];
@@ -410,8 +402,9 @@
 
       let dates = Object.keys(byDate);
 
+      // תיקון מיון תאריכים: המרה לאובייקטי תאריך כדי להבטיח סדר כרונולוגי מהחדש לישן
       if (currentSortMode === 'date') {
-        dates.sort().reverse();
+        dates.sort((a, b) => new Date(b) - new Date(a));
       } else if (currentSortMode === 'customers') {
         dates.sort((a, b) => {
           const countA = getCounts(byDate[a]).customers;
@@ -448,7 +441,6 @@
         grandTotalEl.textContent = '';
         return;
       }
-
       const byMonth = {};
       let totalSum = 0;
       entries.forEach(e => {
@@ -459,7 +451,6 @@
         byMonth[monthKey].items.push(e);
         totalSum += e.amount;
       });
-
       const months = Object.keys(byMonth).sort().reverse();
       container.innerHTML = months.map(mKey => {
         const [y, m] = mKey.split('-');
@@ -482,7 +473,7 @@
 
     async function loadFromServer() {
       try {
-        const snap = await db.collection("incomeEntries").orderBy("date").get();
+        const snap = await db.collection("incomeEntries").get();
         const serverEntries = [];
         snap.forEach(doc => {
           const data = doc.data();
