@@ -25,27 +25,25 @@
             overflow: visible; 
         }
 
+        /* מסגרת תכולה קבועה לכל המוצרים */
         .furniture, .wall { 
             position: absolute; touch-action: none; cursor: move; 
             display: flex; align-items: center; justify-content: center; 
             z-index: 10; box-sizing: border-box;
+            border: 2px solid #3498db !important; /* תכלת קבוע */
         }
         
         .furniture svg { width: 100%; height: 100%; overflow: visible; }
         .wall { background: #333; z-index: 5; }
         
-        /* מסגרת תכולה קבועה ומודגשת כשהאובייקט נבחר */
+        /* כשאובייקט נבחר הוא רק מקבל הדגשה קלה נוספת */
         .selected { 
-            outline: 4px solid #3498db !important; 
-            outline-offset: 2px;
             z-index: 999 !important; 
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.8);
         }
 
         .label { position: absolute; bottom: -22px; font-size: 11px; font-weight: bold; color: #000; background: rgba(255,255,255,0.9); padding: 1px 4px; border-radius: 3px; white-space: nowrap; pointer-events: none; border: 1px solid #ccc; }
         .custom-name { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: bold; color: #2c3e50; text-align: center; width: 85%; pointer-events: none; }
-        
-        #ruler-line { position: absolute; height: 2px; background: red; transform-origin: top left; z-index: 1001; display: none; pointer-events: none; }
-        #ruler-text { position: absolute; color: red; font-weight: bold; font-size: 14px; background: white; padding: 2px; border: 1px solid red; display: none; z-index: 1002; }
         
         #fab { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #2c3e50; padding: 10px 20px; border-radius: 50px; display: none; align-items: center; gap: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 2000; }
         .fab-btn { color: white; font-size: 20px; cursor: pointer; user-select: none; }
@@ -81,10 +79,7 @@
 <div id="viewport">
     <div id="zoom-wrapper">
         <div id="room-export-area">
-            <div id="room-canvas">
-                <div id="ruler-line"></div>
-                <div id="ruler-text"></div>
-            </div>
+            <div id="room-canvas"></div>
         </div>
     </div>
 </div>
@@ -99,8 +94,8 @@
 
 <script>
     let scale = 1, currentZoom = 1, selected = null, zIdx = 10, rulerMode = false;
-    const SNAP = 15;
 
+    // לוגיקת זום פשוטה
     let evCache = [], prevDiff = -1;
     const viewport = document.getElementById('viewport');
     viewport.onpointerdown = e => { evCache.push(e); };
@@ -128,7 +123,7 @@
         canvas.style.width = (w * scale) + 'px';
         canvas.style.height = (h * scale) + 'px';
         canvas.style.backgroundSize = (scale * 20) + 'px ' + (scale * 20) + 'px';
-        canvas.innerHTML = '<div id="ruler-line"></div><div id="ruler-text"></div>';
+        canvas.innerHTML = '';
         document.getElementById('item-controls').style.display = 'flex';
     }
 
@@ -142,11 +137,11 @@
         el.className = type === 'wall' ? 'wall' : 'furniture';
         el.dataset.w = w; el.dataset.h = h; el.dataset.rot = data ? data.rot : 0;
         updateElStyle(el);
-        el.innerHTML = (type !== 'wall' ? '🛋️' : "") + `<div class="custom-name">${name}</div><div class="label">${w}x${h}</div>`;
-        el.style.left = data ? data.x : "50px"; el.style.top = data ? data.y : "50px";
+        el.innerHTML = `<div class="custom-name">${name}</div><div class="label">${w}x${h}</div>`;
+        el.style.left = "50px"; el.style.top = "50px";
         el.onpointerdown = dragHandler;
         canvas.appendChild(el);
-        if(!data) selectElement(el);
+        selectElement(el);
     }
 
     function updateElStyle(el) {
@@ -170,34 +165,15 @@
         e.preventDefault();
         e.stopPropagation();
         const el = this;
-        const canvas = document.getElementById('room-canvas');
         selectElement(el);
         
         let startX = e.clientX / currentZoom - el.offsetLeft;
         let startY = e.clientY / currentZoom - el.offsetTop;
 
         const onMove = (me) => {
-            let L = me.clientX / currentZoom - startX;
-            let T = me.clientY / currentZoom - startY;
-
-            // מגנט קירות חיצוניים
-            if (Math.abs(L) < SNAP) L = 0;
-            if (Math.abs(L + el.offsetWidth - canvas.offsetWidth) < SNAP) L = canvas.offsetWidth - el.offsetWidth;
-            if (Math.abs(T) < SNAP) T = 0;
-            if (Math.abs(T + el.offsetHeight - canvas.offsetHeight) < SNAP) T = canvas.offsetHeight - el.offsetHeight;
-
-            // מגנט לאובייקטים אחרים
-            document.querySelectorAll('.furniture, .wall').forEach(other => {
-                if (other === el) return;
-                let oL = other.offsetLeft, oT = other.offsetTop, oW = other.offsetWidth, oH = other.offsetHeight;
-                if (Math.abs(L - (oL + oW)) < SNAP) L = oL + oW;
-                if (Math.abs((L + el.offsetWidth) - oL) < SNAP) L = oL - el.offsetWidth;
-                if (Math.abs(T - (oT + oH)) < SNAP) T = oT + oH;
-                if (Math.abs((T + el.offsetHeight) - oT) < SNAP) T = oT - el.offsetHeight;
-            });
-
-            el.style.left = L + 'px';
-            el.style.top = T + 'px';
+            // תנועה חלקה לגמרי ללא קפיצות מגנט
+            el.style.left = (me.clientX / currentZoom - startX) + 'px';
+            el.style.top = (me.clientY / currentZoom - startY) + 'px';
         };
 
         const onUp = () => {
@@ -218,9 +194,9 @@
     function rotateItem() { if(selected) { selected.dataset.rot = (parseInt(selected.dataset.rot) + 45) % 360; updateElStyle(selected); } }
     function deleteItem() { if(selected) { selected.remove(); deselect(); } }
     function deselect() { if(selected) selected.classList.remove('selected'); selected = null; document.getElementById('fab').style.display = 'none'; }
-    function exportToPNG() { deselect(); html2canvas(document.getElementById('room-export-area')).then(c => { const a = document.createElement('a'); a.download = 'plan.png'; a.href = c.toToDataURL(); a.click(); }); }
+    function exportToPNG() { deselect(); html2canvas(document.getElementById('room-export-area')).then(c => { const a = document.createElement('a'); a.download = 'plan.png'; a.href = c.toDataURL(); a.click(); }); }
     function saveToLocal() { alert("נשמר!"); }
-    function toggleRuler() { rulerMode = !rulerMode; document.getElementById('rulerBtn').style.background = rulerMode ? "red" : "#e67e22"; }
+    function toggleRuler() { rulerMode = !rulerMode; }
 </script>
 </body>
 </html>
