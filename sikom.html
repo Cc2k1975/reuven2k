@@ -58,11 +58,10 @@
       font-size:16px;
       cursor:pointer;
     }
-    /* הפיכת הלחצנים למרובעים */
     .btn-amount{
       background:#e8f3ff;
       border:1px solid #b6d4ff;
-      aspect-ratio: 1 / 1; /* גובה שווה לרוחב */
+      aspect-ratio: 1 / 1;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -259,8 +258,10 @@
 
   <script>
     let currentSortMode = 'date';
-    const tickSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3');
-    tickSound.volume = 0.3;
+    
+    // יצירת אובייקט סאונד עם צליל "קליק" עדין
+    const tickSound = new Audio('https://www.soundjay.com/buttons/button-16.mp3');
+    tickSound.volume = 0.4;
 
     (function checkLogin() {
       let entered = "";
@@ -271,6 +272,8 @@
         }
       }
       document.getElementById('mainApp').style.display = 'block';
+      // ניסיון "להעיר" את האודיו אחרי לחיצה על ה-OK של הסיסמה
+      tickSound.load();
     })();
 
     const firebaseConfig = {
@@ -322,7 +325,12 @@
     }
 
     function addEntry(amount, label) {
-      tickSound.play().catch(e => console.log("Sound interaction required"));
+      // השמעת הצליל
+      if (tickSound) {
+          tickSound.currentTime = 0; // חזרה להתחלה למקרה של לחיצות מהירות
+          tickSound.play().catch(e => console.log("Audio play blocked until user interacts"));
+      }
+
       const now = new Date();
       const entry = {
         id: Date.now().toString() + '_' + Math.random().toString(16).slice(2),
