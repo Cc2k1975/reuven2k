@@ -2,196 +2,269 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מתכנן חלל חופשי - פניקספרס</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+    <title>מתכנן חדר - פניקספרס אודליה</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        :root { --bg: #e0e0e0; --panel: #ffffff; --accent: #3498db; --wall: #2c3e50; }
-        body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; touch-action: none; }
+        :root { --bg: #f0f2f5; --panel: #ffffff; --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
+        body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        .toolbar { background: var(--panel); padding: 10px; display: flex; gap: 8px; flex-wrap: wrap; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000; }
-        button, select { padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-weight: bold; cursor: pointer; background: white; }
-        .btn-add { background: var(--accent); color: white; border: none; }
-        .btn-save { background: #27ae60; color: white; border: none; }
+        .toolbar { background: var(--panel); padding: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 100; border-bottom: 1px solid #ddd; }
+        .row { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 5px; }
+        input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
+        input[type="number"] { width: 65px; }
+        button { background: var(--accent); color: white; border: none; font-weight: bold; cursor: pointer; }
 
-        #workspace { flex: 1; position: relative; overflow: hidden; background-image: radial-gradient(#bcbcbc 1px, transparent 1px); background-size: 20px 20px; }
-        #canvas { position: absolute; transform-origin: 0 0; }
-
-        .element { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; touch-action: none; cursor: move; min-width: 10px; min-height: 10px; }
-        .wall { background: var(--wall); z-index: 10; }
-        .furniture { background: rgba(255,255,255,0.9); border: 2px solid var(--wall); z-index: 20; }
+        #viewport { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #ccc; touch-action: none; }
         
-        /* נקודות מתיחה - Handles */
-        .resizer { width: 15px; height: 15px; background: var(--accent); position: absolute; border-radius: 50%; border: 2px solid white; }
-        .resizer.nw { top: -7px; left: -7px; cursor: nw-resize; }
-        .resizer.ne { top: -7px; right: -7px; cursor: ne-resize; }
-        .resizer.sw { bottom: -7px; left: -7px; cursor: sw-resize; }
-        .resizer.se { bottom: -7px; right: -7px; cursor: se-resize; }
+        /* אזור הזום */
+        #zoom-wrapper { transform-origin: center; transition: transform 0.1s ease-out; }
 
-        .label-dim { position: absolute; background: white; padding: 2px 4px; border-radius: 4px; font-size: 10px; font-weight: bold; pointer-events: none; border: 1px solid #ccc; }
-        .label-w { top: -20px; left: 50%; transform: translateX(-50%); }
-        .label-h { right: -45px; top: 50%; transform: translateY(-50%); }
+        #room-export-area { position: relative; padding: 40px; background: #ccc; }
+        
+        #room-canvas { 
+            background: #ffffff; position: relative; border: 3px solid #000;
+            background-image: radial-gradient(#d1d1d1 1px, transparent 1px); background-size: 20px 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); display: none;
+            overflow: visible; /* מאפשר לקירות לבלוט אם צריך */
+        }
 
-        .selected { outline: 2px solid var(--accent); box-shadow: 0 0 10px rgba(52, 152, 219, 0.5); }
-        .selected .resizer { display: block; }
-        .resizer { display: none; }
+        .furniture, .wall { position: absolute; touch-action: none; cursor: move; display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .furniture svg { width: 100%; height: 100%; overflow: visible; }
+        
+        .wall { background: #333; border: 1px solid #000; z-index: 5; }
 
-        #fab-delete { position: fixed; bottom: 20px; left: 20px; background: #e74c3c; color: white; border-radius: 50%; width: 50px; height: 50px; display: none; align-items: center; justify-content: center; font-size: 24px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .label { 
+            position: absolute; bottom: -20px; font-size: 11px; font-weight: bold; 
+            color: #000; background: rgba(255,255,255,0.8); padding: 1px 4px; border-radius: 3px; white-space: nowrap; pointer-events: none;
+        }
+        .custom-name {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 12px; font-weight: bold; color: #2c3e50; text-align: center; width: 85%; pointer-events: none;
+        }
+
+        .selected { outline: 3px solid var(--accent); z-index: 500 !important; }
+
+        #ruler-line { position: absolute; height: 2px; background: red; transform-origin: top left; z-index: 1000; display: none; pointer-events: none; }
+        #ruler-text { position: absolute; color: red; font-weight: bold; font-size: 14px; background: white; padding: 2px; border: 1px solid red; display: none; z-index: 1001; }
+
+        #fab { 
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: #2c3e50; padding: 10px 20px; border-radius: 50px;
+            display: none; align-items: center; gap: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 1000;
+        }
+        .fab-btn { color: white; font-size: 20px; cursor: pointer; user-select: none; }
+        .size-tool { display: flex; flex-direction: column; align-items: center; border-right: 1px solid #555; padding-right: 10px; color: white; font-size: 10px; }
+        
+        .watermark { position: absolute; bottom: 5px; right: 10px; font-size: 12px; color: #888; display: none; }
     </style>
 </head>
 <body>
 
 <div class="toolbar">
-    <select id="objType">
-        <option value="wall">🧱 קיר</option>
-        <option value="table">🪑 שולחן/ארון</option>
-        <option value="bed">🛏️ מיטה</option>
-        <option value="door">🚪 דלת</option>
-    </select>
-    <button class="btn-add" onclick="addElement()">+ הוסף</button>
-    <button onclick="resetZoom()">🏠 אפס מבט</button>
-    <button class="btn-save" onclick="exportImg()">📸 צילום</button>
-    <div style="margin-right: auto; font-size: 12px; color: #666;">צביטה לזום | גרירה להזזה</div>
+    <div class="row">
+        <input type="number" id="roomW" placeholder="רוחב" value="400">
+        <input type="number" id="roomH" placeholder="אורך" value="500">
+        <button onclick="initRoom()">חדר חדש</button>
+        <button onclick="saveToLocal()" style="background:#8e44ad">שמור</button>
+        <button onclick="exportToPNG()" style="background:#2c3e50">📸 תמונה</button>
+        <button id="rulerBtn" onclick="toggleRuler()" style="background:#e67e22">📏 מדוד</button>
+    </div>
+    
+    <div id="item-controls" class="row" style="display:none;">
+        <select id="itemType">
+            <option value="bed">מיטה</option>
+            <option value="chair">כיסא</option>
+            <option value="table">שולחן/ארון</option>
+            <option value="door">דלת</option>
+            <option value="wall">🧱 קיר פנימי/נישה</option>
+        </select>
+        <input type="text" id="itemName" placeholder="שם" style="width: 80px;">
+        <input type="number" id="itemW" placeholder="W" value="100">
+        <input type="number" id="itemH" placeholder="H" value="100">
+        <button onclick="addFurniture()" style="background:var(--success)">+ הוסף</button>
+    </div>
 </div>
 
-<div id="workspace">
-    <div id="canvas"></div>
+<div id="viewport">
+    <div id="zoom-wrapper">
+        <div id="room-export-area">
+            <div id="room-canvas">
+                <div id="ruler-line"></div>
+                <div id="ruler-text"></div>
+            </div>
+            <div class="watermark" id="watermark-text">פניקספרס אודליה | 0507449001</div>
+        </div>
+    </div>
 </div>
 
-<div id="fab-delete" onclick="deleteSelected()">🗑️</div>
+<div id="fab">
+    <div class="size-tool">
+        W <div style="display:flex;gap:5px"><span onclick="resizeItem('w', -5)">-</span><span onclick="resizeItem('w', 5)">+</span></div>
+    </div>
+    <div class="size-tool">
+        H <div style="display:flex;gap:5px"><span onclick="resizeItem('h', -5)">-</span><span onclick="resizeItem('h', 5)">+</span></div>
+    </div>
+    <div class="fab-btn" onclick="rotateItem()">🔄</div>
+    <div class="fab-btn" onclick="deleteItem()" style="color:#ff6b6b">🗑️</div>
+    <div class="fab-btn" onclick="deselect()">✔️</div>
+</div>
 
 <script>
-    let scale = 1, zoom = 1, offsetX = 50, offsetY = 50, selected = null, zIdx = 100;
-    const canvas = document.getElementById('canvas');
-    const workspace = document.getElementById('workspace');
+    let scale = 1, currentZoom = 1, selected = null, zIdx = 10, rulerMode = false;
+    const zoomWrapper = document.getElementById('zoom-wrapper');
 
-    // אתחול לוח
-    function updateTransform() {
-        canvas.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${zoom})`;
+    // לוגיקת זום עם שתי אצבעות
+    let evCache = [], prevDiff = -1;
+    const viewport = document.getElementById('viewport');
+
+    viewport.onpointerdown = e => { evCache.push(e); };
+    viewport.onpointermove = e => {
+        const index = evCache.findIndex(ev => ev.pointerId === e.pointerId);
+        evCache[index] = e;
+        if (evCache.length === 2) {
+            const curDiff = Math.hypot(evCache[0].clientX - evCache[1].clientX, evCache[0].clientY - evCache[1].clientY);
+            if (prevDiff > 0) {
+                if (curDiff > prevDiff) currentZoom += 0.03;
+                else if (curDiff < prevDiff) currentZoom -= 0.03;
+                currentZoom = Math.max(0.5, Math.min(3, currentZoom));
+                zoomWrapper.style.transform = `scale(${currentZoom})`;
+            }
+            prevDiff = curDiff;
+        }
+    };
+    viewport.onpointerup = e => { evCache = evCache.filter(ev => ev.pointerId !== e.pointerId); if (evCache.length < 2) prevDiff = -1; };
+
+    const getSvg = (type) => {
+        const stroke = "#000", sw = 2.5;
+        if(type==='bed') return `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" rx="5" fill="none" stroke="${stroke}" stroke-width="${sw}"/><rect x="10" y="10" width="35" height="25" rx="2" fill="none" stroke="${stroke}" stroke-width="${sw/1.5}"/><rect x="55" y="10" width="35" height="25" rx="2" fill="none" stroke="${stroke}" stroke-width="${sw/1.5}"/></svg>`;
+        if(type==='chair') return `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="${stroke}" stroke-width="${sw}"/></svg>`;
+        if(type==='door') return `<svg viewBox="0 0 100 100" style="overflow:visible"><path d="M 100,0 A 100,100 0 0 0 0,100" fill="none" stroke="${stroke}" stroke-width="2" stroke-dasharray="4"/><line x1="0" y1="0" x2="0" y2="100" stroke="${stroke}" stroke-width="6"/></svg>`;
+        return `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><rect x="2" y="2" width="96" height="96" fill="none" stroke="${stroke}" stroke-width="${sw}"/></svg>`;
+    };
+
+    function initRoom() {
+        const w = document.getElementById('roomW').value, h = document.getElementById('roomH').value;
+        const canvas = document.getElementById('room-canvas');
+        scale = (window.innerWidth * 0.8) / w;
+        canvas.style.display = 'block';
+        canvas.style.width = (w * scale) + 'px';
+        canvas.style.height = (h * scale) + 'px';
+        canvas.style.backgroundSize = (scale * 20) + 'px ' + (scale * 20) + 'px';
+        canvas.innerHTML = '<div id="ruler-line"></div><div id="ruler-text"></div>';
+        document.getElementById('item-controls').style.display = 'flex';
+        document.getElementById('watermark-text').style.display = 'block';
     }
-    updateTransform();
 
-    function addElement() {
-        const type = document.getElementById('objType').value;
+    function addFurniture(data = null) {
+        const type = data ? data.type : document.getElementById('itemType').value;
+        const name = data ? data.name : document.getElementById('itemName').value;
+        const w = data ? data.w : document.getElementById('itemW').value;
+        const h = data ? data.h : document.getElementById('itemH').value;
+        const canvas = document.getElementById('room-canvas');
+
         const el = document.createElement('div');
-        el.className = `element ${type}`;
-        el.style.width = '100px';
-        el.style.height = type === 'wall' ? '10px' : '100px';
-        el.style.left = `${(Math.abs(offsetX) + 50) / zoom}px`;
-        el.style.top = `${(Math.abs(offsetY) + 50) / zoom}px`;
+        el.className = type === 'wall' ? 'wall' : 'furniture';
+        el.dataset.type = type; el.dataset.name = name; el.dataset.w = w; el.dataset.h = h;
+        el.dataset.rot = data ? data.rot : 0;
         
-        el.innerHTML = `
-            <div class="label-dim label-w">100cm</div>
-            <div class="label-dim label-h">10cm</div>
-            <div class="resizer nw"></div><div class="resizer ne"></div>
-            <div class="resizer sw"></div><div class="resizer se"></div>
-            <span style="pointer-events:none; font-size:10px">${type === 'wall' ? '' : type}</span>
-        `;
+        updateElStyle(el);
+        el.innerHTML = (type !== 'wall' ? getSvg(type) : "") + `<div class="custom-name">${name}</div><div class="label">${w}x${h}</div>`;
 
-        el.onpointerdown = onElementDown;
+        if(data) { el.style.left = data.x; el.style.top = data.y; }
+        else { el.style.top = "20px"; el.style.left = "20px"; }
+
+        el.onpointerdown = dragHandler;
         canvas.appendChild(el);
-        selectElement(el);
     }
 
-    function onElementDown(e) {
-        if (e.target.classList.contains('resizer')) return onResizeStart(e, this);
-        e.stopPropagation();
-        selectElement(this);
-        let startX = e.clientX, startY = e.clientY;
-        let left = parseInt(this.style.left), top = parseInt(this.style.top);
+    function updateElStyle(el) {
+        el.style.width = (el.dataset.w * scale) + 'px';
+        el.style.height = (el.dataset.h * scale) + 'px';
+        el.style.transform = `rotate(${el.dataset.rot}deg)`;
+        const label = el.querySelector('.label');
+        if(label) label.innerText = `${el.dataset.w}x${el.dataset.h}`;
+    }
 
-        const onMove = (me) => {
-            this.style.left = left + (me.clientX - startX) / zoom + 'px';
-            this.style.top = top + (me.clientY - startY) / zoom + 'px';
-        };
-        const onUp = () => { document.removeEventListener('pointermove', onMove); };
+    function dragHandler(e) {
+        if(rulerMode) return;
+        e.stopPropagation();
+        const el = this;
+        if(selected) selected.classList.remove('selected');
+        selected = el; el.classList.add('selected'); el.style.zIndex = zIdx++;
+        document.getElementById('fab').style.display = 'flex';
+        
+        let startX = e.clientX / currentZoom - el.offsetLeft;
+        let startY = e.clientY / currentZoom - el.offsetTop;
+
+        function onMove(me) {
+            el.style.left = (me.clientX / currentZoom - startX) + 'px';
+            el.style.top = (me.clientY / currentZoom - startY) + 'px';
+        }
+        function onUp() { document.removeEventListener('pointermove', onMove); }
         document.addEventListener('pointermove', onMove);
         document.addEventListener('pointerup', onUp, {once:true});
     }
 
-    function onResizeStart(e, el) {
-        e.stopPropagation();
-        const handle = e.target.classList;
-        let startX = e.clientX, startY = e.clientY;
-        let startW = el.offsetWidth, startH = el.offsetHeight;
-        let startL = parseInt(el.style.left), startT = parseInt(el.style.top);
+    function resizeItem(dim, val) {
+        if(!selected) return;
+        if(dim === 'w') selected.dataset.w = Math.max(5, parseInt(selected.dataset.w) + val);
+        if(dim === 'h') selected.dataset.h = Math.max(5, parseInt(selected.dataset.h) + val);
+        updateElStyle(selected);
+    }
+
+    function rotateItem() { if(selected) { selected.dataset.rot = (parseInt(selected.dataset.rot) + 45) % 360; updateElStyle(selected); } }
+    function deleteItem() { if(selected) { selected.remove(); deselect(); } }
+    function deselect() { if(selected) selected.classList.remove('selected'); selected = null; document.getElementById('fab').style.display = 'none'; }
+
+    function exportToPNG() {
+        deselect();
+        const oldZoom = currentZoom;
+        zoomWrapper.style.transform = "scale(1)";
+        setTimeout(() => {
+            html2canvas(document.getElementById('room-export-area')).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'plan.png'; link.href = canvas.toDataURL(); link.click();
+                zoomWrapper.style.transform = `scale(${oldZoom})`;
+            });
+        }, 200);
+    }
+
+    function saveToLocal() {
+        const items = Array.from(document.querySelectorAll('.furniture, .wall')).map(el => ({
+            type: el.dataset.type, name: el.dataset.name, w: el.dataset.w, h: el.dataset.h, 
+            rot: el.dataset.rot, x: el.style.left, y: el.style.top
+        }));
+        localStorage.setItem('room_plan_v3', JSON.stringify({ w: document.getElementById('roomW').value, h: document.getElementById('roomH').value, items }));
+        alert("נשמר!");
+    }
+
+    function toggleRuler() {
+        rulerMode = !rulerMode;
+        document.getElementById('rulerBtn').style.background = rulerMode ? "red" : "#e67e22";
+    }
+
+    document.getElementById('room-canvas').addEventListener('pointerdown', function(e) {
+        if(!rulerMode) return;
+        const rect = this.getBoundingClientRect();
+        const x1 = (e.clientX - rect.left) / currentZoom;
+        const y1 = (e.clientY - rect.top) / currentZoom;
+        const line = document.getElementById('ruler-line'), text = document.getElementById('ruler-text');
+        line.style.display = 'block'; text.style.display = 'block';
 
         const onMove = (me) => {
-            let dx = (me.clientX - startX) / zoom;
-            let dy = (me.clientY - startY) / zoom;
-
-            if (handle.contains('se')) {
-                el.style.width = startW + dx + 'px';
-                el.style.height = startH + dy + 'px';
-            } else if (handle.contains('sw')) {
-                el.style.width = startW - dx + 'px';
-                el.style.left = startL + dx + 'px';
-                el.style.height = startH + dy + 'px';
-            } else if (handle.contains('ne')) {
-                el.style.width = startW + dx + 'px';
-                el.style.height = startH - dy + 'px';
-                el.style.top = startT + dy + 'px';
-            } else if (handle.contains('nw')) {
-                el.style.width = startW - dx + 'px';
-                el.style.left = startL + dx + 'px';
-                el.style.height = startH - dy + 'px';
-                el.style.top = startT + dy + 'px';
-            }
-            updateLabels(el);
+            const x2 = (me.clientX - rect.left) / currentZoom, y2 = (me.clientY - rect.top) / currentZoom;
+            const dist = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+            const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+            line.style.width = dist + 'px'; line.style.left = x1 + 'px'; line.style.top = y1 + 'px';
+            line.style.transform = `rotate(${angle}deg)`;
+            text.style.left = x2 + 'px'; text.style.top = (y2-30) + 'px';
+            text.innerText = Math.round(dist / scale) + " cm";
         };
         document.addEventListener('pointermove', onMove);
         document.addEventListener('pointerup', () => document.removeEventListener('pointermove', onMove), {once:true});
-    }
+    });
 
-    function updateLabels(el) {
-        el.querySelector('.label-w').innerText = Math.round(el.offsetWidth) + 'cm';
-        el.querySelector('.label-h').innerText = Math.round(el.offsetHeight) + 'cm';
-    }
-
-    function selectElement(el) {
-        if (selected) selected.classList.remove('selected');
-        selected = el;
-        selected.classList.add('selected');
-        selected.style.zIndex = zIdx++;
-        document.getElementById('fab-delete').style.display = 'flex';
-    }
-
-    workspace.onpointerdown = (e) => {
-        if (e.target === workspace || e.target === canvas) {
-            deselect();
-            let sX = e.clientX, sY = e.clientY;
-            const onMove = (me) => {
-                offsetX += me.clientX - sX;
-                offsetY += me.clientY - sY;
-                sX = me.clientX; sY = me.clientY;
-                updateTransform();
-            };
-            document.addEventListener('pointermove', onMove);
-            document.addEventListener('pointerup', () => document.removeEventListener('pointermove', onMove), {once:true});
-        }
-    };
-
-    function deselect() { if(selected) selected.classList.remove('selected'); selected = null; document.getElementById('fab-delete').style.display = 'none'; }
-    function deleteSelected() { if(selected) { selected.remove(); deselect(); } }
-    function resetZoom() { zoom = 1; offsetX = 50; offsetY = 50; updateTransform(); }
-
-    // זום עם גלגלת או צביטה
-    workspace.onwheel = (e) => {
-        e.preventDefault();
-        zoom += e.deltaY * -0.001;
-        zoom = Math.max(0.2, Math.min(3, zoom));
-        updateTransform();
-    };
-
-    function exportImg() {
-        deselect();
-        html2canvas(canvas, { backgroundColor: '#e0e0e0' }).then(c => {
-            const link = document.createElement('a');
-            link.download = 'sketch.png';
-            link.href = c.toDataURL();
-            link.click();
-        });
-    }
 </script>
 
 </body>
