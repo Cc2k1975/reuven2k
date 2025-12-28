@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <title>קולאז׳</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    #c{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+
+    .ui{
+      position:fixed;top:10px;left:10px;right:10px;z-index:20;
+      padding:12px;border-radius:18px;
+      background:rgba(0,0,0,.55);backdrop-filter:blur(12px);
+      border:1px solid rgba(255,255,255,.16);
+      color:#fff;
+    }
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .grow{flex:1 1 260px}
+    input[type=file]{
+      width:100%;padding:10px 12px;border-radius:14px;
+      border:1px dashed rgba(255,255,255,.35);
+      background:rgba(255,255,255,.10);color:#fff
+    }
+    .btn{
+      appearance:none;border:0;cursor:pointer;
+      padding:10px 14px;border-radius:14px;font-weight:900;color:#fff;
+      background:#16a34a;
+    }
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+
+    .chip{
+      display:flex;align-items:center;gap:10px;
+      padding:8px 10px;border-radius:14px;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.18);
+      white-space:nowrap
+    }
+    .chip input[type=range]{width:140px}
+    .chip b{min-width:34px;text-align:center}
+    .meta{font-size:13px;opacity:.9}
+
+    .hint{
+      margin-top:8px;font-size:12.5px;opacity:.92;line-height:1.35
+    }
+
+    .loading{
+      position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.45);backdrop-filter:blur(4px);z-index:40
+    }
+    .box{
+      width:min(340px,92vw);
+      padding:16px 14px;border-radius:18px;
+      border:1px solid rgba(255,255,255,.16);
+      background:rgba(0,0,0,.55);
+      box-shadow:0 18px 40px rgba(0,0,0,.35);
+      color:#fff;text-align:center
+    }
+    .spinner{
+      width:34px;height:34px;border-radius:50%;
+      border:4px solid rgba(255,255,255,.18);
+      border-top-color:rgba(255,255,255,.85);
+      margin:0 auto 10px;
+      animation:spin .8s linear infinite
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div class="ui">
+  <div class="row">
+    <div class="grow">
+      <input id="files" type="file" accept="image/*" multiple>
+    </div>
+    <button id="saveBtn" class="btn" disabled>שמור PNG</button>
+  </div>
+
+  <div class="row" style="margin-top:10px;justify-content:space-between">
+    <div class="row">
+      <div class="chip"><span>רווחים</span><input id="gap" type="range" min="0" max="40" step="1" value="8"><b id="gapL">8</b><span class="meta">px</span></div>
+      <div class="chip"><span>פינות</span><input id="rad" type="range" min="0" max="140" step="1" value="18"><b id="radL">18</b><span class="meta">px</span></div>
+      <div class="chip"><span>טשטוש</span><input id="blur" type="range" min="6" max="45" step="1" value="18"><b id="blurL">18</b><span class="meta">px</span></div>
+    </div>
+    <div class="meta">
+      <span id="count">0</span> תמונות • <span id="grid">—</span>
+    </div>
+  </div>
+
+  <div class="hint">
+    <b>לחיצה על תמונה</b> משנה רק אותה: <b>Cover</b> ↔ <b>Contain+Blur</b> (ב־Contain אין חיתוך).
+  </div>
+</div>
+
+<div class="loading" id="loading">
+  <div class="box">
+    <div class="spinner"></div>
+    <div style="font-weight:900;font-size:16px;margin-bottom:6px" id="loadTitle">טוען…</div>
+    <div style="opacity:.9;font-size:13px" id="loadSub">אנא המתן</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  const canvas = $('c');
+  const ctx = canvas.getContext('2d');
+
+  const files = $('files');
+  const gap = $('gap'), rad = $('rad'), blur = $('blur');
+  const gapL = $('gapL'), radL = $('radL'), blurL = $('blurL');
+
+  const count = $('count'), grid = $('grid');
+  const saveBtn = $('saveBtn');
+
+  const loading = $('loading');
+  const loadTitle = $('loadTitle');
+  const loadSub = $('loadSub');
+
+  let images = [];   // [{img, url}]
+  let modes  = [];   // 0=cover, 1=contain+blur
+  let tiles  = [];   // rects למסך
+
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+
+  function showLoading(title, sub){
+    loadTitle.textContent = title || 'טוען…';
+    loadSub.textContent = sub || 'אנא המתן';
+    loading.style.display = 'flex';
+  }
+  function setLoadingSub(sub){ loadSub.textContent = sub || ''; }
+  function hideLoading(){ loading.style.display = 'none'; }
+
+  function setCanvasToViewport(){
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(innerWidth * dpr);
+    canvas.height = Math.floor(innerHeight * dpr);
+  }
+
+  function updateLabels(){
+    gapL.textContent = gap.value;
+    radL.textContent = rad.value;
+    blurL.textContent = blur.value;
+
+    count.textContent = String(images.length);
+    saveBtn.disabled = images.length === 0;
+  }
+
+  function roundRectPath(x,y,w,h,r){
+    const rr = clamp(r, 0, Math.min(w,h)/2);
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+  }
+
+  function chooseCols(n, W, H, gapPx){
+    // בוחר עמודות כך שהקולאז' ימלא מסך ויתאים למובייל
+    const aspect = W/H;
+    let best = {cols:1, score:-Infinity};
+
+    for(let cols=1; cols<=Math.min(n, 12); cols++){
+      const rows = Math.ceil(n/cols);
+      const cellW = (W - gapPx*(cols-1))/cols;
+      const cellH = (H - gapPx*(rows-1))/rows;
+      if(cellW < 40 || cellH < 40) continue;
+
+      const cellAspect = cellW/cellH;
+      const aspectPenalty = Math.abs(Math.log(cellAspect));
+      const areaScore = Math.log(cellW*cellH);
+
+      const gridAspect = cols/rows;
+      const screenPenalty = Math.abs(Math.log(gridAspect/aspect));
+      const score = areaScore - 0.8*aspectPenalty - 0.65*screenPenalty - 0.12*rows;
+
+      if(score > best.score) best = {cols, score};
+    }
+    return best.cols;
+  }
+
+  function drawCover(img, x,y,w,h){
+    const ir = img.width/img.height;
+    const rr = w/h;
+    let sx,sy,sw,sh;
+    if(ir > rr){
+      sh = img.height;
+      sw = sh*rr;
+      sx = (img.width - sw)/2; sy = 0;
+    }else{
+      sw = img.width;
+      sh = sw/rr;
+      sx = 0; sy = (img.height - sh)/2;
+    }
+    ctx.drawImage(img, sx,sy,sw,sh, x,y,w,h);
+  }
+
+  function drawContain(img, x,y,w,h){
+    const ir = img.width/img.height;
+    const rr = w/h;
+    let dw,dh;
+    if(ir > rr){ dw = w; dh = w/ir; }
+    else{ dh = h; dw = h*ir; }
+    const dx = x + (w-dw)/2;
+    const dy = y + (h-dh)/2;
+    ctx.drawImage(img, dx,dy,dw,dh);
+  }
+
+  function drawTile(img, mode, x,y,w,h,r, blurPx){
+    ctx.save();
+    ctx.beginPath(); roundRectPath(x,y,w,h,r); ctx.closePath();
+    ctx.clip();
+
+    if(mode === 0){
+      ctx.filter = 'none';
+      drawCover(img, x,y,w,h);
+    }else{
+      // רקע מטושטש + התמונה ללא חיתוך (contain)
+      ctx.filter = `blur(${blurPx}px)`;
+      drawCover(img, x,y,w,h);
+      ctx.filter = 'none';
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(x,y,w,h);
+      drawContain(img, x,y,w,h);
+    }
+
+    ctx.restore();
+  }
+
+  function render(){
+    setCanvasToViewport();
+    const W = canvas.width, H = canvas.height;
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0,0,W,H);
+
+    if(!images.length){
+      grid.textContent = '—';
+      return;
+    }
+
+    const gapPx = parseInt(gap.value,10);
+    const radPx = parseInt(rad.value,10);
+    const blurPx = parseInt(blur.value,10);
+
+    const n = images.length;
+    const cols = chooseCols(n, W, H, gapPx);
+    const rows = Math.ceil(n/cols);
+    grid.textContent = `${cols}×${rows}`;
+
+    const cellH = (H - gapPx*(rows-1))/rows;
+
+    tiles = [];
+    let idx = 0;
+
+    for(let r=0;r<rows;r++){
+      const remaining = n - idx;
+      const colsThisRow = Math.min(cols, remaining);
+
+      // ✅ שורה אחרונה מתרחבת כדי למלא את המסך (אין שחור)
+      const cellW = (W - gapPx*(colsThisRow-1))/colsThisRow;
+
+      for(let c=0;c<colsThisRow;c++){
+        const x = c*(cellW + gapPx);
+        const y = r*(cellH + gapPx);
+
+        drawTile(images[idx].img, modes[idx], x,y,cellW,cellH, radPx, blurPx);
+        tiles.push({x,y,w:cellW,h:cellH,index:idx});
+        idx++;
+      }
+    }
+  }
+
+  function canvasPointFromClient(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    return { x:(clientX-rect.left)*sx, y:(clientY-rect.top)*sy };
+  }
+
+  function hitTile(px,py){
+    for(const t of tiles){
+      if(px>=t.x && px<=t.x+t.w && py>=t.y && py<=t.y+t.h) return t.index;
+    }
+    return -1;
+  }
+
+  async function loadFile(file){
+    return new Promise((resolve,reject)=>{
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = ()=>resolve({img,url});
+      img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('load error')); };
+      img.src = url;
+    });
+  }
+
+  files.addEventListener('change', async ()=>{
+    const list = Array.from(files.files||[]);
+    images.forEach(x=>URL.revokeObjectURL(x.url));
+    images = [];
+    modes = [];
+    tiles = [];
+
+    if(!list.length){
+      updateLabels();
+      render();
+      return;
+    }
+
+    showLoading('טוען…', `0/${list.length}`);
+    for(let i=0;i<list.length;i++){
+      setLoadingSub(`${i+1}/${list.length}`);
+      await new Promise(r=>requestAnimationFrame(r));
+      const loaded = await loadFile(list[i]);
+      images.push(loaded);
+      modes.push(0); // default cover
+    }
+    hideLoading();
+    updateLabels();
+    render();
+  });
+
+  // לחיצה על תמונה: החלפת מצב פר-תמונה
+  canvas.addEventListener('click', (ev)=>{
+    if(!images.length) return;
+    const p = canvasPointFromClient(ev.clientX, ev.clientY);
+    const idx = hitTile(p.x,p.y);
+    if(idx>=0){
+      modes[idx] = (modes[idx]===0) ? 1 : 0;
+      render();
+    }
+  });
+
+  ['gap','rad','blur'].forEach(id=>{
+    $(id).addEventListener('input', ()=>{
+      updateLabels();
+      render();
+    });
+  });
+
+  saveBtn.addEventListener('click', ()=>{
+    const name = `collage_${new Date().toISOString().replace(/[:.]/g,'-')}.png`;
+    canvas.toBlob((blob)=>{
+      if(!blob){ alert('שמירה נכשלה'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 1500);
+    }, 'image/png', 1.0);
+  });
+
+  // init
+  function init(){
+    updateLabels();
+    render();
+  }
+  addEventListener('resize', render);
+  init();
+})();
+</script>
+</body>
+</html>
