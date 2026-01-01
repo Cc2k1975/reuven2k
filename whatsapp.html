@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WhatsApp Direct - Final Fix</title>
+    <title>WhatsApp Direct - Fixed</title>
     <style>
         :root { --wa-green: #25D366; --wa-dark: #075E54; }
         body { 
@@ -58,9 +58,7 @@
     let lockedNumber = "";
     let finalMsg = "";
 
-    // חדש: מנגנון שמונע כפילויות
     let finalTranscript = "";
-    let latestText = "";
     let isListening = false;
 
     function init() {
@@ -73,17 +71,18 @@
         recognition.onresult = (event) => {
             let interim = "";
 
-            // לוקחים רק את מה שהתעדכן עכשיו (ולא בונים מחדש הכל)
             for (let i = event.resultIndex; i < event.results.length; i++) {
-                const t = event.results[i][0].transcript;
+                const t = (event.results[i][0].transcript || "").trim();
+                if (!t) continue;
+
                 if (event.results[i].isFinal) {
-                    finalTranscript += (finalTranscript ? " " : "") + t.trim();
+                    finalTranscript += (finalTranscript ? " " : "") + t;
                 } else {
-                    interim += t;
+                    interim += (interim ? " " : "") + t;
                 }
             }
 
-            latestText = (finalTranscript + " " + interim).trim();
+            const latestText = (finalTranscript + " " + interim).trim();
             processText(latestText);
         };
 
@@ -91,41 +90,64 @@
             isListening = false;
             document.getElementById('status').innerText = "שגיאה בזיהוי דיבור";
         };
-
-        recognition.onend = () => {
-            // onend יכול להיקרא גם לבד; אנחנו שולטים דרך isListening
-        };
     }
 
-    // יוצר Regex שמזהה את המספר גם אם נאמר עם רווחים/מקפים (058-7449001 וכו')
-    function buildLooseDigitsRegex(digits) {
-        const escaped = digits.split('').map(d => d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-        return new RegExp(escaped.join('\\D*'));
+    // מוצא מספר ישראלי בתוך טקסט, גם אם יש מקפים/רווחים
+    // דוגמאות: 0587449001 / 058-7449001 / 05 8 744 9001
+    function extractIsraeliPhone(text) {
+        // מחפש מקטע שמתחיל ב-0 ואז ספרות, עם אפשרות לרווחים/מקפים בין הספרות
+        // ומוודא שאחרי ניקוי יש 9-10 ספרות (נייד לרוב 10)
+        const candidates = text.match(/0[\d\s\-]{7,20}\d/g) || [];
+        for (const c of candidates) {
+            const digits = c.replace(/\D/g, '');
+            if (digits.length === 10 && digits.startsWith('05')) return digits;   // נייד
+            if (digits.length === 9) return digits;                               // קווי/חריגים
+        }
+
+        // fallback: אם יש פשוט 10 ספרות רצוף איפשהו
+        const d = text.replace(/\D/g, '');
+        if (d.length >= 10) {
+            // מחפש תת-רצף שנראה נייד
+            const m = d.match(/05\d{8}/);
+            if (m) return m[0];
+        }
+        return "";
     }
 
     function processText(text) {
         const phoneElem = document.getElementById('phoneField');
         const msgElem = document.getElementById('msgField');
 
-        // שליפת מספר טלפון (מחפש רצף ספרות ראשון)
+        // 1) מספר – ננעל פעם אחת, רק אם זוהה בצורה תקינה
         if (!lockedNumber) {
-            let digits = text.replace(/\D/g, '');
-            if (digits.length >= 10) {
-                lockedNumber = digits.substring(0, 10);
+            const found = extractIsraeliPhone(text);
+            if (found) {
+                lockedNumber = found;
                 phoneElem.innerText = lockedNumber;
             } else {
-                phoneElem.innerText = digits || "---";
+                // מציג "רמז" בלבד בלי להרוס (לא אוסף את כל הספרות מהטקסט!)
+                phoneElem.innerText = "---";
             }
         }
 
-        // שליפת ההודעה - מנקה את המספר מהטקסט המלא (גם אם עם מקפים/רווחים)
+        // 2) הודעה – מוציא את המספר מהטקסט ואז מנקה כל ספרה שנשארה
+        let msg = text;
+
         if (lockedNumber) {
-            const looseRe = buildLooseDigitsRegex(lockedNumber);
-            let messagePart = text.replace(looseRe, '').trim();
-            messagePart = messagePart.replace(/^[^a-zA-Zא-ת]+/, '');
-            msgElem.innerText = messagePart || "---";
-            finalMsg = messagePart;
+            // מוחק כל מופע של המספר גם אם נאמר עם רווחים/מקפים
+            const loose = new RegExp(lockedNumber.split('').join('\\D*'), 'g');
+            msg = msg.replace(loose, ' ');
         }
+
+        // מנקה ספרות לחלוטין כדי שלא יישארו שאריות מספר בהודעה
+        msg = msg.replace(/\d/g, ' ');
+
+        // ניקוי תווים מיותרים ורווחים
+        msg = msg.replace(/[^\p{L}\p{N}\s\.\,\!\?\-\u0590-\u05FF]/gu, ' ');
+        msg = msg.replace(/\s+/g, ' ').trim();
+
+        msgElem.innerText = msg || "---";
+        finalMsg = msg;
     }
 
     const btn = document.getElementById('pttBtn');
@@ -137,7 +159,6 @@
         lockedNumber = "";
         finalMsg = "";
         finalTranscript = "";
-        latestText = "";
         isListening = true;
 
         document.getElementById('phoneField').innerText = "---";
@@ -147,14 +168,13 @@
         try { recognition.start(); } catch(_) {}
     });
 
-    // הרגע הקריטי: שחרור האצבע פותח את וואטסאפ
     window.addEventListener('pointerup', (e) => {
         if (!recognition || !isListening) return;
 
         isListening = false;
         try { recognition.stop(); } catch(_) {}
 
-        const num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
+        const num = (lockedNumber || "").replace(/\D/g, '');
         if (num.length >= 9) {
             let cleanNum = num.startsWith('0') ? '972' + num.substring(1) : num;
             window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(finalMsg)}`;
@@ -167,10 +187,12 @@
         try {
             const text = await navigator.clipboard.readText();
             let digits = text.replace(/\D/g, '');
-            if (digits.length >= 9) {
+            if (digits.length === 10 && digits.startsWith('05')) {
                 lockedNumber = digits;
                 document.getElementById('phoneField').innerText = lockedNumber;
                 document.getElementById('status').innerText = "מספר הודבק. עכשיו לחץ ודבר הודעה.";
+            } else {
+                alert("לא זוהה מספר נייד תקין");
             }
         } catch (e) { alert("אשר גישה ללוח"); }
     }
@@ -179,4 +201,3 @@
 </script>
 </body>
 </html>
-1
