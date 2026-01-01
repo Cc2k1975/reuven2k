@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WhatsApp PTT - Instant Send</title>
+    <title>WhatsApp Direct - Final Fix</title>
     <style>
         :root { --wa-green: #25D366; --wa-dark: #075E54; }
         body { 
@@ -22,19 +22,17 @@
             background-color: #34b7f1; color: white; font-size: 20px; font-weight: bold;
             cursor: pointer; box-shadow: 0 6px 15px rgba(0,0,0,0.2);
             margin: 20px auto; display: block; touch-action: none;
-            transition: transform 0.1s, background-color 0.2s;
-            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.1s; -webkit-tap-highlight-color: transparent;
         }
-        .ptt-btn:active { background-color: #ff4b2b; transform: scale(0.92); }
+        .ptt-btn:active { background-color: #ff4b2b; transform: scale(0.95); }
 
-        .btn-paste { width: 100%; padding: 14px; background-color: #6c757d; color: white; border: none; border-radius: 10px; font-weight: bold; margin-bottom: 10px; cursor: pointer; }
-        .status { font-size: 14px; color: #888; margin-top: 10px; height: 20px; }
+        .btn-paste { width: 100%; padding: 14px; background-color: #6c757d; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color: var(--wa-dark); margin-top: 0;">דבר ושלח מיד</h2>
+    <h2 style="color: var(--wa-dark); margin-top: 0;">דבר ושלח</h2>
     
     <div class="box">
         <div class="label">מספר יעד:</div>
@@ -49,19 +47,18 @@
     <button class="btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
 
     <button id="pttBtn" class="ptt-btn">לחץ והחזק<br>🎤</button>
-
-    <div id="status" class="status">לחץ כדי להתחיל</div>
     
-    <button class="btn-paste" style="background:#eee; color:#333; margin-top:15px;" onclick="location.reload()">נקה הכל</button>
+    <p id="status" style="font-size: 14px; color: #888;">אמור מספר ואז הודעה ושחרר</p>
+    
+    <button class="btn-paste" style="background:#eee; color:#333; margin-top:10px;" onclick="location.reload()">נקה הכל</button>
 </div>
 
 <script>
     let recognition;
     let lockedNumber = "";
-    let currentMsgText = "";
-    let isListening = false;
+    let finalMsg = "";
 
-    function initRecognition() {
+    function init() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new Speech();
         recognition.lang = 'he-IL';
@@ -69,19 +66,20 @@
         recognition.interimResults = true;
 
         recognition.onresult = (event) => {
-            let fullTranscript = "";
-            for (let i = 0; i < event.results.length; ++i) {
-                fullTranscript += event.results[i][0].transcript;
+            let fullText = "";
+            // אנחנו בונים את כל הטקסט מחדש בכל עדכון - זה מונע את הכפילויות
+            for (let i = 0; i < event.results.length; i++) {
+                fullText += event.results[i][0].transcript;
             }
-            updateUI(fullTranscript);
+            processText(fullText);
         };
     }
 
-    function updateUI(text) {
+    function processText(text) {
         const phoneElem = document.getElementById('phoneField');
         const msgElem = document.getElementById('msgField');
 
-        // זיהוי מספר טלפון
+        // שליפת מספר טלפון (מחפש רצף ספרות ראשון)
         if (!lockedNumber) {
             let digits = text.replace(/\D/g, '');
             if (digits.length >= 10) {
@@ -92,57 +90,43 @@
             }
         }
 
-        // חילוץ ההודעה
+        // שליפת ההודעה - מנקה את המספר מהטקסט המלא
         if (lockedNumber) {
             let messagePart = text.replace(lockedNumber, '').trim();
-            messagePart = messagePart.replace(/^[^a-zA-Zא-ת]+/, ''); // ניקוי סימנים בתחילת הודעה
+            // מסיר סימנים מיותרים בתחילת ההודעה
+            messagePart = messagePart.replace(/^[^a-zA-Zא-ת]+/, '');
             msgElem.innerText = messagePart || "---";
-            currentMsgText = messagePart;
+            finalMsg = messagePart;
         }
     }
 
     const btn = document.getElementById('pttBtn');
 
-    // תחילת לחיצה - pointerdown עובד הכי טוב בנייד
     btn.addEventListener('pointerdown', (e) => {
         e.preventDefault();
-        if (!recognition) initRecognition();
+        if (!recognition) init();
         
-        isListening = true;
-        currentMsgText = "";
+        lockedNumber = ""; 
+        finalMsg = "";
         document.getElementById('status').innerText = "מקשיב... שחרר לשליחה";
         recognition.start();
     });
 
-    // שחרור לחיצה - מעבר מיידי
+    // הרגע הקריטי: שחרור האצבע פותח את וואטסאפ
     window.addEventListener('pointerup', (e) => {
-        if (isListening) {
-            isListening = false;
+        if (recognition && recognition.onspeechstart !== null) {
             recognition.stop();
-            document.getElementById('status').innerText = "שולח...";
             
-            // שליחה מיידית בלי setTimeout כדי שהדפדפן לא יחסום
-            sendToWhatsApp();
+            // אנחנו שולחים מיד!
+            const num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
+            if (num.length >= 9) {
+                let cleanNum = num.startsWith('0') ? '972' + num.substring(1) : num;
+                window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(finalMsg)}`;
+            } else {
+                document.getElementById('status').innerText = "לא זוהה מספר";
+            }
         }
     });
-
-    function sendToWhatsApp() {
-        let num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
-        let msg = currentMsgText;
-
-        if (!num || num.length < 9) {
-            document.getElementById('status').innerText = "לא זוהה מספר";
-            return;
-        }
-
-        if (num.startsWith('0')) num = '972' + num.substring(1);
-        
-        // יצירת הקישור
-        const waUrl = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
-        
-        // מעבר מיידי
-        window.location.href = waUrl;
-    }
 
     async function pasteFromClipboard() {
         try {
@@ -151,12 +135,11 @@
             if (digits.length >= 9) {
                 lockedNumber = digits;
                 document.getElementById('phoneField').innerText = lockedNumber;
-                document.getElementById('status').innerText = "מספר הודבק. לחץ ודבר הודעה.";
+                document.getElementById('status').innerText = "מספר הודבק. עכשיו לחץ ודבר הודעה.";
             }
         } catch (e) { alert("אשר גישה ללוח"); }
     }
 
-    // מניעת תפריטים קופצים
     window.oncontextmenu = (e) => { e.preventDefault(); return false; };
 </script>
 </body>
