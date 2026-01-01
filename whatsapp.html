@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Direct Auto-Send</title>
+    <title>WhatsApp Auto-Magic</title>
     <style>
         :root { --wa-green: #25D366; --wa-dark: #075E54; }
         body { font-family: system-ui, -apple-system, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
@@ -17,13 +17,16 @@
         .btn-voice.listening { background-color: #ff4b2b; animation: blink 1s infinite; }
         .btn-send { background-color: var(--wa-green); color: white; display: none; }
         .btn-reset { background-color: #e9ecef; color: #333; font-size: 14px; margin-top: 10px; }
+        
+        #countdown { font-weight: bold; color: #ff4b2b; font-size: 18px; display: none; margin-top: 10px; }
+        
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color: var(--wa-dark);">שליחה מהירה</h2>
+    <h2 style="color: var(--wa-dark);">שליחה מהירה אוטומטית</h2>
     
     <div class="box">
         <div class="label">מספר טלפון:</div>
@@ -36,14 +39,12 @@
     </div>
 
     <button class="btn btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
-    
     <button id="voiceBtn" class="btn btn-voice" onclick="toggleListening()">🎤 לחץ כאן ודבר</button>
+    <button id="sendBtn" class="btn btn-send" onclick="manualSend()">✅ שלח עכשיו</button>
     
-    <button id="sendBtn" class="btn btn-send" onclick="sendWhatsApp()">✅ שלח עכשיו</button>
+    <div id="countdown">שולח בעוד 5...</div>
     
     <button class="btn btn-reset" onclick="resetPage()">נקה הכל</button>
-
-    <p id="status" style="font-size: 13px; color: #888; margin-top: 15px;">אמור מספר ואז הודעה...</p>
 </div>
 
 <script>
@@ -52,6 +53,7 @@
     let lockedNumber = "";
     let lastProcessedSentence = "";
     let autoSendTimer = null;
+    let timeLeft = 5;
 
     function initSpeech() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -76,14 +78,12 @@
     function handleSpeechResult(text) {
         const phoneElem = document.getElementById('phoneField');
         const msgElem = document.getElementById('msgField');
-        const statusElem = document.getElementById('status');
         
         if (!lockedNumber) {
             let digits = text.replace(/\D/g, '');
             if (digits.length >= 9) {
                 lockedNumber = digits.substring(0, 10);
                 phoneElem.innerText = lockedNumber;
-                statusElem.innerText = "מספר זוהה! הקרא הודעה...";
                 text = text.replace(lockedNumber, '').trim();
             } else {
                 phoneElem.innerText = digits;
@@ -93,27 +93,49 @@
         if (text.length > 1 && text !== lockedNumber) {
             let cleanText = text.replace(/[0-9\-]{7,}/g, '').trim();
             if (cleanText) {
-                let currentMsg = msgElem.innerText === "---" ? "" : msgElem.innerText;
+                let currentMsg = msgElem.innerText;
                 if (!currentMsg.includes(cleanText)) {
                     msgElem.innerText = (currentMsg + " " + cleanText).trim();
                 }
                 
                 document.getElementById('sendBtn').style.display = "flex";
-                startAutoSendTimer(); // הפעלת הטיימר
+                startCountdown(); // הפעלת הספירה לאחור
             }
         }
     }
 
-    // פונקציית הטיימר - 5 שניות ושולח
-    function startAutoSendTimer() {
-        if (autoSendTimer) clearTimeout(autoSendTimer);
+    function startCountdown() {
+        // איפוס טיימר קודם אם היה
+        if (autoSendTimer) clearInterval(autoSendTimer);
         
-        document.getElementById('status').innerText = "שולח אוטומטית בעוד 5 שניות...";
-        document.getElementById('status').style.color = "orange";
+        timeLeft = 5;
+        const countdownElem = document.getElementById('countdown');
+        countdownElem.style.display = "block";
+        countdownElem.innerText = `שולח אוטומטית בעוד ${timeLeft}...`;
 
-        autoSendTimer = setTimeout(() => {
-            sendWhatsApp();
-        }, 5000);
+        autoSendTimer = setInterval(() => {
+            timeLeft--;
+            countdownElem.innerText = `שולח אוטומטית בעוד ${timeLeft}...`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(autoSendTimer);
+                executeAutoSend();
+            }
+        }, 1000);
+    }
+
+    function executeAutoSend() {
+        // כיבוי המיקרופון לפני המעבר - זה הסוד שגורם לזה לעבוד!
+        isListening = false;
+        if (recognition) recognition.stop();
+        
+        // מעבר לוואטסאפ
+        sendWhatsApp();
+    }
+
+    function manualSend() {
+        if (autoSendTimer) clearInterval(autoSendTimer);
+        executeAutoSend();
     }
 
     async function pasteFromClipboard() {
@@ -123,7 +145,6 @@
             if (digits.length >= 9) {
                 lockedNumber = digits;
                 document.getElementById('phoneField').innerText = lockedNumber;
-                document.getElementById('status').innerText = "מספר הודבק. עכשיו הקרא הודעה.";
             }
         } catch (e) { alert("אשר גישה ללוח"); }
     }
@@ -133,7 +154,8 @@
         if (isListening) {
             isListening = false;
             recognition.stop();
-            if (autoSendTimer) clearTimeout(autoSendTimer);
+            if (autoSendTimer) clearInterval(autoSendTimer);
+            document.getElementById('countdown').style.display = "none";
             document.getElementById('voiceBtn').innerText = "🎤 לחץ כאן ודבר";
             document.getElementById('voiceBtn').classList.remove('listening');
         } else {
@@ -145,7 +167,7 @@
     }
 
     function resetPage() {
-        if (autoSendTimer) clearTimeout(autoSendTimer);
+        if (autoSendTimer) clearInterval(autoSendTimer);
         location.reload();
     }
 
