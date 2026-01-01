@@ -2,142 +2,140 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Direct 100% Fix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WhatsApp PTT</title>
     <style>
         :root { --wa-green: #25D366; --wa-dark: #075E54; }
-        body { font-family: system-ui, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
+        body { font-family: system-ui, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; user-select: none; -webkit-user-select: none; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; max-width: 400px; text-align: center; }
         .box { background: #f8f9fa; border: 2px solid #eaebec; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: right; }
         .label { font-size: 12px; color: #666; font-weight: bold; }
-        .field { font-size: 18px; font-weight: bold; color: var(--wa-dark); min-height: 25px; outline: none; word-break: break-word; }
-        .btn { width: 100%; padding: 16px; margin: 8px 0; border: none; border-radius: 12px; font-size: 17px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .field { font-size: 18px; font-weight: bold; color: var(--wa-dark); min-height: 25px; word-break: break-word; }
+        
+        /* הכפתור המרכזי */
+        .ptt-btn { 
+            width: 200px; height: 200px; border-radius: 50%; border: none;
+            background-color: #34b7f1; color: white; font-size: 20px; font-weight: bold;
+            cursor: pointer; box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+            margin: 20px auto; display: block; touch-action: none;
+            transition: transform 0.1s, background-color 0.2s;
+        }
+        .ptt-btn:active, .ptt-btn.active { 
+            background-color: #ff4b2b; transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .btn-small { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
         .btn-paste { background-color: #6c757d; color: white; }
-        .btn-voice { background-color: #34b7f1; color: white; }
-        .btn-voice.listening { background-color: #ff4b2b; animation: blink 1s infinite; }
-        .btn-send { background-color: var(--wa-green); color: white; display: none; }
-        #countdown { font-weight: bold; color: #ff4b2b; font-size: 20px; margin: 10px 0; height: 30px; }
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color: var(--wa-dark);">שליחה מהירה (סגירה אוטומטית)</h2>
+    <h2 style="color: var(--wa-dark); margin-top: 0;">לחץ והחזק כדי לשלוח</h2>
     
     <div class="box">
         <div class="label">מספר טלפון:</div>
-        <div id="phoneField" class="field" contenteditable="true"></div>
+        <div id="phoneField" class="field">---</div>
     </div>
     
     <div class="box">
-        <div class="label">הודעה:</div>
-        <div id="msgField" class="field" style="font-weight: normal;" contenteditable="true"></div>
+        <div class="label">הודעה שתשלח:</div>
+        <div id="msgField" class="field" style="font-weight: normal;">---</div>
     </div>
 
-    <button class="btn btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
-    <button id="voiceBtn" class="btn btn-voice" onclick="toggleListening()">🎤 לחץ כאן ודבר</button>
+    <button class="btn-small btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
+
+    <button id="pttBtn" class="ptt-btn">
+        החזק ודבר<br>🎤
+    </button>
+
+    <p id="status" style="font-size: 14px; color: #888;">הקרא מספר ואז הודעה. שחרר כדי לשלוח.</p>
     
-    <div id="countdown"></div>
-    
-    <button id="sendBtn" class="btn btn-send" onclick="forceSend()">✅ שלח עכשיו</button>
-    <button class="btn" style="background:#eee" onclick="location.reload()">נקה הכל</button>
+    <button class="btn-small" style="background:#eee" onclick="location.reload()">נקה הכל</button>
 </div>
 
 <script>
     let recognition;
-    let isListening = false;
     let lockedNumber = "";
-    let autoSendTimer = null;
-    let secondsLeft = 5;
+    let fullText = "";
 
-    function initSpeech() {
+    function setupSpeech() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new Speech();
         recognition.lang = 'he-IL';
         recognition.continuous = true;
-        recognition.interimResults = false;
+        recognition.interimResults = true;
 
         recognition.onresult = (event) => {
-            let result = event.results[event.results.length - 1][0].transcript.trim();
-            handleResult(result);
+            let currentText = "";
+            for (let i = 0; i < event.results.length; i++) {
+                currentText += event.results[i][0].transcript;
+            }
+            fullText = currentText;
+            updateDisplay(currentText);
         };
-
-        recognition.onend = () => { if (isListening) recognition.start(); };
     }
 
-    function handleResult(text) {
+    function updateDisplay(text) {
         const phoneElem = document.getElementById('phoneField');
         const msgElem = document.getElementById('msgField');
-        
-        // זיהוי מספר
+
         if (!lockedNumber) {
             let digits = text.replace(/\D/g, '');
             if (digits.length >= 9) {
                 lockedNumber = digits.substring(0, 10);
                 phoneElem.innerText = lockedNumber;
-                text = text.replace(lockedNumber, '').trim();
             } else {
                 phoneElem.innerText = digits;
             }
         }
 
-        // זיהוי הודעה
-        if (text.length > 1 && text !== lockedNumber) {
-            let cleanText = text.replace(/[0-9\-]{7,}/g, '').trim();
-            if (cleanText) {
-                let current = msgElem.innerText;
-                if (!current.includes(cleanText)) {
-                    msgElem.innerText = (current + " " + cleanText).trim();
-                }
-                document.getElementById('sendBtn').style.display = "flex";
-                startFinalCountdown(); // הפעלת הטיימר בכל פעם שיש טקסט חדש
-            }
+        if (lockedNumber) {
+            let messagePart = text.replace(lockedNumber, '').trim();
+            // ניקוי מספרים כפולים שמופיעים בטעות בהודעה
+            messagePart = messagePart.replace(/[0-9\-]{7,}/g, '').trim();
+            msgElem.innerText = messagePart || "---";
         }
     }
 
-    function startFinalCountdown() {
-        if (autoSendTimer) clearInterval(autoSendTimer);
-        secondsLeft = 5;
-        const display = document.getElementById('countdown');
-        display.innerText = `שולח אוטומטית בעוד ${secondsLeft}...`;
+    const pttBtn = document.getElementById('pttBtn');
 
-        autoSendTimer = setInterval(() => {
-            secondsLeft--;
-            display.innerText = `שולח אוטומטית בעוד ${secondsLeft}...`;
-            
-            if (secondsLeft <= 0) {
-                clearInterval(autoSendTimer);
-                forceSend();
-            }
-        }, 1000);
+    // פונקציה להתחלת הקלטה
+    function startRecording(e) {
+        e.preventDefault();
+        if (!recognition) setupSpeech();
+        
+        fullText = "";
+        pttBtn.classList.add('active');
+        pttBtn.innerHTML = "מקשיב...<br>🛑";
+        document.getElementById('status').innerText = "שחרר כשסיימת לדבר";
+        
+        recognition.start();
     }
 
-    function forceSend() {
-        // 1. כיבוי אגרסיבי של המיקרופון
-        isListening = false;
+    // פונקציה להפסקת הקלטה ושליחה
+    function stopRecording(e) {
+        e.preventDefault();
+        pttBtn.classList.remove('active');
+        pttBtn.innerHTML = "החזק ודבר<br>🎤";
+        
         if (recognition) {
             recognition.stop();
-            recognition.abort(); // ביטול מיידי של הפעילות
         }
 
-        // 2. השהייה קטנה מאוד כדי לוודא שהמיקרופון השתחרר
+        // המתנה קלה לעיבוד התוצאה האחרונה ושליחה
         setTimeout(() => {
-            sendWhatsApp();
-        }, 300);
+            sendToWhatsApp();
+        }, 500);
     }
 
-    function sendWhatsApp() {
-        let num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
-        let msg = document.getElementById('msgField').innerText.trim();
-        if (!num) return;
-        if (num.startsWith('0')) num = '972' + num.substring(1);
-        
-        const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
-        
-        // ניסיון מעבר
-        window.location.assign(url);
-    }
+    // מאזינים לאירועי מגע ועכבר (Push-to-Talk)
+    pttBtn.addEventListener('pointerdown', startRecording);
+    window.addEventListener('pointerup', (e) => {
+        if (pttBtn.classList.contains('active')) {
+            stopRecording(e);
+        }
+    });
 
     async function pasteFromClipboard() {
         try {
@@ -150,21 +148,28 @@
         } catch (e) { alert("אשר גישה ללוח"); }
     }
 
-    function toggleListening() {
-        if (!recognition) initSpeech();
-        if (isListening) {
-            isListening = false;
-            recognition.stop();
-            if (autoSendTimer) clearInterval(autoSendTimer);
-            document.getElementById('countdown').innerText = "";
-            document.getElementById('voiceBtn').innerText = "🎤 לחץ כאן ודבר";
-        } else {
-            isListening = true;
-            document.getElementById('voiceBtn').innerText = "🛑 הקלטה פעילה...";
-            document.getElementById('voiceBtn').classList.add('listening');
-            recognition.start();
+    function sendToWhatsApp() {
+        let num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
+        let msg = document.getElementById('msgField').innerText.trim();
+        if (msg === "---") msg = "";
+        
+        if (!num || num.length < 9) {
+            document.getElementById('status').innerText = "שגיאה: מספר לא זוהה";
+            return;
         }
+
+        if (num.startsWith('0')) num = '972' + num.substring(1);
+        
+        const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+        window.location.href = url;
     }
+
+    // מניעת תפריט הקשר בלחיצה ארוכה
+    window.oncontextmenu = function(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+    };
 </script>
 </body>
 </html>
