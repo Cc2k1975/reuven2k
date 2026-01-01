@@ -2,136 +2,147 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>מזרק קוד Keep-Alive</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מזרק קוד - גרסת סלולר</title>
     <style>
+        * { box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f0f2f5;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            gap: 15px;
+            min-height: 100vh;
         }
-        h1 { color: #2c3e50; text-align: center; margin-bottom: 10px; }
-        .container {
-            display: flex;
-            gap: 20px;
-            flex: 1;
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            color: #1a73e8;
+            margin: 10px 0;
         }
         .box {
             display: flex;
             flex-direction: column;
+            gap: 8px;
             flex: 1;
         }
-        label { font-weight: bold; margin-bottom: 5px; color: #34495e; }
+        label {
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #444;
+        }
         textarea {
-            flex: 1;
-            padding: 10px;
-            border: 2px solid #bdc3c7;
-            border-radius: 8px;
-            font-family: 'Courier New', Courier, monospace;
+            width: 100%;
+            height: 200px; /* גובה מותאם לסלולר */
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            font-family: monospace;
             font-size: 14px;
-            resize: none;
             background-color: #fff;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+            resize: none;
         }
         .controls {
-            text-align: center;
-            padding: 20px 0;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            padding: 5px 0;
         }
         button {
-            padding: 12px 30px;
-            font-size: 18px;
+            width: 100%;
+            padding: 16px;
+            font-size: 1.1rem;
             font-weight: bold;
-            cursor: pointer;
             border: none;
-            border-radius: 50px;
-            transition: all 0.3s;
-            margin: 0 10px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.1s;
         }
-        #btn-inject { background-color: #3498db; color: white; }
-        #btn-inject:hover { background-color: #2980b9; transform: scale(1.05); }
-        #btn-copy { background-color: #2ecc71; color: white; }
-        #btn-copy:hover { background-color: #27ae60; }
-        .footer { text-align: center; font-size: 12px; color: #7f8c8d; margin-top: 10px; }
+        button:active { transform: scale(0.98); }
+        
+        #btn-inject { background-color: #1a73e8; color: white; }
+        #btn-copy { background-color: #34a853; color: white; }
+        
+        .footer {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #777;
+            margin-top: auto;
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>מזרק קוד למניעת שינה (Offline)</h1>
+    <h1>מזרק Keep-Alive 📱</h1>
 
-    <div class="container">
-        <div class="box">
-            <label>1. הדבק כאן את הקוד המקורי שלך:</label>
-            <textarea id="inputCode" placeholder="<html>...</html>"></textarea>
-        </div>
-
-        <div class="box">
-            <label>2. הקוד המשולב (מוכן להעתקה):</label>
-            <textarea id="outputCode" readonly placeholder="הקוד המעובד יופיע כאן..."></textarea>
-        </div>
+    <div class="box">
+        <label>1. הדבק קוד מקורי כאן:</label>
+        <textarea id="inputCode" placeholder="הדבק את ה-HTML שלך..."></textarea>
     </div>
 
     <div class="controls">
-        <button id="btn-inject" onclick="injectCode()">שלב קוד מניעת שינה ⚡</button>
-        <button id="btn-copy" onclick="copyToClipboard()">העתק קוד מוכן 📋</button>
+        <button id="btn-inject" onclick="injectCode()">⚡ שלב מניעת שינה</button>
+        <button id="btn-copy" onclick="copyToClipboard()">📋 העתק קוד מוכן</button>
+    </div>
+
+    <div class="box">
+        <label>2. הקוד המשולב יופיע כאן:</label>
+        <textarea id="outputCode" readonly placeholder="התוצאה תופיע כאן..."></textarea>
     </div>
 
     <div class="footer">
-        הקוד המוזרק פועל שקטה ברקע ומפעיל Wake Lock בלחיצה הראשונה על המסך.
+        הקוד בטוח לשימוש ואינו פוגע בפונקציות קיימות.
     </div>
 
     <script>
         function injectCode() {
             const input = document.getElementById('inputCode').value;
             if (!input.trim()) {
-                alert("בבקשה הדבק קוד קודם!");
+                alert("קודם כל תדביק קוד בתיבה העליונה");
                 return;
             }
 
-            // הקוד למניעת שינה שאנחנו מזריקים
-            const wakeLockScript = `
-<script>
-    (function() {
-        let wakeLock = null;
-        const enableWakeLock = async () => {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) {}
-        };
-        document.addEventListener('click', enableWakeLock, { once: true });
-        document.addEventListener('touchstart', enableWakeLock, { once: true });
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') enableWakeLock();
-        });
-    })();
-<\/script>
-`;
+            const wakeLockScript = `\n\n<script>
+(function(){
+  let wl = null;
+  const lock = async () => { 
+    try { if('wakeLock' in navigator) wl = await navigator.wakeLock.request('screen'); } catch(e) {} 
+  };
+  ['click','touchstart'].forEach(e => document.addEventListener(e, lock, {once:true}));
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') lock(); });
+})();
+<\/script>\n`;
 
             let finalCode = "";
-            
-            // בדיקה אם קיימת תגית סגירה של ה-body
             if (input.toLowerCase().includes("</body>")) {
-                // מזריקים ממש לפני תגית הסגירה
                 const parts = input.split(/<\/body>/i);
                 finalCode = parts[0] + wakeLockScript + "</body>" + (parts[1] || "");
             } else {
-                // אם אין body, פשוט מוסיפים לסוף
                 finalCode = input + wakeLockScript;
             }
 
             document.getElementById('outputCode').value = finalCode;
-            document.getElementById('outputCode').style.borderColor = "#2ecc71";
+            // גלילה אוטומטית למטה כדי לראות את התוצאה
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }
 
-        function copyToClipboard() {
+        async function copyToClipboard() {
             const output = document.getElementById('outputCode');
             if (!output.value) return;
-            output.select();
-            document.execCommand('copy');
-            alert("הקוד הועתק ללוח!");
+            
+            try {
+                await navigator.clipboard.writeText(output.value);
+                alert("הקוד הועתק בהצלחה!");
+            } catch (err) {
+                // fallback למכשירים ישנים
+                output.select();
+                document.execCommand('copy');
+                alert("הקוד הועתק!");
+            }
         }
     </script>
 
