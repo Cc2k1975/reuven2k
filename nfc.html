@@ -2,142 +2,145 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סורק NFC נייד</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC Master - צריבת קישורים</title>
     <style>
         :root {
-            --primary-color: #4CAF50;
-            --bg-color: #f4f7f6;
-            --text-color: #333;
+            --primary-color: #ff5722;
+            --secondary-color: #673ab7;
+            --bg-color: #f0f2f5;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             background-color: var(--bg-color);
-            color: var(--text-color);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             margin: 0;
             padding: 20px;
-            box-sizing: border-box;
         }
 
         .card {
             background: white;
-            border-radius: 20px;
+            border-radius: 24px;
             padding: 30px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 400px;
             text-align: center;
         }
 
-        h1 { font-size: 1.5rem; margin-bottom: 10px; }
-        p { color: #666; margin-bottom: 30px; }
+        h2 { color: var(--secondary-color); margin-bottom: 20px; }
 
-        #scanButton {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            border-radius: 50px;
-            cursor: pointer;
+        .input-group {
+            margin-bottom: 15px;
+            text-align: right;
+        }
+
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+
+        input {
             width: 100%;
-            transition: transform 0.2s, background-color 0.2s;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            box-sizing: border-box;
+            font-size: 1rem;
         }
 
-        #scanButton:active {
-            transform: scale(0.95);
+        button {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            color: white;
+            transition: transform 0.2s;
         }
 
-        #scanButton:disabled {
-            background-color: #ccc;
-            box-shadow: none;
-        }
+        .btn-scan { background-color: #444; }
+        .btn-write-url { background-color: var(--primary-color); }
 
         #output {
-            margin-top: 30px;
+            margin-top: 20px;
             padding: 15px;
-            border-radius: 10px;
-            background-color: #f9f9f9;
-            border: 1px solid #eee;
-            min-height: 80px;
-            word-break: break-all;
-            text-align: right;
-            font-size: 0.95rem;
-        }
-
-        .status-scanning {
-            color: #2196F3;
-            font-weight: bold;
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            background: #fdfdfd;
+            border: 1px dashed #ccc;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            min-height: 40px;
         }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>סורק NFC</h1>
-        <p>לחץ על הכפתור והצמד את גב הטלפון לתגית ה-NFC</p>
-        
-        <button id="scanButton">הפעל סורק</button>
+<div class="card">
+    <h2>NFC Pro Writer 🚀</h2>
+    
+    <div id="output">מוכן לסריקה או צריבה...</div>
 
-        <div id="output">
-            ממתין לפקודה...
-        </div>
+    <button class="btn-scan" id="btnRead">🔍 קרא מה יש בכרטיס</button>
+
+    <hr style="margin: 25px 0; opacity: 0.2;">
+
+    <div class="input-group">
+        <label>כתובת אתר (URL):</label>
+        <input type="url" id="urlInput" placeholder="https://example.com" dir="ltr">
     </div>
 
-    <script>
-        const scanButton = document.getElementById('scanButton');
-        const output = document.getElementById('output');
+    <button class="btn-write-url" id="btnWriteUrl">🔗 צרוב קישור לכרטיס</button>
+</div>
 
-        scanButton.addEventListener('click', async () => {
-            // בדיקה אם הדפדפן תומך ב-NFC
-            if (!('NDEFReader' in window)) {
-                output.innerHTML = "❌ מצטערים, הדפדפן או המכשיר שלך לא תומכים ב-Web NFC.";
-                return;
-            }
+<script>
+    const output = document.getElementById('output');
+    const urlInput = document.getElementById('urlInput');
 
-            try {
-                const ndef = new NDEFReader();
-                await ndef.scan();
-                
-                output.innerHTML = '<span class="status-scanning">⏳ סורק... הצמד את הטלפון כעת</span>';
-                scanButton.disabled = true;
+    // פונקציית עזר להצגת הודעות
+    function log(msg) { output.innerHTML = msg; }
 
-                ndef.addEventListener("readingerror", () => {
-                    output.innerHTML = "❌ שגיאה: לא ניתן לקרוא את התגית. נסה שוב.";
-                });
+    // קריאת כרטיס
+    document.getElementById('btnRead').addEventListener('click', async () => {
+        try {
+            const ndef = new NDEFReader();
+            await ndef.scan();
+            log("⏳ הצמד כרטיס לקריאה...");
+            ndef.onreading = ({ message }) => {
+                const decoder = new TextDecoder();
+                let text = "<b>תוכן שנמצא:</b><br>";
+                for (const record of message.records) {
+                    text += `סוג: ${record.recordType}<br>מידע: ${decoder.decode(record.data)}<br>`;
+                }
+                log(text);
+            };
+        } catch (error) { log("❌ שגיאה: " + error); }
+    });
 
-                ndef.addEventListener("reading", ({ message, serialNumber }) => {
-                    let content = `<strong>מזהה ייחודי:</strong> ${serialNumber}<br><br>`;
-                    
-                    for (const record of message.records) {
-                        const decoder = new TextDecoder();
-                        content += `<strong>תוכן:</strong> ${decoder.decode(record.data)}<br>`;
-                    }
-                    
-                    output.innerHTML = content;
-                    scanButton.disabled = false;
-                });
+    // צריבת קישור (URL)
+    document.getElementById('btnWriteUrl').addEventListener('click', async () => {
+        const url = urlInput.value;
+        if (!url.startsWith('http')) {
+            alert("אנא הכנס כתובת אתר מלאה (כולל https://)");
+            return;
+        }
 
-            } catch (error) {
-                output.innerHTML = "❌ שגיאה: " + error;
-                scanButton.disabled = false;
-            }
-        });
-    </script>
+        try {
+            const ndef = new NDEFReader();
+            log("⏳ <b>מתכונן לצריבת קישור...</b><br>הצמד את הכרטיס עכשיו!");
+            
+            // יצירת רשומה מסוג URL
+            await ndef.write({
+                records: [{ recordType: "url", data: url }]
+            });
+            
+            log("✅ הצלחה! הקישור נצרב.<br>נסה לסגור הכל ולהצמיד את הכרטיס.");
+        } catch (error) { log("❌ שגיאה בצריבה: " + error); }
+    });
+</script>
+
 </body>
 </html>
