@@ -3,160 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Smart Tool V3</title>
+    <title>WhatsApp Direct Fix</title>
     <style>
-        :root { --wa-color: #25D366; --wa-dark: #128C7E; --bg-color: #f0f2f5; }
-        body { font-family: -apple-system, system-ui, sans-serif; background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
-        .card { background: white; padding: 25px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
-        .display-box { background: #f9f9f9; border: 2px solid #eee; border-radius: 15px; padding: 15px; margin-bottom: 20px; text-align: right; }
-        .label { font-size: 13px; color: #888; font-weight: bold; margin-bottom: 5px; }
-        
-        /* שדות ניתנים לעריכה */
-        .editable { 
-            font-size: 18px; font-weight: bold; color: var(--wa-dark); 
-            margin-bottom: 15px; min-height: 30px; padding: 5px;
-            border-radius: 8px; border: 1px transparent solid;
-            transition: 0.3s; outline: none; word-break: break-all;
-        }
-        .editable:focus { border-color: #34b7f1; background: #fff; box-shadow: 0 0 5px rgba(52, 183, 241, 0.3); }
-        .editable:empty::before { content: "---"; color: #ccc; }
-
-        .btn { width: 100%; padding: 18px; margin: 8px 0; border: none; border-radius: 15px; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
-        .btn-paste { background-color: #6c757d; color: white; }
+        :root { --wa-green: #25D366; --wa-dark: #075E54; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; max-width: 400px; text-align: center; }
+        .box { background: #f8f9fa; border: 2px solid #eaebec; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: right; }
+        .label { font-size: 12px; color: #666; font-weight: bold; margin-bottom: 4px; }
+        .field { font-size: 18px; font-weight: bold; color: var(--wa-dark); min-height: 25px; outline: none; word-break: break-word; }
+        .btn { width: 100%; padding: 16px; margin: 8px 0; border: none; border-radius: 12px; font-size: 17px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .btn-voice { background-color: #34b7f1; color: white; }
-        .btn-send { background-color: var(--wa-color); color: white; margin-top: 15px; }
-        .btn-reset { background-color: #ff4b2b; color: white; margin-top: 15px; font-size: 14px; padding: 10px; }
-        
-        .listening { background-color: #ff4b2b !important; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        .hint { font-size: 11px; color: #aaa; margin-top: -10px; margin-bottom: 10px; display: block; }
+        .btn-voice.listening { background-color: #ff4b2b; animation: blink 1s infinite; }
+        .btn-send { background-color: var(--wa-green); color: white; display: none; }
+        .btn-reset { background-color: #e9ecef; color: #333; font-size: 14px; margin-top: 10px; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color: var(--wa-dark); margin-top: 0;">שליחה מהירה</h2>
+    <h2 style="color: var(--wa-dark);">שליחה ללא כפילויות</h2>
     
-    <div class="display-box">
-        <div class="label">שלח ל (ניתן לעריכה):</div>
-        <div id="numVal" class="editable" contenteditable="true"></div>
-        <span class="hint">לחץ למעלה כדי לתקן מספר ידנית</span>
-        
-        <div class="label">תוכן ההודעה (ניתן לעריכה):</div>
-        <div id="msgVal" class="editable" style="font-weight: normal;" contenteditable="true"></div>
-        <span class="hint">לחץ למעלה כדי לתקן את הטקסט</span>
+    <div class="box">
+        <div class="label">מספר טלפון:</div>
+        <div id="phoneField" class="field" contenteditable="true"></div>
+    </div>
+    
+    <div class="box">
+        <div class="label">תוכן ההודעה (לחץ לעריכה):</div>
+        <div id="msgField" class="field" style="font-weight: normal;" contenteditable="true"></div>
     </div>
 
-    <button class="btn btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
-    <button id="voiceBtn" class="btn btn-voice" onclick="toggleVoice()">🎤 לחץ כאן ודבר</button>
-    <button id="sendBtn" class="btn btn-send" onclick="sendToWhatsApp()">✅ שלח לוואטסאפ</button>
-    
-    <button class="btn btn-reset" onclick="resetAll()">נקה הכל</button>
-    <p id="statusTxt" style="font-size: 14px; color: #666; margin-top: 10px;">לחץ על הכפתור, הקרא מספר ואז הודעה</p>
+    <button id="voiceBtn" class="btn btn-voice" onclick="toggleListening()">🎤 לחץ כאן ודבר</button>
+    <button id="sendBtn" class="btn btn-send" onclick="sendWhatsApp()">✅ שלח לוואטסאפ</button>
+    <button class="btn btn-reset" onclick="resetPage()">נקה הכל</button>
+
+    <p id="status" style="font-size: 13px; color: #888; margin-top: 15px;">אמור מספר ואז הודעה...</p>
 </div>
 
 <script>
     let recognition;
     let isListening = false;
-    let finalTranscript = "";
+    let lockedNumber = "";
+    let lastProcessedSentence = "";
 
-    function setupRecognition() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) return alert("הדפדפן לא תומך");
-
-        recognition = new SpeechRecognition();
+    function initSpeech() {
+        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Speech) return alert("הדפדפן לא תומך");
+        
+        recognition = new Speech();
         recognition.lang = 'he-IL';
-        // שינוי קריטי: ביטול תוצאות ביניים כדי למנוע כפילות
-        recognition.interimResults = false; 
         recognition.continuous = true;
+        recognition.interimResults = false; // רק תוצאות סופיות כדי למנוע "מה מה מה"
 
         recognition.onresult = (event) => {
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript + " ";
-                }
-            }
+            let result = event.results[event.results.length - 1][0].transcript.trim();
+            
+            // מניעת כפילות: אם זה בדיוק מה שעיבדנו הרגע - תתעלם
+            if (result === lastProcessedSentence) return;
+            lastProcessedSentence = result;
 
-            processText(finalTranscript);
+            handleSpeechResult(result);
         };
 
-        recognition.onerror = () => stopVoice();
+        recognition.onend = () => { if (isListening) recognition.start(); };
     }
 
-    function processText(text) {
-        const numElem = document.getElementById('numVal');
-        const msgElem = document.getElementById('msgVal');
-
-        // 1. חילוץ מספר טלפון (מחפש רצף של 9-10 ספרות)
-        const digitsMatch = text.replace(/\D/g, '').match(/\d{9,10}/);
+    function handleSpeechResult(text) {
+        const phoneElem = document.getElementById('phoneField');
+        const msgElem = document.getElementById('msgField');
         
-        if (digitsMatch) {
-            const foundNum = digitsMatch[0];
-            numElem.innerText = foundNum;
+        // 1. אם אין עדיין מספר - חפש אותו
+        if (!lockedNumber) {
+            let digits = text.replace(/\D/g, '');
+            if (digits.length >= 9) {
+                lockedNumber = digits.substring(0, 10);
+                phoneElem.innerText = lockedNumber;
+                document.getElementById('status').innerText = "מספר זוהה! הקרא הודעה...";
+                
+                // הסרת המספר מהטקסט כדי שלא ייכנס להודעה
+                text = text.replace(lockedNumber, '').trim();
+            } else {
+                phoneElem.innerText = digits;
+            }
+        }
+
+        // 2. הוספת טקסט להודעה (רק אם הוא לא המספר עצמו)
+        if (text.length > 1 && text !== lockedNumber) {
+            // ניקוי מספרים שנדחפו בטעות
+            let cleanText = text.replace(/[0-9\-]{7,}/g, '').trim();
             
-            // 2. חילוץ ההודעה: לוקח הכל ומנקה את המספר שנמצא
-            // משתמש ברגקס חכם שמעיף את המספר גם אם יש בו רווחים או מקפים
-            const numPattern = foundNum.split('').join('[\\s\\-]*');
-            const reg = new RegExp(numPattern, 'g');
-            let cleanMsg = text.replace(reg, '').trim();
-            
-            // ניקוי תווים מיותרים שנשארו בהתחלה
-            cleanMsg = cleanMsg.replace(/^[^a-zA-Zא-ת]+/, '');
-            
-            msgElem.innerText = cleanMsg;
-        } else {
-            // אם עוד לא נמצא מספר, מציג את מה שנקלט בתיבת המספר בינתיים
-            numElem.innerText = text.replace(/\D/g, '');
+            if (cleanText) {
+                let currentMsg = msgElem.innerText === "---" ? "" : msgElem.innerText;
+                
+                // בדיקה נוספת למניעת כפילות מילים בתוך המשפט
+                if (!currentMsg.includes(cleanText)) {
+                    msgElem.innerText = (currentMsg + " " + cleanText).trim();
+                }
+                
+                document.getElementById('sendBtn').style.display = "flex";
+            }
         }
     }
 
-    async function pasteFromClipboard() {
-        try {
-            const text = await navigator.clipboard.readText();
-            const digits = text.replace(/\D/g, '');
-            if (digits.length >= 9) {
-                document.getElementById('numVal').innerText = digits;
-                document.getElementById('statusTxt').innerText = "מספר הודבק.";
-            }
-        } catch (e) { alert("אשר גישה ללוח"); }
+    function toggleListening() {
+        if (!recognition) initSpeech();
+        if (isListening) {
+            isListening = false;
+            recognition.stop();
+            document.getElementById('voiceBtn').innerText = "🎤 לחץ כאן ודבר";
+            document.getElementById('voiceBtn').classList.remove('listening');
+        } else {
+            isListening = true;
+            document.getElementById('voiceBtn').innerText = "🛑 הפסק הקלטה";
+            document.getElementById('voiceBtn').classList.add('listening');
+            recognition.start();
+        }
     }
 
-    function toggleVoice() {
-        if (!recognition) setupRecognition();
-        if (isListening) return stopVoice();
-
-        isListening = true;
-        finalTranscript = ""; // איפוס לפני הקלטה חדשה
-        document.getElementById('voiceBtn').innerText = "🛑 הפסק הקלטה";
-        document.getElementById('voiceBtn').classList.add('listening');
-        recognition.start();
+    function resetPage() {
+        location.reload();
     }
 
-    function stopVoice() {
-        isListening = false;
-        if (recognition) recognition.stop();
-        document.getElementById('voiceBtn').innerText = "🎤 לחץ כאן ודבר";
-        document.getElementById('voiceBtn').classList.remove('listening');
-    }
-
-    function resetAll() {
-        stopVoice();
-        finalTranscript = "";
-        document.getElementById('numVal').innerText = "";
-        document.getElementById('msgVal').innerText = "";
-        document.getElementById('statusTxt').innerText = "מוכן לפעולה";
-    }
-
-    function sendToWhatsApp() {
-        let num = document.getElementById('numVal').innerText.replace(/\D/g, '');
-        let msg = document.getElementById('msgVal').innerText.trim();
-
-        if (num.length < 9) return alert("אנא הזן מספר תקין");
+    function sendWhatsApp() {
+        let num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
+        let msg = document.getElementById('msgField').innerText.trim();
         if (num.startsWith('0')) num = '972' + num.substring(1);
-        
         window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
     }
 </script>
-
 </body>
 </html>
