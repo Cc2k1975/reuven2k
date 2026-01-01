@@ -138,7 +138,6 @@
 
     // מסיר כל ספרה כדי שלא ייכנס מספר להודעה
     msg = msg.replace(/\d/g, " ");
-    // ניקוי כפול רווחים
     msg = msg.replace(/\s+/g, " ").trim();
 
     msgElem.innerText = msg || "---";
@@ -157,9 +156,10 @@
     document.getElementById("msgField").innerText = "---";
     document.getElementById("status").innerText = "מקשיב... שחרר לשליחה";
 
-    try { recognition.start(); } catch(e) { /* אם כבר רץ - לא קורס */ }
+    try { recognition.start(); } catch(e) {}
   }
 
+  // ✅ כאן התיקון: פתיחה אמינה של וואטסאפ
   function stopAndSend(){
     if (!recognition || !isListening) return;
 
@@ -167,12 +167,40 @@
     try { recognition.stop(); } catch(e) {}
 
     const num = (lockedNumber || "").replace(/\D/g,'');
-    if (num.length >= 9){
-      const cleanNum = num.startsWith('0') ? ('972' + num.substring(1)) : num;
-      window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(finalMsg)}`;
-    } else {
+    if (num.length < 9){
       document.getElementById("status").innerText = "לא זוהה מספר נייד תקין";
+      return;
     }
+
+    const cleanNum = num.startsWith('0') ? ('972' + num.substring(1)) : num;
+    const text = encodeURIComponent(finalMsg || "");
+
+    const waMe = `https://wa.me/${cleanNum}?text=${text}`;
+    const waApi = `https://api.whatsapp.com/send?phone=${cleanNum}&text=${text}`;
+    const waIntent = `intent://send?phone=${cleanNum}&text=${text}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+
+    document.getElementById("status").innerText = "פותח וואטסאפ...";
+
+    // דיליי קריטי כדי שזיהוי הדיבור יסיים להיסגר לפני ניווט
+    setTimeout(() => {
+      // נסיון 1
+      window.location.assign(waMe);
+
+      // fallback 1
+      setTimeout(() => {
+        if (document.visibilityState === "visible") {
+          window.location.assign(waApi);
+        }
+      }, 600);
+
+      // fallback 2 (אנדרואיד)
+      setTimeout(() => {
+        if (document.visibilityState === "visible") {
+          window.location.href = waIntent;
+        }
+      }, 1200);
+
+    }, 250);
   }
 
   const btn = document.getElementById("pttBtn");
@@ -180,6 +208,7 @@
   // אנדרואיד: touchstart/touchend הכי יציב
   btn.addEventListener("touchstart", (e)=>{ e.preventDefault(); startListening(); }, {passive:false});
   btn.addEventListener("touchend", (e)=>{ e.preventDefault(); stopAndSend(); }, {passive:false});
+
   // דסקטופ: mouse
   btn.addEventListener("mousedown", (e)=>{ e.preventDefault(); startListening(); });
   btn.addEventListener("mouseup", (e)=>{ e.preventDefault(); stopAndSend(); });
