@@ -3,187 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Quick Link</title>
+    <title>WhatsApp Voice Assistant</title>
     <style>
         :root {
             --wa-color: #25D366;
             --wa-dark: #128C7E;
             --bg-color: #f0f2f5;
+            --accent-color: #34b7f1;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, system-ui, sans-serif;
             background-color: var(--bg-color);
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
-            height: 100vh;
+            align-items: center;
+            min-height: 100vh;
             margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
+            padding: 15px;
         }
 
         .card {
             background: white;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 25px;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
             text-align: center;
         }
 
-        h1 { color: var(--wa-dark); margin-bottom: 25px; font-size: 24px; }
+        .display-box {
+            background: #f9f9f9;
+            border: 2px dashed #ddd;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            min-height: 100px;
+        }
+
+        .label { font-size: 14px; color: #888; margin-bottom: 5px; }
+        .value { font-size: 20px; font-weight: bold; color: var(--wa-dark); margin-bottom: 15px; min-height: 24px; }
 
         .btn {
             width: 100%;
-            padding: 20px;
-            margin: 10px 0;
+            padding: 18px;
+            margin: 8px 0;
             border: none;
             border-radius: 15px;
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            transition: transform 0.2s, background-color 0.2s;
+            transition: all 0.2s;
         }
 
-        .btn:active { transform: scale(0.98); }
-
-        .btn-paste { background-color: var(--wa-color); color: white; }
-        .btn-voice { background-color: #34b7f1; color: white; }
-        .btn-voice.listening { background-color: #ff4b2b; animation: pulse 1.5s infinite; }
+        .btn-voice { background-color: var(--accent-color); color: white; }
+        .btn-send { background-color: var(--wa-color); color: white; display: none; }
+        
+        .listening { 
+            background-color: #ff4b2b !important; 
+            animation: pulse 1.5s infinite;
+        }
 
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
         }
 
-        #status {
-            margin-top: 20px;
-            font-size: 16px;
-            color: #666;
-            min-height: 24px;
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #bbb;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 5px;
         }
-
-        .number-display {
-            font-size: 28px;
-            font-weight: bold;
-            color: var(--wa-dark);
-            margin: 15px 0;
-            letter-spacing: 2px;
-        }
+        .active-dot { background-color: #ff4b2b; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>שלח וואטסאפ מהר</h1>
+<div class="card">
+    <h2 style="color: var(--wa-dark);">עוזר וואטסאפ קולי</h2>
+    
+    <div class="display-box">
+        <div class="label">מספר מזוהה:</div>
+        <div id="numVal" class="value">---</div>
         
-        <div id="numberPreview" class="number-display">---</div>
-
-        <button class="btn btn-paste" onclick="pasteAndGo()">
-            📋 הדבק מספר ופתח
-        </button>
-
-        <button id="voiceBtn" class="btn btn-voice" onclick="startVoice()">
-            🎤 הקראה קולית (10 ספרות)
-        </button>
-
-        <div id="status">מוכן לפעולה</div>
+        <div class="label">הודעה:</div>
+        <div id="msgVal" class="value" style="font-weight: normal; font-size: 16px;">(מחכה להקראה...)</div>
     </div>
 
-    <script>
-        const statusDiv = document.getElementById('status');
-        const numberPreview = document.getElementById('numberPreview');
-        const voiceBtn = document.getElementById('voiceBtn');
+    <button id="mainBtn" class="btn btn-voice" onclick="toggleRecognition()">
+        🎤 התחל הקראה (מספר + הודעה)
+    </button>
 
-        // פונקציה לניקוי המספר והעברה לוואטסאפ
-        function openWhatsApp(rawNumber) {
-            // השארת רק ספרות
-            let cleaned = rawNumber.replace(/\D/g, '');
-            
-            // טיפול במספר ישראלי שמתחיל ב-0
-            if (cleaned.startsWith('0')) {
-                cleaned = '972' + cleaned.substring(1);
-            }
-            
-            // אם המספר קצר מדי, אל תעבור
-            if (cleaned.length < 9) {
-                statusDiv.innerText = "המספר קצר מדי...";
-                return;
-            }
+    <button id="sendBtn" class="btn btn-send" onclick="sendToWhatsApp()">
+        ✅ פתח וואטסאפ ושדר
+    </button>
 
-            statusDiv.innerText = "פותח וואטסאפ...";
-            window.location.href = `https://wa.me/${cleaned}`;
+    <p id="statusTxt" style="font-size: 14px; color: #666;">לחץ על הכפתור והקרא קודם את המספר</p>
+</div>
+
+<script>
+    let recognition;
+    let isListening = false;
+    let identifiedNumber = "";
+    let identifiedMessage = "";
+    let isCapturingMessage = false;
+
+    function setupRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("הדפדפן לא תומך בזיהוי קולי");
+            return;
         }
 
-        // --- אפשרות 1: העתקה מהלוח ---
-        async function pasteAndGo() {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (text) {
-                    numberPreview.innerText = text;
-                    openWhatsApp(text);
+        recognition = new SpeechRecognition();
+        recognition.lang = 'he-IL';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        recognition.onresult = (event) => {
+            let currentTranscript = "";
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                currentTranscript += event.results[i][0].transcript;
+            }
+
+            if (!isCapturingMessage) {
+                // שלב א: מחפשים מספר טלפון
+                let digits = currentTranscript.replace(/\D/g, '');
+                if (digits.length >= 10) {
+                    identifiedNumber = digits.substring(0, 10);
+                    document.getElementById('numVal').innerText = identifiedNumber;
+                    
+                    // עוברים לשלב ב: זיהוי ההודעה
+                    isCapturingMessage = true;
+                    document.getElementById('statusTxt').innerText = "מספר זוהה! עכשיו המשך להקריא את ההודעה...";
+                    document.getElementById('statusTxt').style.color = "green";
                 } else {
-                    statusDiv.innerText = "הלוח ריק";
+                    document.getElementById('numVal').innerText = digits;
                 }
-            } catch (err) {
-                statusDiv.innerText = "שגיאה: יש לאפשר גישה ללוח";
-                console.error(err);
+            } else {
+                // שלב ב: כל מה שנאמר אחרי המספר נכנס להודעה
+                // אנחנו מנקים את המספר מההתחלה של הטקסט כדי שלא יופיע גם בהודעה
+                let messagePart = currentTranscript.replace(identifiedNumber, "").trim();
+                identifiedMessage = messagePart;
+                document.getElementById('msgVal').innerText = identifiedMessage;
+                document.getElementById('sendBtn').style.display = "block";
             }
-        }
+        };
 
-        // --- אפשרות 2: הקראה קולית ---
-        function startVoice() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            
-            if (!SpeechRecognition) {
-                alert("הדפדפן שלך לא תומך בזיהוי קולי");
-                return;
-            }
+        recognition.onend = () => {
+            if (isListening) recognition.start(); // המשך להאזין אם לא עצרנו ידנית
+        };
+    }
 
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'he-IL';
-            recognition.interimResults = true;
+    function toggleRecognition() {
+        if (!recognition) setupRecognition();
 
-            recognition.onstart = () => {
-                voiceBtn.classList.add('listening');
-                voiceBtn.innerText = "מקישיב... דבר עכשיו";
-                statusDiv.innerText = "דבר את המספר...";
-            };
-
-            recognition.onresult = (event) => {
-                let transcript = event.results[0][0].transcript;
-                let digitsOnly = transcript.replace(/\D/g, '');
-                
-                numberPreview.innerText = digitsOnly;
-
-                // אם הגענו ל-10 ספרות (מספר ישראלי סטנדרטי)
-                if (digitsOnly.length >= 10) {
-                    recognition.stop();
-                    openWhatsApp(digitsOnly);
-                }
-            };
-
-            recognition.onerror = () => {
-                voiceBtn.classList.remove('listening');
-                voiceBtn.innerText = "🎤 הקראה קולית (10 ספרות)";
-                statusDiv.innerText = "היתה שגיאה בזיהוי";
-            };
-
-            recognition.onend = () => {
-                voiceBtn.classList.remove('listening');
-                voiceBtn.innerText = "🎤 הקראה קולית (10 ספרות)";
-            };
-
+        if (isListening) {
+            stopAll();
+        } else {
+            isListening = true;
+            isCapturingMessage = false;
+            identifiedNumber = "";
+            identifiedMessage = "";
+            document.getElementById('numVal').innerText = "---";
+            document.getElementById('msgVal').innerText = "(מחכה להקראה...)";
+            document.getElementById('mainBtn').innerText = "🛑 עצור הקלטה";
+            document.getElementById('mainBtn').classList.add('listening');
             recognition.start();
         }
-    </script>
+    }
+
+    function stopAll() {
+        isListening = false;
+        recognition.stop();
+        document.getElementById('mainBtn').innerText = "🎤 התחל הקראה מחדש";
+        document.getElementById('mainBtn').classList.remove('listening');
+    }
+
+    function sendToWhatsApp() {
+        if (!identifiedNumber) return;
+        
+        let cleanNum = identifiedNumber;
+        if (cleanNum.startsWith('0')) {
+            cleanNum = '972' + cleanNum.substring(1);
+        }
+
+        // קידוד הטקסט לפורמט של URL
+        const encodedMsg = encodeURIComponent(identifiedMessage);
+        const url = `https://wa.me/${cleanNum}?text=${encodedMsg}`;
+        
+        window.location.href = url;
+    }
+</script>
+
 </body>
 </html>
