@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WhatsApp PTT - No Duplicates</title>
+    <title>WhatsApp PTT - Instant Send</title>
     <style>
         :root { --wa-green: #25D366; --wa-dark: #075E54; }
         body { 
@@ -34,7 +34,7 @@
 <body>
 
 <div class="card">
-    <h2 style="color: var(--wa-dark); margin-top: 0;">דבר ושלח (ללא כפילויות)</h2>
+    <h2 style="color: var(--wa-dark); margin-top: 0;">דבר ושלח מיד</h2>
     
     <div class="box">
         <div class="label">מספר יעד:</div>
@@ -58,7 +58,8 @@
 <script>
     let recognition;
     let lockedNumber = "";
-    let currentFinalTranscript = "";
+    let currentMsgText = "";
+    let isListening = false;
 
     function initRecognition() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -68,14 +69,11 @@
         recognition.interimResults = true;
 
         recognition.onresult = (event) => {
-            let interimTranscript = "";
-            // בנייה מחדש של כל הטקסט מההתחלה כדי למנוע כפילויות של המנוע
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                interimTranscript += event.results[i][0].transcript;
+            let fullTranscript = "";
+            for (let i = 0; i < event.results.length; ++i) {
+                fullTranscript += event.results[i][0].transcript;
             }
-            
-            // אנחנו לא מוסיפים (+=), אלא מעדכנים את מה שמוצג כרגע
-            updateUI(interimTranscript);
+            updateUI(fullTranscript);
         };
     }
 
@@ -83,7 +81,7 @@
         const phoneElem = document.getElementById('phoneField');
         const msgElem = document.getElementById('msgField');
 
-        // זיהוי מספר טלפון (10 ספרות ראשונות)
+        // זיהוי מספר טלפון
         if (!lockedNumber) {
             let digits = text.replace(/\D/g, '');
             if (digits.length >= 10) {
@@ -94,50 +92,56 @@
             }
         }
 
-        // חילוץ ההודעה (כל מה שלא המספר)
+        // חילוץ ההודעה
         if (lockedNumber) {
             let messagePart = text.replace(lockedNumber, '').trim();
-            // ניקוי תווים שהם לא אותיות מההתחלה
-            messagePart = messagePart.replace(/^[^a-zA-Zא-ת]+/, '');
+            messagePart = messagePart.replace(/^[^a-zA-Zא-ת]+/, ''); // ניקוי סימנים בתחילת הודעה
             msgElem.innerText = messagePart || "---";
-            currentFinalTranscript = messagePart;
+            currentMsgText = messagePart;
         }
     }
 
     const btn = document.getElementById('pttBtn');
 
-    // תחילת לחיצה
+    // תחילת לחיצה - pointerdown עובד הכי טוב בנייד
     btn.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         if (!recognition) initRecognition();
         
-        currentFinalTranscript = "";
+        isListening = true;
+        currentMsgText = "";
         document.getElementById('status').innerText = "מקשיב... שחרר לשליחה";
         recognition.start();
     });
 
-    // שחרור לחיצה
+    // שחרור לחיצה - מעבר מיידי
     window.addEventListener('pointerup', (e) => {
-        if (recognition && recognition.onspeechstart !== null) {
+        if (isListening) {
+            isListening = false;
             recognition.stop();
             document.getElementById('status').innerText = "שולח...";
             
-            // השהיה קטנטנה כדי לוודא שוואטסאפ מקבל את הטקסט האחרון שזוהה
-            setTimeout(sendToWhatsApp, 600);
+            // שליחה מיידית בלי setTimeout כדי שהדפדפן לא יחסום
+            sendToWhatsApp();
         }
     });
 
     function sendToWhatsApp() {
         let num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
-        let msg = currentFinalTranscript;
+        let msg = currentMsgText;
 
         if (!num || num.length < 9) {
-            document.getElementById('status').innerText = "לא זוהה מספר תקין";
+            document.getElementById('status').innerText = "לא זוהה מספר";
             return;
         }
 
         if (num.startsWith('0')) num = '972' + num.substring(1);
-        window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+        
+        // יצירת הקישור
+        const waUrl = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+        
+        // מעבר מיידי
+        window.location.href = waUrl;
     }
 
     async function pasteFromClipboard() {
@@ -147,13 +151,13 @@
             if (digits.length >= 9) {
                 lockedNumber = digits;
                 document.getElementById('phoneField').innerText = lockedNumber;
-                document.getElementById('status').innerText = "מספר הודבק. עכשיו לחץ ודבר הודעה.";
+                document.getElementById('status').innerText = "מספר הודבק. לחץ ודבר הודעה.";
             }
         } catch (e) { alert("אשר גישה ללוח"); }
     }
 
-    // מניעת תפריטים מעצבנים בלחיצה ארוכה
-    window.oncontextmenu = (e) => { e.preventDefault(); e.stopPropagation(); return false; };
+    // מניעת תפריטים קופצים
+    window.oncontextmenu = (e) => { e.preventDefault(); return false; };
 </script>
 </body>
 </html>
