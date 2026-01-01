@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>שומר טלפון ער</title>
+    <style>
+        body {
+            background-color: #000;
+            color: white;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: sans-serif;
+            overflow: hidden;
+        }
+        .indicator {
+            width: 80px;
+            height: 80px;
+            background-color: #00ff00;
+            border-radius: 50%;
+            box-shadow: 0 0 30px #00ff00;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.6; }
+        }
+        .status {
+            margin-top: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+        small { color: #888; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="indicator"></div>
+    <div class="status" id="statusText">מנסה להפעיל מניעת שינה...</div>
+    <small>וודא שהדף פתוח והמסך לא כבוי</small>
+
+    <script>
+        let wakeLock = null;
+
+        // פונקציה לבקשת נעילת מסך
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    document.getElementById('statusText').innerText = "סטטוס: המערכת פועלת ✅";
+                    document.getElementById('statusText').style.color = "#00ff00";
+                    
+                    // האזנה למקרה שהנעילה משתחררת (למשל אם הסוללה חלשה מדי)
+                    wakeLock.addEventListener('release', () => {
+                        console.log('Wake Lock released');
+                    });
+                } else {
+                    document.getElementById('statusText').innerText = "הדפדפן לא תומך בזה";
+                }
+            } catch (err) {
+                document.getElementById('statusText').innerText = "שגיאה: יש לגעת במסך פעם אחת";
+            }
+        }
+
+        // בטלפונים חייבים "אינטראקציה" של המשתמש כדי להפעיל את זה
+        document.body.onclick = function() {
+            requestWakeLock();
+        };
+
+        // הפעלה אוטומטית כשהדף נטען
+        window.onload = requestWakeLock;
+
+        // אם המשתמש יצא מהדף וחזר - להפעיל מחדש
+        document.addEventListener('visibilitychange', () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                requestWakeLock();
+            }
+        });
+    </script>
+</body>
+</html>
