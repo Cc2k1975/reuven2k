@@ -7,8 +7,7 @@
     <style>
         :root {
             --primary: #673ab7;
-            --wifi: #009688;
-            --automation: #e91e63;
+            --secondary: #009688;
             --bg: #f8f9fa;
         }
 
@@ -24,7 +23,7 @@
         .card {
             background: white;
             border-radius: 20px;
-            padding: 20px;
+            padding: 25px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 450px;
@@ -46,7 +45,6 @@
             border-radius: 12px;
             cursor: pointer;
             font-weight: bold;
-            transition: 0.3s;
         }
 
         .tab-btn.active { background: var(--primary); color: white; }
@@ -54,8 +52,8 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .input-group { margin-bottom: 20px; text-align: right; }
-        label { display: block; margin-bottom: 8px; font-size: 0.95rem; font-weight: bold; }
+        .input-group { margin-bottom: 15px; text-align: right; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
         
         input, select {
             width: 100%;
@@ -64,26 +62,6 @@
             border-radius: 12px;
             box-sizing: border-box;
             font-size: 1rem;
-        }
-
-        /* עיצוב סליידר ווליום */
-        .volume-container {
-            background: #f0f0f0;
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-        }
-        
-        input[type="range"] {
-            width: 100%;
-            margin: 15px 0;
-            cursor: pointer;
-        }
-
-        .vol-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: var(--primary);
         }
 
         button.main-btn {
@@ -95,8 +73,7 @@
             font-size: 1.1rem;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            margin-top: 15px;
         }
 
         .btn-write { background-color: var(--primary); }
@@ -109,16 +86,11 @@
             background: #fff8e1;
             border: 1px solid #ffe082;
             text-align: center;
-            font-weight: 500;
+            font-weight: bold;
         }
 
-        .write-section { display: none; animation: fadeIn 0.3s; }
+        .write-section { display: none; }
         .write-section.active { display: block; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
     </style>
 </head>
 <body>
@@ -137,54 +109,41 @@
 
     <div id="write" class="tab-content">
         <div class="input-group">
-            <label>מה ברצונך לבצע?</label>
+            <label>מה ברצונך לצרוב?</label>
             <select id="writeType" onchange="toggleWriteSection()">
-                <option value="none">--- בחר פעולה ---</option>
-                <option value="wifi">📶 חיבור אוטומטי ל-WiFi</option>
-                <option value="auto">🤖 הפעלת פקודת אוטומציה</option>
-                <option value="volume">🔊 הגדרת עוצמת קול</option>
+                <option value="none">--- בחר אפשרות ---</option>
+                <option value="wifi">📶 חיבור ל-WiFi</option>
+                <option value="auto">🔗 קישור לאתר או אוטומציה</option>
             </select>
         </div>
 
         <div id="section-wifi" class="write-section">
             <div class="input-group">
                 <label>שם הרשת (SSID):</label>
-                <input type="text" id="ssid" placeholder="שם ה-WiFi">
+                <input type="text" id="ssid" placeholder="הכנס שם רשת">
             </div>
             <div class="input-group">
                 <label>סיסמה:</label>
-                <input type="password" id="password" placeholder="סיסמת הרשת">
+                <input type="password" id="password" placeholder="הכנס סיסמה">
             </div>
         </div>
 
         <div id="section-auto" class="write-section">
             <div class="input-group">
-                <label>קישור Webhook:</label>
-                <input type="url" id="webhookUrl" placeholder="https://..." dir="ltr">
+                <label>כתובת (URL):</label>
+                <input type="url" id="targetUrl" placeholder="https://..." dir="ltr">
             </div>
         </div>
 
-        <div id="section-volume" class="write-section">
-            <div class="volume-container">
-                <label>בחר עוצמת קול רצויה:</label>
-                <div class="vol-value" id="volDisplay">5</div>
-                <input type="range" id="volumeLevel" min="1" max="10" value="5" oninput="document.getElementById('volDisplay').innerText = this.value">
-                <p style="font-size: 0.8rem; color: #777; margin: 0;">העוצמה תיצרב אוטומטית בכרטיס</p>
-            </div>
-        </div>
-
-        <button class="main-btn btn-write" id="btnWriteMain" style="display: none;">צרוב כרטיס (4451)</button>
+        <button class="main-btn btn-write" id="btnWriteMain" style="display: none;">צרוב כרטיס</button>
     </div>
 
-    <div id="status">מוכן לעבודה</div>
+    <div id="status">מוכן לפעולה</div>
 </div>
 
 <script>
     const statusDiv = document.getElementById('status');
     const SECRET_PIN = "4451";
-    
-    // כתובת "שתולה" עבור ווליום - לא מוצגת למשתמש
-    const HIDDEN_VOLUME_URL = "https://nfc-actions.io/set-volume";
 
     function log(msg) { statusDiv.innerHTML = msg; }
 
@@ -202,31 +161,19 @@
         if (type !== "none") {
             document.getElementById('section-' + type).classList.add('active');
             btn.style.display = 'block';
-        } else {
-            btn.style.display = 'none';
-        }
-    }
-
-    function checkPermission() {
-        const userInput = prompt("נא להזיז סיסמת אבטחה לצריבה:");
-        if (userInput === SECRET_PIN) return true;
-        alert("סיסמה שגויה!");
-        return false;
+        } else { btn.style.display = 'none'; }
     }
 
     async function writeNFC(content) {
-        if (!checkPermission()) return;
-        if (!('NDEFReader' in window)) {
-            log("❌ המכשיר לא תומך ב-NFC");
-            return;
-        }
+        const pin = prompt("נא להזין סיסמת אבטחה לצריבה:");
+        if (pin !== SECRET_PIN) return alert("סיסמה שגויה! הפעולה בוטלה.");
 
         try {
             const ndef = new NDEFReader();
-            log("⏳ הצמד את הכרטיס כעת...");
+            log("⏳ הצמד כרטיס כעת...");
             await ndef.write({ records: [{ recordType: "url", data: content }] });
-            log("✅ הצלחה! הכרטיס מוכן.");
-        } catch (error) { log("❌ שגיאה: " + error); }
+            log("✅ הצלחה! המידע נצרב.");
+        } catch (e) { log("❌ שגיאה בצריבה"); }
     }
 
     document.getElementById('btnWriteMain').addEventListener('click', () => {
@@ -235,19 +182,13 @@
         if (type === 'wifi') {
             const ssid = document.getElementById('ssid').value;
             const pass = document.getElementById('password').value;
-            if (!ssid || !pass) return alert("מלא פרטים");
+            if (!ssid || !pass) return alert("אנא מלא את כל הפרטים");
             writeNFC(`WIFI:S:${ssid};T:WPA;P:${pass};;`);
         } 
         else if (type === 'auto') {
-            const url = document.getElementById('webhookUrl').value;
-            if (!url) return alert("הכנס קישור");
+            const url = document.getElementById('targetUrl').value;
+            if (!url) return alert("אנא הכנס כתובת תקינה");
             writeNFC(url);
-        }
-        else if (type === 'volume') {
-            const level = document.getElementById('volumeLevel').value;
-            // שימוש בכתובת השתולה + העוצמה שבחרת
-            const finalUrl = `${HIDDEN_VOLUME_URL}?val=${level}`;
-            writeNFC(finalUrl);
         }
     });
 
@@ -255,15 +196,13 @@
         try {
             const ndef = new NDEFReader();
             await ndef.scan();
-            log("⏳ הצמד כרטיס לקריאה...");
+            log("⏳ סורק... הצמד כרטיס");
             ndef.onreading = ({ message }) => {
                 const decoder = new TextDecoder();
-                const data = decoder.decode(message.records[0].data);
-                log(`<b>תוכן הכרטיס:</b><br>${data}`);
+                log(`<b>נמצא תוכן:</b><br>${decoder.decode(message.records[0].data)}`);
             };
-        } catch (e) { log("❌ שגיאה: " + e); }
+        } catch (e) { log("❌ שגיאה בקריאה"); }
     });
 </script>
-
 </body>
 </html>
