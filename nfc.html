@@ -30,22 +30,23 @@
             max-width: 450px;
         }
 
-        h2 { text-align: center; color: var(--primary); }
+        h2 { text-align: center; color: var(--primary); margin-bottom: 25px; }
 
         .tabs {
             display: flex;
-            gap: 5px;
-            margin-bottom: 20px;
+            gap: 10px;
+            margin-bottom: 25px;
         }
 
         .tab-btn {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             border: none;
             background: #eee;
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: bold;
+            transition: 0.3s;
         }
 
         .tab-btn.active { background: var(--primary); color: white; }
@@ -53,51 +54,71 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        .input-group { margin-bottom: 15px; text-align: right; }
-        label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
+        .input-group { margin-bottom: 20px; text-align: right; }
+        label { display: block; margin-bottom: 8px; font-size: 0.95rem; font-weight: bold; }
         
         input, select {
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             border: 2px solid #ddd;
-            border-radius: 10px;
+            border-radius: 12px;
             box-sizing: border-box;
             font-size: 1rem;
         }
 
-        /* עיצוב לסרגל עוצמה */
+        /* עיצוב סליידר ווליום */
+        .volume-container {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
         input[type="range"] {
             width: 100%;
-            margin: 10px 0;
+            margin: 15px 0;
+            cursor: pointer;
+        }
+
+        .vol-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
         }
 
         button.main-btn {
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             color: white;
             font-size: 1.1rem;
             font-weight: bold;
             cursor: pointer;
             margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
         .btn-write { background-color: var(--primary); }
         .btn-read { background-color: #444; }
 
         #status {
-            margin-top: 20px;
+            margin-top: 25px;
             padding: 15px;
-            border-radius: 10px;
+            border-radius: 12px;
             background: #fff8e1;
             border: 1px solid #ffe082;
             text-align: center;
-            font-weight: bold;
+            font-weight: 500;
         }
 
-        .write-section { display: none; margin-top: 15px; }
+        .write-section { display: none; animation: fadeIn 0.3s; }
         .write-section.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -106,8 +127,8 @@
     <h2>NFC Secure Tool 🔒</h2>
 
     <div class="tabs">
-        <button class="tab-btn active" onclick="openTab('read')">🔍 קרא</button>
-        <button class="tab-btn" onclick="openTab('write')">✍️ צרוב</button>
+        <button class="tab-btn active" onclick="openTab('read')">🔍 קריאה</button>
+        <button class="tab-btn" onclick="openTab('write')">✍️ כתיבה</button>
     </div>
 
     <div id="read" class="tab-content active">
@@ -116,55 +137,54 @@
 
     <div id="write" class="tab-content">
         <div class="input-group">
-            <label>בחר סוג צריבה:</label>
+            <label>מה ברצונך לבצע?</label>
             <select id="writeType" onchange="toggleWriteSection()">
-                <option value="none">--- בחר מה לעשות ---</option>
-                <option value="wifi">📶 הגדרות WiFi</option>
-                <option value="auto">🤖 פקודת אוטומציה כללית</option>
-                <option value="volume">🔊 שינוי עוצמת קול (1-10)</option>
+                <option value="none">--- בחר פעולה ---</option>
+                <option value="wifi">📶 חיבור אוטומטי ל-WiFi</option>
+                <option value="auto">🤖 הפעלת פקודת אוטומציה</option>
+                <option value="volume">🔊 הגדרת עוצמת קול</option>
             </select>
         </div>
 
         <div id="section-wifi" class="write-section">
             <div class="input-group">
                 <label>שם הרשת (SSID):</label>
-                <input type="text" id="ssid" placeholder="MyHomeWiFi">
+                <input type="text" id="ssid" placeholder="שם ה-WiFi">
             </div>
             <div class="input-group">
-                <label>סיסמה לרשת:</label>
-                <input type="password" id="password" placeholder="סיסמת ה-WiFi">
+                <label>סיסמה:</label>
+                <input type="password" id="password" placeholder="סיסמת הרשת">
             </div>
         </div>
 
         <div id="section-auto" class="write-section">
             <div class="input-group">
-                <label>כתובת Webhook:</label>
-                <input type="url" id="webhookUrl" placeholder="https://maker.ifttt.com/..." dir="ltr">
+                <label>קישור Webhook:</label>
+                <input type="url" id="webhookUrl" placeholder="https://..." dir="ltr">
             </div>
         </div>
 
         <div id="section-volume" class="write-section">
-            <div class="input-group">
-                <label>בחר עוצמת קול (1 עד 10):</label>
-                <input type="range" id="volumeLevel" min="1" max="10" value="5" oninput="this.nextElementSibling.value = this.value">
-                <output style="font-weight: bold; color: var(--primary);">5</output>
-            </div>
-            <div class="input-group">
-                <label>כתובת שירות האוטומציה שלך:</label>
-                <input type="url" id="volumeBaseUrl" placeholder="https://..." dir="ltr">
-                <small style="color: #666; font-size: 0.75rem;">הקוד יוסיף את רמת הווליום לסוף הכתובת הזו.</small>
+            <div class="volume-container">
+                <label>בחר עוצמת קול רצויה:</label>
+                <div class="vol-value" id="volDisplay">5</div>
+                <input type="range" id="volumeLevel" min="1" max="10" value="5" oninput="document.getElementById('volDisplay').innerText = this.value">
+                <p style="font-size: 0.8rem; color: #777; margin: 0;">העוצמה תיצרב אוטומטית בכרטיס</p>
             </div>
         </div>
 
-        <button class="main-btn btn-write" id="btnWriteMain" style="display: none;">צרוב כרטיס (מוגן בסיסמה)</button>
+        <button class="main-btn btn-write" id="btnWriteMain" style="display: none;">צרוב כרטיס (4451)</button>
     </div>
 
-    <div id="status">מוכן...</div>
+    <div id="status">מוכן לעבודה</div>
 </div>
 
 <script>
     const statusDiv = document.getElementById('status');
     const SECRET_PIN = "4451";
+    
+    // כתובת "שתולה" עבור ווליום - לא מוצגת למשתמש
+    const HIDDEN_VOLUME_URL = "https://nfc-actions.io/set-volume";
 
     function log(msg) { statusDiv.innerHTML = msg; }
 
@@ -190,22 +210,22 @@
     function checkPermission() {
         const userInput = prompt("נא להזיז סיסמת אבטחה לצריבה:");
         if (userInput === SECRET_PIN) return true;
-        alert("סיסמה שגויה! הפעולה בוטלה.");
+        alert("סיסמה שגויה!");
         return false;
     }
 
     async function writeNFC(content) {
         if (!checkPermission()) return;
         if (!('NDEFReader' in window)) {
-            log("❌ מכשיר לא נתמך");
+            log("❌ המכשיר לא תומך ב-NFC");
             return;
         }
 
         try {
             const ndef = new NDEFReader();
-            log("⏳ <b>הסיסמה אושרה!</b><br>הצמד את התגית...");
+            log("⏳ הצמד את הכרטיס כעת...");
             await ndef.write({ records: [{ recordType: "url", data: content }] });
-            log("✅ הצלחה! המידע נצרב.");
+            log("✅ הצלחה! הכרטיס מוכן.");
         } catch (error) { log("❌ שגיאה: " + error); }
     }
 
@@ -215,19 +235,18 @@
         if (type === 'wifi') {
             const ssid = document.getElementById('ssid').value;
             const pass = document.getElementById('password').value;
+            if (!ssid || !pass) return alert("מלא פרטים");
             writeNFC(`WIFI:S:${ssid};T:WPA;P:${pass};;`);
         } 
         else if (type === 'auto') {
             const url = document.getElementById('webhookUrl').value;
+            if (!url) return alert("הכנס קישור");
             writeNFC(url);
         }
         else if (type === 'volume') {
             const level = document.getElementById('volumeLevel').value;
-            const baseUrl = document.getElementById('volumeBaseUrl').value;
-            if (!baseUrl) return alert("אנא הכנס את כתובת שירות האוטומציה שלך");
-            
-            // הקוד מחבר את הכתובת עם רמת הווליום הנבחרת
-            const finalUrl = `${baseUrl}?level=${level}`;
+            // שימוש בכתובת השתולה + העוצמה שבחרת
+            const finalUrl = `${HIDDEN_VOLUME_URL}?val=${level}`;
             writeNFC(finalUrl);
         }
     });
@@ -236,10 +255,11 @@
         try {
             const ndef = new NDEFReader();
             await ndef.scan();
-            log("⏳ הצמד תגית לקריאה...");
+            log("⏳ הצמד כרטיס לקריאה...");
             ndef.onreading = ({ message }) => {
                 const decoder = new TextDecoder();
-                log(`<b>תוכן שנמצא:</b><br>${decoder.decode(message.records[0].data)}`);
+                const data = decoder.decode(message.records[0].data);
+                log(`<b>תוכן הכרטיס:</b><br>${data}`);
             };
         } catch (e) { log("❌ שגיאה: " + e); }
     });
