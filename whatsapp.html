@@ -1,203 +1,207 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WhatsApp Direct - Fixed</title>
-    <style>
-        :root { --wa-green: #25D366; --wa-dark: #075E54; }
-        body { 
-            font-family: system-ui, sans-serif; background-color: #f0f2f5; 
-            display: flex; justify-content: center; align-items: center; 
-            min-height: 100vh; margin: 0; padding: 15px; 
-            user-select: none; -webkit-user-select: none; touch-action: manipulation;
-        }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; max-width: 400px; text-align: center; }
-        .box { background: #f8f9fa; border: 2px solid #eaebec; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: right; }
-        .label { font-size: 12px; color: #666; font-weight: bold; }
-        .field { font-size: 18px; font-weight: bold; color: var(--wa-dark); min-height: 25px; word-break: break-all; }
-        
-        .ptt-btn { 
-            width: 180px; height: 180px; border-radius: 50%; border: none;
-            background-color: #34b7f1; color: white; font-size: 20px; font-weight: bold;
-            cursor: pointer; box-shadow: 0 6px 15px rgba(0,0,0,0.2);
-            margin: 20px auto; display: block; touch-action: none;
-            transition: transform 0.1s; -webkit-tap-highlight-color: transparent;
-        }
-        .ptt-btn:active { background-color: #ff4b2b; transform: scale(0.95); }
-
-        .btn-paste { width: 100%; padding: 14px; background-color: #6c757d; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WhatsApp Direct - Stable</title>
+  <style>
+    :root { --wa-green:#25D366; --wa-dark:#075E54; }
+    body{
+      font-family:system-ui,sans-serif;background:#f0f2f5;
+      display:flex;justify-content:center;align-items:center;
+      min-height:100vh;margin:0;padding:15px;
+      user-select:none;-webkit-user-select:none;touch-action:manipulation;
+    }
+    .card{background:#fff;padding:25px;border-radius:20px;box-shadow:0 4px 20px rgba(0,0,0,.15);width:100%;max-width:400px;text-align:center;}
+    .box{background:#f8f9fa;border:2px solid #eaebec;border-radius:12px;padding:15px;margin-bottom:15px;text-align:right;}
+    .label{font-size:12px;color:#666;font-weight:700;}
+    .field{font-size:18px;font-weight:700;color:var(--wa-dark);min-height:25px;word-break:break-all;}
+    .ptt-btn{
+      width:180px;height:180px;border-radius:50%;border:none;
+      background:#34b7f1;color:#fff;font-size:20px;font-weight:800;
+      cursor:pointer;box-shadow:0 6px 15px rgba(0,0,0,.2);
+      margin:20px auto;display:block;transition:transform .1s;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .ptt-btn:active{background:#ff4b2b;transform:scale(.95);}
+    .btn-paste{width:100%;padding:14px;background:#6c757d;color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;}
+  </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color: var(--wa-dark); margin-top: 0;">דבר ושלח</h2>
-    
-    <div class="box">
-        <div class="label">מספר יעד:</div>
-        <div id="phoneField" class="field">---</div>
-    </div>
-    
-    <div class="box">
-        <div class="label">הודעה:</div>
-        <div id="msgField" class="field" style="font-weight: normal;">---</div>
-    </div>
+  <h2 style="color:var(--wa-dark);margin-top:0;">דבר ושלח</h2>
 
-    <button class="btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
+  <div class="box">
+    <div class="label">מספר יעד:</div>
+    <div id="phoneField" class="field">---</div>
+  </div>
 
-    <button id="pttBtn" class="ptt-btn">לחץ והחזק<br>🎤</button>
-    
-    <p id="status" style="font-size: 14px; color: #888;">אמור מספר ואז הודעה ושחרר</p>
-    
-    <button class="btn-paste" style="background:#eee; color:#333; margin-top:10px;" onclick="location.reload()">נקה הכל</button>
+  <div class="box">
+    <div class="label">הודעה:</div>
+    <div id="msgField" class="field" style="font-weight:normal;">---</div>
+  </div>
+
+  <button class="btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
+
+  <button id="pttBtn" class="ptt-btn">לחץ והחזק<br>🎤</button>
+
+  <p id="status" style="font-size:14px;color:#888;">אמור מספר ואז הודעה ושחרר</p>
+
+  <button class="btn-paste" style="background:#eee;color:#333;margin-top:10px;" onclick="location.reload()">נקה הכל</button>
 </div>
 
 <script>
-    let recognition;
-    let lockedNumber = "";
-    let finalMsg = "";
+  let recognition = null;
+  let lockedNumber = "";
+  let finalMsg = "";
+  let finalTranscript = "";
+  let isListening = false;
 
-    let finalTranscript = "";
-    let isListening = false;
+  function safeInitRecognition(){
+    if (recognition) return true;
 
-    function init() {
-        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new Speech();
-        recognition.lang = 'he-IL';
-        recognition.continuous = true;
-        recognition.interimResults = true;
-
-        recognition.onresult = (event) => {
-            let interim = "";
-
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const t = (event.results[i][0].transcript || "").trim();
-                if (!t) continue;
-
-                if (event.results[i].isFinal) {
-                    finalTranscript += (finalTranscript ? " " : "") + t;
-                } else {
-                    interim += (interim ? " " : "") + t;
-                }
-            }
-
-            const latestText = (finalTranscript + " " + interim).trim();
-            processText(latestText);
-        };
-
-        recognition.onerror = () => {
-            isListening = false;
-            document.getElementById('status').innerText = "שגיאה בזיהוי דיבור";
-        };
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Speech){
+      alert("הדפדפן לא תומך בזיהוי דיבור במכשיר הזה. נסה Chrome.");
+      return false;
     }
 
-    // מוצא מספר ישראלי בתוך טקסט, גם אם יש מקפים/רווחים
-    // דוגמאות: 0587449001 / 058-7449001 / 05 8 744 9001
-    function extractIsraeliPhone(text) {
-        // מחפש מקטע שמתחיל ב-0 ואז ספרות, עם אפשרות לרווחים/מקפים בין הספרות
-        // ומוודא שאחרי ניקוי יש 9-10 ספרות (נייד לרוב 10)
-        const candidates = text.match(/0[\d\s\-]{7,20}\d/g) || [];
-        for (const c of candidates) {
-            const digits = c.replace(/\D/g, '');
-            if (digits.length === 10 && digits.startsWith('05')) return digits;   // נייד
-            if (digits.length === 9) return digits;                               // קווי/חריגים
-        }
+    recognition = new Speech();
+    recognition.lang = "he-IL";
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
-        // fallback: אם יש פשוט 10 ספרות רצוף איפשהו
-        const d = text.replace(/\D/g, '');
-        if (d.length >= 10) {
-            // מחפש תת-רצף שנראה נייד
-            const m = d.match(/05\d{8}/);
-            if (m) return m[0];
-        }
-        return "";
-    }
+    recognition.onstart = () => {
+      document.getElementById("status").innerText = "מקשיב... שחרר לשליחה";
+    };
 
-    function processText(text) {
-        const phoneElem = document.getElementById('phoneField');
-        const msgElem = document.getElementById('msgField');
+    recognition.onerror = (e) => {
+      isListening = false;
+      document.getElementById("status").innerText = "שגיאה בזיהוי דיבור: " + (e.error || "");
+    };
 
-        // 1) מספר – ננעל פעם אחת, רק אם זוהה בצורה תקינה
-        if (!lockedNumber) {
-            const found = extractIsraeliPhone(text);
-            if (found) {
-                lockedNumber = found;
-                phoneElem.innerText = lockedNumber;
-            } else {
-                // מציג "רמז" בלבד בלי להרוס (לא אוסף את כל הספרות מהטקסט!)
-                phoneElem.innerText = "---";
-            }
-        }
+    recognition.onresult = (event) => {
+      let interim = "";
 
-        // 2) הודעה – מוציא את המספר מהטקסט ואז מנקה כל ספרה שנשארה
-        let msg = text;
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = (event.results[i][0].transcript || "").trim();
+        if (!t) continue;
 
-        if (lockedNumber) {
-            // מוחק כל מופע של המספר גם אם נאמר עם רווחים/מקפים
-            const loose = new RegExp(lockedNumber.split('').join('\\D*'), 'g');
-            msg = msg.replace(loose, ' ');
-        }
-
-        // מנקה ספרות לחלוטין כדי שלא יישארו שאריות מספר בהודעה
-        msg = msg.replace(/\d/g, ' ');
-
-        // ניקוי תווים מיותרים ורווחים
-        msg = msg.replace(/[^\p{L}\p{N}\s\.\,\!\?\-\u0590-\u05FF]/gu, ' ');
-        msg = msg.replace(/\s+/g, ' ').trim();
-
-        msgElem.innerText = msg || "---";
-        finalMsg = msg;
-    }
-
-    const btn = document.getElementById('pttBtn');
-
-    btn.addEventListener('pointerdown', (e) => {
-        e.preventDefault();
-        if (!recognition) init();
-
-        lockedNumber = "";
-        finalMsg = "";
-        finalTranscript = "";
-        isListening = true;
-
-        document.getElementById('phoneField').innerText = "---";
-        document.getElementById('msgField').innerText = "---";
-        document.getElementById('status').innerText = "מקשיב... שחרר לשליחה";
-
-        try { recognition.start(); } catch(_) {}
-    });
-
-    window.addEventListener('pointerup', (e) => {
-        if (!recognition || !isListening) return;
-
-        isListening = false;
-        try { recognition.stop(); } catch(_) {}
-
-        const num = (lockedNumber || "").replace(/\D/g, '');
-        if (num.length >= 9) {
-            let cleanNum = num.startsWith('0') ? '972' + num.substring(1) : num;
-            window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(finalMsg)}`;
+        if (event.results[i].isFinal) {
+          finalTranscript += (finalTranscript ? " " : "") + t;
         } else {
-            document.getElementById('status').innerText = "לא זוהה מספר";
+          interim += (interim ? " " : "") + t;
         }
-    });
+      }
 
-    async function pasteFromClipboard() {
-        try {
-            const text = await navigator.clipboard.readText();
-            let digits = text.replace(/\D/g, '');
-            if (digits.length === 10 && digits.startsWith('05')) {
-                lockedNumber = digits;
-                document.getElementById('phoneField').innerText = lockedNumber;
-                document.getElementById('status').innerText = "מספר הודבק. עכשיו לחץ ודבר הודעה.";
-            } else {
-                alert("לא זוהה מספר נייד תקין");
-            }
-        } catch (e) { alert("אשר גישה ללוח"); }
+      const latestText = (finalTranscript + " " + interim).trim();
+      processText(latestText);
+    };
+
+    return true;
+  }
+
+  // מוצא מספר ישראלי גם אם יש רווחים/מקפים
+  function extractIsraeliPhone(text){
+    const matches = text.match(/0[\d\s\-]{7,20}\d/g) || [];
+    for (const m of matches){
+      const d = m.replace(/\D/g,'');
+      if (d.length === 10 && d.startsWith('05')) return d; // נייד תקין
+      if (d.length === 9) return d; // אפשרי קווי/חריג
+    }
+    // fallback לנייד רציף בתוך כל הספרות
+    const all = text.replace(/\D/g,'');
+    const mm = all.match(/05\d{8}/);
+    return mm ? mm[0] : "";
+  }
+
+  function processText(text){
+    const phoneElem = document.getElementById("phoneField");
+    const msgElem = document.getElementById("msgField");
+
+    if (!lockedNumber){
+      const found = extractIsraeliPhone(text);
+      if (found){
+        lockedNumber = found;
+        phoneElem.innerText = lockedNumber;
+      }
     }
 
-    window.oncontextmenu = (e) => { e.preventDefault(); return false; };
+    let msg = text;
+
+    if (lockedNumber){
+      // מוחק את המספר מהטקסט גם אם נאמר עם מקפים/רווחים
+      const loose = new RegExp(lockedNumber.split('').join('\\D*'), 'g');
+      msg = msg.replace(loose, " ");
+    }
+
+    // מסיר כל ספרה כדי שלא ייכנס מספר להודעה
+    msg = msg.replace(/\d/g, " ");
+    // ניקוי כפול רווחים
+    msg = msg.replace(/\s+/g, " ").trim();
+
+    msgElem.innerText = msg || "---";
+    finalMsg = msg;
+  }
+
+  function startListening(){
+    if (!safeInitRecognition()) return;
+
+    lockedNumber = "";
+    finalMsg = "";
+    finalTranscript = "";
+    isListening = true;
+
+    document.getElementById("phoneField").innerText = "---";
+    document.getElementById("msgField").innerText = "---";
+    document.getElementById("status").innerText = "מקשיב... שחרר לשליחה";
+
+    try { recognition.start(); } catch(e) { /* אם כבר רץ - לא קורס */ }
+  }
+
+  function stopAndSend(){
+    if (!recognition || !isListening) return;
+
+    isListening = false;
+    try { recognition.stop(); } catch(e) {}
+
+    const num = (lockedNumber || "").replace(/\D/g,'');
+    if (num.length >= 9){
+      const cleanNum = num.startsWith('0') ? ('972' + num.substring(1)) : num;
+      window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(finalMsg)}`;
+    } else {
+      document.getElementById("status").innerText = "לא זוהה מספר נייד תקין";
+    }
+  }
+
+  const btn = document.getElementById("pttBtn");
+
+  // אנדרואיד: touchstart/touchend הכי יציב
+  btn.addEventListener("touchstart", (e)=>{ e.preventDefault(); startListening(); }, {passive:false});
+  btn.addEventListener("touchend", (e)=>{ e.preventDefault(); stopAndSend(); }, {passive:false});
+  // דסקטופ: mouse
+  btn.addEventListener("mousedown", (e)=>{ e.preventDefault(); startListening(); });
+  btn.addEventListener("mouseup", (e)=>{ e.preventDefault(); stopAndSend(); });
+
+  async function pasteFromClipboard(){
+    try{
+      const text = await navigator.clipboard.readText();
+      const digits = (text || "").replace(/\D/g,'');
+      if (digits.length === 10 && digits.startsWith("05")){
+        lockedNumber = digits;
+        document.getElementById("phoneField").innerText = lockedNumber;
+        document.getElementById("status").innerText = "מספר הודבק. עכשיו לחץ והחזק ודבר הודעה.";
+      } else {
+        alert("לא זוהה מספר נייד תקין בלוח");
+      }
+    } catch(e){
+      alert("אשר גישה ללוח");
+    }
+  }
+
+  window.oncontextmenu = (e)=>{ e.preventDefault(); return false; };
 </script>
+
 </body>
 </html>
