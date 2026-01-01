@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Quick Tools</title>
+    <title>WhatsApp Direct</title>
     <style>
         :root {
             --wa-color: #25D366;
             --wa-dark: #128C7E;
             --bg-color: #f0f2f5;
-            --accent-color: #34b7f1;
         }
 
         body {
@@ -39,10 +38,12 @@
             border-radius: 15px;
             padding: 15px;
             margin-bottom: 20px;
+            text-align: right;
         }
 
-        .label { font-size: 13px; color: #888; margin-bottom: 2px; }
-        .value { font-size: 18px; font-weight: bold; color: var(--wa-dark); margin-bottom: 10px; min-height: 22px; }
+        .label { font-size: 13px; color: #888; font-weight: bold; }
+        .value { font-size: 20px; font-weight: bold; color: var(--wa-dark); margin-bottom: 15px; min-height: 24px; word-break: break-all; }
+        .msg-text { font-size: 16px; font-weight: normal; color: #333; }
 
         .btn {
             width: 100%;
@@ -57,25 +58,15 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
-            transition: all 0.2s;
         }
 
         .btn-paste { background-color: #6c757d; color: white; }
-        .btn-voice { background-color: var(--accent-color); color: white; }
-        .btn-send { background-color: var(--wa-color); color: white; display: none; margin-top: 15px; border: 3px solid white; }
+        .btn-voice { background-color: #34b7f1; color: white; }
+        .btn-send { background-color: var(--wa-color); color: white; display: none; margin-top: 15px; }
+        .btn-reset { background-color: #ff4b2b; color: white; padding: 10px; font-size: 14px; margin-top: 10px; }
         
-        .listening { 
-            background-color: #ff4b2b !important; 
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.03); }
-            100% { transform: scale(1); }
-        }
-
-        #statusTxt { font-size: 14px; color: #666; margin-top: 10px; }
+        .listening { background-color: #ff4b2b !important; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
@@ -84,62 +75,30 @@
     <h2 style="color: var(--wa-dark); margin-top: 0;">שליחה מהירה</h2>
     
     <div class="display-box">
-        <div class="label">מספר יעד:</div>
+        <div class="label">שלח ל:</div>
         <div id="numVal" class="value">---</div>
         
         <div class="label">תוכן ההודעה:</div>
-        <div id="msgVal" class="value" style="font-weight: normal; font-size: 16px;">---</div>
+        <div id="msgVal" class="value msg-text">---</div>
     </div>
 
-    <button class="btn btn-paste" onclick="pasteFromClipboard()">
-        📋 הדבק מספר מהזיכרון
-    </button>
+    <button class="btn btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
+    <button id="voiceBtn" class="btn btn-voice" onclick="toggleVoice()">🎤 לחץ כאן ודבר</button>
+    <button id="sendBtn" class="btn btn-send" onclick="sendToWhatsApp()">✅ שלח לוואטסאפ</button>
+    
+    <button class="btn btn-reset" onclick="resetAll()">נקה הכל</button>
 
-    <button id="voiceBtn" class="btn btn-voice" onclick="toggleVoice()">
-        🎤 לחץ כאן ודבר
-    </button>
-
-    <button id="sendBtn" class="btn btn-send" onclick="sendToWhatsApp()">
-        ✅ שלח לוואטסאפ
-    </button>
-
-    <p id="statusTxt">בחר פעולה</p>
+    <p id="statusTxt" style="font-size: 14px; color: #666; margin-top: 15px;">מוכן לפעולה</p>
 </div>
 
 <script>
     let recognition;
     let isListening = false;
     let identifiedNumber = "";
-    let identifiedMessage = "";
-    let charIndexAtNumberFound = 0;
 
-    // פונקציית הדבקה
-    async function pasteFromClipboard() {
-        try {
-            const text = await navigator.clipboard.readText();
-            if (text) {
-                let digits = text.replace(/\D/g, '');
-                if (digits.length >= 9) {
-                    identifiedNumber = digits;
-                    document.getElementById('numVal').innerText = identifiedNumber;
-                    document.getElementById('statusTxt').innerText = "המספר הודבק בהצלחה";
-                    document.getElementById('sendBtn').style.display = "flex";
-                } else {
-                    alert("הטקסט שהועתק לא נראה כמו מספר טלפון תקין");
-                }
-            }
-        } catch (err) {
-            alert("יש לאשר גישה ללוח (Clipboard)");
-        }
-    }
-
-    // הגדרת זיהוי קולי
     function setupRecognition() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("הדפדפן לא תומך בזיהוי קולי");
-            return;
-        }
+        if (!SpeechRecognition) return alert("הדפדפן לא תומך");
 
         recognition = new SpeechRecognition();
         recognition.lang = 'he-IL';
@@ -152,52 +111,60 @@
                 fullTranscript += event.results[i][0].transcript;
             }
 
+            // 1. זיהוי מספר (אם עדיין אין כזה)
             if (!identifiedNumber) {
-                // שלב א: מחפשים 10 ספרות
                 let digits = fullTranscript.replace(/\D/g, '');
                 if (digits.length >= 10) {
                     identifiedNumber = digits.substring(0, 10);
                     document.getElementById('numVal').innerText = identifiedNumber;
-                    
-                    // שומרים את המיקום שבו המספר נגמר בתוך המחרוזת
-                    charIndexAtNumberFound = fullTranscript.length;
-                    
-                    document.getElementById('statusTxt').innerText = "מספר זוהה! המשך להקריא הודעה...";
+                    document.getElementById('statusTxt').innerText = "מספר זוהה! המשך להודעה...";
                 } else {
                     document.getElementById('numVal').innerText = digits;
                 }
-            } else {
-                // שלב ב: לוקחים רק את מה שנאמר *אחרי* זיהוי המספר
-                identifiedMessage = fullTranscript.substring(charIndexAtNumberFound).trim();
-                document.getElementById('msgVal').innerText = identifiedMessage;
-                document.getElementById('sendBtn').style.display = "flex";
+            }
+
+            // 2. זיהוי הודעה - ניקוי אגרסיבי של המספר מהטקסט
+            if (identifiedNumber) {
+                // יוצרים רגקס שמוצא את המספר בכל וריאציה (עם רווחים או בלי) ומעיף אותו
+                let escapedNum = identifiedNumber.split('').join('\\s*');
+                let numRegex = new RegExp(escapedNum, 'g');
+                
+                let messagePart = fullTranscript.replace(numRegex, '').trim();
+                
+                // הסרת ספרות בודדות שנותרו בטעות בתחילת ההודעה
+                messagePart = messagePart.replace(/^[0-9\s\-]+/, '').trim();
+
+                document.getElementById('msgVal').innerText = messagePart || "---";
+                if (messagePart.length > 1) {
+                    document.getElementById('sendBtn').style.display = "flex";
+                }
             }
         };
 
-        recognition.onerror = (e) => {
-            console.error(e);
-            stopVoice();
-        };
+        recognition.onerror = () => stopVoice();
+    }
+
+    async function pasteFromClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            let digits = text.replace(/\D/g, '');
+            if (digits.length >= 9) {
+                identifiedNumber = digits;
+                document.getElementById('numVal').innerText = identifiedNumber;
+                document.getElementById('sendBtn').style.display = "flex";
+                document.getElementById('statusTxt').innerText = "מספר הודבק. אפשר לדבר הודעה.";
+            }
+        } catch (e) { alert("אשר גישה ללוח"); }
     }
 
     function toggleVoice() {
         if (!recognition) setupRecognition();
+        if (isListening) return stopVoice();
 
-        if (isListening) {
-            stopVoice();
-        } else {
-            isListening = true;
-            identifiedNumber = "";
-            identifiedMessage = "";
-            charIndexAtNumberFound = 0;
-            document.getElementById('numVal').innerText = "---";
-            document.getElementById('msgVal').innerText = "---";
-            document.getElementById('sendBtn').style.display = "none";
-            document.getElementById('voiceBtn').innerText = "🛑 הפסק הקלטה";
-            document.getElementById('voiceBtn').classList.add('listening');
-            document.getElementById('statusTxt').innerText = "מקשיב למספר...";
-            recognition.start();
-        }
+        isListening = true;
+        document.getElementById('voiceBtn').innerText = "🛑 הפסק הקלטה";
+        document.getElementById('voiceBtn').classList.add('listening');
+        recognition.start();
     }
 
     function stopVoice() {
@@ -205,21 +172,23 @@
         if (recognition) recognition.stop();
         document.getElementById('voiceBtn').innerText = "🎤 לחץ כאן ודבר";
         document.getElementById('voiceBtn').classList.remove('listening');
-        document.getElementById('statusTxt').innerText = "ההקלטה הופסקה";
+    }
+
+    function resetAll() {
+        stopVoice();
+        identifiedNumber = "";
+        document.getElementById('numVal').innerText = "---";
+        document.getElementById('msgVal').innerText = "---";
+        document.getElementById('sendBtn').style.display = "none";
+        document.getElementById('statusTxt').innerText = "נוקה בהצלחה";
     }
 
     function sendToWhatsApp() {
-        if (!identifiedNumber) return;
-        
         let cleanNum = identifiedNumber;
-        if (cleanNum.startsWith('0')) {
-            cleanNum = '972' + cleanNum.substring(1);
-        }
-
-        const encodedMsg = encodeURIComponent(identifiedMessage);
-        const url = `https://wa.me/${cleanNum}?text=${encodedMsg}`;
-        
-        window.location.href = url;
+        if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
+        let msg = document.getElementById('msgVal').innerText;
+        if (msg === "---") msg = "";
+        window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(msg)}`;
     }
 </script>
 
