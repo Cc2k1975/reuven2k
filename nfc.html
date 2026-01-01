@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>סורק NFC נייד</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h1 { font-size: 1.5rem; margin-bottom: 10px; }
+        p { color: #666; margin-bottom: 30px; }
+
+        #scanButton {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, background-color 0.2s;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        #scanButton:active {
+            transform: scale(0.95);
+        }
+
+        #scanButton:disabled {
+            background-color: #ccc;
+            box-shadow: none;
+        }
+
+        #output {
+            margin-top: 30px;
+            padding: 15px;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            min-height: 80px;
+            word-break: break-all;
+            text-align: right;
+            font-size: 0.95rem;
+        }
+
+        .status-scanning {
+            color: #2196F3;
+            font-weight: bold;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>סורק NFC</h1>
+        <p>לחץ על הכפתור והצמד את גב הטלפון לתגית ה-NFC</p>
+        
+        <button id="scanButton">הפעל סורק</button>
+
+        <div id="output">
+            ממתין לפקודה...
+        </div>
+    </div>
+
+    <script>
+        const scanButton = document.getElementById('scanButton');
+        const output = document.getElementById('output');
+
+        scanButton.addEventListener('click', async () => {
+            // בדיקה אם הדפדפן תומך ב-NFC
+            if (!('NDEFReader' in window)) {
+                output.innerHTML = "❌ מצטערים, הדפדפן או המכשיר שלך לא תומכים ב-Web NFC.";
+                return;
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                
+                output.innerHTML = '<span class="status-scanning">⏳ סורק... הצמד את הטלפון כעת</span>';
+                scanButton.disabled = true;
+
+                ndef.addEventListener("readingerror", () => {
+                    output.innerHTML = "❌ שגיאה: לא ניתן לקרוא את התגית. נסה שוב.";
+                });
+
+                ndef.addEventListener("reading", ({ message, serialNumber }) => {
+                    let content = `<strong>מזהה ייחודי:</strong> ${serialNumber}<br><br>`;
+                    
+                    for (const record of message.records) {
+                        const decoder = new TextDecoder();
+                        content += `<strong>תוכן:</strong> ${decoder.decode(record.data)}<br>`;
+                    }
+                    
+                    output.innerHTML = content;
+                    scanButton.disabled = false;
+                });
+
+            } catch (error) {
+                output.innerHTML = "❌ שגיאה: " + error;
+                scanButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
