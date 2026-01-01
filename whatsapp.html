@@ -58,6 +58,11 @@
     let lockedNumber = "";
     let finalMsg = "";
 
+    // חדש: מנגנון שמונע כפילויות
+    let finalTranscript = "";
+    let latestText = "";
+    let isListening = false;
+
     function init() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new Speech();
@@ -66,13 +71,36 @@
         recognition.interimResults = true;
 
         recognition.onresult = (event) => {
-            let fullText = "";
-            // אנחנו בונים את כל הטקסט מחדש בכל עדכון - זה מונע את הכפילויות
-            for (let i = 0; i < event.results.length; i++) {
-                fullText += event.results[i][0].transcript;
+            let interim = "";
+
+            // לוקחים רק את מה שהתעדכן עכשיו (ולא בונים מחדש הכל)
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const t = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += (finalTranscript ? " " : "") + t.trim();
+                } else {
+                    interim += t;
+                }
             }
-            processText(fullText);
+
+            latestText = (finalTranscript + " " + interim).trim();
+            processText(latestText);
         };
+
+        recognition.onerror = () => {
+            isListening = false;
+            document.getElementById('status').innerText = "שגיאה בזיהוי דיבור";
+        };
+
+        recognition.onend = () => {
+            // onend יכול להיקרא גם לבד; אנחנו שולטים דרך isListening
+        };
+    }
+
+    // יוצר Regex שמזהה את המספר גם אם נאמר עם רווחים/מקפים (058-7449001 וכו')
+    function buildLooseDigitsRegex(digits) {
+        const escaped = digits.split('').map(d => d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        return new RegExp(escaped.join('\\D*'));
     }
 
     function processText(text) {
@@ -90,10 +118,10 @@
             }
         }
 
-        // שליפת ההודעה - מנקה את המספר מהטקסט המלא
+        // שליפת ההודעה - מנקה את המספר מהטקסט המלא (גם אם עם מקפים/רווחים)
         if (lockedNumber) {
-            let messagePart = text.replace(lockedNumber, '').trim();
-            // מסיר סימנים מיותרים בתחילת ההודעה
+            const looseRe = buildLooseDigitsRegex(lockedNumber);
+            let messagePart = text.replace(looseRe, '').trim();
             messagePart = messagePart.replace(/^[^a-zA-Zא-ת]+/, '');
             msgElem.innerText = messagePart || "---";
             finalMsg = messagePart;
@@ -105,26 +133,33 @@
     btn.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         if (!recognition) init();
-        
-        lockedNumber = ""; 
+
+        lockedNumber = "";
         finalMsg = "";
+        finalTranscript = "";
+        latestText = "";
+        isListening = true;
+
+        document.getElementById('phoneField').innerText = "---";
+        document.getElementById('msgField').innerText = "---";
         document.getElementById('status').innerText = "מקשיב... שחרר לשליחה";
-        recognition.start();
+
+        try { recognition.start(); } catch(_) {}
     });
 
     // הרגע הקריטי: שחרור האצבע פותח את וואטסאפ
     window.addEventListener('pointerup', (e) => {
-        if (recognition && recognition.onspeechstart !== null) {
-            recognition.stop();
-            
-            // אנחנו שולחים מיד!
-            const num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
-            if (num.length >= 9) {
-                let cleanNum = num.startsWith('0') ? '972' + num.substring(1) : num;
-                window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(finalMsg)}`;
-            } else {
-                document.getElementById('status').innerText = "לא זוהה מספר";
-            }
+        if (!recognition || !isListening) return;
+
+        isListening = false;
+        try { recognition.stop(); } catch(_) {}
+
+        const num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
+        if (num.length >= 9) {
+            let cleanNum = num.startsWith('0') ? '972' + num.substring(1) : num;
+            window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(finalMsg)}`;
+        } else {
+            document.getElementById('status').innerText = "לא זוהה מספר";
         }
     });
 
@@ -144,3 +179,4 @@
 </script>
 </body>
 </html>
+1
