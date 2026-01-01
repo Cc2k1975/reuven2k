@@ -51,6 +51,9 @@
   <button class="btn-paste" style="background:#eee;color:#333;margin-top:10px;" onclick="location.reload()">נקה הכל</button>
 </div>
 
+<!-- לינק “אמיתי” שנלחץ עליו (חלק מהפתרון הכי יציב) -->
+<a id="waLink" href="#" style="display:none;"></a>
+
 <script>
   let recognition = null;
   let lockedNumber = "";
@@ -102,15 +105,13 @@
     return true;
   }
 
-  // מוצא מספר ישראלי גם אם יש רווחים/מקפים
   function extractIsraeliPhone(text){
     const matches = text.match(/0[\d\s\-]{7,20}\d/g) || [];
     for (const m of matches){
       const d = m.replace(/\D/g,'');
-      if (d.length === 10 && d.startsWith('05')) return d; // נייד תקין
-      if (d.length === 9) return d; // אפשרי קווי/חריג
+      if (d.length === 10 && d.startsWith('05')) return d;
+      if (d.length === 9) return d;
     }
-    // fallback לנייד רציף בתוך כל הספרות
     const all = text.replace(/\D/g,'');
     const mm = all.match(/05\d{8}/);
     return mm ? mm[0] : "";
@@ -131,12 +132,10 @@
     let msg = text;
 
     if (lockedNumber){
-      // מוחק את המספר מהטקסט גם אם נאמר עם מקפים/רווחים
       const loose = new RegExp(lockedNumber.split('').join('\\D*'), 'g');
       msg = msg.replace(loose, " ");
     }
 
-    // מסיר כל ספרה כדי שלא ייכנס מספר להודעה
     msg = msg.replace(/\d/g, " ");
     msg = msg.replace(/\s+/g, " ").trim();
 
@@ -159,15 +158,17 @@
     try { recognition.start(); } catch(e) {}
   }
 
-  // ✅ כאן התיקון: פתיחה אמינה של וואטסאפ
-  function stopAndSend(){
+  // ✅ פתיחה מיידית בתוך המחווה (בלי setTimeout) + abort
+  function stopAndSendImmediately(){
     if (!recognition || !isListening) return;
 
     isListening = false;
-    try { recognition.stop(); } catch(e) {}
+
+    // abort נסגר מיידית ולא תוקע את הניווט
+    try { recognition.abort(); } catch(e) {}
 
     const num = (lockedNumber || "").replace(/\D/g,'');
-    if (num.length < 9){
+    if (!(num.length === 10 && num.startsWith('05')) && num.length < 9){
       document.getElementById("status").innerText = "לא זוהה מספר נייד תקין";
       return;
     }
@@ -175,43 +176,32 @@
     const cleanNum = num.startsWith('0') ? ('972' + num.substring(1)) : num;
     const text = encodeURIComponent(finalMsg || "");
 
-    const waMe = `https://wa.me/${cleanNum}?text=${text}`;
-    const waApi = `https://api.whatsapp.com/send?phone=${cleanNum}&text=${text}`;
-    const waIntent = `intent://send?phone=${cleanNum}&text=${text}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+    // קודם ננסה whatsapp:// (אפליקציה)
+    const schemeUrl = `whatsapp://send?phone=${cleanNum}&text=${text}`;
+    // ואז wa.me (דפדפן -> אפליקציה)
+    const webUrl = `https://wa.me/${cleanNum}?text=${text}`;
 
     document.getElementById("status").innerText = "פותח וואטסאפ...";
 
-    // דיליי קריטי כדי שזיהוי הדיבור יסיים להיסגר לפני ניווט
-    setTimeout(() => {
-      // נסיון 1
-      window.location.assign(waMe);
+    // שיטה הכי יציבה: "לחיצה" על קישור אמיתי במסגרת המחווה
+    const a = document.getElementById("waLink");
 
-      // fallback 1
-      setTimeout(() => {
-        if (document.visibilityState === "visible") {
-          window.location.assign(waApi);
-        }
-      }, 600);
+    // ניסיון 1: whatsapp://
+    a.href = schemeUrl;
+    a.click();
 
-      // fallback 2 (אנדרואיד)
-      setTimeout(() => {
-        if (document.visibilityState === "visible") {
-          window.location.href = waIntent;
-        }
-      }, 1200);
-
-    }, 250);
+    // אם המכשיר לא מאפשר scheme, עדיין המשתמש יישאר בדף.
+    // לכן מיד אחרי (עדיין באותו אירוע) ננווט ל-wa.me
+    window.location.href = webUrl;
   }
 
   const btn = document.getElementById("pttBtn");
 
-  // אנדרואיד: touchstart/touchend הכי יציב
   btn.addEventListener("touchstart", (e)=>{ e.preventDefault(); startListening(); }, {passive:false});
-  btn.addEventListener("touchend", (e)=>{ e.preventDefault(); stopAndSend(); }, {passive:false});
+  btn.addEventListener("touchend", (e)=>{ e.preventDefault(); stopAndSendImmediately(); }, {passive:false});
 
-  // דסקטופ: mouse
   btn.addEventListener("mousedown", (e)=>{ e.preventDefault(); startListening(); });
-  btn.addEventListener("mouseup", (e)=>{ e.preventDefault(); stopAndSend(); });
+  btn.addEventListener("mouseup", (e)=>{ e.preventDefault(); stopAndSendImmediately(); });
 
   async function pasteFromClipboard(){
     try{
