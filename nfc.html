@@ -55,12 +55,14 @@
 
         .input-group { margin-bottom: 15px; text-align: right; }
         label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
-        input {
+        
+        input, select {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
             border-radius: 10px;
             box-sizing: border-box;
+            font-size: 1rem;
         }
 
         button.main-btn {
@@ -75,8 +77,7 @@
             margin-top: 10px;
         }
 
-        .btn-wifi { background-color: var(--wifi); }
-        .btn-auto { background-color: var(--automation); }
+        .btn-write { background-color: var(--primary); }
         .btn-read { background-color: #444; }
 
         #status {
@@ -88,6 +89,9 @@
             text-align: center;
             font-weight: bold;
         }
+
+        .write-section { display: none; margin-top: 15px; }
+        .write-section.active { display: block; }
     </style>
 </head>
 <body>
@@ -97,32 +101,51 @@
 
     <div class="tabs">
         <button class="tab-btn active" onclick="openTab('read')">🔍 קרא</button>
-        <button class="tab-btn" onclick="openTab('wifi')">📶 WiFi</button>
-        <button class="tab-btn" onclick="openTab('auto')">🤖 אוטומציה</button>
+        <button class="tab-btn" onclick="openTab('write')">✍️ צרוב</button>
     </div>
 
     <div id="read" class="tab-content active">
         <button class="main-btn btn-read" id="btnRead">הפעל סורק לקריאה</button>
     </div>
 
-    <div id="wifi" class="tab-content">
+    <div id="write" class="tab-content">
         <div class="input-group">
-            <label>שם הרשת (SSID):</label>
-            <input type="text" id="ssid" placeholder="MyHomeWiFi">
+            <label>בחר מה לצרוב:</label>
+            <select id="writeType" onchange="toggleWriteSection()">
+                <option value="none">--- בחר אפשרות ---</option>
+                <option value="wifi">📶 הגדרות WiFi (סעיף 2)</option>
+                <option value="auto">🤖 אוטומציה/Webhook (סעיף 3)</option>
+                <option value="volume">🔊 פרופיל סאונד/עוצמת קול (סעיף 14)</option>
+            </select>
         </div>
-        <div class="input-group">
-            <label>סיסמה לרשת:</label>
-            <input type="password" id="password" placeholder="סיסמת ה-WiFi">
-        </div>
-        <button class="main-btn btn-wifi" id="btnWriteWifi">צרוב WiFi (מוגן בסיסמה)</button>
-    </div>
 
-    <div id="auto" class="tab-content">
-        <div class="input-group">
-            <label>כתובת Webhook:</label>
-            <input type="url" id="webhookUrl" placeholder="https://..." dir="ltr">
+        <div id="section-wifi" class="write-section">
+            <div class="input-group">
+                <label>שם הרשת (SSID):</label>
+                <input type="text" id="ssid" placeholder="MyHomeWiFi">
+            </div>
+            <div class="input-group">
+                <label>סיסמה לרשת:</label>
+                <input type="password" id="password" placeholder="סיסמת ה-WiFi">
+            </div>
         </div>
-        <button class="main-btn btn-auto" id="btnWriteAuto">צרוב אוטומציה (מוגן בסיסמה)</button>
+
+        <div id="section-auto" class="write-section">
+            <div class="input-group">
+                <label>כתובת Webhook לאוטומציה:</label>
+                <input type="url" id="webhookUrl" placeholder="https://maker.ifttt.com/..." dir="ltr">
+            </div>
+        </div>
+
+        <div id="section-volume" class="write-section">
+            <p style="font-size: 0.8rem; color: #666;">השתמש ב-Webhook כדי לשנות עוצמת קול או להשתיק את המכשיר.</p>
+            <div class="input-group">
+                <label>כתובת Webhook לפרופיל סאונד:</label>
+                <input type="url" id="volumeUrl" placeholder="https://..." dir="ltr">
+            </div>
+        </div>
+
+        <button class="main-btn btn-write" id="btnWriteMain" style="display: none;">צרוב כרטיס (מוגן בסיסמה)</button>
     </div>
 
     <div id="status">מוכן...</div>
@@ -130,7 +153,7 @@
 
 <script>
     const statusDiv = document.getElementById('status');
-    const SECRET_PIN = "4451"; // הסיסמה שלך
+    const SECRET_PIN = "4451";
 
     function log(msg) { statusDiv.innerHTML = msg; }
 
@@ -141,20 +164,31 @@
         event.currentTarget.classList.add('active');
     }
 
-    // פונקציה לבדיקת סיסמה לפני פעולה
-    function checkPermission() {
-        const userInput = prompt("נא להזיז סיסמת אבטחה לצריבה:");
-        if (userInput === SECRET_PIN) {
-            return true;
+    // ניהול ה-Dropdown
+    function toggleWriteSection() {
+        const type = document.getElementById('writeType').value;
+        const btn = document.getElementById('btnWriteMain');
+        
+        // הסתרת כל הסקשנים
+        document.querySelectorAll('.write-section').forEach(s => s.classList.remove('active'));
+        
+        if (type !== "none") {
+            document.getElementById('section-' + type).classList.add('active');
+            btn.style.display = 'block';
         } else {
-            alert("סיסמה שגויה! הפעולה בוטלה.");
-            return false;
+            btn.style.display = 'none';
         }
     }
 
-    async function writeNFC(content, type = "text") {
-        if (!checkPermission()) return; // עצירה אם הסיסמה שגויה
+    function checkPermission() {
+        const userInput = prompt("נא להזיז סיסמת אבטחה לצריבה:");
+        if (userInput === SECRET_PIN) return true;
+        alert("סיסמה שגויה! הפעולה בוטלה.");
+        return false;
+    }
 
+    async function writeNFC(content) {
+        if (!checkPermission()) return;
         if (!('NDEFReader' in window)) {
             log("❌ מכשיר לא נתמך");
             return;
@@ -163,36 +197,33 @@
         try {
             const ndef = new NDEFReader();
             log("⏳ <b>הסיסמה אושרה!</b><br>הצמד את התגית לצריבה...");
-            
-            let record;
-            if (type === "wifi") {
-                record = {
-                    recordType: "url",
-                    data: content 
-                };
-            } else {
-                record = { recordType: "url", data: content };
-            }
-
-            await ndef.write({ records: [record] });
+            await ndef.write({ records: [{ recordType: "url", data: content }] });
             log("✅ הצלחה! המידע נצרב.");
         } catch (error) {
             log("❌ שגיאה: " + error);
         }
     }
 
-    // אירועי כפתורים
-    document.getElementById('btnWriteWifi').addEventListener('click', () => {
-        const ssid = document.getElementById('ssid').value;
-        const pass = document.getElementById('password').value;
-        if (!ssid || !pass) return alert("מלא פרטים");
-        writeNFC(`WIFI:S:${ssid};T:WPA;P:${pass};;`, "wifi");
-    });
-
-    document.getElementById('btnWriteAuto').addEventListener('click', () => {
-        const url = document.getElementById('webhookUrl').value;
-        if (!url) return alert("הכנס URL");
-        writeNFC(url);
+    // הפעלת הצריבה לפי הסוג שנבחר
+    document.getElementById('btnWriteMain').addEventListener('click', () => {
+        const type = document.getElementById('writeType').value;
+        
+        if (type === 'wifi') {
+            const ssid = document.getElementById('ssid').value;
+            const pass = document.getElementById('password').value;
+            if (!ssid || !pass) return alert("מלא פרטים");
+            writeNFC(`WIFI:S:${ssid};T:WPA;P:${pass};;`);
+        } 
+        else if (type === 'auto') {
+            const url = document.getElementById('webhookUrl').value;
+            if (!url) return alert("הכנס URL");
+            writeNFC(url);
+        }
+        else if (type === 'volume') {
+            const url = document.getElementById('volumeUrl').value;
+            if (!url) return alert("הכנס URL לשינוי עוצמת קול");
+            writeNFC(url);
+        }
     });
 
     document.getElementById('btnRead').addEventListener('click', async () => {
