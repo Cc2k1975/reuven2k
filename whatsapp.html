@@ -3,22 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Smart Tool</title>
+    <title>WhatsApp Smart Tool V3</title>
     <style>
         :root { --wa-color: #25D366; --wa-dark: #128C7E; --bg-color: #f0f2f5; }
         body { font-family: -apple-system, system-ui, sans-serif; background-color: var(--bg-color); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
         .card { background: white; padding: 25px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
         .display-box { background: #f9f9f9; border: 2px solid #eee; border-radius: 15px; padding: 15px; margin-bottom: 20px; text-align: right; }
-        .label { font-size: 13px; color: #888; font-weight: bold; }
-        .value { font-size: 20px; font-weight: bold; color: var(--wa-dark); margin-bottom: 15px; min-height: 24px; word-break: break-all; }
-        .msg-text { font-size: 16px; font-weight: normal; color: #333; }
-        .btn { width: 100%; padding: 18px; margin: 8px 0; border: none; border-radius: 15px; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; }
+        .label { font-size: 13px; color: #888; font-weight: bold; margin-bottom: 5px; }
+        
+        /* שדות ניתנים לעריכה */
+        .editable { 
+            font-size: 18px; font-weight: bold; color: var(--wa-dark); 
+            margin-bottom: 15px; min-height: 30px; padding: 5px;
+            border-radius: 8px; border: 1px transparent solid;
+            transition: 0.3s; outline: none; word-break: break-all;
+        }
+        .editable:focus { border-color: #34b7f1; background: #fff; box-shadow: 0 0 5px rgba(52, 183, 241, 0.3); }
+        .editable:empty::before { content: "---"; color: #ccc; }
+
+        .btn { width: 100%; padding: 18px; margin: 8px 0; border: none; border-radius: 15px; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .btn-paste { background-color: #6c757d; color: white; }
         .btn-voice { background-color: #34b7f1; color: white; }
-        .btn-send { background-color: var(--wa-color); color: white; display: none; }
+        .btn-send { background-color: var(--wa-color); color: white; margin-top: 15px; }
         .btn-reset { background-color: #ff4b2b; color: white; margin-top: 15px; font-size: 14px; padding: 10px; }
+        
         .listening { background-color: #ff4b2b !important; animation: pulse 1.5s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        .hint { font-size: 11px; color: #aaa; margin-top: -10px; margin-bottom: 10px; display: block; }
     </style>
 </head>
 <body>
@@ -27,11 +38,13 @@
     <h2 style="color: var(--wa-dark); margin-top: 0;">שליחה מהירה</h2>
     
     <div class="display-box">
-        <div class="label">שלח ל:</div>
-        <div id="numVal" class="value">---</div>
+        <div class="label">שלח ל (ניתן לעריכה):</div>
+        <div id="numVal" class="editable" contenteditable="true"></div>
+        <span class="hint">לחץ למעלה כדי לתקן מספר ידנית</span>
         
-        <div class="label">תוכן ההודעה:</div>
-        <div id="msgVal" class="value msg-text">---</div>
+        <div class="label">תוכן ההודעה (ניתן לעריכה):</div>
+        <div id="msgVal" class="editable" style="font-weight: normal;" contenteditable="true"></div>
+        <span class="hint">לחץ למעלה כדי לתקן את הטקסט</span>
     </div>
 
     <button class="btn btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
@@ -39,13 +52,13 @@
     <button id="sendBtn" class="btn btn-send" onclick="sendToWhatsApp()">✅ שלח לוואטסאפ</button>
     
     <button class="btn btn-reset" onclick="resetAll()">נקה הכל</button>
-    <p id="statusTxt" style="font-size: 14px; color: #666; margin-top: 10px;">לחץ על הכפתור והקרא מספר ואז הודעה</p>
+    <p id="statusTxt" style="font-size: 14px; color: #666; margin-top: 10px;">לחץ על הכפתור, הקרא מספר ואז הודעה</p>
 </div>
 
 <script>
     let recognition;
     let isListening = false;
-    let identifiedNumber = "";
+    let finalTranscript = "";
 
     function setupRecognition() {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -53,57 +66,57 @@
 
         recognition = new SpeechRecognition();
         recognition.lang = 'he-IL';
-        recognition.interimResults = true;
+        // שינוי קריטי: ביטול תוצאות ביניים כדי למנוע כפילות
+        recognition.interimResults = false; 
         recognition.continuous = true;
 
         recognition.onresult = (event) => {
-            let fullTranscript = "";
-            for (let i = 0; i < event.results.length; i++) {
-                fullTranscript += event.results[i][0].transcript;
-            }
-
-            // 1. חיפוש מספר טלפון (רק אם עוד לא ננעל אחד)
-            if (!identifiedNumber) {
-                let digits = fullTranscript.replace(/\D/g, '');
-                if (digits.length >= 10) {
-                    identifiedNumber = digits.substring(0, 10);
-                    document.getElementById('numVal').innerText = identifiedNumber;
-                } else {
-                    document.getElementById('numVal').innerText = digits;
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript + " ";
                 }
             }
 
-            // 2. טיפול בהודעה - סינון אגרסיבי של מספרים
-            if (identifiedNumber) {
-                // אנחנו מנקים מהטקסט כל רצף של 5 ספרות ומעלה (עם או בלי מקפים)
-                // זה יעיף את הטלפון שהשתרבב אבל ישאיר מילים
-                let cleanMsg = fullTranscript;
-                
-                // מסיר כל רצף של ספרות, מקפים או רווחים ביניהם אם האורך מעל 6
-                cleanMsg = cleanMsg.replace(/[0-9][0-9\s\-]{5,}[0-9]/g, '');
-                
-                // ניקוי רווחים כפולים
-                cleanMsg = cleanMsg.trim();
-
-                document.getElementById('msgVal').innerText = cleanMsg || "---";
-                if (cleanMsg.length > 1) {
-                    document.getElementById('sendBtn').style.display = "flex";
-                }
-            }
+            processText(finalTranscript);
         };
 
         recognition.onerror = () => stopVoice();
     }
 
+    function processText(text) {
+        const numElem = document.getElementById('numVal');
+        const msgElem = document.getElementById('msgVal');
+
+        // 1. חילוץ מספר טלפון (מחפש רצף של 9-10 ספרות)
+        const digitsMatch = text.replace(/\D/g, '').match(/\d{9,10}/);
+        
+        if (digitsMatch) {
+            const foundNum = digitsMatch[0];
+            numElem.innerText = foundNum;
+            
+            // 2. חילוץ ההודעה: לוקח הכל ומנקה את המספר שנמצא
+            // משתמש ברגקס חכם שמעיף את המספר גם אם יש בו רווחים או מקפים
+            const numPattern = foundNum.split('').join('[\\s\\-]*');
+            const reg = new RegExp(numPattern, 'g');
+            let cleanMsg = text.replace(reg, '').trim();
+            
+            // ניקוי תווים מיותרים שנשארו בהתחלה
+            cleanMsg = cleanMsg.replace(/^[^a-zA-Zא-ת]+/, '');
+            
+            msgElem.innerText = cleanMsg;
+        } else {
+            // אם עוד לא נמצא מספר, מציג את מה שנקלט בתיבת המספר בינתיים
+            numElem.innerText = text.replace(/\D/g, '');
+        }
+    }
+
     async function pasteFromClipboard() {
         try {
             const text = await navigator.clipboard.readText();
-            let digits = text.replace(/\D/g, '');
+            const digits = text.replace(/\D/g, '');
             if (digits.length >= 9) {
-                identifiedNumber = digits;
-                document.getElementById('numVal').innerText = identifiedNumber;
-                document.getElementById('sendBtn').style.display = "flex";
-                document.getElementById('statusTxt').innerText = "מספר הודבק. אפשר להקליט הודעה.";
+                document.getElementById('numVal').innerText = digits;
+                document.getElementById('statusTxt').innerText = "מספר הודבק.";
             }
         } catch (e) { alert("אשר גישה ללוח"); }
     }
@@ -113,6 +126,7 @@
         if (isListening) return stopVoice();
 
         isListening = true;
+        finalTranscript = ""; // איפוס לפני הקלטה חדשה
         document.getElementById('voiceBtn').innerText = "🛑 הפסק הקלטה";
         document.getElementById('voiceBtn').classList.add('listening');
         recognition.start();
@@ -127,19 +141,20 @@
 
     function resetAll() {
         stopVoice();
-        identifiedNumber = "";
-        document.getElementById('numVal').innerText = "---";
-        document.getElementById('msgVal').innerText = "---";
-        document.getElementById('sendBtn').style.display = "none";
+        finalTranscript = "";
+        document.getElementById('numVal').innerText = "";
+        document.getElementById('msgVal').innerText = "";
         document.getElementById('statusTxt').innerText = "מוכן לפעולה";
     }
 
     function sendToWhatsApp() {
-        let cleanNum = identifiedNumber;
-        if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
-        let msg = document.getElementById('msgVal').innerText;
-        if (msg === "---") msg = "";
-        window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(msg)}`;
+        let num = document.getElementById('numVal').innerText.replace(/\D/g, '');
+        let msg = document.getElementById('msgVal').innerText.trim();
+
+        if (num.length < 9) return alert("אנא הזן מספר תקין");
+        if (num.startsWith('0')) num = '972' + num.substring(1);
+        
+        window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
     }
 </script>
 
