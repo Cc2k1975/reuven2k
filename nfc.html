@@ -3,142 +3,208 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NFC Master - צריבת קישורים</title>
+    <title>NFC Secure Tool 🔒</title>
     <style>
         :root {
-            --primary-color: #ff5722;
-            --secondary-color: #673ab7;
-            --bg-color: #f0f2f5;
+            --primary: #673ab7;
+            --wifi: #009688;
+            --automation: #e91e63;
+            --bg: #f8f9fa;
         }
 
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+            font-family: system-ui, sans-serif;
+            background-color: var(--bg);
             margin: 0;
             padding: 20px;
+            display: flex;
+            justify-content: center;
         }
 
         .card {
             background: white;
-            border-radius: 24px;
-            padding: 30px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 400px;
-            text-align: center;
+            max-width: 450px;
         }
 
-        h2 { color: var(--secondary-color); margin-bottom: 20px; }
+        h2 { text-align: center; color: var(--primary); }
 
-        .input-group {
-            margin-bottom: 15px;
-            text-align: right;
+        .tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
         }
 
-        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; }
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: #eee;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
 
+        .tab-btn.active { background: var(--primary); color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .input-group { margin-bottom: 15px; text-align: right; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: bold; }
         input {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
-            border-radius: 12px;
+            border-radius: 10px;
             box-sizing: border-box;
-            font-size: 1rem;
         }
 
-        button {
+        button.main-btn {
             width: 100%;
             padding: 15px;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
+            color: white;
             font-size: 1.1rem;
             font-weight: bold;
             cursor: pointer;
             margin-top: 10px;
-            color: white;
-            transition: transform 0.2s;
         }
 
-        .btn-scan { background-color: #444; }
-        .btn-write-url { background-color: var(--primary-color); }
+        .btn-wifi { background-color: var(--wifi); }
+        .btn-auto { background-color: var(--automation); }
+        .btn-read { background-color: #444; }
 
-        #output {
+        #status {
             margin-top: 20px;
             padding: 15px;
-            background: #fdfdfd;
-            border: 1px dashed #ccc;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            min-height: 40px;
+            border-radius: 10px;
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            text-align: center;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>NFC Pro Writer 🚀</h2>
-    
-    <div id="output">מוכן לסריקה או צריבה...</div>
+    <h2>NFC Secure Tool 🔒</h2>
 
-    <button class="btn-scan" id="btnRead">🔍 קרא מה יש בכרטיס</button>
-
-    <hr style="margin: 25px 0; opacity: 0.2;">
-
-    <div class="input-group">
-        <label>כתובת אתר (URL):</label>
-        <input type="url" id="urlInput" placeholder="https://example.com" dir="ltr">
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab('read')">🔍 קרא</button>
+        <button class="tab-btn" onclick="openTab('wifi')">📶 WiFi</button>
+        <button class="tab-btn" onclick="openTab('auto')">🤖 אוטומציה</button>
     </div>
 
-    <button class="btn-write-url" id="btnWriteUrl">🔗 צרוב קישור לכרטיס</button>
+    <div id="read" class="tab-content active">
+        <button class="main-btn btn-read" id="btnRead">הפעל סורק לקריאה</button>
+    </div>
+
+    <div id="wifi" class="tab-content">
+        <div class="input-group">
+            <label>שם הרשת (SSID):</label>
+            <input type="text" id="ssid" placeholder="MyHomeWiFi">
+        </div>
+        <div class="input-group">
+            <label>סיסמה לרשת:</label>
+            <input type="password" id="password" placeholder="סיסמת ה-WiFi">
+        </div>
+        <button class="main-btn btn-wifi" id="btnWriteWifi">צרוב WiFi (מוגן בסיסמה)</button>
+    </div>
+
+    <div id="auto" class="tab-content">
+        <div class="input-group">
+            <label>כתובת Webhook:</label>
+            <input type="url" id="webhookUrl" placeholder="https://..." dir="ltr">
+        </div>
+        <button class="main-btn btn-auto" id="btnWriteAuto">צרוב אוטומציה (מוגן בסיסמה)</button>
+    </div>
+
+    <div id="status">מוכן...</div>
 </div>
 
 <script>
-    const output = document.getElementById('output');
-    const urlInput = document.getElementById('urlInput');
+    const statusDiv = document.getElementById('status');
+    const SECRET_PIN = "4451"; // הסיסמה שלך
 
-    // פונקציית עזר להצגת הודעות
-    function log(msg) { output.innerHTML = msg; }
+    function log(msg) { statusDiv.innerHTML = msg; }
 
-    // קריאת כרטיס
-    document.getElementById('btnRead').addEventListener('click', async () => {
-        try {
-            const ndef = new NDEFReader();
-            await ndef.scan();
-            log("⏳ הצמד כרטיס לקריאה...");
-            ndef.onreading = ({ message }) => {
-                const decoder = new TextDecoder();
-                let text = "<b>תוכן שנמצא:</b><br>";
-                for (const record of message.records) {
-                    text += `סוג: ${record.recordType}<br>מידע: ${decoder.decode(record.data)}<br>`;
-                }
-                log(text);
-            };
-        } catch (error) { log("❌ שגיאה: " + error); }
-    });
+    function openTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
 
-    // צריבת קישור (URL)
-    document.getElementById('btnWriteUrl').addEventListener('click', async () => {
-        const url = urlInput.value;
-        if (!url.startsWith('http')) {
-            alert("אנא הכנס כתובת אתר מלאה (כולל https://)");
+    // פונקציה לבדיקת סיסמה לפני פעולה
+    function checkPermission() {
+        const userInput = prompt("נא להזיז סיסמת אבטחה לצריבה:");
+        if (userInput === SECRET_PIN) {
+            return true;
+        } else {
+            alert("סיסמה שגויה! הפעולה בוטלה.");
+            return false;
+        }
+    }
+
+    async function writeNFC(content, type = "text") {
+        if (!checkPermission()) return; // עצירה אם הסיסמה שגויה
+
+        if (!('NDEFReader' in window)) {
+            log("❌ מכשיר לא נתמך");
             return;
         }
 
         try {
             const ndef = new NDEFReader();
-            log("⏳ <b>מתכונן לצריבת קישור...</b><br>הצמד את הכרטיס עכשיו!");
+            log("⏳ <b>הסיסמה אושרה!</b><br>הצמד את התגית לצריבה...");
             
-            // יצירת רשומה מסוג URL
-            await ndef.write({
-                records: [{ recordType: "url", data: url }]
-            });
-            
-            log("✅ הצלחה! הקישור נצרב.<br>נסה לסגור הכל ולהצמיד את הכרטיס.");
-        } catch (error) { log("❌ שגיאה בצריבה: " + error); }
+            let record;
+            if (type === "wifi") {
+                record = {
+                    recordType: "url",
+                    data: content 
+                };
+            } else {
+                record = { recordType: "url", data: content };
+            }
+
+            await ndef.write({ records: [record] });
+            log("✅ הצלחה! המידע נצרב.");
+        } catch (error) {
+            log("❌ שגיאה: " + error);
+        }
+    }
+
+    // אירועי כפתורים
+    document.getElementById('btnWriteWifi').addEventListener('click', () => {
+        const ssid = document.getElementById('ssid').value;
+        const pass = document.getElementById('password').value;
+        if (!ssid || !pass) return alert("מלא פרטים");
+        writeNFC(`WIFI:S:${ssid};T:WPA;P:${pass};;`, "wifi");
+    });
+
+    document.getElementById('btnWriteAuto').addEventListener('click', () => {
+        const url = document.getElementById('webhookUrl').value;
+        if (!url) return alert("הכנס URL");
+        writeNFC(url);
+    });
+
+    document.getElementById('btnRead').addEventListener('click', async () => {
+        try {
+            const ndef = new NDEFReader();
+            await ndef.scan();
+            log("⏳ הצמד תגית לקריאה...");
+            ndef.onreading = ({ message }) => {
+                const decoder = new TextDecoder();
+                log(`<b>תוכן שנמצא:</b><br>${decoder.decode(message.records[0].data)}`);
+            };
+        } catch (e) { log("❌ שגיאה: " + e); }
     });
 </script>
 
