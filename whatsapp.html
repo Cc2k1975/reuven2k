@@ -3,30 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Auto-Magic</title>
+    <title>WhatsApp Direct 100% Fix</title>
     <style>
         :root { --wa-green: #25D366; --wa-dark: #075E54; }
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
+        body { font-family: system-ui, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 15px; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 100%; max-width: 400px; text-align: center; }
         .box { background: #f8f9fa; border: 2px solid #eaebec; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: right; }
-        .label { font-size: 12px; color: #666; font-weight: bold; margin-bottom: 4px; }
+        .label { font-size: 12px; color: #666; font-weight: bold; }
         .field { font-size: 18px; font-weight: bold; color: var(--wa-dark); min-height: 25px; outline: none; word-break: break-word; }
         .btn { width: 100%; padding: 16px; margin: 8px 0; border: none; border-radius: 12px; font-size: 17px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
         .btn-paste { background-color: #6c757d; color: white; }
         .btn-voice { background-color: #34b7f1; color: white; }
         .btn-voice.listening { background-color: #ff4b2b; animation: blink 1s infinite; }
         .btn-send { background-color: var(--wa-green); color: white; display: none; }
-        .btn-reset { background-color: #e9ecef; color: #333; font-size: 14px; margin-top: 10px; }
-        
-        #countdown { font-weight: bold; color: #ff4b2b; font-size: 18px; display: none; margin-top: 10px; }
-        
+        #countdown { font-weight: bold; color: #ff4b2b; font-size: 20px; margin: 10px 0; height: 30px; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="color: var(--wa-dark);">שליחה מהירה אוטומטית</h2>
+    <h2 style="color: var(--wa-dark);">שליחה מהירה (סגירה אוטומטית)</h2>
     
     <div class="box">
         <div class="label">מספר טלפון:</div>
@@ -34,31 +31,28 @@
     </div>
     
     <div class="box">
-        <div class="label">תוכן ההודעה:</div>
+        <div class="label">הודעה:</div>
         <div id="msgField" class="field" style="font-weight: normal;" contenteditable="true"></div>
     </div>
 
     <button class="btn btn-paste" onclick="pasteFromClipboard()">📋 הדבק מספר מהזיכרון</button>
     <button id="voiceBtn" class="btn btn-voice" onclick="toggleListening()">🎤 לחץ כאן ודבר</button>
-    <button id="sendBtn" class="btn btn-send" onclick="manualSend()">✅ שלח עכשיו</button>
     
-    <div id="countdown">שולח בעוד 5...</div>
+    <div id="countdown"></div>
     
-    <button class="btn btn-reset" onclick="resetPage()">נקה הכל</button>
+    <button id="sendBtn" class="btn btn-send" onclick="forceSend()">✅ שלח עכשיו</button>
+    <button class="btn" style="background:#eee" onclick="location.reload()">נקה הכל</button>
 </div>
 
 <script>
     let recognition;
     let isListening = false;
     let lockedNumber = "";
-    let lastProcessedSentence = "";
     let autoSendTimer = null;
-    let timeLeft = 5;
+    let secondsLeft = 5;
 
     function initSpeech() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!Speech) return alert("הדפדפן לא תומך");
-        
         recognition = new Speech();
         recognition.lang = 'he-IL';
         recognition.continuous = true;
@@ -66,19 +60,17 @@
 
         recognition.onresult = (event) => {
             let result = event.results[event.results.length - 1][0].transcript.trim();
-            if (result === lastProcessedSentence) return;
-            lastProcessedSentence = result;
-
-            handleSpeechResult(result);
+            handleResult(result);
         };
 
         recognition.onend = () => { if (isListening) recognition.start(); };
     }
 
-    function handleSpeechResult(text) {
+    function handleResult(text) {
         const phoneElem = document.getElementById('phoneField');
         const msgElem = document.getElementById('msgField');
         
+        // זיהוי מספר
         if (!lockedNumber) {
             let digits = text.replace(/\D/g, '');
             if (digits.length >= 9) {
@@ -90,52 +82,61 @@
             }
         }
 
+        // זיהוי הודעה
         if (text.length > 1 && text !== lockedNumber) {
             let cleanText = text.replace(/[0-9\-]{7,}/g, '').trim();
             if (cleanText) {
-                let currentMsg = msgElem.innerText;
-                if (!currentMsg.includes(cleanText)) {
-                    msgElem.innerText = (currentMsg + " " + cleanText).trim();
+                let current = msgElem.innerText;
+                if (!current.includes(cleanText)) {
+                    msgElem.innerText = (current + " " + cleanText).trim();
                 }
-                
                 document.getElementById('sendBtn').style.display = "flex";
-                startCountdown(); // הפעלת הספירה לאחור
+                startFinalCountdown(); // הפעלת הטיימר בכל פעם שיש טקסט חדש
             }
         }
     }
 
-    function startCountdown() {
-        // איפוס טיימר קודם אם היה
+    function startFinalCountdown() {
         if (autoSendTimer) clearInterval(autoSendTimer);
-        
-        timeLeft = 5;
-        const countdownElem = document.getElementById('countdown');
-        countdownElem.style.display = "block";
-        countdownElem.innerText = `שולח אוטומטית בעוד ${timeLeft}...`;
+        secondsLeft = 5;
+        const display = document.getElementById('countdown');
+        display.innerText = `שולח אוטומטית בעוד ${secondsLeft}...`;
 
         autoSendTimer = setInterval(() => {
-            timeLeft--;
-            countdownElem.innerText = `שולח אוטומטית בעוד ${timeLeft}...`;
+            secondsLeft--;
+            display.innerText = `שולח אוטומטית בעוד ${secondsLeft}...`;
             
-            if (timeLeft <= 0) {
+            if (secondsLeft <= 0) {
                 clearInterval(autoSendTimer);
-                executeAutoSend();
+                forceSend();
             }
         }, 1000);
     }
 
-    function executeAutoSend() {
-        // כיבוי המיקרופון לפני המעבר - זה הסוד שגורם לזה לעבוד!
+    function forceSend() {
+        // 1. כיבוי אגרסיבי של המיקרופון
         isListening = false;
-        if (recognition) recognition.stop();
-        
-        // מעבר לוואטסאפ
-        sendWhatsApp();
+        if (recognition) {
+            recognition.stop();
+            recognition.abort(); // ביטול מיידי של הפעילות
+        }
+
+        // 2. השהייה קטנה מאוד כדי לוודא שהמיקרופון השתחרר
+        setTimeout(() => {
+            sendWhatsApp();
+        }, 300);
     }
 
-    function manualSend() {
-        if (autoSendTimer) clearInterval(autoSendTimer);
-        executeAutoSend();
+    function sendWhatsApp() {
+        let num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
+        let msg = document.getElementById('msgField').innerText.trim();
+        if (!num) return;
+        if (num.startsWith('0')) num = '972' + num.substring(1);
+        
+        const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+        
+        // ניסיון מעבר
+        window.location.assign(url);
     }
 
     async function pasteFromClipboard() {
@@ -155,28 +156,14 @@
             isListening = false;
             recognition.stop();
             if (autoSendTimer) clearInterval(autoSendTimer);
-            document.getElementById('countdown').style.display = "none";
+            document.getElementById('countdown').innerText = "";
             document.getElementById('voiceBtn').innerText = "🎤 לחץ כאן ודבר";
-            document.getElementById('voiceBtn').classList.remove('listening');
         } else {
             isListening = true;
-            document.getElementById('voiceBtn').innerText = "🛑 הפסק הקלטה";
+            document.getElementById('voiceBtn').innerText = "🛑 הקלטה פעילה...";
             document.getElementById('voiceBtn').classList.add('listening');
             recognition.start();
         }
-    }
-
-    function resetPage() {
-        if (autoSendTimer) clearInterval(autoSendTimer);
-        location.reload();
-    }
-
-    function sendWhatsApp() {
-        let num = document.getElementById('phoneField').innerText.replace(/\D/g, '');
-        let msg = document.getElementById('msgField').innerText.trim();
-        if (!num) return;
-        if (num.startsWith('0')) num = '972' + num.substring(1);
-        window.location.href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
     }
 </script>
 </body>
