@@ -65,6 +65,12 @@
             font-size: 1rem;
         }
 
+        /* עיצוב לסרגל עוצמה */
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+
         button.main-btn {
             width: 100%;
             padding: 15px;
@@ -110,12 +116,12 @@
 
     <div id="write" class="tab-content">
         <div class="input-group">
-            <label>בחר מה לצרוב:</label>
+            <label>בחר סוג צריבה:</label>
             <select id="writeType" onchange="toggleWriteSection()">
-                <option value="none">--- בחר אפשרות ---</option>
-                <option value="wifi">📶 הגדרות WiFi (סעיף 2)</option>
-                <option value="auto">🤖 אוטומציה/Webhook (סעיף 3)</option>
-                <option value="volume">🔊 פרופיל סאונד/עוצמת קול (סעיף 14)</option>
+                <option value="none">--- בחר מה לעשות ---</option>
+                <option value="wifi">📶 הגדרות WiFi</option>
+                <option value="auto">🤖 פקודת אוטומציה כללית</option>
+                <option value="volume">🔊 שינוי עוצמת קול (1-10)</option>
             </select>
         </div>
 
@@ -132,16 +138,21 @@
 
         <div id="section-auto" class="write-section">
             <div class="input-group">
-                <label>כתובת Webhook לאוטומציה:</label>
+                <label>כתובת Webhook:</label>
                 <input type="url" id="webhookUrl" placeholder="https://maker.ifttt.com/..." dir="ltr">
             </div>
         </div>
 
         <div id="section-volume" class="write-section">
-            <p style="font-size: 0.8rem; color: #666;">השתמש ב-Webhook כדי לשנות עוצמת קול או להשתיק את המכשיר.</p>
             <div class="input-group">
-                <label>כתובת Webhook לפרופיל סאונד:</label>
-                <input type="url" id="volumeUrl" placeholder="https://..." dir="ltr">
+                <label>בחר עוצמת קול (1 עד 10):</label>
+                <input type="range" id="volumeLevel" min="1" max="10" value="5" oninput="this.nextElementSibling.value = this.value">
+                <output style="font-weight: bold; color: var(--primary);">5</output>
+            </div>
+            <div class="input-group">
+                <label>כתובת שירות האוטומציה שלך:</label>
+                <input type="url" id="volumeBaseUrl" placeholder="https://..." dir="ltr">
+                <small style="color: #666; font-size: 0.75rem;">הקוד יוסיף את רמת הווליום לסוף הכתובת הזו.</small>
             </div>
         </div>
 
@@ -164,14 +175,10 @@
         event.currentTarget.classList.add('active');
     }
 
-    // ניהול ה-Dropdown
     function toggleWriteSection() {
         const type = document.getElementById('writeType').value;
         const btn = document.getElementById('btnWriteMain');
-        
-        // הסתרת כל הסקשנים
         document.querySelectorAll('.write-section').forEach(s => s.classList.remove('active'));
-        
         if (type !== "none") {
             document.getElementById('section-' + type).classList.add('active');
             btn.style.display = 'block';
@@ -196,33 +203,32 @@
 
         try {
             const ndef = new NDEFReader();
-            log("⏳ <b>הסיסמה אושרה!</b><br>הצמד את התגית לצריבה...");
+            log("⏳ <b>הסיסמה אושרה!</b><br>הצמד את התגית...");
             await ndef.write({ records: [{ recordType: "url", data: content }] });
             log("✅ הצלחה! המידע נצרב.");
-        } catch (error) {
-            log("❌ שגיאה: " + error);
-        }
+        } catch (error) { log("❌ שגיאה: " + error); }
     }
 
-    // הפעלת הצריבה לפי הסוג שנבחר
     document.getElementById('btnWriteMain').addEventListener('click', () => {
         const type = document.getElementById('writeType').value;
         
         if (type === 'wifi') {
             const ssid = document.getElementById('ssid').value;
             const pass = document.getElementById('password').value;
-            if (!ssid || !pass) return alert("מלא פרטים");
             writeNFC(`WIFI:S:${ssid};T:WPA;P:${pass};;`);
         } 
         else if (type === 'auto') {
             const url = document.getElementById('webhookUrl').value;
-            if (!url) return alert("הכנס URL");
             writeNFC(url);
         }
         else if (type === 'volume') {
-            const url = document.getElementById('volumeUrl').value;
-            if (!url) return alert("הכנס URL לשינוי עוצמת קול");
-            writeNFC(url);
+            const level = document.getElementById('volumeLevel').value;
+            const baseUrl = document.getElementById('volumeBaseUrl').value;
+            if (!baseUrl) return alert("אנא הכנס את כתובת שירות האוטומציה שלך");
+            
+            // הקוד מחבר את הכתובת עם רמת הווליום הנבחרת
+            const finalUrl = `${baseUrl}?level=${level}`;
+            writeNFC(finalUrl);
         }
     });
 
