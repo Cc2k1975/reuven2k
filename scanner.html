@@ -5,39 +5,68 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>סורק Pro - מתוקן</title>
 
-  <!-- jsPDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-
-  <!-- OpenCV: עדיף בלי async כדי למנוע race-conditions -->
   <script src="https://docs.opencv.org/4.7.0/opencv.js"></script>
 
   <style>
     * { box-sizing: border-box; }
     body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; }
+
     .app { display: flex; flex-direction: column; height: 100dvh; }
 
-    #debug { background: #1a1a1a; color: #0f0; font-size: 11px; padding: 6px; text-align: center; border-bottom: 1px solid #333; }
+    #debug { background: #1a1a1a; color: #0f0; font-size: 12px; padding: 8px; text-align: center; border-bottom: 1px solid #333; }
 
-    .viewer { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
+    .viewer { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
     video, canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
-
-    /* בתחילה canvas מוסתר */
     #canvasOutput { display: none; }
 
-    .footer { height: 160px; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; border-top: 1px solid #222; }
+    /* ✅ במקום height קבוע: footer דינמי ונשאר במסך */
+    .footer {
+      flex: 0 0 auto;
+      background: #111;
+      border-top: 1px solid #222;
+      padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+    }
 
-    .snap-btn { width: 75px; height: 75px; background: #fff; border-radius: 50%; border: 6px solid #333; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-    .snap-btn:active { transform: scale(0.9); background: #ccc; }
-    .snap-inner { width: 55px; height: 55px; border-radius: 50%; border: 2px solid #000; }
+    #msg { text-align: center; font-size: 16px; }
 
-    .btn-group { display: none; gap: 15px; width: 90%; }
-    .btn { flex: 1; padding: 16px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; cursor: pointer; }
+    .snap-btn {
+      width: 78px; height: 78px;
+      background: #fff;
+      border-radius: 50%;
+      border: 6px solid #333;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: 0.15s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .snap-btn:active { transform: scale(0.92); background: #ddd; }
+    .snap-inner { width: 56px; height: 56px; border-radius: 50%; border: 2px solid #000; }
+
+    .btn-group { display: none; gap: 12px; width: min(520px, 92%); }
+    .btn { flex: 1; padding: 14px; border-radius: 12px; border: none; font-weight: 700; font-size: 16px; cursor: pointer; }
     .btn-send { background: #25d366; color: #fff; }
     .btn-cancel { background: #333; color: #fff; }
 
     #loader { position: fixed; inset: 0; background: #000; z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center; }
     .spinner { width: 40px; height: 40px; border: 4px solid #222; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ✅ “כפתור חירום” קבוע למטה אם משהו מסתיר את ה-footer */
+    #floatingSnap {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      z-index: 50;
+      display: none; /* נדליק אותו אוטומטית אם לא רואים את הכפתור הראשי */
+    }
   </style>
 </head>
 
@@ -59,7 +88,7 @@
       <div id="msg">כוון אל הדף ולחץ צילום</div>
 
       <div id="ui-capture">
-        <div class="snap-btn" id="snapBtn">
+        <div class="snap-btn" id="snapBtn" aria-label="צילום">
           <div class="snap-inner"></div>
         </div>
       </div>
@@ -68,6 +97,13 @@
         <button class="btn btn-cancel" id="cancelBtn">🔄 ביטול</button>
         <button class="btn btn-send" id="sendBtn">📩 שלח PDF</button>
       </div>
+    </div>
+  </div>
+
+  <!-- כפתור חירום -->
+  <div id="floatingSnap">
+    <div class="snap-btn" id="snapBtn2" aria-label="צילום (חלופי)">
+      <div class="snap-inner"></div>
     </div>
   </div>
 
@@ -83,6 +119,9 @@
   const uiResult = document.getElementById('ui-result');
 
   const snapBtn = document.getElementById('snapBtn');
+  const snapBtn2 = document.getElementById('snapBtn2');
+  const floatingSnap = document.getElementById('floatingSnap');
+
   const cancelBtn = document.getElementById('cancelBtn');
   const sendBtn = document.getElementById('sendBtn');
 
@@ -90,18 +129,29 @@
   let cvReady = false;
   let cameraReady = false;
 
-  // 1) OpenCV מוכן בצורה יציבה
-  if (typeof cv === 'undefined') {
-    log("שגיאה: OpenCV לא נטען");
-  } else {
-    cv.onRuntimeInitialized = async () => {
-      cvReady = true;
-      log("OpenCV מוכן, פותח מצלמה...");
-      await initCamera();
-    };
-  }
+  // מחברים לחצנים לפעולות (גם אם OpenCV עוד לא מוכן)
+  snapBtn.addEventListener('click', processDoc);
+  snapBtn2.addEventListener('click', processDoc);
+  cancelBtn.addEventListener('click', () => location.reload());
+  sendBtn.addEventListener('click', sendToWhatsApp);
 
-  // 2) פתיחת מצלמה + וידוא שהוידאו באמת מוכן
+  // ✅ מדליק "כפתור חירום" אם הכפתור הראשי לא נכנס למסך
+  function ensureSnapVisible() {
+    const r = snapBtn.getBoundingClientRect();
+    const visible = r.top >= 0 && r.left >= 0 && r.bottom <= (window.innerHeight || document.documentElement.clientHeight);
+    floatingSnap.style.display = visible ? 'none' : 'block';
+  }
+  window.addEventListener('resize', ensureSnapVisible);
+  window.addEventListener('orientationchange', () => setTimeout(ensureSnapVisible, 200));
+  setTimeout(ensureSnapVisible, 500);
+
+  // OpenCV init
+  cv.onRuntimeInitialized = async () => {
+    cvReady = true;
+    log("OpenCV מוכן, פותח מצלמה...");
+    await initCamera();
+  };
+
   async function initCamera() {
     try {
       streamRef = await navigator.mediaDevices.getUserMedia({
@@ -115,7 +165,6 @@
 
       video.srcObject = streamRef;
 
-      // מחכים שהוידאו יתחיל לתת פריימים אמיתיים
       await new Promise((resolve) => {
         const onReady = () => {
           if (video.videoWidth > 0 && video.videoHeight > 0) {
@@ -131,6 +180,7 @@
       cameraReady = true;
       loader.style.display = "none";
       log(`מערכת מוכנה ✅ (${video.videoWidth}x${video.videoHeight})`);
+      ensureSnapVisible();
     } catch (e) {
       loader.style.display = "none";
       log("שגיאה בפתיחת מצלמה");
@@ -139,12 +189,7 @@
     }
   }
 
-  snapBtn.addEventListener('click', processDoc);
-  cancelBtn.addEventListener('click', () => location.reload());
-  sendBtn.addEventListener('click', sendToWhatsApp);
-
   function ensureCanvasSize(w, h) {
-    // חשוב: לקבוע גודל אמיתי ל-canvas, אחרת התמונה/ה-PDF יוצאים לא נכון
     if (canvas.width !== w) canvas.width = w;
     if (canvas.height !== h) canvas.height = h;
   }
@@ -162,21 +207,16 @@
 
       ensureCanvasSize(cols, rows);
 
-      // קוראים פריים ל-Mat
       const cap = new cv.VideoCapture(video);
       let src = new cv.Mat(rows, cols, cv.CV_8UC4);
       cap.read(src);
 
-      // אם הפריים יצא ריק/שחור, בדרך כלל זה כי הוידאו לא באמת מוכן
-      // אבל אנחנו כבר הגנו על זה למעלה
       let gray = new cv.Mat();
       cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-      // ניקוי רעש קטן לשיפור תוצאה
       let blur = new cv.Mat();
       cv.GaussianBlur(gray, blur, new cv.Size(3, 3), 0);
 
-      // סף אדפטיבי למסמך
       let bw = new cv.Mat();
       cv.adaptiveThreshold(
         blur, bw, 255,
@@ -187,16 +227,13 @@
 
       cv.imshow(canvas, bw);
 
-      // UI
       video.style.display = 'none';
       canvas.style.display = 'block';
       uiCapture.style.display = 'none';
       uiResult.style.display = 'flex';
       msg.innerText = "סריקה הושלמה בהצלחה!";
 
-      // ניקוי זיכרון
       src.delete(); gray.delete(); blur.delete(); bw.delete();
-
       log("הסריקה מוכנה לשיתוף");
     } catch (err) {
       log("שגיאה: " + (err?.message || err));
@@ -211,25 +248,15 @@
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p' });
 
-      // תמונה מה-canvas
       const imgData = canvas.toDataURL('image/jpeg', 0.9);
 
-      // התאמת יחס לתוך A4 בלי עיוות
-      const pageW = 210;  // mm
-      const pageH = 297;  // mm
-
-      // יחס תמונה
-      const imgWpx = canvas.width;
-      const imgHpx = canvas.height;
+      const pageW = 210, pageH = 297;
+      const imgWpx = canvas.width, imgHpx = canvas.height;
       const imgRatio = imgWpx / imgHpx;
 
       let drawW = pageW;
       let drawH = drawW / imgRatio;
-
-      if (drawH > pageH) {
-        drawH = pageH;
-        drawW = drawH * imgRatio;
-      }
+      if (drawH > pageH) { drawH = pageH; drawW = drawH * imgRatio; }
 
       const x = (pageW - drawW) / 2;
       const y = (pageH - drawH) / 2;
@@ -240,20 +267,11 @@
       const file = new File([blob], "document_scan.pdf", { type: "application/pdf" });
 
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'הסריקה שלי',
-          text: 'מצורף המסמך שסרקתי'
-        });
+        await navigator.share({ files: [file], title: 'הסריקה שלי', text: 'מצורף המסמך שסרקתי' });
         log("שיתוף נפתח");
-      } else if (navigator.share) {
-        // יש מכשירים שתומכים share אבל לא files
-        const url = URL.createObjectURL(blob);
-        await navigator.share({ title: 'הסריקה שלי', text: 'המסמך מוכן. אם לא מצורף קובץ, הורד אותו ידנית.', url });
-        log("שיתוף (ללא קובץ) נפתח");
       } else {
         pdf.save("document_scan.pdf");
-        log("הורדה בוצעה (אין Share API)");
+        log("הורדה בוצעה (אין Share API לקבצים)");
       }
     } catch (e) {
       log("שיתוף בוטל/נכשל");
