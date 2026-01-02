@@ -140,7 +140,7 @@
       <div class="row" id="rowCapture">
         <div class="pill" id="pagesInfo">עמודים: 0</div>
 
-        <!-- ✅ תוספת: כפתור מצב אפור/שחור-לבן -->
+        <!-- מצב סריקה -->
         <button class="btn" id="modeBtn">🩶 אפור</button>
 
         <div class="snap-btn" id="snapBtn" aria-label="צילום">
@@ -156,7 +156,9 @@
       <!-- פעולות אחרי שיש לפחות עמוד אחד -->
       <div class="row" id="rowActions" style="display:none">
         <button class="btn btn-blue" id="addPageBtn">➕ הוסף עמוד</button>
-        <button class="btn btn-green" id="makePdfBtn">📩 שלח PDF</button>
+
+        <!-- ✅ במקום "שלח PDF" שמתי כפתור מייל -->
+        <button class="btn btn-green" id="mailBtn">✉️ Gmail</button>
       </div>
     </div>
   </div>
@@ -191,7 +193,9 @@
   const thumbs = document.getElementById('thumbs');
   const rowActions = document.getElementById('rowActions');
   const addPageBtn = document.getElementById('addPageBtn');
-  const makePdfBtn = document.getElementById('makePdfBtn');
+
+  // ✅ כפתור מייל
+  const mailBtn = document.getElementById('mailBtn');
 
   const previewModal = document.getElementById('previewModal');
   const previewImg = document.getElementById('previewImg');
@@ -199,13 +203,12 @@
   const closePreviewBtn = document.getElementById('closePreviewBtn');
   const deletePageBtn = document.getElementById('deletePageBtn');
 
-  // ✅ תוספת: כפתור מצב
+  // מצב סריקה
   const modeBtn = document.getElementById('modeBtn');
-  let scanMode = "bw"; // ברירת מחדל: מה שיש עכשיו (שחור-לבן)
+  let scanMode = "bw"; // ברירת מחדל: שחור-לבן
 
   modeBtn.addEventListener('click', () => {
     scanMode = (scanMode === "bw") ? "gray" : "bw";
-    // כשהמצב הוא BW – הכפתור מציע לעבור לאפור
     modeBtn.innerText = (scanMode === "bw") ? "🩶 אפור" : "⬛ שחור-לבן";
     log("מצב סריקה: " + (scanMode === "bw" ? "שחור-לבן" : "אפור"));
   });
@@ -221,11 +224,13 @@
   snapBtn.addEventListener('click', processDocAndStore);
   resetBtn.addEventListener('click', () => location.reload());
   addPageBtn.addEventListener('click', backToCamera);
-  makePdfBtn.addEventListener('click', sendMultiPagePdf);
 
   closePreviewBtn.addEventListener('click', closePreview);
   previewModal.addEventListener('click', (e) => { if (e.target === previewModal) closePreview(); });
   deletePageBtn.addEventListener('click', deleteCurrentPreviewPage);
+
+  // ✅ שולח למייל (Gmail דרך Share Sheet)
+  mailBtn.addEventListener('click', sendPdfToEmail);
 
   cv.onRuntimeInitialized = async () => {
     cvReady = true;
@@ -356,13 +361,10 @@
       let blur = new cv.Mat();
       cv.GaussianBlur(gray, blur, new cv.Size(3, 3), 0);
 
-      // ✅ תוספת: מצב אפור (ללא threshold) / מצב שחור-לבן (כמו שהיה)
       let out = new cv.Mat();
       if (scanMode === "gray") {
-        // אפור נקי: blur (נראה "סריקה" אבל לא מוחק גוונים)
         out = blur.clone();
       } else {
-        // שחור-לבן: בדיוק מה שהיה לך
         cv.adaptiveThreshold(
           blur, out, 255,
           cv.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -383,7 +385,7 @@
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
       pages.push(dataUrl);
 
-      msg.innerText = `נסרק עמוד ${pages.length}. אפשר להוסיף עוד או לשלוח PDF.`;
+      msg.innerText = `נסרק עמוד ${pages.length}. אפשר להוסיף עוד או לשלוח במייל.`;
       updatePagesUI();
 
       // ניקוי
@@ -396,58 +398,69 @@
     }
   }
 
-  async function sendMultiPagePdf() {
+  async function buildPdfFile() {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p' });
+
+    const pageW = 210, pageH = 297;
+
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 0) pdf.addPage();
+
+      const imgData = pages[i];
+
+      const dims = await new Promise((resolve) => {
+        const im = new Image();
+        im.onload = () => resolve({ w: im.width, h: im.height });
+        im.src = imgData;
+      });
+
+      const imgRatio = dims.w / dims.h;
+
+      let drawW = pageW;
+      let drawH = drawW / imgRatio;
+      if (drawH > pageH) { drawH = pageH; drawW = drawH * imgRatio; }
+
+      const x = (pageW - drawW) / 2;
+      const y = (pageH - drawH) / 2;
+
+      pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
+    }
+
+    const blob = pdf.output('blob');
+    const name = `scan_${new Date().toISOString().replace(/[:.]/g,'-')}.pdf`;
+    return new File([blob], name, { type: "application/pdf" });
+  }
+
+  async function sendPdfToEmail() {
     if (pages.length === 0) {
       log("אין עמודים לשליחה");
       return;
     }
 
     try {
-      log("מכין PDF מרובה עמודים...");
+      log("מכין PDF למייל...");
 
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p' });
+      const file = await buildPdfFile();
 
-      const pageW = 210, pageH = 297;
-
-      for (let i = 0; i < pages.length; i++) {
-        if (i > 0) pdf.addPage();
-
-        const imgData = pages[i];
-
-        // קוראים מידות אמיתיות כדי לשמור יחס
-        const dims = await new Promise((resolve) => {
-          const im = new Image();
-          im.onload = () => resolve({ w: im.width, h: im.height });
-          im.src = imgData;
-        });
-
-        const imgRatio = dims.w / dims.h;
-
-        let drawW = pageW;
-        let drawH = drawW / imgRatio;
-        if (drawH > pageH) { drawH = pageH; drawW = drawH * imgRatio; }
-
-        const x = (pageW - drawW) / 2;
-        const y = (pageH - drawH) / 2;
-
-        pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
-      }
-
-      const blob = pdf.output('blob');
-      const name = `scan_${new Date().toISOString().replace(/[:.]/g,'-')}.pdf`;
-      const file = new File([blob], name, { type: "application/pdf" });
-
+      // הדרך היחידה לצרף קובץ אוטומטית: Share Sheet -> לבחור Gmail
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: 'הסריקה שלי',
+          title: 'מסמך סרוק',
           text: `מצורף PDF עם ${pages.length} עמודים`
         });
-        log("שיתוף נפתח");
+        log("נפתח שיתוף – בחר Gmail");
       } else {
-        pdf.save(name);
-        log("הורדה בוצעה (אין Share API לקבצים)");
+        // fallback: אין אפשרות לצרף אוטומטית
+        // מוריד את הקובץ כדי שתוכל לצרף ידנית במייל
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(file);
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        log("הורדתי את ה-PDF (אין שיתוף עם קבצים בדפדפן הזה)");
       }
     } catch (e) {
       log("שיתוף בוטל/נכשל");
