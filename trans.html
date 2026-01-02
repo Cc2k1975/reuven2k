@@ -5,28 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>מתורגמן מולטי מהיר</title>
 
-    <link rel="icon" type="image/jpeg" href="translate.jpg">
-
-    <link rel="apple-touch-icon" href="translate.jpg">
-    <link rel="apple-touch-icon" sizes="180x180" href="translate.jpg">
-
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="מתורגמן">
+    <link rel="icon" type="image/jpeg" href="https://reuven2k.com/translate.jpg">
+    <link rel="apple-touch-icon" href="https://reuven2k.com/translate.jpg">
+    
+    <meta name="theme-color" content="#0056b3">
     <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="מתורגמן">
 
-    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22מתורגמן%20מולטי%22,%22short_name%22:%22מתורגמן%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22icons%22:[{%22src%22:%22translate.jpg%22,%22sizes%22:%22512x512%22,%22type%22:%22image/jpeg%22}]}">
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22מתורגמן%20מולטי%22,%22short_name%22:%22מתורגמן%22,%22start_url%22:%22/trans.htm%22,%22display%22:%22standalone%22,%22background_color%22:%22#000000%22,%22theme_color%22:%22#0056b3%22,%22icons%22:[{%22src%22:%22https://reuven2k.com/translate.jpg%22,%22sizes%22:%22512x512%22,%22type%22:%22image/jpeg%22}]}">
 
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; background-color: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
         .mega-button { width: 100%; height: 50vh; border: none; font-size: 3.5rem; font-weight: 800; color: rgba(255, 255, 255, 0.4); cursor: pointer; display: flex; justify-content: center; align-items: center; outline: none; transition: all 0.1s; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; position: relative; z-index: 1; }
+        
         #btn-top { background-color: #0056b3; }
         #btn-bottom { background-color: #c82333; }
         .mega-button:active, .active-press { filter: brightness(80%); transform: scale(0.98); }
-        #settings-btn { position: absolute; top: 20px; left: 20px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.9); z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s; }
-        #settings-btn:active { transform: scale(0.9); }
+        
+        /* כפתור הגדרות (שמאל) */
+        #settings-btn { position: absolute; top: 20px; left: 20px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.9); z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        
+        /* כפתור הבית להתקנה (ימין) */
+        #install-app-btn { position: absolute; top: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: #ffc107; z-index: 100; cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: none; animation: bounce 2s infinite; }
+
+        @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 40% {transform: translateY(-5px);} 60% {transform: translateY(-3px);} }
+
         #center-replay-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 35px; height: 35px; background: white; border-radius: 50%; z-index: 150; display: flex; align-items: center; justify-content: center; font-size: 40px; box-shadow: 0 0 25px rgba(0,0,0,0.6); cursor: pointer; border: 5px solid #f0f0f0; transition: transform 0.2s, background-color 0.2s; }
-        #center-replay-btn:active { transform: translate(-50%, -50%) scale(0.9) rotate(-30deg); background-color: #e6e6e6; }
         #translation-text { position: absolute; width: 80%; left: 10%; color: #fff; font-size: 2.2rem; font-weight: bold; text-align: center; z-index: 50; pointer-events: none; text-shadow: 0 2px 10px rgba(0,0,0,0.8); line-height: 1.3; opacity: 0; transition: opacity 0.3s; }
         .text-pos-top { top: 25%; transform: translateY(-50%) rotate(180deg); }
         .text-pos-bottom { bottom: 25%; transform: translateY(50%); }
@@ -39,6 +45,8 @@
 <body>
 
     <div id="settings-btn" onclick="openSettings()">⚙️</div>
+    <button id="install-app-btn" onclick="triggerInstall()">🏠</button>
+    
     <div id="center-replay-btn" onclick="replayLast()">↺</div>
     <div id="translation-text"></div>
 
@@ -81,6 +89,31 @@
     </div>
 
     <script>
+        // לוגיקת התקנה אוטומטית (Android)
+        let deferredPrompt;
+        const installBtn = document.getElementById('install-app-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            // מראה את הכפתור רק כשהדפדפן מוכן להתקנה
+            installBtn.style.display = 'flex';
+        });
+
+        async function triggerInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    installBtn.style.display = 'none';
+                }
+                deferredPrompt = null;
+            } else {
+                alert("להוספת האייקון: לחץ על 3 הנקודות בדפדפן ובחר 'הוספה למסך הבית'");
+            }
+        }
+
+        // --- שאר הקוד שלך ללא שינוי ---
         const languages = {
             'he': { code: 'he-IL', name: 'עברית' },
             'en': { code: 'en-US', name: 'ENGLISH' },
@@ -103,7 +136,6 @@
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         const synthesis = window.speechSynthesis;
-
         recognition.continuous = false;
         recognition.interimResults = false;
         let isRecording = false;
@@ -129,10 +161,7 @@
             const btn = document.getElementById(position === 'top' ? 'btn-top' : 'btn-bottom');
             btn.classList.add('active-press');
             btn.innerText = "...";
-            try {
-                recognition.start();
-                isRecording = true;
-            } catch (e) { console.error(e); }
+            try { recognition.start(); isRecording = true; } catch (e) { console.error(e); }
         }
 
         function stop() {
@@ -170,9 +199,6 @@
 
         function replayLast() {
             if (lastTranslationText && lastTranslationLang) {
-                const btn = document.getElementById('center-replay-btn');
-                btn.style.transform = 'translate(-50%, -50%) rotate(-360deg)';
-                setTimeout(() => { btn.style.transform = 'translate(-50%, -50%) rotate(0deg)'; }, 300);
                 showTranslationText(lastTranslationText, lastTranslationLang);
                 const utterance = new SpeechSynthesisUtterance(lastTranslationText);
                 utterance.lang = lastTranslationLang;
@@ -185,11 +211,8 @@
             const textDiv = document.getElementById('translation-text');
             textDiv.innerText = text;
             textDiv.className = '';
-            if (langCode === languages[currentTop].code) {
-                textDiv.classList.add('text-pos-top');
-            } else {
-                textDiv.classList.add('text-pos-bottom');
-            }
+            if (langCode === languages[currentTop].code) { textDiv.classList.add('text-pos-top'); } 
+            else { textDiv.classList.add('text-pos-bottom'); }
             textDiv.style.opacity = '1';
             setTimeout(() => { if (textDiv.innerText === text) { textDiv.style.opacity = '0'; } }, 6000);
         }
