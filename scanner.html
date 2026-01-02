@@ -3,27 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>סורק Pro - מתוקן</title>
+  <title>סורק Pro - עם פינות + PDF מרובה עמודים</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://docs.opencv.org/4.7.0/opencv.js"></script>
 
   <style>
     *{box-sizing:border-box}
-    body,html{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#fff;font-family:sans-serif}
+    body,html{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#fff;font-family:system-ui,sans-serif}
     .app{display:flex;flex-direction:column;height:100dvh}
-    #debug{background:#1a1a1a;color:#0f0;font-size:12px;padding:8px;text-align:center;border-bottom:1px solid #333}
 
-    .viewer{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#000}
+    #debug{background:#1a1a1a;color:#0f0;font-size:12px;padding:8px;text-align:center;border-bottom:1px solid #333}
+    .viewer{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;background:#000}
+
     video,canvas{max-width:100%;max-height:100%;object-fit:contain}
     #canvasOutput{display:none}
+
+    /* שכבת מסגרת */
+    #overlay{
+      position:absolute; inset:0;
+      pointer-events:none;
+      display:block;
+    }
 
     .footer{
       flex:0 0 auto;background:#111;border-top:1px solid #222;
       padding:10px 12px calc(12px + env(safe-area-inset-bottom));
       display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center
     }
+
     #msg{text-align:center;font-size:16px}
+    .row{width:min(680px,96%);display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
 
     .snap-btn{
       width:78px;height:78px;background:#fff;border-radius:50%;
@@ -33,14 +43,39 @@
     .snap-btn:active{transform:scale(0.92);background:#ddd}
     .snap-inner{width:56px;height:56px;border-radius:50%;border:2px solid #000}
 
-    .btn-group{display:none;gap:12px;width:min(520px,92%)}
-    .btn{flex:1;padding:14px;border-radius:12px;border:none;font-weight:700;font-size:16px;cursor:pointer}
-    .btn-send{background:#25d366;color:#fff}
-    .btn-cancel{background:#333;color:#fff}
+    .btn{
+      padding:12px 14px;border-radius:12px;border:none;font-weight:800;font-size:15px;cursor:pointer;
+      background:#333;color:#fff
+    }
+    .btn:active{transform:scale(0.98)}
+    .btn-green{background:#25d366;color:#fff}
+    .btn-blue{background:#0b5ed7;color:#fff}
+    .btn-red{background:#b02a37;color:#fff}
+
+    .pill{
+      font-size:13px;padding:6px 10px;border:1px solid #444;border-radius:999px;background:#0d0d0d;color:#ddd
+    }
 
     #loader{position:fixed;inset:0;background:#000;z-index:99;display:flex;flex-direction:column;align-items:center;justify-content:center}
     .spinner{width:40px;height:40px;border:4px solid #222;border-top:4px solid #007bff;border-radius:50%;animation:spin 1s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* תצוגת עמודים */
+    #thumbs{
+      width:min(680px,96%);
+      display:none;
+      gap:8px;
+      overflow-x:auto;
+      padding:6px 0;
+      justify-content:flex-start;
+      align-items:center;
+    }
+    .thumb{
+      height:52px;
+      border-radius:10px;
+      border:1px solid #333;
+      background:#000;
+    }
   </style>
 </head>
 
@@ -56,20 +91,27 @@
     <div class="viewer">
       <video id="video" autoplay playsinline muted></video>
       <canvas id="canvasOutput"></canvas>
+      <canvas id="overlay"></canvas>
     </div>
 
     <div class="footer">
       <div id="msg">כוון אל הדף ולחץ צילום</div>
 
-      <div id="ui-capture">
+      <div class="row" id="rowCapture">
+        <div class="pill" id="pagesInfo">עמודים: 0</div>
+
         <div class="snap-btn" id="snapBtn" aria-label="צילום">
           <div class="snap-inner"></div>
         </div>
+
+        <button class="btn btn-red" id="resetBtn">איפוס</button>
       </div>
 
-      <div id="ui-result" class="btn-group">
-        <button class="btn btn-cancel" id="cancelBtn">🔄 ביטול</button>
-        <button class="btn btn-send" id="sendBtn">📩 שלח PDF</button>
+      <div id="thumbs"></div>
+
+      <div class="row" id="rowActions" style="display:none">
+        <button class="btn btn-blue" id="addPageBtn">➕ הוסף עמוד</button>
+        <button class="btn btn-green" id="makePdfBtn">📩 שלח PDF</button>
       </div>
     </div>
   </div>
@@ -78,29 +120,45 @@
   const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
 
   const video = document.getElementById('video');
-  const canvas = document.getElementById('canvasOutput');
+  const canvasOut = document.getElementById('canvasOutput');
+  const overlay = document.getElementById('overlay');
 
   const loader = document.getElementById('loader');
   const msg = document.getElementById('msg');
-  const uiCapture = document.getElementById('ui-capture');
-  const uiResult = document.getElementById('ui-result');
 
   const snapBtn = document.getElementById('snapBtn');
-  const cancelBtn = document.getElementById('cancelBtn');
-  const sendBtn = document.getElementById('sendBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  const rowActions = document.getElementById('rowActions');
+  const addPageBtn = document.getElementById('addPageBtn');
+  const makePdfBtn = document.getElementById('makePdfBtn');
+
+  const pagesInfo = document.getElementById('pagesInfo');
+  const thumbs = document.getElementById('thumbs');
 
   let cvReady = false;
   let cameraReady = false;
   let streamRef = null;
 
-  snapBtn.addEventListener('click', processDoc);
-  cancelBtn.addEventListener('click', () => location.reload());
-  sendBtn.addEventListener('click', sendToWhatsApp);
+  // מערך של תמונות עמודים (JPEG dataURL)
+  const pages = [];
+
+  // פינות הדף האחרונות שמצאנו (במערכת הקואורדינטות של הפריים המקורי)
+  let lastQuad = null;
+
+  // כמה להקטין לזיהוי (מהיר)
+  const DETECT_MAX_SIDE = 800;
+
+  snapBtn.addEventListener('click', captureScan);
+  resetBtn.addEventListener('click', () => location.reload());
+  addPageBtn.addEventListener('click', () => { msg.innerText = "כוון אל הדף ולחץ צילום"; });
+  makePdfBtn.addEventListener('click', sendMultiPagePdf);
 
   cv.onRuntimeInitialized = async () => {
     cvReady = true;
     log("OpenCV מוכן, פותח מצלמה...");
     await initCamera();
+    startLiveDetect();
   };
 
   async function initCamera() {
@@ -131,109 +189,374 @@
       cameraReady = true;
       loader.style.display = "none";
       log(`מערכת מוכנה ✅ (${video.videoWidth}x${video.videoHeight})`);
+      resizeOverlayToVideo();
     } catch (e) {
       loader.style.display = "none";
       log("שגיאה בפתיחת מצלמה");
-      alert("לא הצלחתי לפתוח מצלמה. ודא שיש הרשאה, ושאתה ב-HTTPS (או localhost).");
+      alert("לא הצלחתי לפתוח מצלמה. ודא הרשאה ו-HTTPS.");
       console.error(e);
     }
   }
 
-  // ✅ זה הטריק שמבטל את השגיאה שלך:
-  // מציירים את הפריים ל-canvas נסתר, ואז cv.imread ממנו -> תמיד המידות תואמות.
-  function grabFrameToMat() {
+  function resizeOverlayToVideo() {
+    // overlay צריך להיות ביחס למסך, אבל אנחנו מציירים עליו לפי שטח התצוגה שלו בפיקסלים
+    overlay.width = overlay.clientWidth * devicePixelRatio;
+    overlay.height = overlay.clientHeight * devicePixelRatio;
+  }
+  window.addEventListener('resize', () => setTimeout(resizeOverlayToVideo, 100));
+  window.addEventListener('orientationchange', () => setTimeout(resizeOverlayToVideo, 200));
+
+  // לוקח פריים יציב (כמו הקוד שעבד לך)
+  function grabFrameCanvas() {
     const w = video.videoWidth;
     const h = video.videoHeight;
-
     const tmp = document.createElement('canvas');
     tmp.width = w;
     tmp.height = h;
     const ctx = tmp.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(video, 0, 0, w, h);
-
-    // cv.imread קורא canvas ומחזיר Mat בגודל המדויק של הקנבס
-    const mat = cv.imread(tmp);
-    return mat;
+    return tmp;
   }
 
-  function processDoc() {
+  // מסדר 4 נקודות: TL, TR, BR, BL
+  function orderPoints(pts) {
+    // pts: [{x,y}*4]
+    const sum = pts.map(p => p.x + p.y);
+    const diff = pts.map(p => p.x - p.y);
+
+    const tl = pts[sum.indexOf(Math.min(...sum))];
+    const br = pts[sum.indexOf(Math.max(...sum))];
+    const tr = pts[diff.indexOf(Math.max(...diff))];
+    const bl = pts[diff.indexOf(Math.min(...diff))];
+    return [tl, tr, br, bl];
+  }
+
+  function distance(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+
+  function detectDocumentQuad(frameMatRGBA) {
+    // מקטינים למהירות
+    const src = frameMatRGBA;
+    const w = src.cols, h = src.rows;
+    const scale = Math.min(1, DETECT_MAX_SIDE / Math.max(w, h));
+    let small = new cv.Mat();
+    if (scale < 1) {
+      cv.resize(src, small, new cv.Size(Math.round(w*scale), Math.round(h*scale)), 0, 0, cv.INTER_AREA);
+    } else {
+      small = src.clone();
+    }
+
+    let gray = new cv.Mat();
+    cv.cvtColor(small, gray, cv.COLOR_RGBA2GRAY);
+
+    let blur = new cv.Mat();
+    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
+
+    let edges = new cv.Mat();
+    cv.Canny(blur, edges, 50, 150);
+
+    // מחזקים קווים כדי לסגור חורים
+    let kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5,5));
+    cv.dilate(edges, edges, kernel);
+    cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, kernel);
+
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    let best = null;
+    let bestArea = 0;
+
+    for (let i=0; i<contours.size(); i++) {
+      const cnt = contours.get(i);
+      const area = cv.contourArea(cnt);
+      if (area < 3000) { cnt.delete(); continue; }
+
+      const peri = cv.arcLength(cnt, true);
+      let approx = new cv.Mat();
+      cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+
+      if (approx.rows === 4) {
+        // area הכי גדול
+        if (area > bestArea) {
+          bestArea = area;
+
+          // המרת approx ל-4 נקודות
+          const pts = [];
+          for (let r=0; r<4; r++){
+            const x = approx.intPtr(r,0)[0];
+            const y = approx.intPtr(r,0)[1];
+            pts.push({x, y});
+          }
+          best = pts;
+        }
+      }
+      approx.delete();
+      cnt.delete();
+    }
+
+    // ניקוי
+    small.delete(); gray.delete(); blur.delete(); edges.delete();
+    kernel.delete(); contours.delete(); hierarchy.delete();
+
+    if (!best) return null;
+
+    // מחזירים נקודות בקנה מידה של המקור
+    const scaled = best.map(p => ({ x: p.x / scale, y: p.y / scale }));
+    return orderPoints(scaled);
+  }
+
+  function drawOverlayQuad(quad) {
+    const ctx = overlay.getContext('2d');
+    const W = overlay.width, H = overlay.height;
+    ctx.clearRect(0,0,W,H);
+
+    if (!quad) return;
+
+    // מיפוי נקודות פריים -> מסך (כי video מוצג ב-contain)
+    // מחשבים את המלבן שבו הוידאו מצויר בתוך viewer
+    const viewerRect = video.parentElement.getBoundingClientRect();
+    const vidRect = video.getBoundingClientRect();
+
+    // סקייל של overlay לפי devicePixelRatio
+    const dpr = devicePixelRatio || 1;
+
+    // יחס המרה מפריים-פיקסלים -> מסך-פיקסלים
+    // vidRect מייצג את שטח הציור בפועל של הוידאו במסך
+    const sx = (vidRect.width  / video.videoWidth);
+    const sy = (vidRect.height / video.videoHeight);
+
+    // offset של הוידאו בתוך המסך
+    const ox = (vidRect.left - viewerRect.left);
+    const oy = (vidRect.top  - viewerRect.top);
+
+    const map = (p) => ({
+      x: (ox + p.x * sx) * dpr,
+      y: (oy + p.y * sy) * dpr
+    });
+
+    const p0 = map(quad[0]), p1 = map(quad[1]), p2 = map(quad[2]), p3 = map(quad[3]);
+
+    ctx.lineWidth = 4 * dpr;
+    ctx.strokeStyle = "rgba(0,255,0,0.9)";
+    ctx.fillStyle = "rgba(0,255,0,0.12)";
+
+    ctx.beginPath();
+    ctx.moveTo(p0.x,p0.y);
+    ctx.lineTo(p1.x,p1.y);
+    ctx.lineTo(p2.x,p2.y);
+    ctx.lineTo(p3.x,p3.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // נקודות
+    const dot = (p) => {
+      ctx.beginPath();
+      ctx.arc(p.x,p.y, 6*dpr, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(0,255,0,0.95)";
+      ctx.fill();
+    };
+    dot(p0); dot(p1); dot(p2); dot(p3);
+  }
+
+  function warpToDocument(srcRGBA, quad) {
+    // quad מסודר TL,TR,BR,BL בקואורדינטות מקור
+    const [tl,tr,br,bl] = quad;
+
+    const widthA  = distance(br, bl);
+    const widthB  = distance(tr, tl);
+    const maxW = Math.max(widthA, widthB);
+
+    const heightA = distance(tr, br);
+    const heightB = distance(tl, bl);
+    const maxH = Math.max(heightA, heightB);
+
+    const dstW = Math.max(300, Math.round(maxW));
+    const dstH = Math.max(300, Math.round(maxH));
+
+    const srcTri = cv.matFromArray(4,1,cv.CV_32FC2, [
+      tl.x, tl.y,
+      tr.x, tr.y,
+      br.x, br.y,
+      bl.x, bl.y
+    ]);
+
+    const dstTri = cv.matFromArray(4,1,cv.CV_32FC2, [
+      0, 0,
+      dstW-1, 0,
+      dstW-1, dstH-1,
+      0, dstH-1
+    ]);
+
+    const M = cv.getPerspectiveTransform(srcTri, dstTri);
+    let warped = new cv.Mat();
+    cv.warpPerspective(srcRGBA, warped, M, new cv.Size(dstW, dstH), cv.INTER_LINEAR, cv.BORDER_REPLICATE);
+
+    srcTri.delete(); dstTri.delete(); M.delete();
+    return warped;
+  }
+
+  function scanFilterToBW(srcRGBA) {
+    let gray = new cv.Mat();
+    cv.cvtColor(srcRGBA, gray, cv.COLOR_RGBA2GRAY);
+
+    // קונטרסט עדין לפני סף
+    let blur = new cv.Mat();
+    cv.GaussianBlur(gray, blur, new cv.Size(3,3), 0);
+
+    let bw = new cv.Mat();
+    cv.adaptiveThreshold(
+      blur, bw, 255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+      cv.THRESH_BINARY,
+      21, 12
+    );
+
+    gray.delete(); blur.delete();
+    return bw;
+  }
+
+  function startLiveDetect() {
+    // רץ כל ~250ms כדי לא להכביד
+    setInterval(() => {
+      if (!cvReady || !cameraReady) return;
+      if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+      try {
+        const frameCanvas = grabFrameCanvas();
+        const mat = cv.imread(frameCanvas);
+
+        const quad = detectDocumentQuad(mat);
+        lastQuad = quad; // יכול להיות null
+
+        drawOverlayQuad(lastQuad);
+
+        mat.delete();
+      } catch (e) {
+        // לא מפילים את האפליקציה בגלל זיהוי
+      }
+    }, 250);
+  }
+
+  function updateUIAfterAddPage() {
+    pagesInfo.innerText = `עמודים: ${pages.length}`;
+    rowActions.style.display = pages.length > 0 ? 'flex' : 'none';
+    thumbs.style.display = pages.length > 0 ? 'flex' : 'none';
+
+    // thumbnails
+    thumbs.innerHTML = "";
+    for (let i=0; i<pages.length; i++) {
+      const img = document.createElement('img');
+      img.src = pages[i];
+      img.className = "thumb";
+      img.title = `עמוד ${i+1}`;
+      thumbs.appendChild(img);
+    }
+  }
+
+  function captureScan() {
     if (!cvReady) { log("OpenCV עדיין לא מוכן"); return; }
     if (!cameraReady) { log("המצלמה עדיין לא מוכנה"); return; }
-    if (video.videoWidth === 0 || video.videoHeight === 0) { log("וידאו לא מוכן (0x0)"); return; }
+    if (video.videoWidth === 0 || video.videoHeight === 0) { log("וידאו לא מוכן"); return; }
 
     try {
-      log("מעבד... נא לא להזיז");
+      log("מצלם ומיישר... אל תזיז");
 
-      // קוראים פריים יציב (בלי VideoCapture שמפיל גודל)
-      let src = grabFrameToMat(); // RGBA
-      let gray = new cv.Mat();
-      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      const frameCanvas = grabFrameCanvas();
+      let src = cv.imread(frameCanvas); // RGBA
 
-      let blur = new cv.Mat();
-      cv.GaussianBlur(gray, blur, new cv.Size(3, 3), 0);
+      let usedQuad = lastQuad;
 
-      let bw = new cv.Mat();
-      cv.adaptiveThreshold(
-        blur, bw, 255,
-        cv.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv.THRESH_BINARY,
-        21, 15
-      );
+      let aligned = null;
+      if (usedQuad && usedQuad.length === 4) {
+        aligned = warpToDocument(src, usedQuad);
+        log("דף זוהה ✅ יישור פרספקטיבה");
+      } else {
+        aligned = src.clone();
+        log("לא נמצא דף — מצלם פריים מלא");
+      }
 
-      // מעדכנים את canvasOutput למידות של התוצאה
-      canvas.width = bw.cols;
-      canvas.height = bw.rows;
-      cv.imshow(canvas, bw);
+      // פילטר סריקה
+      const bw = scanFilterToBW(aligned);
+
+      // מציגים ב-canvasOutput כתצוגה (לא חובה, אבל נחמד)
+      canvasOut.width = bw.cols;
+      canvasOut.height = bw.rows;
+      cv.imshow(canvasOut, bw);
+
+      // הופכים לתמונה ושומרים לעמודים
+      // (ממירים ל-JPEG כדי להקטין)
+      const dataUrl = canvasOut.toDataURL('image/jpeg', 0.92);
+      pages.push(dataUrl);
 
       // UI
-      video.style.display = 'none';
-      canvas.style.display = 'block';
-      uiCapture.style.display = 'none';
-      uiResult.style.display = 'flex';
-      msg.innerText = "סריקה הושלמה בהצלחה!";
+      msg.innerText = `עמוד ${pages.length} נוסף. אפשר להוסיף עוד או לשלוח PDF.`;
+      updateUIAfterAddPage();
 
-      // ניקוי זיכרון
-      src.delete(); gray.delete(); blur.delete(); bw.delete();
+      // ניקוי
+      src.delete(); aligned.delete(); bw.delete();
 
-      log("הסריקה מוכנה לשיתוף");
+      log("עמוד נשמר בהצלחה");
     } catch (err) {
       log("שגיאה: " + (err?.message || err));
       console.error(err);
     }
   }
 
-  async function sendToWhatsApp() {
+  async function sendMultiPagePdf() {
+    if (pages.length === 0) {
+      log("אין עמודים לשליחה");
+      return;
+    }
+
     try {
-      log("מכין קובץ PDF...");
+      log("מכין PDF מרובה עמודים...");
 
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p' });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.9);
-
       const pageW = 210, pageH = 297;
-      const imgWpx = canvas.width, imgHpx = canvas.height;
-      const imgRatio = imgWpx / imgHpx;
 
-      let drawW = pageW;
-      let drawH = drawW / imgRatio;
-      if (drawH > pageH) { drawH = pageH; drawW = drawH * imgRatio; }
+      for (let i=0; i<pages.length; i++) {
+        if (i > 0) pdf.addPage();
 
-      const x = (pageW - drawW) / 2;
-      const y = (pageH - drawH) / 2;
+        // צריך לדעת יחס תמונה כדי להתאים בלי עיוות
+        const imgData = pages[i];
 
-      pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
+        // נטען מידות דרך Image
+        const dims = await new Promise((resolve) => {
+          const im = new Image();
+          im.onload = () => resolve({ w: im.width, h: im.height });
+          im.src = imgData;
+        });
+
+        const imgRatio = dims.w / dims.h;
+
+        let drawW = pageW;
+        let drawH = drawW / imgRatio;
+        if (drawH > pageH) { drawH = pageH; drawW = drawH * imgRatio; }
+
+        const x = (pageW - drawW)/2;
+        const y = (pageH - drawH)/2;
+
+        pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
+      }
 
       const blob = pdf.output('blob');
-      const file = new File([blob], "document_scan.pdf", { type: "application/pdf" });
+      const file = new File([blob], `scan_${new Date().toISOString().replace(/[:.]/g,'-')}.pdf`, { type: "application/pdf" });
 
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'הסריקה שלי', text: 'מצורף המסמך שסרקתי' });
+        await navigator.share({
+          files: [file],
+          title: 'הסריקה שלי',
+          text: `מצורף PDF עם ${pages.length} עמודים`
+        });
         log("שיתוף נפתח");
       } else {
-        pdf.save("document_scan.pdf");
+        pdf.save(file.name);
         log("הורדה בוצעה (אין Share API לקבצים)");
       }
+
     } catch (e) {
       log("שיתוף בוטל/נכשל");
       console.error(e);
