@@ -1,161 +1,265 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סורק Pro - מתוקן</title>
-    <script src="https://docs.opencv.org/4.7.0/opencv.js" async></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
-    <style>
-        * { box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; color: white; font-family: sans-serif; }
-        .app { display: flex; flex-direction: column; height: 100dvh; }
-        
-        #debug { background: #1a1a1a; color: #0f0; font-size: 11px; padding: 4px; text-align: center; border-bottom: 1px solid #333; }
-        
-        .viewer { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
-        video, canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
-        #canvasOutput { display: none; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>סורק Pro - מתוקן</title>
 
-        .footer { height: 160px; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; border-top: 1px solid #222; }
-        
-        /* כפתור צילום */
-        .snap-btn { width: 75px; height: 75px; background: white; border-radius: 50%; border: 6px solid #333; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-        .snap-btn:active { transform: scale(0.9); background: #ccc; }
-        .snap-inner { width: 55px; height: 55px; border-radius: 50%; border: 2px solid #000; }
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-        /* כפתורי פעולה */
-        .btn-group { display: none; gap: 15px; width: 90%; }
-        .btn { flex: 1; padding: 16px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; cursor: pointer; }
-        .btn-send { background: #25d366; color: white; }
-        .btn-cancel { background: #333; color: white; }
+  <!-- OpenCV: עדיף בלי async כדי למנוע race-conditions -->
+  <script src="https://docs.opencv.org/4.7.0/opencv.js"></script>
 
-        #loader { position: fixed; inset: 0; background: #000; z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .spinner { width: 40px; height: 40px; border: 4px solid #222; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+  <style>
+    * { box-sizing: border-box; }
+    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: sans-serif; }
+    .app { display: flex; flex-direction: column; height: 100dvh; }
+
+    #debug { background: #1a1a1a; color: #0f0; font-size: 11px; padding: 6px; text-align: center; border-bottom: 1px solid #333; }
+
+    .viewer { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
+    video, canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+    /* בתחילה canvas מוסתר */
+    #canvasOutput { display: none; }
+
+    .footer { height: 160px; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; border-top: 1px solid #222; }
+
+    .snap-btn { width: 75px; height: 75px; background: #fff; border-radius: 50%; border: 6px solid #333; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+    .snap-btn:active { transform: scale(0.9); background: #ccc; }
+    .snap-inner { width: 55px; height: 55px; border-radius: 50%; border: 2px solid #000; }
+
+    .btn-group { display: none; gap: 15px; width: 90%; }
+    .btn { flex: 1; padding: 16px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; cursor: pointer; }
+    .btn-send { background: #25d366; color: #fff; }
+    .btn-cancel { background: #333; color: #fff; }
+
+    #loader { position: fixed; inset: 0; background: #000; z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #222; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
-<body>
 
-<div id="loader">
+<body>
+  <div id="loader">
     <div class="spinner"></div>
     <p>טוען את המערכת...</p>
-</div>
+  </div>
 
-<div class="app">
+  <div class="app">
     <div id="debug">Log: ממתין ל-OpenCV</div>
 
     <div class="viewer">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="canvasOutput"></canvas>
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvasOutput"></canvas>
     </div>
 
     <div class="footer">
-        <div id="msg">כוון אל הדף ולחץ צילום</div>
-        
-        <div id="ui-capture">
-            <div class="snap-btn" onclick="processDoc()">
-                <div class="snap-inner"></div>
-            </div>
-        </div>
+      <div id="msg">כוון אל הדף ולחץ צילום</div>
 
-        <div id="ui-result" class="btn-group">
-            <button class="btn btn-cancel" onclick="location.reload()">🔄 ביטול</button>
-            <button class="btn btn-send" onclick="sendToWhatsApp()">📩 שלח PDF</button>
+      <div id="ui-capture">
+        <div class="snap-btn" id="snapBtn">
+          <div class="snap-inner"></div>
         </div>
+      </div>
+
+      <div id="ui-result" class="btn-group">
+        <button class="btn btn-cancel" id="cancelBtn">🔄 ביטול</button>
+        <button class="btn btn-send" id="sendBtn">📩 שלח PDF</button>
+      </div>
     </div>
-</div>
+  </div>
 
 <script>
-    const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvasOutput');
-    let isReady = false;
+  const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
 
-    // טעינת OpenCV בצורה בטוחה
-    window.onload = () => {
-        let timer = setInterval(() => {
-            if (typeof cv !== 'undefined' && cv.Mat) {
-                clearInterval(timer);
-                isReady = true;
-                document.getElementById('loader').style.display = 'none';
-                log("מערכת מוכנה");
-                initCamera();
-            }
-        }, 500);
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvasOutput');
+
+  const loader = document.getElementById('loader');
+  const msg = document.getElementById('msg');
+  const uiCapture = document.getElementById('ui-capture');
+  const uiResult = document.getElementById('ui-result');
+
+  const snapBtn = document.getElementById('snapBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const sendBtn = document.getElementById('sendBtn');
+
+  let streamRef = null;
+  let cvReady = false;
+  let cameraReady = false;
+
+  // 1) OpenCV מוכן בצורה יציבה
+  if (typeof cv === 'undefined') {
+    log("שגיאה: OpenCV לא נטען");
+  } else {
+    cv.onRuntimeInitialized = async () => {
+      cvReady = true;
+      log("OpenCV מוכן, פותח מצלמה...");
+      await initCamera();
     };
+  }
 
-    async function initCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
-            });
-            video.srcObject = stream;
-        } catch (e) {
-            alert("חייב HTTPS לגישה למצלמה");
-        }
+  // 2) פתיחת מצלמה + וידוא שהוידאו באמת מוכן
+  async function initCamera() {
+    try {
+      streamRef = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+
+      video.srcObject = streamRef;
+
+      // מחכים שהוידאו יתחיל לתת פריימים אמיתיים
+      await new Promise((resolve) => {
+        const onReady = () => {
+          if (video.videoWidth > 0 && video.videoHeight > 0) {
+            video.removeEventListener('loadedmetadata', onReady);
+            video.removeEventListener('canplay', onReady);
+            resolve();
+          }
+        };
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('canplay', onReady);
+      });
+
+      cameraReady = true;
+      loader.style.display = "none";
+      log(`מערכת מוכנה ✅ (${video.videoWidth}x${video.videoHeight})`);
+    } catch (e) {
+      loader.style.display = "none";
+      log("שגיאה בפתיחת מצלמה");
+      alert("לא הצלחתי לפתוח מצלמה. ודא שיש הרשאה, ושאתה ב-HTTPS (או localhost).");
+      console.error(e);
     }
+  }
 
-    function processDoc() {
-        if (!isReady) return;
-        try {
-            log("מעבד... נא לא להזיז");
-            
-            // יצירת המטריצה לפי הממדים האמיתיים של הוידאו כרגע
-            const rows = video.videoHeight;
-            const cols = video.videoWidth;
-            
-            let src = new cv.Mat(rows, cols, cv.CV_8UC4);
-            let cap = new cv.VideoCapture(video);
-            cap.read(src);
+  snapBtn.addEventListener('click', processDoc);
+  cancelBtn.addEventListener('click', () => location.reload());
+  sendBtn.addEventListener('click', sendToWhatsApp);
 
-            let dst = new cv.Mat();
-            cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
-            
-            // פילטר מקצועי - הופך דף ללבן נקי וטקסט לשחור בולט
-            cv.adaptiveThreshold(dst, dst, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 15);
+  function ensureCanvasSize(w, h) {
+    // חשוב: לקבוע גודל אמיתי ל-canvas, אחרת התמונה/ה-PDF יוצאים לא נכון
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
+  }
 
-            cv.imshow('canvasOutput', dst);
+  function processDoc() {
+    if (!cvReady) { log("OpenCV עדיין לא מוכן"); return; }
+    if (!cameraReady) { log("המצלמה עדיין לא מוכנה"); return; }
+    if (video.videoWidth === 0 || video.videoHeight === 0) { log("וידאו לא מוכן (0x0)"); return; }
 
-            // עדכון ממשק
-            video.style.display = 'none';
-            canvas.style.display = 'block';
-            document.getElementById('ui-capture').style.display = 'none';
-            document.getElementById('ui-result').style.display = 'flex';
-            document.getElementById('msg').innerText = "סריקה הושלמה בהצלחה!";
-            
-            src.delete(); dst.delete();
-            log("הסריקה מוכנה לשיתוף");
-        } catch (err) {
-            log("שגיאה: " + err);
-            console.error(err);
-        }
+    try {
+      log("מעבד... נא לא להזיז");
+
+      const rows = video.videoHeight;
+      const cols = video.videoWidth;
+
+      ensureCanvasSize(cols, rows);
+
+      // קוראים פריים ל-Mat
+      const cap = new cv.VideoCapture(video);
+      let src = new cv.Mat(rows, cols, cv.CV_8UC4);
+      cap.read(src);
+
+      // אם הפריים יצא ריק/שחור, בדרך כלל זה כי הוידאו לא באמת מוכן
+      // אבל אנחנו כבר הגנו על זה למעלה
+      let gray = new cv.Mat();
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+      // ניקוי רעש קטן לשיפור תוצאה
+      let blur = new cv.Mat();
+      cv.GaussianBlur(gray, blur, new cv.Size(3, 3), 0);
+
+      // סף אדפטיבי למסמך
+      let bw = new cv.Mat();
+      cv.adaptiveThreshold(
+        blur, bw, 255,
+        cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv.THRESH_BINARY,
+        21, 15
+      );
+
+      cv.imshow(canvas, bw);
+
+      // UI
+      video.style.display = 'none';
+      canvas.style.display = 'block';
+      uiCapture.style.display = 'none';
+      uiResult.style.display = 'flex';
+      msg.innerText = "סריקה הושלמה בהצלחה!";
+
+      // ניקוי זיכרון
+      src.delete(); gray.delete(); blur.delete(); bw.delete();
+
+      log("הסריקה מוכנה לשיתוף");
+    } catch (err) {
+      log("שגיאה: " + (err?.message || err));
+      console.error(err);
     }
+  }
 
-    async function sendToWhatsApp() {
-        log("מכין קובץ PDF...");
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF();
-        
-        const imgData = canvas.toDataURL('image/jpeg', 0.8);
-        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-        
-        const blob = pdf.output('blob');
-        const file = new File([blob], "document_scan.pdf", { type: "application/pdf" });
+  async function sendToWhatsApp() {
+    try {
+      log("מכין קובץ PDF...");
 
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    files: [file],
-                    title: 'הסריקה שלי',
-                    text: 'מצורף המסמך שסרקתי'
-                });
-            } catch (e) { log("שיתוף בוטל"); }
-        } else {
-            pdf.save("scan.pdf");
-        }
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p' });
+
+      // תמונה מה-canvas
+      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+
+      // התאמת יחס לתוך A4 בלי עיוות
+      const pageW = 210;  // mm
+      const pageH = 297;  // mm
+
+      // יחס תמונה
+      const imgWpx = canvas.width;
+      const imgHpx = canvas.height;
+      const imgRatio = imgWpx / imgHpx;
+
+      let drawW = pageW;
+      let drawH = drawW / imgRatio;
+
+      if (drawH > pageH) {
+        drawH = pageH;
+        drawW = drawH * imgRatio;
+      }
+
+      const x = (pageW - drawW) / 2;
+      const y = (pageH - drawH) / 2;
+
+      pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
+
+      const blob = pdf.output('blob');
+      const file = new File([blob], "document_scan.pdf", { type: "application/pdf" });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'הסריקה שלי',
+          text: 'מצורף המסמך שסרקתי'
+        });
+        log("שיתוף נפתח");
+      } else if (navigator.share) {
+        // יש מכשירים שתומכים share אבל לא files
+        const url = URL.createObjectURL(blob);
+        await navigator.share({ title: 'הסריקה שלי', text: 'המסמך מוכן. אם לא מצורף קובץ, הורד אותו ידנית.', url });
+        log("שיתוף (ללא קובץ) נפתח");
+      } else {
+        pdf.save("document_scan.pdf");
+        log("הורדה בוצעה (אין Share API)");
+      }
+    } catch (e) {
+      log("שיתוף בוטל/נכשל");
+      console.error(e);
     }
+  }
 </script>
 </body>
 </html>
