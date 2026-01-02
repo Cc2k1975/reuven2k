@@ -140,6 +140,9 @@
       <div class="row" id="rowCapture">
         <div class="pill" id="pagesInfo">עמודים: 0</div>
 
+        <!-- ✅ תוספת: כפתור מצב אפור/שחור-לבן -->
+        <button class="btn" id="modeBtn">🩶 אפור</button>
+
         <div class="snap-btn" id="snapBtn" aria-label="צילום">
           <div class="snap-inner"></div>
         </div>
@@ -195,6 +198,17 @@
   const previewTitle = document.getElementById('previewTitle');
   const closePreviewBtn = document.getElementById('closePreviewBtn');
   const deletePageBtn = document.getElementById('deletePageBtn');
+
+  // ✅ תוספת: כפתור מצב
+  const modeBtn = document.getElementById('modeBtn');
+  let scanMode = "bw"; // ברירת מחדל: מה שיש עכשיו (שחור-לבן)
+
+  modeBtn.addEventListener('click', () => {
+    scanMode = (scanMode === "bw") ? "gray" : "bw";
+    // כשהמצב הוא BW – הכפתור מציע לעבור לאפור
+    modeBtn.innerText = (scanMode === "bw") ? "🩶 אפור" : "⬛ שחור-לבן";
+    log("מצב סריקה: " + (scanMode === "bw" ? "שחור-לבן" : "אפור"));
+  });
 
   let cvReady = false;
   let cameraReady = false;
@@ -342,18 +356,25 @@
       let blur = new cv.Mat();
       cv.GaussianBlur(gray, blur, new cv.Size(3, 3), 0);
 
-      let bw = new cv.Mat();
-      cv.adaptiveThreshold(
-        blur, bw, 255,
-        cv.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv.THRESH_BINARY,
-        21, 12
-      );
+      // ✅ תוספת: מצב אפור (ללא threshold) / מצב שחור-לבן (כמו שהיה)
+      let out = new cv.Mat();
+      if (scanMode === "gray") {
+        // אפור נקי: blur (נראה "סריקה" אבל לא מוחק גוונים)
+        out = blur.clone();
+      } else {
+        // שחור-לבן: בדיוק מה שהיה לך
+        cv.adaptiveThreshold(
+          blur, out, 255,
+          cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+          cv.THRESH_BINARY,
+          21, 12
+        );
+      }
 
       // מציגים תוצאה גדולה (תצוגה מקדימה ראשית)
-      canvas.width = bw.cols;
-      canvas.height = bw.rows;
-      cv.imshow(canvas, bw);
+      canvas.width = out.cols;
+      canvas.height = out.rows;
+      cv.imshow(canvas, out);
 
       video.style.display = 'none';
       canvas.style.display = 'block';
@@ -366,7 +387,7 @@
       updatePagesUI();
 
       // ניקוי
-      src.delete(); gray.delete(); blur.delete(); bw.delete();
+      src.delete(); gray.delete(); blur.delete(); out.delete();
 
       log("הסריקה נשמרה (עמוד נוסף)");
     } catch (err) {
