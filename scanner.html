@@ -3,42 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סורק מקצועי - גרסה יציבה</title>
+    <title>סורק Pro - מתוקן</title>
     <script src="https://docs.opencv.org/4.7.0/opencv.js" async></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
-        /* הגדרות בסיסיות למניעת גלילה */
-        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background: #000; color: white; font-family: sans-serif; }
+        * { box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; color: white; font-family: sans-serif; }
+        .app { display: flex; flex-direction: column; height: 100dvh; }
         
-        /* סידור המסך: וידאו למעלה, כפתורים למטה */
-        .app-container { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+        #debug { background: #1a1a1a; color: #0f0; font-size: 11px; padding: 4px; text-align: center; border-bottom: 1px solid #333; }
         
-        #debug-log { background: rgba(0,255,0,0.2); color: #0f0; font-size: 11px; padding: 5px; text-align: center; }
-
-        .viewport { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #111; overflow: hidden; }
+        .viewer { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
         video, canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
-        #outputCanvas { display: none; }
+        #canvasOutput { display: none; }
 
-        /* אזור הכפתורים - תמיד בתחתית */
-        .controls { height: 140px; background: #1a1a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; border-top: 2px solid #333; padding-bottom: env(safe-area-inset-bottom); }
+        .footer { height: 160px; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; border-top: 1px solid #222; }
         
-        .status-msg { font-size: 14px; color: #bbb; margin-bottom: 10px; }
+        /* כפתור צילום */
+        .snap-btn { width: 75px; height: 75px; background: white; border-radius: 50%; border: 6px solid #333; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .snap-btn:active { transform: scale(0.9); background: #ccc; }
+        .snap-inner { width: 55px; height: 55px; border-radius: 50%; border: 2px solid #000; }
 
-        /* לחצן צילום עגול ומקצועי */
-        .shutter-btn { width: 70px; height: 70px; background: white; border-radius: 50%; border: 5px solid #555; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .shutter-btn:active { background: #ccc; transform: scale(0.95); }
-        .shutter-inner { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #000; }
+        /* כפתורי פעולה */
+        .btn-group { display: none; gap: 15px; width: 90%; }
+        .btn { flex: 1; padding: 16px; border-radius: 12px; border: none; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .btn-send { background: #25d366; color: white; }
+        .btn-cancel { background: #333; color: white; }
 
-        /* לחצני פעולה אחרי סריקה */
-        .btn-row { display: none; gap: 20px; width: 90%; }
-        .action-btn { flex: 1; padding: 15px; border-radius: 30px; border: none; font-weight: bold; font-size: 16px; cursor: pointer; color: white; }
-        .btn-send { background: #25d366; }
-        .btn-reset { background: #444; }
-
-        /* מסך טעינה */
-        #loader { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .spinner { width: 50px; height: 50px; border: 5px solid #222; border-top: 5px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
+        #loader { position: fixed; inset: 0; background: #000; z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid #222; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -46,132 +40,122 @@
 
 <div id="loader">
     <div class="spinner"></div>
-    <p>טוען מערכת סריקה (OpenCV)...</p>
+    <p>טוען את המערכת...</p>
 </div>
 
-<div class="app-container">
-    <div id="debug-log">Log: מחכה לטעינה...</div>
+<div class="app">
+    <div id="debug">Log: ממתין ל-OpenCV</div>
 
-    <div class="viewport">
+    <div class="viewer">
         <video id="video" autoplay playsinline muted></video>
-        <canvas id="outputCanvas"></canvas>
+        <canvas id="canvasOutput"></canvas>
     </div>
 
-    <div class="controls">
-        <div id="status" class="status-msg">מתחבר למצלמה...</div>
+    <div class="footer">
+        <div id="msg">כוון אל הדף ולחץ צילום</div>
         
-        <div id="scan-ui">
-            <div class="shutter-btn" onclick="takeSnapshot()">
-                <div class="shutter-inner"></div>
+        <div id="ui-capture">
+            <div class="snap-btn" onclick="processDoc()">
+                <div class="snap-inner"></div>
             </div>
         </div>
 
-        <div id="result-ui" class="btn-row">
-            <button class="action-btn btn-reset" onclick="location.reload()">🔄 בטל</button>
-            <button class="action-btn btn-send" onclick="sharePDF()">📩 שלח PDF לוואטסאפ</button>
+        <div id="ui-result" class="btn-group">
+            <button class="btn btn-cancel" onclick="location.reload()">🔄 ביטול</button>
+            <button class="btn btn-send" onclick="sendToWhatsApp()">📩 שלח PDF</button>
         </div>
     </div>
 </div>
 
 <script>
-    const log = (msg) => { document.getElementById('debug-log').innerText = "Log: " + msg; };
+    const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
     const video = document.getElementById('video');
-    const canvas = document.getElementById('outputCanvas');
-    const status = document.getElementById('status');
+    const canvas = document.getElementById('canvasOutput');
+    let isReady = false;
 
-    let cvReady = false;
-
-    // בדיקת טעינה של OpenCV
+    // טעינת OpenCV בצורה בטוחה
     window.onload = () => {
-        let checkCV = setInterval(() => {
+        let timer = setInterval(() => {
             if (typeof cv !== 'undefined' && cv.Mat) {
-                clearInterval(checkCV);
-                cvReady = true;
+                clearInterval(timer);
+                isReady = true;
                 document.getElementById('loader').style.display = 'none';
-                log("OpenCV מוכן לשימוש");
-                status.innerText = "מקם את הדף ולחץ על הלחצן הלבן";
-                startCamera();
+                log("מערכת מוכנה");
+                initCamera();
             }
         }, 500);
     };
 
-    async function startCamera() {
+    async function initCamera() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment", width: 1280, height: 720 } 
+                video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
             });
             video.srcObject = stream;
-        } catch (err) {
-            log("שגיאת מצלמה: " + err.message);
-            alert("חובה להשתמש ב-HTTPS כדי שהמצלמה תעבוד");
+        } catch (e) {
+            alert("חייב HTTPS לגישה למצלמה");
         }
     }
 
-    function takeSnapshot() {
-        if (!cvReady) return;
-        
+    function processDoc() {
+        if (!isReady) return;
         try {
-            log("מעבד סריקה...");
-            const width = video.videoWidth;
-            const height = video.videoHeight;
+            log("מעבד... נא לא להזיז");
             
-            let src = new cv.Mat(height, width, cv.CV_8UC4);
+            // יצירת המטריצה לפי הממדים האמיתיים של הוידאו כרגע
+            const rows = video.videoHeight;
+            const cols = video.videoWidth;
+            
+            let src = new cv.Mat(rows, cols, cv.CV_8UC4);
             let cap = new cv.VideoCapture(video);
             cap.read(src);
 
-            // עיבוד תמונה: זיהוי דף ויישור (גרסה יציבה)
-            let dst = processImage(src);
-            cv.imshow('outputCanvas', dst);
+            let dst = new cv.Mat();
+            cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
+            
+            // פילטר מקצועי - הופך דף ללבן נקי וטקסט לשחור בולט
+            cv.adaptiveThreshold(dst, dst, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 15);
 
-            // עדכון UI - הסתרת וידאו והצגת תוצאה
+            cv.imshow('canvasOutput', dst);
+
+            // עדכון ממשק
             video.style.display = 'none';
             canvas.style.display = 'block';
-            document.getElementById('scan-ui').style.display = 'none';
-            document.getElementById('result-ui').style.display = 'flex';
-            status.innerText = "הסריקה מוכנה!";
+            document.getElementById('ui-capture').style.display = 'none';
+            document.getElementById('ui-result').style.display = 'flex';
+            document.getElementById('msg').innerText = "סריקה הושלמה בהצלחה!";
             
             src.delete(); dst.delete();
+            log("הסריקה מוכנה לשיתוף");
         } catch (err) {
-            log("שגיאה: " + err.message);
+            log("שגיאה: " + err);
+            console.error(err);
         }
     }
 
-    function processImage(src) {
-        let dst = new cv.Mat();
-        let gray = new cv.Mat();
-        
-        // המרה לשחור-לבן איכותי (כמו סורק)
-        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-        cv.adaptiveThreshold(gray, dst, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 15, 12);
-        
-        gray.delete();
-        return dst;
-    }
-
-    async function sharePDF() {
+    async function sendToWhatsApp() {
+        log("מכין קובץ PDF...");
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF();
         
-        // יצירת התמונה מהקנבס
-        const imgData = canvas.toDataURL('image/jpeg', 0.7);
-        pdf.addImage(imgData, 'JPEG', 10, 10, 190, 277);
+        const imgData = canvas.toDataURL('image/jpeg', 0.8);
+        pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
         
-        const pdfBlob = pdf.output('blob');
-        const file = new File([pdfBlob], "סריקה.pdf", { type: "application/pdf" });
+        const blob = pdf.output('blob');
+        const file = new File([blob], "document_scan.pdf", { type: "application/pdf" });
 
         if (navigator.share) {
             try {
                 await navigator.share({
                     files: [file],
                     title: 'הסריקה שלי',
-                    text: 'מצורף קובץ PDF שנסרק באפליקציה'
+                    text: 'מצורף המסמך שסרקתי'
                 });
-            } catch (err) { log("שיתוף בוטל"); }
+            } catch (e) { log("שיתוף בוטל"); }
         } else {
             pdf.save("scan.pdf");
         }
     }
 </script>
-
 </body>
 </html>
