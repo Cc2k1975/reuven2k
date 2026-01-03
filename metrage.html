@@ -2,14 +2,14 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>צילום שרטוט → זיהוי צלעות → שרטוט מדויק</title>
 
 <script src="https://docs.opencv.org/4.7.0/opencv.js"></script>
 
 <style>
 body{
-  font-family:system-ui;
+  font-family:system-ui, Arial;
   background:#f4f6f9;
   margin:0;
   padding:16px;
@@ -21,38 +21,45 @@ body{
   margin-bottom:14px;
   box-shadow:0 10px 25px rgba(0,0,0,.1);
 }
+h2{margin-top:0}
 button{
-  padding:12px 16px;
+  width:100%;
+  padding:14px;
   border:none;
   border-radius:10px;
   background:#2563eb;
   color:#fff;
-  font-size:16px;
+  font-size:18px;
   cursor:pointer;
 }
 input{
   width:100%;
-  padding:10px;
+  padding:12px;
   font-size:16px;
-  margin-bottom:8px;
+  margin-bottom:10px;
 }
-canvas,video{
+video,canvas{
   width:100%;
   border-radius:10px;
   border:1px solid #ddd;
 }
 .hidden{display:none}
+.note{
+  font-size:14px;
+  color:#555;
+}
 </style>
 </head>
 
 <body>
 
 <div class="card">
-  <h2>1️⃣ צילום / העלאת שרטוט</h2>
+  <h2>1️⃣ צילום שרטוט (מצלמה אחורית)</h2>
   <video id="video" autoplay playsinline></video>
   <canvas id="photo" class="hidden"></canvas>
   <br><br>
-  <button onclick="takePhoto()">צלם</button>
+  <button onclick="takePhoto()">📸 צלם שרטוט</button>
+  <p class="note">המצלמה האחורית ננעלת אוטומטית</p>
 </div>
 
 <div class="card hidden" id="edgesCard">
@@ -62,13 +69,13 @@ canvas,video{
 </div>
 
 <div class="card hidden" id="inputsCard">
-  <h2>3️⃣ הזנת מידות (ס״מ)</h2>
+  <h2>3️⃣ הזן מידות בס״מ</h2>
   <div id="inputs"></div>
-  <button onclick="buildShape()">בנה שרטוט</button>
+  <button onclick="buildShape()">📐 בנה שרטוט</button>
 </div>
 
 <div class="card hidden" id="resultCard">
-  <h2>4️⃣ שרטוט סופי לפי מידות</h2>
+  <h2>4️⃣ שרטוט סופי</h2>
   <canvas id="result"></canvas>
 </div>
 
@@ -78,22 +85,39 @@ let photo = document.getElementById("photo");
 let edgesCanvas = document.getElementById("edges");
 let resultCanvas = document.getElementById("result");
 
-let detectedEdges = [];
+let detectedCorners = [];
 
-// Camera
-navigator.mediaDevices.getUserMedia({video:true})
-  .then(s=>video.srcObject=s);
+/* =========================
+   CAMERA – REAR ONLY
+   ========================= */
+navigator.mediaDevices.getUserMedia({
+  video: {
+    facingMode: { exact: "environment" },
+    width: { ideal: 1920 },
+    height: { ideal: 1080 }
+  }
+})
+.then(stream => {
+  video.srcObject = stream;
+})
+.catch(err => {
+  alert("לא ניתן לפתוח מצלמה אחורית. ודא שהדף נטען מ-HTTPS (GitHub Pages).");
+});
 
-// Take photo
+/* =========================
+   TAKE PHOTO
+   ========================= */
 function takePhoto(){
   photo.width = video.videoWidth;
   photo.height = video.videoHeight;
-  photo.getContext("2d").drawImage(video,0,0);
-  detectEdges();
+  photo.getContext("2d").drawImage(video, 0, 0);
+  detectShape();
 }
 
-// Detect edges and corners
-function detectEdges(){
+/* =========================
+   DETECT EDGES & CORNERS
+   ========================= */
+function detectShape(){
   let src = cv.imread(photo);
   let gray = new cv.Mat();
   let blur = new cv.Mat();
@@ -119,12 +143,17 @@ function detectEdges(){
     }
   }
 
-  let approx = new cv.Mat();
-  cv.approxPolyDP(biggest, approx, 10, true);
+  if(!biggest){
+    alert("לא זוהתה צורה סגורה");
+    return;
+  }
 
-  detectedEdges = [];
+  let approx = new cv.Mat();
+  cv.approxPolyDP(biggest, approx, 12, true);
+
+  detectedCorners = [];
   for(let i=0;i<approx.rows;i++){
-    detectedEdges.push({
+    detectedCorners.push({
       x: approx.intPtr(i,0)[0],
       y: approx.intPtr(i,0)[1]
     });
@@ -133,57 +162,64 @@ function detectEdges(){
   cv.imshow(edgesCanvas, edges);
   document.getElementById("edgesCard").classList.remove("hidden");
   document.getElementById("edgesInfo").innerText =
-    `זוהו ${detectedEdges.length} צלעות`;
+    `זוהו ${detectedCorners.length} צלעות`;
 
-  buildInputs(detectedEdges.length);
+  buildInputs(detectedCorners.length);
 
   src.delete(); gray.delete(); blur.delete(); edges.delete();
   contours.delete(); hierarchy.delete(); approx.delete();
 }
 
-// Build inputs dynamically
+/* =========================
+   BUILD INPUTS
+   ========================= */
 function buildInputs(n){
-  let container = document.getElementById("inputs");
-  container.innerHTML = "";
+  let box = document.getElementById("inputs");
+  box.innerHTML = "";
   for(let i=0;i<n;i++){
     let input = document.createElement("input");
-    input.type="number";
+    input.type = "number";
     input.placeholder = `אורך צלע ${i+1} בס״מ`;
-    input.dataset.index=i;
-    container.appendChild(input);
+    box.appendChild(input);
   }
   document.getElementById("inputsCard").classList.remove("hidden");
 }
 
-// Build final shape
+/* =========================
+   DRAW FINAL SHAPE
+   ========================= */
 function buildShape(){
-  let inputs = document.querySelectorAll("#inputs input");
-  let lengths = [];
-  inputs.forEach(i=>lengths.push(Number(i.value)));
+  let values = [...document.querySelectorAll("#inputs input")]
+    .map(i => Number(i.value));
+
+  if(values.some(v => !v || v <= 0)){
+    alert("אנא הזן מידות תקינות בס״מ");
+    return;
+  }
 
   let ctx = resultCanvas.getContext("2d");
   resultCanvas.width = 600;
   resultCanvas.height = 400;
   ctx.clearRect(0,0,600,400);
 
-  let scale = 500 / Math.max(...lengths);
-  let x=300, y=200;
+  let scale = 480 / Math.max(...values);
+  let x = 60, y = 60;
   let angle = 0;
 
   ctx.beginPath();
   ctx.moveTo(x,y);
 
-  for(let i=0;i<lengths.length;i++){
-    let len = lengths[i]*scale;
-    x += Math.cos(angle)*len;
-    y += Math.sin(angle)*len;
+  for(let len of values){
+    let L = len * scale;
+    x += Math.cos(angle) * L;
+    y += Math.sin(angle) * L;
     ctx.lineTo(x,y);
-    angle += Math.PI/2; // פניות 90° (כמו שרטוטי חדר)
+    angle += Math.PI/2; // פניות 90°
   }
 
   ctx.closePath();
-  ctx.strokeStyle="#2563eb";
-  ctx.lineWidth=2;
+  ctx.strokeStyle = "#2563eb";
+  ctx.lineWidth = 2;
   ctx.stroke();
 
   document.getElementById("resultCard").classList.remove("hidden");
