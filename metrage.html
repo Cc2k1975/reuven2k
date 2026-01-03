@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>צילום שרטוט → זיהוי צלעות → שרטוט מדויק</title>
+
+<script src="https://docs.opencv.org/4.7.0/opencv.js"></script>
+
+<style>
+body{
+  font-family:system-ui;
+  background:#f4f6f9;
+  margin:0;
+  padding:16px;
+}
+.card{
+  background:#fff;
+  border-radius:14px;
+  padding:16px;
+  margin-bottom:14px;
+  box-shadow:0 10px 25px rgba(0,0,0,.1);
+}
+button{
+  padding:12px 16px;
+  border:none;
+  border-radius:10px;
+  background:#2563eb;
+  color:#fff;
+  font-size:16px;
+  cursor:pointer;
+}
+input{
+  width:100%;
+  padding:10px;
+  font-size:16px;
+  margin-bottom:8px;
+}
+canvas,video{
+  width:100%;
+  border-radius:10px;
+  border:1px solid #ddd;
+}
+.hidden{display:none}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2>1️⃣ צילום / העלאת שרטוט</h2>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="photo" class="hidden"></canvas>
+  <br><br>
+  <button onclick="takePhoto()">צלם</button>
+</div>
+
+<div class="card hidden" id="edgesCard">
+  <h2>2️⃣ זיהוי צלעות</h2>
+  <canvas id="edges"></canvas>
+  <p id="edgesInfo"></p>
+</div>
+
+<div class="card hidden" id="inputsCard">
+  <h2>3️⃣ הזנת מידות (ס״מ)</h2>
+  <div id="inputs"></div>
+  <button onclick="buildShape()">בנה שרטוט</button>
+</div>
+
+<div class="card hidden" id="resultCard">
+  <h2>4️⃣ שרטוט סופי לפי מידות</h2>
+  <canvas id="result"></canvas>
+</div>
+
+<script>
+let video = document.getElementById("video");
+let photo = document.getElementById("photo");
+let edgesCanvas = document.getElementById("edges");
+let resultCanvas = document.getElementById("result");
+
+let detectedEdges = [];
+
+// Camera
+navigator.mediaDevices.getUserMedia({video:true})
+  .then(s=>video.srcObject=s);
+
+// Take photo
+function takePhoto(){
+  photo.width = video.videoWidth;
+  photo.height = video.videoHeight;
+  photo.getContext("2d").drawImage(video,0,0);
+  detectEdges();
+}
+
+// Detect edges and corners
+function detectEdges(){
+  let src = cv.imread(photo);
+  let gray = new cv.Mat();
+  let blur = new cv.Mat();
+  let edges = new cv.Mat();
+
+  cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+  cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
+  cv.Canny(blur, edges, 50, 150);
+
+  let contours = new cv.MatVector();
+  let hierarchy = new cv.Mat();
+  cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+  let biggest = null;
+  let maxArea = 0;
+
+  for(let i=0;i<contours.size();i++){
+    let cnt = contours.get(i);
+    let area = cv.contourArea(cnt);
+    if(area > maxArea){
+      maxArea = area;
+      biggest = cnt;
+    }
+  }
+
+  let approx = new cv.Mat();
+  cv.approxPolyDP(biggest, approx, 10, true);
+
+  detectedEdges = [];
+  for(let i=0;i<approx.rows;i++){
+    detectedEdges.push({
+      x: approx.intPtr(i,0)[0],
+      y: approx.intPtr(i,0)[1]
+    });
+  }
+
+  cv.imshow(edgesCanvas, edges);
+  document.getElementById("edgesCard").classList.remove("hidden");
+  document.getElementById("edgesInfo").innerText =
+    `זוהו ${detectedEdges.length} צלעות`;
+
+  buildInputs(detectedEdges.length);
+
+  src.delete(); gray.delete(); blur.delete(); edges.delete();
+  contours.delete(); hierarchy.delete(); approx.delete();
+}
+
+// Build inputs dynamically
+function buildInputs(n){
+  let container = document.getElementById("inputs");
+  container.innerHTML = "";
+  for(let i=0;i<n;i++){
+    let input = document.createElement("input");
+    input.type="number";
+    input.placeholder = `אורך צלע ${i+1} בס״מ`;
+    input.dataset.index=i;
+    container.appendChild(input);
+  }
+  document.getElementById("inputsCard").classList.remove("hidden");
+}
+
+// Build final shape
+function buildShape(){
+  let inputs = document.querySelectorAll("#inputs input");
+  let lengths = [];
+  inputs.forEach(i=>lengths.push(Number(i.value)));
+
+  let ctx = resultCanvas.getContext("2d");
+  resultCanvas.width = 600;
+  resultCanvas.height = 400;
+  ctx.clearRect(0,0,600,400);
+
+  let scale = 500 / Math.max(...lengths);
+  let x=300, y=200;
+  let angle = 0;
+
+  ctx.beginPath();
+  ctx.moveTo(x,y);
+
+  for(let i=0;i<lengths.length;i++){
+    let len = lengths[i]*scale;
+    x += Math.cos(angle)*len;
+    y += Math.sin(angle)*len;
+    ctx.lineTo(x,y);
+    angle += Math.PI/2; // פניות 90° (כמו שרטוטי חדר)
+  }
+
+  ctx.closePath();
+  ctx.strokeStyle="#2563eb";
+  ctx.lineWidth=2;
+  ctx.stroke();
+
+  document.getElementById("resultCard").classList.remove("hidden");
+}
+</script>
+
+</body>
+</html>
