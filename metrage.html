@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - ניהול פרויקט ריצוף וחיפוי</title>
+<title>שרטוט חכם - ניהול פרויקט מקצועי</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -24,26 +24,26 @@
   .btn:disabled{opacity:.55; cursor:not-allowed}
   .btn.secondary{background:#111827}
   .btn.success{background:#059669}
-  .btn.wall{background:#7c3aed} /* סגול לקירות */
+  .btn.danger{background:var(--danger)}
+  .btn.wall{background:#7c3aed}
   .note{color:var(--muted);font-size:14px;margin-top:8px;line-height:1.45}
   video,canvas{width:100%;border-radius:12px;border:1px solid var(--line);background:#fff}
   .hidden{display:none}
   
   .input-group { margin-bottom: 15px; padding: 12px; border-radius: 12px; background: #fff; border-width: 5px; border-style: solid; }
-  .input-group label { display: block; font-size: 16px; font-weight: bold; margin-bottom: 8px; }
   input { width:100%; padding:14px; border:1px solid #ddd; border-radius:8px; font-size:20px; outline:none; font-weight: bold; }
   input.auto-filled { background-color: #f0fff4; border-color: #22c55e; color: #15803d; }
 
   .status{ padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; }
   .status.good{border-color:#22c55e; color:#15803d; font-weight:bold;}
   
-  .result-container-single { width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; touch-action: pan-y; margin-bottom: 20px; position: relative; }
-  .result-canvas { width: 100%; height: auto; display: block; transform-origin: center center; }
+  .result-container-single { width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; touch-action: none; margin-bottom: 20px; position: relative; }
+  .result-canvas { width: 100%; height: auto; display: block; transform-origin: center center; transition: transform 0.1s ease-out; }
   .tile-label-header { padding: 12px; background: #f8fafc; border-bottom: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
   .tile-label-footer { padding: 12px; background: #f8fafc; border-top: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
   .tile-inputs-top { display: flex; gap: 10px; background: #f0f7ff; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #c0d8ff; }
   
-  .project-item { padding: 10px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+  .project-item { padding: 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; background: white; border-radius: 8px; margin-bottom: 5px;}
   .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; color: white; }
   .badge.floor { background: var(--primary); }
   .badge.wall { background: #7c3aed; }
@@ -54,69 +54,66 @@
 <div class="wrap">
 
   <div class="card" id="mainMenu">
-    <h2>פרויקט נוכחי</h2>
-    <div id="projectList" class="note" style="margin-bottom: 15px;">טרם נוספו פריטים לפרויקט.</div>
-    <div id="projectSummary" class="hidden" style="background: #f1f5f9; padding: 10px; border-radius: 10px; margin-bottom: 15px;"></div>
+    <h2>📋 פרויקט שמור בטלפון</h2>
+    <div id="projectList" class="note">טרם נוספו פריטים.</div>
+    <div id="projectSummary" class="hidden" style="background: #e0f2fe; padding: 12px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; border: 1px solid var(--primary);"></div>
     
     <div class="row">
-      <button onclick="startMode('floor')" class="btn">➕ הוסף רצפה (ריצוף)</button>
-      <button onclick="startMode('wall')" class="btn wall">➕ הוסף קיר (חיפוי)</button>
+      <button onclick="startMode('floor')" class="btn">➕ הוסף רצפה</button>
+      <button onclick="startMode('wall')" class="btn wall">➕ הוסף קיר</button>
     </div>
+    <button id="btnNewProject" class="btn danger" style="margin-top: 10px; font-size: 14px; padding: 8px;" onclick="clearProject()">🗑️ מחק הכל והתחל פרויקט חדש</button>
   </div>
 
   <div id="measurementSection" class="hidden">
     <div class="card">
-        <h2 id="modeTitle">1️⃣ מדידה</h2>
+        <h2 id="modeTitle">מדידה</h2>
         <div id="statusBox" class="status">טוען...</div>
         <div style="margin-top:12px" id="videoContainer">
           <video id="video" autoplay playsinline></video>
           <canvas id="photo" class="hidden"></canvas>
         </div>
         <div class="row" style="margin-top:12px">
-          <button id="btnShot" class="btn" type="button" disabled>📸 צלם וזהה</button>
-          <button id="btnRect" class="btn success" type="button">⬜ הוסף מלבן מהיר</button>
-          <button onclick="resetMeasurement()" class="btn secondary" type="button">🔙 ביטול וחזרה</button>
+          <button id="btnShot" class="btn" type="button" disabled>📸 צלם</button>
+          <button id="btnRect" class="btn success" type="button">⬜ מלבן מהיר</button>
+          <button onclick="hideMeasurement()" class="btn secondary" type="button">🔙 חזור</button>
         </div>
     </div>
 
     <div class="card hidden" id="previewCard">
-        <h2>2️⃣ צלעות שזוהו</h2>
+        <h2>2️⃣ לחץ על מספר למעבר מהיר</h2>
         <canvas id="overlay"></canvas>
     </div>
 
     <div class="card hidden" id="inputsCard">
-        <h2>3️⃣ הזן מידות אריח וצלעות</h2>
         <div class="tile-inputs-top">
           <div style="flex:1"><label>רוחב אריח</label><input id="tileW" type="number" placeholder="ס״מ"></div>
           <div style="flex:1"><label>אורך אריח</label><input id="tileH" type="number" placeholder="ס״מ"></div>
         </div>
         <div id="inputs"></div>
-        <button id="btnBuild" class="btn" type="button">📐 בנה שרטוט וחשב</button>
+        <button id="btnBuild" class="btn" type="button">📐 בנה וחשב</button>
     </div>
 
     <div class="card hidden" id="resultCard">
-        <h2>4️⃣ תצוגה מקדימה</h2>
-        <div id="tempResultView">
-            <div class="result-container-single" id="containerA">
-                <div class="tile-label-header"></div>
-                <canvas id="resultA" class="result-canvas"></canvas>
-                <div id="reportA" class="tile-label-footer"></div>
-            </div>
+        <div class="result-container-single" id="containerA">
+            <div class="tile-label-header" id="resHeader"></div>
+            <canvas id="resultA" class="result-canvas"></canvas>
+            <div id="reportA" class="tile-label-footer"></div>
         </div>
         <div class="row">
             <button onclick="saveToProject()" class="btn success">✅ שמור לפרויקט</button>
-            <button onclick="resetMeasurement()" class="btn danger">🗑️ בטל מדידה</button>
+            <button onclick="hideMeasurement()" class="btn secondary">בטל</button>
         </div>
     </div>
   </div>
 
-  <div id="finalPdfReport" class="hidden">
-      <div id="pdfContent" style="background: white; padding: 20px; font-family: system-ui;">
-          <h1 style="text-align: center; color: #2563eb;">סיכום פרויקט מדידות</h1>
-          <div id="pdfSummaryTable"></div>
+  <div id="finalPdfSection" class="card hidden">
+      <div id="pdfContent" style="background: white; padding: 15px;">
+          <h1 style="text-align: center; color: #2563eb;">דוח פרויקט מרוכז</h1>
+          <div id="pdfSummaryDisplay"></div>
           <div id="pdfItemsDetail"></div>
       </div>
-      <button id="btnShare" class="btn success" style="margin-bottom: 50px;">📄 שלח דוח פרויקט מלא (PDF)</button>
+      <button id="btnShare" class="btn success">📄 שלח דוח מלא (PDF)</button>
   </div>
 
 </div>
@@ -128,12 +125,21 @@
   let cvReady = false, videoReady = false, polyPts = [], edgeDirs = [], currentScale = 1, initialDist = 0, numberHitZones = [];
   
   let projectItems = [];
-  let currentMode = 'floor'; // 'floor' or 'wall'
+  let currentMode = 'floor';
   let currentItemData = null;
+
+  // טעינה ראשונית של הפרויקט מהזיכרון
+  window.onload = () => {
+    const saved = localStorage.getItem('floorProject');
+    if(saved) {
+        projectItems = JSON.parse(saved);
+        updateProjectUI();
+    }
+  };
 
   function __onCvScriptLoaded(){
     const wait = setInterval(() => {
-      if (window.cv && cv.Mat) { cvReady = true; setStatus("מערכת מוכנה! ✅", "good"); btnShot.disabled = !videoReady; clearInterval(wait); }
+      if (window.cv && cv.Mat) { cvReady = true; setStatus("מערכת מוכנה ✅", "good"); btnShot.disabled = !videoReady; clearInterval(wait); }
     }, 100);
   }
 
@@ -144,29 +150,54 @@
     } catch(e) { setStatus("שגיאת מצלמה", "bad"); }
   }
 
-  function setStatus(m, t){ statusBox.textContent = m; statusBox.className = "status " + (t||""); }
-
   function startMode(mode) {
     currentMode = mode;
     document.getElementById('mainMenu').classList.add('hidden');
     document.getElementById('measurementSection').classList.remove('hidden');
-    document.getElementById('modeTitle').textContent = mode === 'floor' ? "1️⃣ מדידת רצפה" : "1️⃣ מדידת קיר (חיפוי)";
     startCamera();
   }
 
-  function resetMeasurement() {
-    location.reload(); // פשוט ומהיר לאיפוס מצב
+  function hideMeasurement() {
+    document.getElementById('measurementSection').classList.add('hidden');
+    document.getElementById('mainMenu').classList.remove('hidden');
+    if(video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+  }
+
+  function clearProject() {
+    if(confirm("בטוח שברצונך למחוק את כל הפרויקט?")) {
+        projectItems = [];
+        localStorage.removeItem('floorProject');
+        location.reload();
+    }
   }
 
   function snapDir(dx, dy){ return Math.abs(dx) >= Math.abs(dy) ? {dx: Math.sign(dx)||1, dy:0} : {dx:0, dy:Math.sign(dy)||1}; }
 
-  // כפתור מלבן
-  document.getElementById("btnRect").onclick = () => {
-    polyPts = [{x:100,y:50,isReal:false},{x:500,y:50,isReal:false},{x:500,y:350,isReal:false},{x:100,y:350,isReal:false}];
-    buildInputsInterface();
+  // לחיצה על מספר צלע - קפיצה לתא
+  overlay.onclick = (e) => {
+    const rect = overlay.getBoundingClientRect();
+    const scaleX = overlay.width / rect.width;
+    const scaleY = overlay.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX;
+    const y = (e.clientY - rect.top) * scaleY;
+
+    for (let zone of numberHitZones) {
+      if (Math.hypot(x - zone.x, y - zone.y) < zone.radius) {
+        let input = document.getElementById(zone.id);
+        if (input) {
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          input.focus();
+        }
+        break;
+      }
+    }
   };
 
-  // צילום
+  document.getElementById("btnRect").onclick = () => {
+    polyPts = [{x:100,y:50},{x:500,y:50},{x:500,y:350},{x:100,y:350}];
+    buildInputsInterface(false);
+  };
+
   btnShot.onclick = () => {
     photo.width = video.videoWidth; photo.height = video.videoHeight;
     photo.getContext("2d").drawImage(video, 0, 0);
@@ -184,9 +215,8 @@
     let approx = new cv.Mat();
     cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
     polyPts = [];
-    for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1], isReal: true});
+    for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
     
-    // סידור שעון מלמעלה
     let polyArea = 0;
     for (let i = 0; i < polyPts.length; i++) { let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length]; polyArea += (p2.x - p1.x) * (p2.y + p1.y); }
     if (polyArea < 0) polyPts.reverse();
@@ -195,31 +225,32 @@
     polyPts = polyPts.slice(topIdx).concat(polyPts.slice(0, topIdx));
 
     overlay.width = photo.width; overlay.height = photo.height;
-    overlay.getContext("2d").drawImage(photo, 0, 0);
-    buildInputsInterface();
+    buildInputsInterface(true);
     src.delete(); gray.delete(); edges.delete(); cnts.delete(); hi.delete(); approx.delete(); kernel.delete();
   };
 
-  function buildInputsInterface() {
+  function buildInputsInterface(withPhoto) {
     let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
-    numberHitZones = [];
-    edgeDirs = [];
+    numberHitZones = []; edgeDirs = [];
     let octx = overlay.getContext("2d");
-    if(!polyPts[0].isReal) { overlay.width = 600; overlay.height = 400; octx.fillStyle = "#fff"; octx.fillRect(0,0,600,400); }
+    if(!withPhoto) { overlay.width = 600; overlay.height = 400; octx.fillStyle = "#fff"; octx.fillRect(0,0,600,400); }
+    else { octx.drawImage(photo, 0, 0); }
+
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
       octx.strokeStyle = color; octx.lineWidth = 12;
       octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
       let mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
+      numberHitZones.push({ x: mx, y: my, radius: 50, id: `inp-${i}` });
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
-      octx.fillStyle = color; octx.font = "bold 60px Arial"; octx.textAlign="center"; octx.textBaseline="middle";
-      octx.fillText(i+1, mx, my);
+      octx.fillStyle = color; octx.font = "bold 55px Arial"; octx.textAlign="center"; octx.textBaseline="middle"; octx.fillText(i+1, mx, my);
       edgeDirs.push(snapDir(p2.x-p1.x, p2.y-p1.y));
-      inpBox.innerHTML += `<div class="input-group" style="border-color: ${color}"><label style="color: ${color}">צלע מס' ${i+1}</label><input type="number" class="side-val" placeholder="הכנס אורך" oninput="liveAutoSolve()"></div>`;
+      inpBox.innerHTML += `<div class="input-group" style="border-color: ${color}"><label style="color: ${color}">צלע ${i+1}</label><input type="number" id="inp-${i}" class="side-val" oninput="liveAutoSolve()"></div>`;
     }
     document.getElementById("previewCard").classList.remove("hidden");
     document.getElementById("inputsCard").classList.remove("hidden");
+    document.getElementById("inputsCard").scrollIntoView({behavior: "smooth"});
   }
 
   function liveAutoSolve() {
@@ -232,8 +263,7 @@
       if (missing.length === 1) {
         let targetIdx = missing[0], sum = 0;
         indices.forEach(idx => { if (idx !== targetIdx && sVals[idx] !== null) sum += (isX ? edgeDirs[idx].dx : edgeDirs[idx].dy) * sVals[idx]; });
-        let result = Math.abs(sum);
-        if (result > 0) { inputs[targetIdx].value = result; inputs[targetIdx].classList.add("auto-filled"); }
+        if (Math.abs(sum) > 0) { inputs[targetIdx].value = Math.abs(sum); inputs[targetIdx].classList.add("auto-filled"); }
       }
     };
     solve(horiz, true); solve(vert, false);
@@ -251,10 +281,16 @@
     let count = 0;
     for(let x=minX; x<maxX; x+=tW) for(let y=minY; y<maxY; y+=tH) {
       ctx.strokeRect(tx(x), ty(y), tW*scale, tH*scale);
-      let isInside = false;
-      let p = {x: x+tW/2, y: y+tH/2};
-      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { if (((pts[i].y > p.y) !== (pts[j].y > p.y)) && (p.x < (pts[j].x - pts[i].x) * (p.y - pts[i].y) / (pts[j].y - pts[i].y) + pts[i].x)) isInside = !isInside; }
-      if(isInside) count++;
+      let isInside = false; let p = {x: x+tW/2, y: y+tH/2};
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { if (((pts[i].y > p.y) !== (pts[j].y > p.y)) && (p.x < (pts[j].x - pts[i].x) * (p.y - pts[i].y) / (polyPts[j].y - polyPts[i].y) + pts[i].x)) isInside = !isInside; }
+      if(isInside || true) { // הפכתי ליותר סלחן בסימולציה
+          let midX = x + tW/2, midY = y + tH/2;
+          let inside = false;
+          for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+              if (((pts[i].y > midY) !== (pts[j].y > midY)) && (midX < (pts[j].x - pts[i].x) * (midY - pts[i].y) / (pts[j].y - pts[i].y) + pts[i].x)) inside = !inside;
+          }
+          if(inside) count++;
+      }
     }
     ctx.restore();
     ctx.lineWidth = 10; ctx.font = "bold 28px Arial"; ctx.textAlign = "center";
@@ -281,24 +317,17 @@
     let perimeter = sVals.reduce((a,b)=>a+b, 0);
     
     currentItemData = { mode: currentMode, area: Math.abs(area)/20000, perimeter, count, tW, tH, sVals, pts };
-    
-    document.getElementById("reportA").innerHTML = `כמות: ${count} אריחים | שטח: ${currentItemData.area.toFixed(2)} מ"ר`;
+    document.getElementById("resHeader").textContent = `${currentMode === 'floor' ? 'רצפה' : 'קיר'} - ${tW}x${tH}`;
+    document.getElementById("reportA").innerHTML = `כמות: ${count} יחידות | שטח: ${currentItemData.area.toFixed(2)} מ"ר`;
     document.getElementById("resultCard").classList.remove("hidden");
     document.getElementById("resultCard").scrollIntoView({behavior:"smooth"});
   };
 
-  // שמירה לפרויקט
   function saveToProject() {
     projectItems.push(currentItemData);
+    localStorage.setItem('floorProject', JSON.stringify(projectItems));
     updateProjectUI();
-    document.getElementById('measurementSection').classList.add('hidden');
-    document.getElementById('mainMenu').classList.remove('hidden');
-    document.getElementById('finalPdfReport').classList.remove('hidden');
-    
-    // ניקוי לצורך המדידה הבאה
-    document.getElementById("inputsCard").classList.add("hidden");
-    document.getElementById("previewCard").classList.add("hidden");
-    document.getElementById("resultCard").classList.add("hidden");
+    hideMeasurement();
   }
 
   function updateProjectUI() {
@@ -306,69 +335,66 @@
     let summary = document.getElementById('projectSummary');
     list.innerHTML = "";
     
-    let totalFloorM2 = 0, totalFloorTiles = 0;
-    let totalWallM2 = 0, totalWallTiles = 0;
-
-    projectItems.forEach((item, index) => {
-      let typeLabel = item.mode === 'floor' ? 'רצפה' : 'קיר';
-      list.innerHTML += `
-        <div class="project-item">
-            <span><b>#${index+1} ${typeLabel}</b> (${item.area.toFixed(2)} מ"ר)</span>
-            <span class="badge ${item.mode}">${item.count} אריחים</span>
-        </div>`;
-        
-      if(item.mode === 'floor') { totalFloorM2 += item.area; totalFloorTiles += item.count; }
-      else { totalWallM2 += item.area; totalWallTiles += item.count; }
-    });
-
-    summary.innerHTML = `
-        <div style="display:flex; justify-content: space-between;">
-            <div><b>סה"כ ריצוף:</b> ${totalFloorM2.toFixed(2)} מ"ר (${totalFloorTiles} יח')</div>
-            <div><b>סה"כ חיפוי קיר:</b> ${totalWallM2.toFixed(2)} מ"ר (${totalWallTiles} יח')</div>
-        </div>`;
-    summary.classList.remove('hidden');
-  }
-
-  // שיתוף PDF
-  document.getElementById("btnShare").onclick = async () => {
-    const pdfDiv = document.getElementById('pdfContent');
-    const summaryTable = document.getElementById('pdfSummaryTable');
-    const details = document.getElementById('pdfItemsDetail');
-    
-    // בנה את תוכן ה-PDF
-    summaryTable.innerHTML = document.getElementById('projectSummary').innerHTML;
-    details.innerHTML = "";
-    
-    // יצירת אלמנטים זמניים ל-PDF כדי שכל שרטוט יופיע
-    for(let item of projectItems) {
-        let canvasClone = document.createElement('canvas');
-        canvasClone.width = 1000;
-        canvasClone.height = 1000 * ( (Math.max(...item.pts.map(p=>p.y))-Math.min(...item.pts.map(p=>p.y))) / (Math.max(...item.pts.map(p=>p.x))-Math.min(...item.pts.map(p=>p.x))) );
-        draw(canvasClone, item.pts, item.sVals, item.tW, item.tH);
-        
-        details.innerHTML += `
-            <div style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 10px;">
-                <h3>${item.mode === 'floor' ? 'רצפה' : 'קיר'} - אריח ${item.tW}x${item.tH}</h3>
-                <img src="${canvasClone.toDataURL()}" style="width: 100%; border: 1px solid #ddd;">
-                <p>שטח: ${item.area.toFixed(2)} מ"ר | היקף: ${item.perimeter} ס"מ | אריחים: ${item.count}</p>
-            </div>`;
+    if(projectItems.length === 0) {
+        list.innerHTML = "טרם נוספו פריטים.";
+        summary.classList.add('hidden');
+        document.getElementById('finalPdfSection').classList.add('hidden');
+        return;
     }
 
-    const canvas = await html2canvas(pdfDiv, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', [210, (canvas.height * 210) / canvas.width]);
-    pdf.addImage(imgData, 'PNG', 0, 0, 210, (canvas.height * 210) / canvas.width);
+    let fM2 = 0, fT = 0, wM2 = 0, wT = 0;
+    projectItems.forEach((item, i) => {
+      list.innerHTML += `<div class="project-item"><span><b>#${i+1} ${item.mode==='floor'?'רצפה':'קיר'}</b> (${item.area.toFixed(2)} מ"ר)</span><span class="badge ${item.mode}">${item.count} יח'</span></div>`;
+      if(item.mode==='floor'){ fM2+=item.area; fT+=item.count; } else { wM2+=item.area; wT+=item.count; }
+    });
+
+    summary.innerHTML = `<b>סיכום:</b> ריצוף: ${fM2.toFixed(2)} מ"ר (${fT} יח') | חיפוי: ${wM2.toFixed(2)} מ"ר (${wT} יח')`;
+    summary.classList.remove('hidden');
+    document.getElementById('finalPdfSection').classList.remove('hidden');
+  }
+
+  // --- Pinch-to-Zoom ---
+  const container = document.getElementById("containerA");
+  const canvas = document.getElementById("resultA");
+  container.addEventListener('touchstart', e => { if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); });
+  container.addEventListener('touchmove', e => {
+    if(e.touches.length==2){
+      e.preventDefault();
+      let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
+      currentScale = Math.min(Math.max(0.5, currentScale * (d/initialDist)), 5);
+      canvas.style.transform = `scale(${currentScale})`; initialDist = d;
+    }
+  }, {passive:false});
+
+  document.getElementById("btnShare").onclick = async () => {
+    const pdfDiv = document.getElementById('pdfContent');
+    const summary = document.getElementById('pdfSummaryDisplay');
+    const details = document.getElementById('pdfItemsDetail');
+    summary.innerHTML = document.getElementById('projectSummary').innerHTML;
+    details.innerHTML = "";
     
-    const pdfBlob = pdf.output('blob');
-    const file = new File([pdfBlob], 'Project_Report.pdf', { type: 'application/pdf' });
-    if (navigator.share) await navigator.share({ files: [file], title: 'דוח פרויקט מדידות' });
-    else pdf.save("Project.pdf");
+    for(let item of projectItems) {
+        let can = document.createElement('canvas');
+        draw(can, item.pts, item.sVals, item.tW, item.tH);
+        details.innerHTML += `<div style="margin-top:20px; border-top:1px solid #ccc; padding:10px;"><h3>${item.mode==='floor'?'רצפה':'קיר'} (${item.tW}x${item.tH})</h3><img src="${can.toDataURL()}" style="width:100%"><p>שטח: ${item.area.toFixed(2)} מ"ר | אריחים: ${item.count}</p></div>`;
+    }
+
+    const canvasPdf = await html2canvas(pdfDiv, { scale: 2 });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', [210, (canvasPdf.height * 210) / canvasPdf.width]);
+    pdf.addImage(canvasPdf.toDataURL('image/png'), 'PNG', 0, 0, 210, (canvasPdf.height * 210) / canvasPdf.width);
+    const file = new File([pdf.output('blob')], 'Project_Measurements.pdf', { type: 'application/pdf' });
+    if (navigator.share) await navigator.share({ files: [file], title: 'דוח מדידות' }); else pdf.save("Project.pdf");
   };
 
-  startCamera();
+  function setStatus(m, t){ statusBox.textContent = m; statusBox.className = "status " + (t||""); }
 </script>
-
+<script>
+    // הגנה מפני רענון בטעות - הודעת אישור (אופציונלי, בנוסף לשמירה)
+    window.onbeforeunload = function() {
+        if(projectItems.length > 0) return "יש לך פרויקט שמור, האם אתה בטוח שברצונך לצאת?";
+    };
+</script>
 </body>
 </html>
-20
+21
