@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - חישוב אריחים לפי חיתוך</title>
+<title>שרטוט חכם - גרסה סופית עם פנלים</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -139,7 +139,7 @@
   let cvReady = false, videoReady = false, polyPts = [], edgeDirs = [], numberHitZones = [];
   let settings = {}, projectData = { floor: null, walls: [], floorOrientation: null, wallOrientation: null };
 
-  window.onload = () => { if(localStorage.getItem('smartProjFinalV2')) document.getElementById('btnResume').classList.remove('hidden'); };
+  window.onload = () => { if(localStorage.getItem('smartProjFinalV3')) document.getElementById('btnResume').classList.remove('hidden'); };
 
   function __onCvScriptLoaded(){
     const wait = setInterval(() => { if (window.cv && cv.Mat) { cvReady = true; setStatus("מערכת מוכנה ✅", "good"); document.getElementById("btnShot").disabled = !videoReady; clearInterval(wait); } }, 100);
@@ -167,7 +167,7 @@
   }
 
   function loadSavedProject() {
-    projectData = JSON.parse(localStorage.getItem('smartProjFinalV2'));
+    projectData = JSON.parse(localStorage.getItem('smartProjFinalV3'));
     settings = projectData.settings;
     document.getElementById('settingsScreen').classList.add('hidden');
     showDashboard();
@@ -217,7 +217,7 @@
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
       octx.fillStyle = color; octx.font = "bold 55px Arial"; octx.textAlign="center"; octx.textBaseline="middle"; octx.fillText(i+1, mx, my);
       edgeDirs.push(Math.abs(p2.x-p1.x) >= Math.abs(p2.y-p1.y) ? {dx: Math.sign(p2.x-p1.x)||1, dy:0} : {dx:0, dy:Math.sign(p2.y-p1.y)||1});
-      inpBox.innerHTML += `<div class="input-group" style="border-color: ${color}"><label style="color: ${color}">צלע ${i+1} (רוחב בקיר)</label><input type="number" id="inp-${i}" class="side-val" oninput="liveSolve()"></div>`;
+      inpBox.innerHTML += `<div class="input-group" style="border-color: ${color}"><label style="color: ${color}">צלע ${i+1} (רוחב)</label><input type="number" id="inp-${i}" class="side-val" oninput="liveSolve()"></div>`;
     }
     document.getElementById("previewCard").classList.remove("hidden");
     document.getElementById("inputsCard").classList.remove("hidden");
@@ -247,11 +247,8 @@
     for (let zone of numberHitZones) { if (Math.hypot(x-zone.x, y-zone.y) < zone.radius) { let t = document.getElementById(zone.id); if(t){ t.scrollIntoView({behavior:'smooth',block:'center'}); t.focus(); } break; } }
   };
 
-  // --- פונקציית חישוב אריחים מקצועית לפי חיתוך (CEIL) ---
   function calculateTilesCeil(width, height, tileW, tileH) {
-    let cols = Math.ceil(width / tileW);
-    let rows = Math.ceil(height / tileH);
-    return cols * rows;
+    return Math.ceil(width / tileW) * Math.ceil(height / tileH);
   }
 
   function drawGrid(can, pts, sVals, tW, tH) {
@@ -274,7 +271,6 @@
       let angle = Math.atan2(ty(p2.y)-ty(p1.y), tx(p2.x)-tx(p1.x)); if(angle > Math.PI/2 || angle < -Math.PI/2) angle += Math.PI;
       ctx.save(); ctx.translate(tx((p1.x+p2.x)/2), ty((p1.y+p2.y)/2)); ctx.rotate(angle); ctx.fillStyle = color; ctx.fillText(sVals[i], 0, -35); ctx.restore();
     }
-    // החישוב מתבצע עבור המלבן החוסם של הצורה (לפי חיתוכים)
     return calculateTilesCeil(spanX, spanY, tW, tH);
   }
 
@@ -320,31 +316,39 @@
         let w = projectData.floor.sVals[i];
         let pts = [{x:0,y:0}, {x:w,y:0}, {x:w,y:settings.h}, {x:0,y:settings.h}, {x:0,y:0}];
         let sVals = [w, settings.h, w, settings.h];
-        let count = calculateTilesCeil(w, settings.h, tW, tH);
-        projectData.walls.push({ pts, sVals, area: (w * settings.h)/10000, count, tW, tH, edgeNum: i+1 });
+        projectData.walls.push({ pts, sVals, area: (w * settings.h)/10000, count: calculateTilesCeil(w, settings.h, tW, tH), tW, tH, edgeNum: i+1 });
     }
     showDashboard();
   }
 
   function showDashboard() {
     projectData.settings = settings;
-    localStorage.setItem('smartProjFinalV2', JSON.stringify(projectData));
+    localStorage.setItem('smartProjFinalV3', JSON.stringify(projectData));
     document.getElementById('measurementSection').classList.add('hidden');
     document.getElementById('finalDashboard').classList.remove('hidden');
     let sum = document.getElementById('summaryBox'), detail = document.getElementById('itemsDetail');
     detail.innerHTML = "";
+    
     let totalWallM2 = 0, totalWallTiles = 0;
+    let totalPerimeter = projectData.floor.sVals.reduce((a,b)=>a+b, 0); // חישוב היקף פנלים
+    
     let fCan = document.createElement('canvas'); drawGrid(fCan, projectData.floor.pts, projectData.floor.sVals, projectData.floor.tW, projectData.floor.tH);
     detail.innerHTML += `<div class="card"><h3>רצפה (${projectData.floor.tW}x${projectData.floor.tH})</h3><img src="${fCan.toDataURL()}" style="width:100%"><p>שטח: ${projectData.floor.area.toFixed(2)} מ"ר | אריחים: ${projectData.floor.count}</p></div>`;
+    
     projectData.walls.forEach(w => {
         totalWallM2 += w.area; totalWallTiles += w.count;
         let wCan = document.createElement('canvas'); drawGrid(wCan, w.pts, w.sVals, w.tW, w.tH);
         detail.innerHTML += `<div class="card" style="border-right: 5px solid ${edgeColors[(w.edgeNum-1)%8]}"><h3>קיר #${w.edgeNum} (${w.tW}x${w.tH})</h3><img src="${wCan.toDataURL()}" style="width:100%"><p>שטח: ${w.area.toFixed(2)} מ"ר | אריחים: ${w.count}</p></div>`;
     });
-    sum.innerHTML = `<h3 style="margin:0">סה"כ ריצוף: ${projectData.floor.area.toFixed(2)} מ"ר (${projectData.floor.count} יח')</h3><h3 style="margin:5px 0 0">סה"כ חיפוי: ${totalWallM2.toFixed(2)} מ"ר (${totalWallTiles} יח')</h3>`;
+    
+    sum.innerHTML = `
+        <h3 style="margin:0">סה"כ ריצוף: ${projectData.floor.area.toFixed(2)} מ"ר (${projectData.floor.count} יח')</h3>
+        <h3 style="margin:5px 0">סה"כ חיפוי קירות: ${totalWallM2.toFixed(2)} מ"ר (${totalWallTiles} יח')</h3>
+        <h3 style="margin:5px 0; color: #059669;">📏 היקף לפנלים: ${totalPerimeter} ס״מ (${(totalPerimeter/100).toFixed(2)} מטר)</h3>
+    `;
   }
 
-  function clearAll() { if(confirm("למחוק הכל?")) { localStorage.removeItem('smartProjFinalV2'); location.reload(); } }
+  function clearAll() { if(confirm("למחוק הכל?")) { localStorage.removeItem('smartProjFinalV3'); location.reload(); } }
 
   async function sharePDF() {
     const el = document.getElementById('pdfContent');
@@ -358,4 +362,4 @@
 </script>
 </body>
 </html>
-29
+Charles.s
