@@ -3,13 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>צילום שרטוט → זיהוי צלעות → הזנת ס״מ</title>
+<title>שרטוט חכם - צילום → זיהוי צלעות → שרטוט מדויק</title>
 
-<!-- OpenCV -->
-<script>
-  // נשתמש בדגל מוכן ל-OpenCV
-  window.__cvReady = false;
-</script>
 <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="__onCvScriptLoaded()"></script>
 
 <style>
@@ -24,7 +19,7 @@
     width:100%; padding:14px 16px; border:0; border-radius:12px;
     background:var(--primary); color:#fff; font-size:18px; cursor:pointer;
   }
-  .btn:disabled{opacity:.5; cursor:not-allowed}
+  .btn:disabled{opacity:.55; cursor:not-allowed}
   .btn.secondary{background:#111827}
   .btn.danger{background:var(--danger)}
   .note{color:var(--muted);font-size:14px;margin-top:8px;line-height:1.45}
@@ -50,11 +45,8 @@
 
   <div class="card">
     <h2>1️⃣ צילום שרטוט (מצלמה אחורית)</h2>
-
     <div id="statusBox" class="status">טוען…</div>
-    <div class="note">
-      הכפתור “צלם” יופעל רק אחרי ש־<b>המצלמה מוכנה</b> וגם <b>OpenCV מוכן</b>.
-    </div>
+    <div class="note">הכפתור “צלם” יופעל רק אחרי ש־<b>המצלמה מוכנה</b> וגם <b>OpenCV מוכן</b>.</div>
 
     <div style="margin-top:12px">
       <video id="video" autoplay playsinline></video>
@@ -65,37 +57,28 @@
       <button id="btnShot" class="btn" type="button" disabled>📸 צלם</button>
       <button id="btnRestart" class="btn secondary" type="button">🔄 אתחל מצלמה</button>
     </div>
-
-    <div class="note">
-      אם הדפדפן מבקש הרשאה – תאשר. חייב להיות URL של <span class="mono">https://</span> (GitHub Pages).
-    </div>
   </div>
 
   <div class="card hidden" id="previewCard">
-    <h2>תמונה שנלכדה</h2>
-    <canvas id="preview"></canvas>
-    <div class="note">אם אתה רואה כאן את השרטוט – הצילום הצליח, וממשיכים לזיהוי.</div>
-  </div>
-
-  <div class="card hidden" id="edgesCard">
-    <h2>2️⃣ זיהוי קווים / צלעות</h2>
-    <canvas id="edges"></canvas>
-    <div id="edgesInfo" class="note"></div>
+    <h2>2️⃣ קווים מזוהים + מספור צלעות</h2>
+    <canvas id="overlay"></canvas>
+    <div id="overlayInfo" class="note"></div>
   </div>
 
   <div class="card hidden" id="inputsCard">
-    <h2>3️⃣ הזן מידות (בס״מ)</h2>
+    <h2>3️⃣ הזן מידות (בס״מ) לפי המספרים על השרטוט</h2>
     <div id="inputs"></div>
     <button id="btnBuild" class="btn" type="button">📐 בנה שרטוט לפי המידות</button>
     <div class="note">
-      אתה מזין <b>בס״מ בלבד</b>. הפרופורציות בשרטוט יהיו <b>רק לפי המספרים</b> (500 תמיד ייראה ארוך מ־300).
+      הכל בס״מ. הפרופורציות בשרטוט יהיו רק לפי המספרים.  
+      אם תהיה בעיית “סגירה” – תקבל הודעה מדויקת בכמה ס״מ זה בורח אופקי/אנכי.
     </div>
   </div>
 
   <div class="card hidden" id="resultCard">
     <h2>4️⃣ שרטוט סופי</h2>
     <canvas id="result"></canvas>
-    <div id="perimeter" class="note"></div>
+    <div id="report" class="note"></div>
   </div>
 
 </div>
@@ -103,12 +86,10 @@
 <script>
   const video = document.getElementById("video");
   const photo = document.getElementById("photo");
-  const preview = document.getElementById("preview");
-  const edgesCanvas = document.getElementById("edges");
+  const overlay = document.getElementById("overlay");
   const resultCanvas = document.getElementById("result");
 
   const previewCard = document.getElementById("previewCard");
-  const edgesCard = document.getElementById("edgesCard");
   const inputsCard = document.getElementById("inputsCard");
   const resultCard = document.getElementById("resultCard");
 
@@ -121,132 +102,96 @@
   let videoReady = false;
   let cvReady = false;
 
-  let detectedCorners = []; // נקודות הפוליגון
-  let detectedSideCount = 0;
+  // הנתונים שנזהה
+  let polyPts = [];     // נקודות הפוליגון בסדר סביב הצורה
+  let edgeDirs = [];    // כיוונים "מוסנפים" (אופקי/אנכי) לכל צלע
+  let edgeCount = 0;
 
   function setStatus(msg, type){
     statusBox.textContent = msg;
     statusBox.classList.remove("good","bad");
     if(type) statusBox.classList.add(type);
   }
+  function updateShotEnabled(){ btnShot.disabled = !(videoReady && cvReady); }
 
-  function updateShotEnabled(){
-    btnShot.disabled = !(videoReady && cvReady);
-  }
-
-  // נקרא כשהסקריפט opencv.js נטען
+  // ============ OpenCV ready ============
   function __onCvScriptLoaded(){
-    // cv עצמו מסיים אתחול async
     const wait = setInterval(() => {
       if (window.cv && cv.Mat) {
-        // onRuntimeInitialized לפעמים קיים, לפעמים כבר עבר
-        if (cv.onRuntimeInitialized) {
-          cv.onRuntimeInitialized = () => {
-            cvReady = true;
-            setStatus("OpenCV מוכן ✅", "good");
-            updateShotEnabled();
-          };
-          // אם כבר מוכן — נסמן מיד
-          try{
-            // בדיקה עדינה: יצירת Mat
-            const t = new cv.Mat();
-            t.delete();
-            cvReady = true;
-            setStatus("OpenCV מוכן ✅", "good");
-            updateShotEnabled();
-            clearInterval(wait);
-          }catch(e){
-            // נחכה ל-onRuntimeInitialized
-          }
-        } else {
-          // אם אין onRuntimeInitialized, נבדוק יצירת Mat
-          try{
-            const t = new cv.Mat();
-            t.delete();
-            cvReady = true;
-            setStatus("OpenCV מוכן ✅", "good");
-            updateShotEnabled();
-            clearInterval(wait);
-          }catch(e){}
-        }
+        try{
+          const t = new cv.Mat();
+          t.delete();
+          cvReady = true;
+          setStatus("OpenCV מוכן ✅", "good");
+          updateShotEnabled();
+          clearInterval(wait);
+        }catch(e){}
       }
     }, 80);
   }
 
+  // ============ Camera ============
   async function startCamera(){
     try{
       videoReady = false;
       updateShotEnabled();
       setStatus("פותח מצלמה אחורית…", null);
 
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-      }
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
 
-      // ניסיון 1: exact environment (נעילה חזקה)
       try{
         stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { exact: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          },
-          audio: false
+          video: { facingMode: { exact: "environment" }, width:{ideal:1920}, height:{ideal:1080} },
+          audio:false
         });
-      } catch (e1) {
-        // ניסיון 2: environment בלי exact (תאימות טובה יותר)
+      } catch(e1){
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" },
-          audio: false
+          audio:false
         });
       }
 
       video.srcObject = stream;
-
-      await new Promise((resolve) => {
-        video.onloadedmetadata = () => resolve();
-      });
-
-      // לפעמים צריך play מפורש באנדרואיד
+      await new Promise(res => video.onloadedmetadata = () => res());
       await video.play();
 
       videoReady = true;
       setStatus("מצלמה מוכנה ✅ (אחורית)", "good");
       updateShotEnabled();
-
-    } catch (err) {
-      setStatus("שגיאה בפתיחת מצלמה: " + (err && err.message ? err.message : err), "bad");
+    } catch(err){
+      setStatus("שגיאה בפתיחת מצלמה: " + (err?.message || err), "bad");
       btnShot.disabled = true;
     }
   }
 
   function captureToCanvas(){
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if(!vw || !vh) throw new Error("הווידאו עדיין לא מוכן (נסה שוב בעוד שנייה).");
 
-    if (!vw || !vh){
-      throw new Error("הווידאו עדיין לא מוכן (videoWidth=0). נסה שוב בעוד שנייה.");
-    }
-
-    photo.width = vw;
-    photo.height = vh;
-    const ctx = photo.getContext("2d", { willReadFrequently: true });
+    photo.width = vw; photo.height = vh;
+    const ctx = photo.getContext("2d", { willReadFrequently:true });
     ctx.drawImage(video, 0, 0, vw, vh);
-
-    // preview
-    const pr = preview.getContext("2d");
-    preview.width = vw;
-    preview.height = vh;
-    pr.drawImage(photo, 0, 0);
-
-    previewCard.classList.remove("hidden");
   }
 
-  function detectPolygonFromPhoto(){
-    if (!cvReady) throw new Error("OpenCV עדיין לא מוכן.");
+  // --------- Geometry helpers ----------
+  function centroid(pts){
+    let sx=0, sy=0;
+    for(const p of pts){ sx+=p.x; sy+=p.y; }
+    return {x:sx/pts.length, y:sy/pts.length};
+  }
+  function sortAroundCenter(pts){
+    const c = centroid(pts);
+    return [...pts].sort((a,b) => Math.atan2(a.y-c.y, a.x-c.x) - Math.atan2(b.y-c.y, b.x-c.x));
+  }
+  function snapDir(dx, dy){
+    // מצמיד לאופקי/אנכי לפי הדומיננטיות
+    if (Math.abs(dx) >= Math.abs(dy)) return {dx: Math.sign(dx) || 1, dy: 0}; // ימינה/שמאלה
+    return {dx: 0, dy: Math.sign(dy) || 1}; // למעלה/למטה
+  }
 
-    // קריאה מה-canvas
+  function detectAndNumberEdges(){
+    if(!cvReady) throw new Error("OpenCV לא מוכן.");
+
     let src = cv.imread(photo);
     let gray = new cv.Mat();
     let blur = new cv.Mat();
@@ -256,7 +201,7 @@
     cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
     cv.Canny(blur, edges, 60, 180);
 
-    // סגירה מורפולוגית קלה כדי לחבר קווים
+    // חיבור קווים קל
     let kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3,3));
     cv.morphologyEx(edges, edges, cv.MORPH_CLOSE, kernel);
 
@@ -264,52 +209,88 @@
     let hierarchy = new cv.Mat();
     cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-    if (contours.size() === 0){
-      cleanup();
-      throw new Error("לא נמצאו קווים/קונטורים. נסה צילום ברור יותר (ניגודיות גבוהה, דף בהיר).");
-    }
+    if(contours.size() === 0) cleanupAndThrow("לא נמצאו קווים/קונטורים. תצלם עם יותר ניגודיות.");
 
-    // בוחרים את הקונטור הגדול ביותר
-    let biggest = null;
-    let maxArea = 0;
-    for (let i=0; i<contours.size(); i++){
-      let cnt = contours.get(i);
-      let area = cv.contourArea(cnt);
-      if (area > maxArea){
-        maxArea = area;
-        biggest = cnt;
+    let biggest = null, maxArea = 0;
+    for(let i=0;i<contours.size();i++){
+      const cnt = contours.get(i);
+      const area = cv.contourArea(cnt);
+      if(area > maxArea){ maxArea = area; biggest = cnt; }
+    }
+    if(!biggest || maxArea < 5000) cleanupAndThrow("הצורה קטנה מדי או לא ברורה. תקרב מצלמה/תעבה קווים.");
+
+    // נסה קירוב יציב: אם יוצא יותר מדי/מעט מדי נקודות — נחליף epsilon
+    const peri = cv.arcLength(biggest, true);
+    const epsCandidates = [0.015, 0.02, 0.03, 0.04].map(k => k*peri);
+
+    let approx = new cv.Mat();
+    let pts = null;
+
+    for(const eps of epsCandidates){
+      cv.approxPolyDP(biggest, approx, eps, true);
+      if(approx.rows >= 3 && approx.rows <= 20){
+        pts = [];
+        for(let i=0;i<approx.rows;i++){
+          pts.push({ x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1] });
+        }
+        // אם זה סביר (מינימום 3), נצא
+        break;
       }
     }
 
-    if (!biggest || maxArea < 5000){
-      cleanup();
-      throw new Error("זוהה קונטור קטן מדי. תקרב מצלמה או תעשה קווים עבים יותר.");
+    if(!pts || pts.length < 3) cleanupAndThrow("לא הצלחתי לפרש פינות בצורה יציבה. נסה צילום ברור יותר.");
+
+    // 1) סדר נכון סביב הצורה
+    polyPts = sortAroundCenter(pts);
+    edgeCount = polyPts.length;
+
+    // 2) כיוון לכל צלע + snap לאופקי/אנכי
+    edgeDirs = [];
+    for(let i=0;i<edgeCount;i++){
+      const a = polyPts[i];
+      const b = polyPts[(i+1)%edgeCount];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      edgeDirs.push(snapDir(dx, dy));
     }
 
-    // קירוב לפוליגון (מספר פינות)
-    let approx = new cv.Mat();
-    let peri = cv.arcLength(biggest, true);
-    // epsilon יחסית להיקף – יציב יותר מצירוף מספר קבוע
-    cv.approxPolyDP(biggest, approx, 0.02 * peri, true);
+    // 3) צייר overlay: התמונה + הקונטור + מספור צלעות
+    const W = photo.width, H = photo.height;
+    overlay.width = W; overlay.height = H;
+    const octx = overlay.getContext("2d");
+    octx.drawImage(photo, 0, 0);
 
-    // נקודות
-    detectedCorners = [];
-    for (let i=0; i<approx.rows; i++){
-      detectedCorners.push({
-        x: approx.intPtr(i,0)[0],
-        y: approx.intPtr(i,0)[1]
-      });
+    // ציור קונטור נקי
+    octx.lineWidth = 6;
+    octx.strokeStyle = "rgba(37,99,235,0.85)";
+    octx.beginPath();
+    octx.moveTo(polyPts[0].x, polyPts[0].y);
+    for(let i=1;i<edgeCount;i++) octx.lineTo(polyPts[i].x, polyPts[i].y);
+    octx.closePath();
+    octx.stroke();
+
+    // מספור צלעות (אמצע כל קטע)
+    octx.fillStyle = "#ffffff";
+    octx.strokeStyle = "rgba(0,0,0,0.55)";
+    octx.lineWidth = 4;
+    octx.font = "bold 44px system-ui";
+    octx.textAlign = "center";
+    octx.textBaseline = "middle";
+
+    for(let i=0;i<edgeCount;i++){
+      const p1 = polyPts[i];
+      const p2 = polyPts[(i+1)%edgeCount];
+      const mx = (p1.x+p2.x)/2;
+      const my = (p1.y+p2.y)/2;
+      octx.strokeText(String(i+1), mx, my);
+      octx.fillText(String(i+1), mx, my);
     }
 
-    detectedSideCount = detectedCorners.length;
+    previewCard.classList.remove("hidden");
+    document.getElementById("overlayInfo").textContent =
+      `זוהו ${edgeCount} צלעות. המספרים על התמונה הם הסדר הנכון להזנת המידות.`;
 
-    // הצגה של edges
-    cv.imshow(edgesCanvas, edges);
-    edgesCard.classList.remove("hidden");
-    document.getElementById("edgesInfo").textContent = `זוהו ${detectedSideCount} צלעות. עכשיו הזן ${detectedSideCount} מידות בס״מ.`;
-
-    // Inputs
-    buildInputs(detectedSideCount);
+    buildInputs(edgeCount);
 
     cleanup();
 
@@ -317,139 +298,124 @@
       src.delete(); gray.delete(); blur.delete(); edges.delete();
       kernel.delete(); contours.delete(); hierarchy.delete(); approx.delete();
     }
+    function cleanupAndThrow(msg){
+      cleanup();
+      throw new Error(msg);
+    }
   }
 
   function buildInputs(n){
     const box = document.getElementById("inputs");
     box.innerHTML = "";
-    for (let i=0; i<n; i++){
+    for(let i=0;i<n;i++){
       const input = document.createElement("input");
-      input.type = "number";
-      input.inputMode = "numeric";
-      input.min = "0";
-      input.step = "1";
-      input.placeholder = `אורך צלע ${i+1} בס״מ`;
-      input.dataset.idx = i;
+      input.type="number";
+      input.inputMode="numeric";
+      input.step="1";
+      input.min="1";
+      input.placeholder = `צלע ${i+1} (בס״מ)`;
       box.appendChild(input);
     }
     inputsCard.classList.remove("hidden");
   }
 
-  function buildFinalDrawing(){
-    const values = [...document.querySelectorAll("#inputs input")].map(i => Number(i.value));
+  function buildFinal(){
+    const values = [...document.querySelectorAll("#inputs input")].map(i=>Number(i.value));
+    if(values.length !== edgeCount) return alert("מספר מידות לא תואם.");
+    if(values.some(v => !Number.isFinite(v) || v<=0)) return alert("תכניס מידות תקינות בס״מ לכל הצלעות.");
 
-    if (values.length !== detectedSideCount){
-      alert("מספר מידות לא תואם.");
-      return;
-    }
-    if (values.some(v => !Number.isFinite(v) || v <= 0)){
-      alert("תכניס מידות תקינות בס״מ לכל הצלעות.");
-      return;
-    }
-
-    // --- ציור: משתמשים בכיוונים מתוך הפוליגון שזוהה (הציור המקורי),
-    // אבל האורכים נקבעים לפי המספרים שלך (פרופורציות נכונות).
-    // נבנה רשימת כיוונים (וקטורים מנורמלים) לפי סדר הפינות.
-    const dirs = [];
-    for (let i=0; i<detectedCorners.length; i++){
-      const a = detectedCorners[i];
-      const b = detectedCorners[(i+1) % detectedCorners.length];
-      let dx = b.x - a.x;
-      let dy = b.y - a.y;
-      const mag = Math.hypot(dx, dy) || 1;
-      dx /= mag; dy /= mag;
-      dirs.push({dx, dy});
+    // נבנה נקודות לפי כיוונים מסונפים + אורכים
+    const pts = [{x:0,y:0}];
+    let x=0,y=0;
+    for(let i=0;i<edgeCount;i++){
+      x += edgeDirs[i].dx * values[i];
+      y += edgeDirs[i].dy * values[i];
+      pts.push({x,y});
     }
 
-    // סקלת ציור (פיקסלים) – לפי הצלע הארוכה ביותר
-    const W = 900, H = 520;
-    resultCanvas.width = W;
-    resultCanvas.height = H;
+    // בדיקת סגירה
+    const end = pts[pts.length-1];
+    const closureDx = end.x; // צריך להיות 0
+    const closureDy = end.y; // צריך להיות 0
+
+    // ציור בקנבס
+    const W=900, H=520;
+    resultCanvas.width=W; resultCanvas.height=H;
     const ctx = resultCanvas.getContext("2d");
     ctx.clearRect(0,0,W,H);
 
-    const maxLen = Math.max(...values);
-    const scale = 380 / maxLen; // נותן גודל טוב
-    let x = W/2, y = H/2;
+    // סקייל לפיקסלים
+    const xs = pts.map(p=>p.x), ys=pts.map(p=>p.y);
+    const minX=Math.min(...xs), maxX=Math.max(...xs);
+    const minY=Math.min(...ys), maxY=Math.max(...ys);
+    const spanX = (maxX-minX) || 1;
+    const spanY = (maxY-minY) || 1;
 
-    // קודם נצייר כדי לקבל bounding box ולמרכז טוב:
-    const pts = [{x, y}];
-    for (let i=0; i<values.length; i++){
-      x += dirs[i].dx * values[i] * scale;
-      y += dirs[i].dy * values[i] * scale;
-      pts.push({x, y});
-    }
+    const pad=60;
+    const scale = Math.min((W-2*pad)/spanX, (H-2*pad)/spanY);
 
-    // bounding
-    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-    for (const p of pts){ minX=Math.min(minX,p.x); maxX=Math.max(maxX,p.x); minY=Math.min(minY,p.y); maxY=Math.max(maxY,p.y); }
-    const cx = (minX+maxX)/2;
-    const cy = (minY+maxY)/2;
-    const shiftX = W/2 - cx;
-    const shiftY = H/2 - cy;
+    function tx(px){ return pad + (px - minX)*scale; }
+    function ty(py){ return pad + (py - minY)*scale; }
 
-    // ציור סופי
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#2563eb";
-    ctx.fillStyle = "rgba(37,99,235,0.06)";
+    ctx.lineWidth=3;
+    ctx.strokeStyle="#2563eb";
+    ctx.fillStyle="rgba(37,99,235,0.07)";
+
     ctx.beginPath();
-    ctx.moveTo(pts[0].x + shiftX, pts[0].y + shiftY);
-    for (let i=1; i<pts.length; i++){
-      ctx.lineTo(pts[i].x + shiftX, pts[i].y + shiftY);
-    }
+    ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+    for(let i=1;i<pts.length;i++) ctx.lineTo(tx(pts[i].x), ty(pts[i].y));
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // כתיבת מידות על כל צלע (פשוט)
-    ctx.fillStyle = "#111827";
-    ctx.font = "14px system-ui";
-    for (let i=0; i<values.length; i++){
-      const p1 = pts[i], p2 = pts[i+1];
-      const mx = (p1.x+p2.x)/2 + shiftX;
-      const my = (p1.y+p2.y)/2 + shiftY;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "bottom";
-      ctx.fillText(values[i] + " ס״מ", mx, my - 6);
+    // כתיבת מידות באמצע כל צלע
+    ctx.fillStyle="#111827";
+    ctx.font="14px system-ui";
+    ctx.textAlign="center";
+    ctx.textBaseline="bottom";
+
+    for(let i=0;i<edgeCount;i++){
+      const p1=pts[i], p2=pts[i+1];
+      const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
+      ctx.fillText(values[i] + " ס״מ", tx(mx), ty(my) - 6);
     }
 
-    // היקף
     const per = values.reduce((a,b)=>a+b,0);
-    document.getElementById("perimeter").textContent = `היקף: ${per} ס״מ`;
+    let msg = `היקף: ${per} ס״מ.`;
+    if(Math.abs(closureDx) > 0.5 || Math.abs(closureDy) > 0.5){
+      msg += ` ⚠️ הצורה לא נסגרת לפי המספרים: סטייה אופקית ${closureDx} ס״מ, סטייה אנכית ${closureDy} ס״מ.`;
+      msg += ` (זה אומר שסכומי ימין/שמאל או מעלה/מטה לא מאוזנים)`;
+    } else {
+      msg += " ✅ הצורה נסגרת תקין לפי המידות.";
+    }
 
+    document.getElementById("report").textContent = msg;
     resultCard.classList.remove("hidden");
   }
 
-  // Bind buttons
+  // Bind
   btnShot.addEventListener("click", () => {
     try{
-      setStatus("מצלם ומנתח…", null);
+      setStatus("מצלם ומזהה צלעות…", null);
       captureToCanvas();
-      detectPolygonFromPhoto();
-      setStatus("זיהוי הושלם ✅", "good");
-    } catch (e){
-      setStatus("שגיאה: " + (e && e.message ? e.message : e), "bad");
+      detectAndNumberEdges();
+      setStatus("זיהוי הצליח ✅", "good");
+    } catch(e){
+      setStatus("שגיאה: " + (e?.message || e), "bad");
     }
   });
 
   btnRestart.addEventListener("click", () => {
-    // איפוס תצוגות
     previewCard.classList.add("hidden");
-    edgesCard.classList.add("hidden");
     inputsCard.classList.add("hidden");
     resultCard.classList.add("hidden");
     document.getElementById("inputs").innerHTML = "";
-    detectedCorners = [];
-    detectedSideCount = 0;
+    polyPts=[]; edgeDirs=[]; edgeCount=0;
     startCamera();
   });
 
   btnBuild.addEventListener("click", () => {
-    try{
-      buildFinalDrawing();
-    } catch (e){
-      alert("שגיאה בבניית שרטוט: " + (e && e.message ? e.message : e));
-    }
+    try{ buildFinal(); } catch(e){ alert("שגיאה: " + (e?.message || e)); }
   });
 
   // Start
