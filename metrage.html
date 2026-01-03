@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - זיהוי צבעוני מלא</title>
+<title>שרטוט חכם - פריסת ריצוף ומדידת פנלים</title>
 
 <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="__onCvScriptLoaded()"></script>
 
@@ -64,7 +64,7 @@
       <canvas id="photo" class="hidden"></canvas>
     </div>
     <div class="row" style="margin-top:12px">
-      <button id="btnShot" class="btn" type="button" disabled>📸 צלם וזהה 6 צלעות</button>
+      <button id="btnShot" class="btn" type="button" disabled>📸 צלם וזהה צלעות</button>
       <button id="btnRestart" class="btn secondary" type="button">🔄 התחל מחדש</button>
     </div>
   </div>
@@ -73,7 +73,7 @@
     <h2>2️⃣ צלעות שזוהו בצבעים</h2>
     <canvas id="overlay"></canvas>
     <div class="note" style="background:#fff7ed; padding:10px; border-radius:8px; border:1px solid #ffedd5;">
-        <b>שים לב:</b> כל צלע קיבלה צבע ומספר. הכנס את המידות בצעד הבא לפי הצבע התואם.
+        <b>שים לב:</b> המערכת תזהה כל מספר צלעות שציירת. הכנס את המידות בצעד הבא לפי הצבע התואם.
     </div>
   </div>
 
@@ -101,13 +101,12 @@
         <div id="reportB" class="tile-label"></div>
       </div>
     </div>
-    <div id="generalReport" class="note" style="text-align:center; font-size:18px; font-weight:bold; color:#111827;"></div>
+    <div id="generalReport" class="note" style="text-align:center; font-size:18px; font-weight:bold; color:#111827; background:#e0f2fe; padding:15px; border-radius:12px;"></div>
   </div>
 
 </div>
 
 <script>
-  // רשימת צבעים בולטים מאוד
   const edgeColors = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF', '#FF8C00', '#00CED1', '#8B4513', '#4B0082'];
 
   let video = document.getElementById("video"), photo = document.getElementById("photo"), overlay = document.getElementById("overlay");
@@ -136,62 +135,41 @@
     photo.getContext("2d").drawImage(video, 0, 0);
     let src = cv.imread(photo), gray = new cv.Mat(), edges = new cv.Mat();
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    
-    // שיפור זיהוי לצילום ידני על נייר
     cv.GaussianBlur(gray, gray, new cv.Size(5,5), 0);
     cv.Canny(gray, edges, 40, 120);
-    
     let kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3,3));
-    cv.dilate(edges, edges, kernel); // עיבוי קווים כדי לסגור רווחים בציור הידני
-
+    cv.dilate(edges, edges, kernel);
     let cnts = new cv.MatVector(), hi = new cv.Mat();
     cv.findContours(edges, cnts, hi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-    
     let big = null, maxA = 0;
     for(let i=0; i<cnts.size(); i++){
       let area = cv.contourArea(cnts.get(i)); if(area > maxA){ maxA = area; big = cnts.get(i); }
     }
-    
-    if(!big) return alert("לא מצאתי את הצורה. נסה לצלם על רקע נקי.");
-
+    if(!big) return alert("לא מצאתי את הצורה. נסה לצלם שוב.");
     let approx = new cv.Mat();
-    // הורדת ה-epsilon ל-0.01 כדי להיות רגיש יותר לכל פינה ב-L
     cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
-    
     polyPts = [];
     for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
-    
-    // הערה חשובה: ביטלנו את המיון סביב המרכז! משתמשים בסדר המקורי של OpenCV.
-
     overlay.width = photo.width; overlay.height = photo.height;
     let octx = overlay.getContext("2d");
     octx.drawImage(photo, 0, 0);
     octx.lineWidth = 12;
-    
     let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
-
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
-      
-      // ציור הקו
       octx.strokeStyle = color;
       octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
-      
-      // מספר הצלע
       let mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
       octx.fillStyle = color; octx.font = "bold 60px Arial"; octx.textAlign="center"; octx.textBaseline="middle";
       octx.fillText(i+1, mx, my);
-
-      // יצירת התיבה הצבעונית
       inpBox.innerHTML += `
         <div class="input-group" style="border-color: ${color}">
-          <label style="color: ${color}">צלע מס' ${i+1} ⬅ הכנס אורך</label>
-          <input type="number" class="side-val" placeholder="כמה סנטימטר?">
+          <label style="color: ${color}">צלע מס' ${i+1}</label>
+          <input type="number" class="side-val" placeholder="הכנס אורך בס״מ">
         </div>`;
     }
-
     document.getElementById("previewCard").classList.remove("hidden");
     document.getElementById("inputsCard").classList.remove("hidden");
     src.delete(); gray.delete(); edges.delete(); cnts.delete(); hi.delete(); approx.delete(); kernel.delete();
@@ -209,10 +187,8 @@
     let xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
     let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
     let spanX = maxX - minX || 1, spanY = maxY - minY || 1;
-    
     can.width = 1000; can.height = 1000 * (spanY/spanX);
     let ctx = can.getContext("2d"), scale = (can.width - 120) / spanX, tx = (x)=>60+(x-minX)*scale, ty = (y)=>60+(y-minY)*scale;
-
     ctx.save(); ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.clip();
     let count = 0; ctx.strokeStyle = "#cbd5e1";
@@ -221,38 +197,32 @@
       if([{x:x,y:y},{x:x+tW,y:y},{x:x,y:y+tH},{x:x+tW,y:y+tH},{x:x+tW/2,y:y+tH/2}].some(p=>isInside(p, pts))) count++;
     }
     ctx.restore();
-
     ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.stroke();
-    
     ctx.fillStyle = "#000"; ctx.font = "bold 24px Arial"; ctx.textAlign = "center";
-    for(let i=0; i<sVals.length; i++){
-      ctx.fillText(sVals[i], tx((pts[i].x+pts[i+1].x)/2), ty((pts[i].y+pts[i+1].y)/2) - 15);
-    }
-    rep.innerHTML = "כמות דרושה: " + count + " יחידות";
+    for(let i=0; i<sVals.length; i++) ctx.fillText(sVals[i], tx((pts[i].x+pts[i+1].x)/2), ty((pts[i].y+pts[i+1].y)/2) - 15);
+    rep.innerHTML = "כמות דרושה: " + count + " אריחים";
   }
 
   document.getElementById("btnBuild").onclick = () => {
     let sVals = [...document.getElementsByClassName("side-val")].map(i=>Number(i.value));
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
     if(sVals.some(v=>v<=0)) return alert("אנא הכנס מידות לכל הצלעות!");
-
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
-    // כאן אנחנו מחשבים את הנקודות מחדש לפי המידות שהזנת והכיוונים שזוהו
     for(let i=0; i<polyPts.length; i++){
         let a = polyPts[i], b = polyPts[(i+1)%polyPts.length];
-        let dx = b.x - a.x, dy = b.y - a.y;
-        let snap = snapDir(dx, dy);
-        curX += snap.dx * sVals[i];
-        curY += snap.dy * sVals[i];
+        let snap = snapDir(b.x-a.x, b.y-a.y);
+        curX += snap.dx * sVals[i]; curY += snap.dy * sVals[i];
         pts.push({x: curX, y: curY});
     }
-
     draw(document.getElementById("resultA"), document.getElementById("reportA"), pts, sVals, tW, tH);
     draw(document.getElementById("resultB"), document.getElementById("reportB"), pts, sVals, tH, tW);
-    
     let area = 0; for(let i=0; i<pts.length-1; i++) area += (pts[i].x*pts[i+1].y)-(pts[i+1].x*pts[i].y);
-    document.getElementById("generalReport").innerHTML = '📏 שטח כולל: ' + (Math.abs(area)/20000).toFixed(2) + ' מ"ר';
+    let perimeter = sVals.reduce((a,b)=>a+b, 0);
+    document.getElementById("generalReport").innerHTML = `
+        📐 שטח כולל: ${(Math.abs(area)/20000).toFixed(2)} מ"ר <br>
+        📏 היקף (פנלים): ${perimeter} ס״מ (${(perimeter/100).toFixed(2)} מטר)
+    `;
     document.getElementById("resultCard").classList.remove("hidden");
     document.getElementById("resultCard").scrollIntoView({behavior:"smooth"});
   };
@@ -263,4 +233,4 @@
 
 </body>
 </html>
-4
+5
