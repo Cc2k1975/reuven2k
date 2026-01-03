@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - גרסה סופית עם PDF תקין</title>
+<title>שרטוט חכם - גרסה סופית מתוקנת</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -48,7 +48,8 @@
     overflow: hidden; touch-action: pan-y; margin-bottom: 20px; position: relative;
   }
   .result-canvas { width: 100%; height: auto; display: block; transform-origin: center center; }
-  .tile-label { padding: 12px; background: #f8fafc; border-top: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
+  .tile-label-header { padding: 12px; background: #f8fafc; border-bottom: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; font-size: 16px; }
+  .tile-label-footer { padding: 12px; background: #f8fafc; border-top: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
   .tile-inputs-top { display: flex; gap: 10px; background: #f0f7ff; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #c0d8ff; }
 </style>
 </head>
@@ -88,18 +89,19 @@
 
       <div class="card hidden" id="resultCard">
         <div id="pdfContent" style="background: white; padding: 10px;">
-            <h2 style="text-align: center; color: #2563eb;">דוח פריסת ריצוף ומדידות</h2>
+            <h2 style="text-align: center; color: #2563eb; margin-bottom: 5px;">דוח פריסת ריצוף ומדידות</h2>
+            <h3 id="pdfTileSize" style="text-align: center; color: #6b7280; margin-top: 0; margin-bottom: 15px; font-size: 16px;"></h3>
             <hr>
             <div id="results-wrapper">
               <div class="result-container-single" id="containerA">
-                <div class="tile-label" style="background: #f1f5f9;">אופציה א' (כיוון מקורי)</div>
+                <div class="tile-label-header"></div>
                 <canvas id="resultA" class="result-canvas"></canvas>
-                <div id="reportA" class="tile-label"></div>
+                <div id="reportA" class="tile-label-footer"></div>
               </div>
               <div class="result-container-single" id="containerB">
-                <div class="tile-label" style="background: #f1f5f9;">אופציה ב' (סיבוב 90°)</div>
+                <div class="tile-label-header"></div>
                 <canvas id="resultB" class="result-canvas"></canvas>
-                <div id="reportB" class="tile-label"></div>
+                <div id="reportB" class="tile-label-footer"></div>
               </div>
             </div>
             <div id="generalReport" class="note" style="text-align:center; font-size:18px; font-weight:bold; color:#111827; background:#e0f2fe; padding:15px; border-radius:12px;"></div>
@@ -234,7 +236,12 @@
     let ctx = can.getContext("2d"), scale = (can.width - 150) / spanX, tx = (x)=>75+(x-minX)*scale, ty = (y)=>75+(y-minY)*scale;
     ctx.save(); ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.clip();
-    let count = 0; ctx.strokeStyle = "#e2e8f0";
+    
+    // שינוי צבע קווי האריחים לאפור כהה יותר
+    ctx.strokeStyle = "#94a3b8"; 
+    ctx.lineWidth = 2; // קו דק יותר לאריחים
+
+    let count = 0;
     for(let x=minX; x<maxX; x+=tW) for(let y=minY; y<maxY; y+=tH) {
       ctx.strokeRect(tx(x), ty(y), tW*scale, tH*scale);
       if([{x:x,y:y},{x:x+tW,y:y},{x:x,y:y+tH},{x:x+tW,y:y+tH},{x:x+tW/2,y:y+tH/2}].some(p=>isInside(p, pts))) count++;
@@ -255,57 +262,36 @@
     let sVals = [...document.getElementsByClassName("side-val")].map(i=>Number(i.value));
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
     if(tW <= 0 || tH <= 0 || sVals.some(v=>v<=0)) return alert("אנא מלא את כל המידות!");
+    
+    // עדכון כותרות השרטוטים וה-PDF עם מידות האריח
+    document.querySelector('#containerA .tile-label-header').textContent = `אופציה א' (כיוון מקורי - ${tW}x${tH} ס"מ)`;
+    document.querySelector('#containerB .tile-label-header').textContent = `אופציה ב' (סיבוב 90° - ${tH}x${tW} ס"מ)`;
+    document.getElementById('pdfTileSize').textContent = `גודל אריח נבחר: ${tW}x${tH} ס"מ`;
+
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
     for(let i=0; i<edgeDirs.length; i++){ curX += edgeDirs[i].dx * sVals[i]; curY += edgeDirs[i].dy * sVals[i]; pts.push({x: curX, y: curY}); }
     draw(document.getElementById("resultA"), document.getElementById("reportA"), pts, sVals, tW, tH);
     draw(document.getElementById("resultB"), document.getElementById("reportB"), pts, sVals, tH, tW);
     let area = 0; for(let i=0; i<pts.length-1; i++) area += (pts[i].x*pts[i+1].y)-(pts[i+1].x*pts[i].y);
     let perimeter = sVals.reduce((a,b)=>a+b, 0);
-    document.getElementById("generalReport").innerHTML = `📐 שטח: ${(Math.abs(area)/20000).toFixed(2)} מ"ר | 📏 היקף (פנלים): ${perimeter} ס״מ (${(perimeter/100).toFixed(2)} מטר)`;
+    document.getElementById("generalReport").innerHTML = `📐 שטח: ${(Math.abs(area)/20000).toFixed(2)} מ"ר | 📏 היקף: ${perimeter} ס״מ (${(perimeter/100).toFixed(2)} מטר)`;
     document.getElementById("resultCard").classList.remove("hidden");
     document.getElementById("resultCard").scrollIntoView({behavior:"smooth"});
   };
 
-  // --- תיקון פונקציית ה-PDF ---
   document.getElementById("btnShare").onclick = async () => {
     setStatus("מכין קובץ PDF מלא...", "good");
     const element = document.getElementById('pdfContent');
-
-    // צילום האלמנט ברזולוציה גבוהה
-    const canvas = await html2canvas(element, { 
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff"
-    });
-
+    const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff" });
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
-    
-    // יצירת PDF בגודל מותאם לתוכן (לא מוגבל ל-A4 קבוע)
-    const pdfWidth = 210; // רוחב A4 סטנדרטי במ"מ
+    const pdfWidth = 210; 
     const pageHeight = (canvas.height * pdfWidth) / canvas.width;
-    
-    // יצירת PDF עם גובה דף דינמי כדי ששום דבר לא ייחתך
     const pdf = new jsPDF('p', 'mm', [pdfWidth, pageHeight]);
-    
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pageHeight);
-    
     const pdfBlob = pdf.output('blob');
     const file = new File([pdfBlob], 'FloorPlan_Full.pdf', { type: 'application/pdf' });
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: 'דוח שרטוט ומדידות מלא',
-          text: 'מצורף הדוח המלא הכולל את שתי האופציות והמטראז\'.'
-        });
-      } catch (err) { /* בוטל ע"י משתמש */ }
-    } else {
-      pdf.save("FloorPlan_Full.pdf");
-      alert("הקובץ הורד למכשיר.");
-    }
+    if (navigator.share) { try { await navigator.share({ files: [file], title: 'דוח שרטוט ומדידות מלא', text: 'מצורף הדוח המלא הכולל את שתי האופציות והמטראז\'.' }); } catch (err) { /* בוטל */ } } else { pdf.save("FloorPlan_Full.pdf"); alert("הקובץ הורד למכשיר."); }
     setStatus("מוכן ✅", "good");
   };
 
@@ -320,4 +306,4 @@
 
 </body>
 </html>
-15
+17
