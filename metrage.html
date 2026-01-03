@@ -37,30 +37,29 @@
   .status.good{border-color:rgba(34,197,94,.35)}
   .status.bad{border-color:rgba(220,38,38,.35)}
   
-  /* מיכל להשוואת שרטוטים */
   #results-wrapper {
     display: flex;
     gap: 15px;
-    flex-wrap: wrap; /* כדי שיתאים גם לנייד */
+    flex-wrap: wrap;
     justify-content: center;
   }
   .result-container-single {
     flex: 1;
     min-width: 300px;
-    overflow: hidden;
-    touch-action: none;
     background: #fff;
     position: relative;
     border: 1px solid var(--line);
     border-radius: 12px;
     text-align: center;
+    /* touch-action: auto מאפשר גלילה רגילה בדף */
+    touch-action: auto; 
+    overflow: hidden;
   }
   .result-canvas {
     width: 100%;
     transform-origin: center center;
     transition: transform 0.1s ease-out;
     display: block;
-    border-radius: 0;
     border: none;
   }
   .tile-label {
@@ -126,23 +125,22 @@
     <h2>4️⃣ השוואת כיווני פריסה</h2>
     <div id="results-wrapper">
       <div class="result-container-single" id="containerA">
-        <div style="padding: 5px; font-size: 12px;">אופציה א': אורך כיוון X</div>
+        <div style="padding: 5px; font-size: 12px; font-weight: bold;">אופציה א' (מקור)</div>
         <canvas id="resultA" class="result-canvas"></canvas>
         <div id="reportA" class="tile-label"></div>
       </div>
       <div class="result-container-single" id="containerB">
-        <div style="padding: 5px; font-size: 12px;">אופציה ב': אורך כיוון Y (90°)</div>
+        <div style="padding: 5px; font-size: 12px; font-weight: bold;">אופציה ב' (90°)</div>
         <canvas id="resultB" class="result-canvas"></canvas>
         <div id="reportB" class="tile-label"></div>
       </div>
     </div>
-    <div id="generalReport" class="note" style="margin-top:15px; text-align:center; font-size:16px;"></div>
+    <div id="generalReport" class="note" style="margin-top:15px; text-align:center; font-size:16px; color: #111827;"></div>
   </div>
 
 </div>
 
 <script>
-  // רכיבי ממשק
   const video = document.getElementById("video");
   const photo = document.getElementById("photo");
   const overlay = document.getElementById("overlay");
@@ -193,7 +191,7 @@
       videoReady = true;
       setStatus("מצלמה מוכנה ✅", "good");
       updateShotEnabled();
-    } catch(err){ setStatus("שגיאה במצלמה: " + err.message, "bad"); }
+    } catch(err){ setStatus("שגיאה במצלמה", "bad"); }
   }
 
   function captureToCanvas(){
@@ -224,7 +222,6 @@
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
     cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
     cv.Canny(blur, edges, 60, 180);
-    
     let contours = new cv.MatVector(), hierarchy = new cv.Mat();
     cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
     
@@ -233,12 +230,10 @@
       let area = cv.contourArea(contours.get(i));
       if(area > maxArea){ maxArea = area; biggest = contours.get(i); }
     }
+    if(!biggest) throw new Error("לא זוהתה צורה");
 
-    if(!biggest) throw new Error("לא זוהתה צורה. נסה לצלם שוב.");
-
-    const peri = cv.arcLength(biggest, true);
     let approx = new cv.Mat();
-    cv.approxPolyDP(biggest, approx, 0.02 * peri, true);
+    cv.approxPolyDP(biggest, approx, 0.02 * cv.arcLength(biggest, true), true);
     
     let pts = [];
     for(let i=0; i<approx.rows; i++){
@@ -287,17 +282,17 @@
     return inside;
   }
 
-  // פונקציית עזר לציור וחישוב פריסה ספציפית
-  function drawLayout(canvas, reportEl, pts, tW, tH) {
+  function drawLayout(canvas, reportEl, pts, sideValues, tW, tH) {
     const W = 600, H = 500;
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext("2d");
     
     const xs = pts.map(p=>p.x), ys=pts.map(p=>p.y);
     const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
-    const pad=40, scale = Math.min((W-2*pad)/(maxX-minX), (H-2*pad)/(maxY-minY));
+    const pad=50, scale = Math.min((W-2*pad)/(maxX-minX), (H-2*pad)/(maxY-minY));
     const tx = (px) => pad + (px - minX)*scale, ty = (py) => pad + (py - minY)*scale;
 
+    // פריסת אריחים
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
@@ -306,24 +301,35 @@
     ctx.clip();
 
     let count = 0;
-    ctx.strokeStyle = "#ddd";
+    ctx.strokeStyle = "#e2e8f0";
     for(let gx = minX; gx < maxX; gx += tW){
       for(let gy = minY; gy < maxY; gy += tH){
         ctx.strokeRect(tx(gx), ty(gy), tW*scale, tH*scale);
-        const testPoints = [{x:gx,y:gy},{x:gx+tW,y:gy},{x:gx,y:gy+tH},{x:gx+tW,y:gy+tH},{x:gx+tW/2,y:gy+tH/2}];
-        if(testPoints.some(p => isPointInPoly(p, pts))) count++;
+        const tests = [{x:gx,y:gy},{x:gx+tW,y:gy},{x:gx,y:gy+tH},{x:gx+tW,y:gy+tH},{x:gx+tW/2,y:gy+tH/2}];
+        if(tests.some(p => isPointInPoly(p, pts))) count++;
       }
     }
     ctx.restore();
 
-    ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 3;
+    // ציור קירות
+    ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     for(let i=1; i<pts.length; i++) ctx.lineTo(tx(pts[i].x), ty(pts[i].y));
     ctx.closePath(); ctx.stroke();
 
-    reportEl.innerHTML = `כמות: ${count} אריחים`;
-    return count;
+    // הוספת מידות צלעות
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "center";
+    for(let i=0; i<edgeCount; i++){
+      let p1 = pts[i], p2 = pts[i+1];
+      let mx = tx((p1.x + p2.x)/2), my = ty((p1.y + p2.y)/2);
+      // הסטה קלה של הטקסט שלא יהיה על הקו
+      ctx.fillText(sideValues[i] + " ס״מ", mx, my - 8);
+    }
+
+    reportEl.innerHTML = `כמות: ${count} יחידות`;
   }
 
   function buildFinal(){
@@ -347,17 +353,18 @@
     }
     areaCm2 = Math.abs(areaCm2) / 2;
 
-    // ציור שתי האופציות
-    drawLayout(document.getElementById("resultA"), document.getElementById("reportA"), pts, tW, tH);
-    drawLayout(document.getElementById("resultB"), document.getElementById("reportB"), pts, tH, tW);
+    drawLayout(document.getElementById("resultA"), document.getElementById("reportA"), pts, values, tW, tH);
+    drawLayout(document.getElementById("resultB"), document.getElementById("reportB"), pts, values, tH, tW);
 
     document.getElementById("generalReport").innerHTML = `
-      <b>נתוני שטח:</b> היקף ${values.reduce((a,b)=>a+b,0)} ס"מ | שטח ${(areaCm2/10000).toFixed(2)} מ"ר
+      <b>סיכום מידות:</b> היקף ${values.reduce((a,b)=>a+b,0)} ס"מ | שטח ${(areaCm2/10000).toFixed(2)} מ"ר
     `;
     resultCard.classList.remove("hidden");
+    
+    // גלילה אוטומטית לתוצאה
+    resultCard.scrollIntoView({ behavior: 'smooth' });
   }
 
-  // אירועים
   btnShot.addEventListener("click", () => {
     try {
       captureToCanvas();
@@ -369,14 +376,16 @@
   btnRestart.addEventListener("click", () => location.reload());
   btnBuild.addEventListener("click", buildFinal);
 
-  // זום לשני הקנבסים בו זמנית
+  // לוגיקת זום מתוקנת שלא חוסמת גלילה
   [document.getElementById("containerA"), document.getElementById("containerB")].forEach(cont => {
     cont.addEventListener('touchstart', e => { 
-      if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); 
+      if(e.touches.length === 2) {
+        initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
+      }
     });
     cont.addEventListener('touchmove', e => {
-      if(e.touches.length==2){
-        e.preventDefault();
+      if(e.touches.length === 2){
+        e.preventDefault(); // מונע גלילה רק כשמבצעים זום עם 2 אצבעות
         let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
         currentScale = Math.min(Math.max(0.5, currentScale * (d/initialDist)), 4);
         cont.querySelector('canvas').style.transform = `scale(${currentScale})`;
