@@ -54,11 +54,11 @@
   .tile-inputs {
     display: flex;
     gap: 10px;
-    background: #f9fafb;
-    padding: 10px;
+    background: #f0f7ff;
+    padding: 12px;
     border-radius: 12px;
     margin-bottom: 15px;
-    border: 1px dashed var(--primary);
+    border: 1px solid #c0d8ff;
   }
 </style>
 </head>
@@ -67,7 +67,7 @@
 <div class="wrap">
 
   <div class="card">
-    <h2>1️⃣ צילום שרטוט</h2>
+    <h2>1️⃣ צילום שרטוט (מצלמה אחורית)</h2>
     <div id="statusBox" class="status">טוען…</div>
     <div style="margin-top:12px">
       <video id="video" autoplay playsinline></video>
@@ -75,40 +75,40 @@
     </div>
     <div class="row" style="margin-top:12px">
       <button id="btnShot" class="btn" type="button" disabled>📸 צלם</button>
-      <button id="btnRestart" class="btn secondary" type="button">🔄 אתחל</button>
+      <button id="btnRestart" class="btn secondary" type="button">🔄 אתחל מצלמה</button>
     </div>
   </div>
 
   <div class="card hidden" id="previewCard">
-    <h2>2️⃣ קווים מזוהים</h2>
+    <h2>2️⃣ קווים מזוהים + מספור צלעות</h2>
     <canvas id="overlay"></canvas>
     <div id="overlayInfo" class="note"></div>
   </div>
 
   <div class="card hidden" id="inputsCard">
-    <h2>3️⃣ הזן מידות (ס״מ)</h2>
+    <h2>3️⃣ הזן מידות שטח וריצוף (ס״מ)</h2>
     
     <div class="tile-inputs">
       <div style="flex:1">
-        <label style="font-size: 12px; font-weight: bold;">רוחב אריח (ס"מ)</label>
-        <input id="tileW" type="number" value="60" placeholder="רוחב">
+        <label style="font-size: 13px; font-weight: bold; display:block; margin-bottom:4px;">רוחב אריח (ס"מ)</label>
+        <input id="tileW" type="number" value="60">
       </div>
       <div style="flex:1">
-        <label style="font-size: 12px; font-weight: bold;">אורך אריח (ס"מ)</label>
-        <input id="tileH" type="number" value="120" placeholder="אורך">
+        <label style="font-size: 13px; font-weight: bold; display:block; margin-bottom:4px;">אורך אריח (ס"מ)</label>
+        <input id="tileH" type="number" value="120">
       </div>
     </div>
 
     <div id="inputs"></div>
-    <button id="btnBuild" class="btn" type="button">📐 בנה שרטוט וחשב ריצוף</button>
+    <button id="btnBuild" class="btn" type="button">📐 בנה שרטוט וחשב כמויות</button>
   </div>
 
   <div class="card hidden" id="resultCard">
-    <h2>4️⃣ שרטוט סופי ופריסת ריצוף</h2>
+    <h2>4️⃣ שרטוט סופי ופריסה</h2>
     <div id="canvas-container">
       <canvas id="result"></canvas>
     </div>
-    <div id="report" class="note" style="font-size: 16px; font-weight: 500;"></div>
+    <div id="report" class="note" style="font-size:16px; color:#111827;"></div>
   </div>
 
 </div>
@@ -148,7 +148,7 @@
     const wait = setInterval(() => {
       if (window.cv && cv.Mat) {
         cvReady = true;
-        setStatus("מוכן ✅", "good");
+        setStatus("מערכת מוכנה ✅", "good");
         updateShotEnabled();
         clearInterval(wait);
       }
@@ -157,14 +157,23 @@
 
   async function startCamera(){
     try{
-      if (stream) { stream.getTracks().forEach(t => t.stop()); }
+      if (stream) stream.getTracks().forEach(t => t.stop());
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width:{ideal:1280}, height:{ideal:720} }
+        video: { facingMode: "environment", width:{ideal:1920}, height:{ideal:1080} }
       });
       video.srcObject = stream;
+      await video.play();
       videoReady = true;
+      setStatus("מצלמה מוכנה ✅", "good");
       updateShotEnabled();
-    } catch(err){ setStatus("שגיאה במצלמה", "bad"); }
+    } catch(err){ setStatus("שגיאה במצלמה: " + err.message, "bad"); }
+  }
+
+  function captureToCanvas(){
+    const vw = video.videoWidth, vh = video.videoHeight;
+    photo.width = vw; photo.height = vh;
+    const ctx = photo.getContext("2d", { willReadFrequently:true });
+    ctx.drawImage(video, 0, 0, vw, vh);
   }
 
   function centroid(pts){
@@ -184,12 +193,13 @@
 
   function detectAndNumberEdges(){
     let src = cv.imread(photo);
-    let gray = new cv.Mat();
+    let gray = new cv.Mat(), blur = new cv.Mat(), edges = new cv.Mat();
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    cv.Canny(gray, gray, 50, 150);
-    let contours = new cv.MatVector();
-    let hierarchy = new cv.Mat();
-    cv.findContours(gray, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
+    cv.Canny(blur, edges, 60, 180);
+    
+    let contours = new cv.MatVector(), hierarchy = new cv.Mat();
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
     
     let biggest = null, maxArea = 0;
     for(let i=0; i<contours.size(); i++){
@@ -197,14 +207,18 @@
       if(area > maxArea){ maxArea = area; biggest = contours.get(i); }
     }
 
+    if(!biggest) throw new Error("לא זוהתה צורה. נסה לצלם שוב בבירור.");
+
+    const peri = cv.arcLength(biggest, true);
     let approx = new cv.Mat();
-    cv.approxPolyDP(biggest, approx, 0.02 * cv.arcLength(biggest, true), true);
+    cv.approxPolyDP(biggest, approx, 0.02 * peri, true);
     
-    polyPts = [];
+    let pts = [];
     for(let i=0; i<approx.rows; i++){
-      polyPts.push({ x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1] });
+      pts.push({ x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1] });
     }
-    polyPts = sortAroundCenter(polyPts);
+    
+    polyPts = sortAroundCenter(pts);
     edgeCount = polyPts.length;
     edgeDirs = [];
     for(let i=0; i<edgeCount; i++){
@@ -215,15 +229,21 @@
     overlay.width = photo.width; overlay.height = photo.height;
     let octx = overlay.getContext("2d");
     octx.drawImage(photo, 0, 0);
-    octx.lineWidth = 5; octx.strokeStyle = "blue";
+    octx.lineWidth = 6; octx.strokeStyle = "rgba(37,99,235,0.85)";
     octx.beginPath();
     octx.moveTo(polyPts[0].x, polyPts[0].y);
     polyPts.forEach(p => octx.lineTo(p.x, p.y));
     octx.closePath(); octx.stroke();
 
+    octx.fillStyle = "white"; octx.font = "bold 40px Arial"; octx.textAlign="center";
+    for(let i=0; i<edgeCount; i++){
+      let p1 = polyPts[i], p2 = polyPts[(i+1)%edgeCount];
+      octx.fillText(i+1, (p1.x+p2.x)/2, (p1.y+p2.y)/2);
+    }
+
     buildInputs(edgeCount);
     previewCard.classList.remove("hidden");
-    src.delete(); gray.delete(); contours.delete(); hierarchy.delete(); approx.delete();
+    src.delete(); gray.delete(); blur.delete(); edges.delete(); contours.delete(); hierarchy.delete(); approx.delete();
   }
 
   function buildInputs(n){
@@ -237,27 +257,13 @@
     inputsCard.classList.remove("hidden");
   }
 
-  // פונקציה לבדיקת חיתוך בין מלבן (אריח) לפוליגון (החדר)
-  function isTileNeeded(tx, ty, tw, th, polygon) {
-    // בודק אם אחת מפינות האריח בפנים
-    const corners = [{x:tx, y:ty}, {x:tx+tw, y:ty}, {x:tx, y:ty+th}, {x:tx+tw, y:ty+th}];
-    for(let p of corners) {
-      if(isPointInPoly(p, polygon)) return true;
-    }
-    // בודק אם מרכז האריח בפנים (למקרים של אריח גדול שחוצה חדר צר)
-    if(isPointInPoly({x:tx+tw/2, y:ty+th/2}, polygon)) return true;
-    return false;
-  }
-
   function isPointInPoly(p, poly) {
-    let isInside = false;
+    let inside = false;
     for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
       if (((poly[i].y > p.y) !== (poly[j].y > p.y)) &&
-          (p.x < (poly[j].x - poly[i].x) * (p.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)) {
-        isInside = !isInside;
-      }
+          (p.x < (poly[j].x - poly[i].x) * (p.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)) inside = !inside;
     }
-    return isInside;
+    return inside;
   }
 
   function buildFinal(){
@@ -275,28 +281,20 @@
       pts.push({x,y});
     }
 
-    // שטח והיקף
     let areaCm2 = 0;
     for (let i = 0; i < pts.length - 1; i++) {
       areaCm2 += (pts[i].x * pts[i+1].y) - (pts[i+1].x * pts[i].y);
     }
     areaCm2 = Math.abs(areaCm2) / 2;
-    const perimeter = values.reduce((a,b)=>a+b,0);
 
-    // הגדרות קנבס
-    const W=900, H=600;
+    const W=900, H=520;
     resultCanvas.width=W; resultCanvas.height=H;
     const ctx = resultCanvas.getContext("2d");
-    
     const xs = pts.map(p=>p.x), ys=pts.map(p=>p.y);
-    const minX=Math.min(...xs), maxX=Math.max(...xs);
-    const minY=Math.min(...ys), maxY=Math.max(...ys);
-    const pad=60;
-    const scale = Math.min((W-2*pad)/(maxX-minX), (H-2*pad)/(maxY-minY));
-    const tx = (px) => pad + (px - minX)*scale;
-    const ty = (py) => pad + (py - minY)*scale;
+    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+    const pad=60, scale = Math.min((W-2*pad)/(maxX-minX), (H-2*pad)/(maxY-minY));
+    const tx = (px) => pad + (px - minX)*scale, ty = (py) => pad + (py - minY)*scale;
 
-    // ציור ריצוף (Clipping)
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
@@ -305,22 +303,16 @@
     ctx.clip();
 
     let totalTiles = 0;
-    ctx.strokeStyle = "#ccc";
-    ctx.lineWidth = 1;
-
+    ctx.strokeStyle = "#ddd";
     for(let gx = minX; gx < maxX; gx += tW){
       for(let gy = minY; gy < maxY; gy += tH){
-        // ציור ויזואלי
         ctx.strokeRect(tx(gx), ty(gy), tW*scale, tH*scale);
-        // בדיקת כמות (האם האריח נוגע בפוליגון)
-        if(isTileNeeded(gx, gy, tW, tH, pts)) {
-          totalTiles++;
-        }
+        const corners = [{x:gx,y:gy},{x:gx+tW,y:gy},{x:gx,y:gy+tH},{x:gx+tW,y:gy+tH},{x:gx+tW/2,y:gy+tH/2}];
+        if(corners.some(p => isPointInPoly(p, pts))) totalTiles++;
       }
     }
     ctx.restore();
 
-    // ציור קירות
     ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
@@ -328,14 +320,24 @@
     ctx.closePath(); ctx.stroke();
 
     document.getElementById("report").innerHTML = `
-      <b>היקף:</b> ${perimeter} ס"מ | 
-      <b>שטח:</b> ${(areaCm2/10000).toFixed(2)} מ"ר <br>
-      <span style="color:var(--primary)"><b>סה"כ אריחים דרושים (ברוטו):</b> ${totalTiles} יחידות</span>
+      היקף: ${values.reduce((a,b)=>a+b,0)} ס"מ | שטח: ${(areaCm2/10000).toFixed(2)} מ"ר <br>
+      <b>סה"כ אריחים דרושים (ברוטו): ${totalTiles} יחידות</b>
     `;
     resultCard.classList.remove("hidden");
   }
 
-  // Zoom logic
+  btnShot.addEventListener("click", () => {
+    try {
+      setStatus("מעבד...", null);
+      captureToCanvas();
+      detectAndNumberEdges();
+      setStatus("זיהוי הצליח ✅", "good");
+    } catch(e) { setStatus("שגיאה: " + e.message, "bad"); }
+  });
+
+  btnRestart.addEventListener("click", () => location.reload());
+  btnBuild.addEventListener("click", buildFinal);
+
   resultContainer.addEventListener('touchstart', e => { if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); });
   resultContainer.addEventListener('touchmove', e => {
     if(e.touches.length==2){
@@ -346,10 +348,6 @@
       initialDist = d;
     }
   }, {passive:false});
-
-  btnShot.addEventListener("click", () => { captureToCanvas(); detectAndNumberEdges(); });
-  btnRestart.addEventListener("click", () => { location.reload(); });
-  btnBuild.addEventListener("click", buildFinal);
 
   startCamera();
 </script>
