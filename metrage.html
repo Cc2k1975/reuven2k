@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - פריסת ריצוף ומדידת פנלים</title>
+<title>שרטוט חכם - סדר שעון מלמעלה</title>
 
 <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="__onCvScriptLoaded()"></script>
 
@@ -70,10 +70,10 @@
   </div>
 
   <div class="card hidden" id="previewCard">
-    <h2>2️⃣ צלעות שזוהו בצבעים</h2>
+    <h2>2️⃣ צלעות שזוהו (סדר שעון מלמעלה)</h2>
     <canvas id="overlay"></canvas>
     <div class="note" style="background:#fff7ed; padding:10px; border-radius:8px; border:1px solid #ffedd5;">
-        <b>שים לב:</b> המערכת תזהה כל מספר צלעות שציירת. הכנס את המידות בצעד הבא לפי הצבע התואם.
+        <b>הנחיות:</b> מספר 1 הוא תמיד הצלע העליונה ביותר. הסדר ממשיך עם כיוון השעון.
     </div>
   </div>
 
@@ -107,7 +107,7 @@
 </div>
 
 <script>
-  const edgeColors = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF', '#FF8C00', '#00CED1', '#8B4513', '#4B0082'];
+  const edgeColors = ['#FF0000', '#059669', '#2563eb', '#7c3aed', '#ea580c', '#db2777', '#0891b2', '#ca8a04'];
 
   let video = document.getElementById("video"), photo = document.getElementById("photo"), overlay = document.getElementById("overlay");
   let statusBox = document.getElementById("statusBox"), btnShot = document.getElementById("btnShot");
@@ -148,13 +148,40 @@
     if(!big) return alert("לא מצאתי את הצורה. נסה לצלם שוב.");
     let approx = new cv.Mat();
     cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
+    
     polyPts = [];
     for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
+
+    // --- לוגיקת סדר שעון מלמעלה ---
+    // 1. בדיקת כיוון (Clockwise vs Counter-Clockwise) במערכת צירים של קנבס (Y למטה)
+    let area = 0;
+    for (let i = 0; i < polyPts.length; i++) {
+        let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length];
+        area += (p2.x - p1.x) * (p2.y + p1.y);
+    }
+    if (area < 0) polyPts.reverse(); // מוודא כיוון שעון
+
+    // 2. מציאת הנקודה הגבוהה ביותר (Y מינימלי)
+    let topIdx = 0;
+    let minY = polyPts[0].y;
+    for (let i = 1; i < polyPts.length; i++) {
+        if (polyPts[i].y < minY) {
+            minY = polyPts[i].y;
+            topIdx = i;
+        } else if (polyPts[i].y === minY) {
+            if (polyPts[i].x < polyPts[topIdx].x) topIdx = i; // במקרה של שוויון, השמאלית ביותר
+        }
+    }
+
+    // 3. סידור מחדש של המערך שיתחיל מהנקודה העליונה
+    polyPts = polyPts.slice(topIdx).concat(polyPts.slice(0, topIdx));
+
     overlay.width = photo.width; overlay.height = photo.height;
     let octx = overlay.getContext("2d");
     octx.drawImage(photo, 0, 0);
     octx.lineWidth = 12;
     let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
+    
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
@@ -201,7 +228,7 @@
     pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.stroke();
     ctx.fillStyle = "#000"; ctx.font = "bold 24px Arial"; ctx.textAlign = "center";
     for(let i=0; i<sVals.length; i++) ctx.fillText(sVals[i], tx((pts[i].x+pts[i+1].x)/2), ty((pts[i].y+pts[i+1].y)/2) - 15);
-    rep.innerHTML = "כמות דרושה: " + count + " אריחים";
+    rep.innerHTML = "כמות דרושה: " + count + " יחידות";
   }
 
   document.getElementById("btnBuild").onclick = () => {
@@ -209,6 +236,7 @@
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
     if(sVals.some(v=>v<=0)) return alert("אנא הכנס מידות לכל הצלעות!");
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
+    // חישוב כיוונים מחדש לפי הסדר החדש שנקבע (שעון מלמעלה)
     for(let i=0; i<polyPts.length; i++){
         let a = polyPts[i], b = polyPts[(i+1)%polyPts.length];
         let snap = snapDir(b.x-a.x, b.y-a.y);
@@ -229,8 +257,18 @@
 
   startCamera();
   document.getElementById("btnRestart").onclick = () => location.reload();
+
+  // Pinch Zoom (רק עם שתי אצבעות על הקנבס)
+  [document.getElementById("containerA"), document.getElementById("containerB")].forEach(c => {
+    c.ontouchstart = (e) => { if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); };
+    c.ontouchmove = (e) => { if(e.touches.length==2) {
+      e.preventDefault(); let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
+      currentScale = Math.min(Math.max(0.5, currentScale * (d/initialDist)), 4);
+      c.querySelector('canvas').style.transform = `scale(${currentScale})`; initialDist = d;
+    }};
+  });
 </script>
 
 </body>
 </html>
-5
+6
