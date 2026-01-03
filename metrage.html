@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - סדר שעון מלמעלה</title>
+<title>שרטוט חכם - השוואת ריצוף צבעונית</title>
 
 <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="__onCvScriptLoaded()"></script>
 
@@ -26,13 +26,8 @@
   .hidden{display:none}
   
   .input-group { 
-    margin-bottom: 15px; 
-    padding: 12px; 
-    border-radius: 12px; 
-    background: #fff;
-    border-width: 5px;
-    border-style: solid;
-    transition: all 0.2s;
+    margin-bottom: 15px; padding: 12px; border-radius: 12px; background: #fff;
+    border-width: 5px; border-style: solid; transition: all 0.2s;
   }
   .input-group label { display: block; font-size: 16px; font-weight: bold; margin-bottom: 8px; }
   input {
@@ -72,9 +67,6 @@
   <div class="card hidden" id="previewCard">
     <h2>2️⃣ צלעות שזוהו (סדר שעון מלמעלה)</h2>
     <canvas id="overlay"></canvas>
-    <div class="note" style="background:#fff7ed; padding:10px; border-radius:8px; border:1px solid #ffedd5;">
-        <b>הנחיות:</b> מספר 1 הוא תמיד הצלע העליונה ביותר. הסדר ממשיך עם כיוון השעון.
-    </div>
   </div>
 
   <div class="card hidden" id="inputsCard">
@@ -88,7 +80,7 @@
   </div>
 
   <div class="card hidden" id="resultCard">
-    <h2>4️⃣ פריסת ריצוף והשוואה</h2>
+    <h2>4️⃣ השוואת פריסה עם צבעים תואמים</h2>
     <div id="results-wrapper">
       <div class="result-container-single" id="containerA">
         <div class="tile-label" style="background: #f1f5f9;">אופציה א' (כיוון מקורי)</div>
@@ -107,6 +99,7 @@
 </div>
 
 <script>
+  // רשימת הצבעים הקבועה לכל אורך התהליך
   const edgeColors = ['#FF0000', '#059669', '#2563eb', '#7c3aed', '#ea580c', '#db2777', '#0891b2', '#ca8a04'];
 
   let video = document.getElementById("video"), photo = document.getElementById("photo"), overlay = document.getElementById("overlay");
@@ -152,28 +145,19 @@
     polyPts = [];
     for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
 
-    // --- לוגיקת סדר שעון מלמעלה ---
-    // 1. בדיקת כיוון (Clockwise vs Counter-Clockwise) במערכת צירים של קנבס (Y למטה)
-    let area = 0;
+    // סדר שעון מלמעלה
+    let polyArea = 0;
     for (let i = 0; i < polyPts.length; i++) {
         let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length];
-        area += (p2.x - p1.x) * (p2.y + p1.y);
+        polyArea += (p2.x - p1.x) * (p2.y + p1.y);
     }
-    if (area < 0) polyPts.reverse(); // מוודא כיוון שעון
+    if (polyArea < 0) polyPts.reverse();
 
-    // 2. מציאת הנקודה הגבוהה ביותר (Y מינימלי)
-    let topIdx = 0;
-    let minY = polyPts[0].y;
+    let topIdx = 0, minY = polyPts[0].y;
     for (let i = 1; i < polyPts.length; i++) {
-        if (polyPts[i].y < minY) {
-            minY = polyPts[i].y;
-            topIdx = i;
-        } else if (polyPts[i].y === minY) {
-            if (polyPts[i].x < polyPts[topIdx].x) topIdx = i; // במקרה של שוויון, השמאלית ביותר
-        }
+        if (polyPts[i].y < minY) { minY = polyPts[i].y; topIdx = i; }
+        else if (polyPts[i].y === minY && polyPts[i].x < polyPts[topIdx].x) topIdx = i;
     }
-
-    // 3. סידור מחדש של המערך שיתחיל מהנקודה העליונה
     polyPts = polyPts.slice(topIdx).concat(polyPts.slice(0, topIdx));
 
     overlay.width = photo.width; overlay.height = photo.height;
@@ -210,24 +194,45 @@
     return inside;
   }
 
+  // פונקציית הציור המעודכנת עם צלעות צבעוניות
   function draw(can, rep, pts, sVals, tW, tH) {
     let xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
     let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
     let spanX = maxX - minX || 1, spanY = maxY - minY || 1;
     can.width = 1000; can.height = 1000 * (spanY/spanX);
     let ctx = can.getContext("2d"), scale = (can.width - 120) / spanX, tx = (x)=>60+(x-minX)*scale, ty = (y)=>60+(y-minY)*scale;
+
+    // ציור ריצוף (Clipping)
     ctx.save(); ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.clip();
-    let count = 0; ctx.strokeStyle = "#cbd5e1";
+    let count = 0; ctx.strokeStyle = "#e2e8f0";
     for(let x=minX; x<maxX; x+=tW) for(let y=minY; y<maxY; y+=tH) {
       ctx.strokeRect(tx(x), ty(y), tW*scale, tH*scale);
       if([{x:x,y:y},{x:x+tW,y:y},{x:x,y:y+tH},{x:x+tW,y:y+tH},{x:x+tW/2,y:y+tH/2}].some(p=>isInside(p, pts))) count++;
     }
     ctx.restore();
-    ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
-    pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.stroke();
-    ctx.fillStyle = "#000"; ctx.font = "bold 24px Arial"; ctx.textAlign = "center";
-    for(let i=0; i<sVals.length; i++) ctx.fillText(sVals[i], tx((pts[i].x+pts[i+1].x)/2), ty((pts[i].y+pts[i+1].y)/2) - 15);
+
+    // ציור צלעות בשרטוט הסופי - כל אחת בצבע שלה!
+    ctx.lineWidth = 10;
+    ctx.lineCap = "round";
+    for(let i=0; i<sVals.length; i++){
+      let p1 = pts[i], p2 = pts[i+1];
+      let color = edgeColors[i % edgeColors.length];
+      
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(tx(p1.x), ty(p1.y));
+      ctx.lineTo(tx(p2.x), ty(p2.y));
+      ctx.stroke();
+
+      // כתיבת מידה בצבע תואם
+      ctx.fillStyle = color;
+      ctx.font = "bold 26px Arial";
+      ctx.textAlign = "center";
+      let mx = tx((p1.x+p2.x)/2), my = ty((p1.y+p2.y)/2);
+      ctx.fillText(sVals[i], mx, my - 15);
+    }
+    
     rep.innerHTML = "כמות דרושה: " + count + " יחידות";
   }
 
@@ -235,16 +240,18 @@
     let sVals = [...document.getElementsByClassName("side-val")].map(i=>Number(i.value));
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
     if(sVals.some(v=>v<=0)) return alert("אנא הכנס מידות לכל הצלעות!");
+    
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
-    // חישוב כיוונים מחדש לפי הסדר החדש שנקבע (שעון מלמעלה)
     for(let i=0; i<polyPts.length; i++){
         let a = polyPts[i], b = polyPts[(i+1)%polyPts.length];
         let snap = snapDir(b.x-a.x, b.y-a.y);
         curX += snap.dx * sVals[i]; curY += snap.dy * sVals[i];
         pts.push({x: curX, y: curY});
     }
+    
     draw(document.getElementById("resultA"), document.getElementById("reportA"), pts, sVals, tW, tH);
     draw(document.getElementById("resultB"), document.getElementById("reportB"), pts, sVals, tH, tW);
+    
     let area = 0; for(let i=0; i<pts.length-1; i++) area += (pts[i].x*pts[i+1].y)-(pts[i+1].x*pts[i].y);
     let perimeter = sVals.reduce((a,b)=>a+b, 0);
     document.getElementById("generalReport").innerHTML = `
@@ -258,7 +265,7 @@
   startCamera();
   document.getElementById("btnRestart").onclick = () => location.reload();
 
-  // Pinch Zoom (רק עם שתי אצבעות על הקנבס)
+  // Pinch Zoom
   [document.getElementById("containerA"), document.getElementById("containerB")].forEach(c => {
     c.ontouchstart = (e) => { if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); };
     c.ontouchmove = (e) => { if(e.touches.length==2) {
@@ -271,4 +278,4 @@
 
 </body>
 </html>
-6
+7
