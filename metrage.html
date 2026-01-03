@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - ניהול פרויקט מקצועי</title>
+<title>שרטוט חכם - גרסה סופית ותקינה</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -123,18 +123,13 @@
   let video = document.getElementById("video"), photo = document.getElementById("photo"), overlay = document.getElementById("overlay");
   let statusBox = document.getElementById("statusBox"), btnShot = document.getElementById("btnShot");
   let cvReady = false, videoReady = false, polyPts = [], edgeDirs = [], currentScale = 1, initialDist = 0, numberHitZones = [];
-  
   let projectItems = [];
   let currentMode = 'floor';
   let currentItemData = null;
 
-  // טעינה ראשונית של הפרויקט מהזיכרון
   window.onload = () => {
     const saved = localStorage.getItem('floorProject');
-    if(saved) {
-        projectItems = JSON.parse(saved);
-        updateProjectUI();
-    }
+    if(saved) { projectItems = JSON.parse(saved); updateProjectUI(); }
   };
 
   function __onCvScriptLoaded(){
@@ -164,30 +159,19 @@
   }
 
   function clearProject() {
-    if(confirm("בטוח שברצונך למחוק את כל הפרויקט?")) {
-        projectItems = [];
-        localStorage.removeItem('floorProject');
-        location.reload();
-    }
+    if(confirm("בטוח שברצונך למחוק את כל הפרויקט?")) { projectItems = []; localStorage.removeItem('floorProject'); location.reload(); }
   }
 
   function snapDir(dx, dy){ return Math.abs(dx) >= Math.abs(dy) ? {dx: Math.sign(dx)||1, dy:0} : {dx:0, dy:Math.sign(dy)||1}; }
 
-  // לחיצה על מספר צלע - קפיצה לתא
   overlay.onclick = (e) => {
     const rect = overlay.getBoundingClientRect();
-    const scaleX = overlay.width / rect.width;
-    const scaleY = overlay.height / rect.height;
-    const x = (e.clientX - rect.left) * scaleX;
-    const y = (e.clientY - rect.top) * scaleY;
-
+    const scaleX = overlay.width / rect.width, scaleY = overlay.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
     for (let zone of numberHitZones) {
       if (Math.hypot(x - zone.x, y - zone.y) < zone.radius) {
         let input = document.getElementById(zone.id);
-        if (input) {
-          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          input.focus();
-        }
+        if (input) { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); input.focus(); }
         break;
       }
     }
@@ -216,14 +200,12 @@
     cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
     polyPts = [];
     for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
-    
     let polyArea = 0;
     for (let i = 0; i < polyPts.length; i++) { let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length]; polyArea += (p2.x - p1.x) * (p2.y + p1.y); }
     if (polyArea < 0) polyPts.reverse();
     let topIdx = 0, minY = polyPts[0].y;
     for (let i = 1; i < polyPts.length; i++) { if (polyPts[i].y < minY) { minY = polyPts[i].y; topIdx = i; } else if (polyPts[i].y === minY && polyPts[i].x < polyPts[topIdx].x) topIdx = i; }
     polyPts = polyPts.slice(topIdx).concat(polyPts.slice(0, topIdx));
-
     overlay.width = photo.width; overlay.height = photo.height;
     buildInputsInterface(true);
     src.delete(); gray.delete(); edges.delete(); cnts.delete(); hi.delete(); approx.delete(); kernel.delete();
@@ -235,12 +217,10 @@
     let octx = overlay.getContext("2d");
     if(!withPhoto) { overlay.width = 600; overlay.height = 400; octx.fillStyle = "#fff"; octx.fillRect(0,0,600,400); }
     else { octx.drawImage(photo, 0, 0); }
-
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
-      octx.strokeStyle = color; octx.lineWidth = 12;
-      octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
+      octx.strokeStyle = color; octx.lineWidth = 12; octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
       let mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
       numberHitZones.push({ x: mx, y: my, radius: 50, id: `inp-${i}` });
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
@@ -276,21 +256,18 @@
     can.width = 1000; can.height = 1000 * (spanY/spanX);
     let ctx = can.getContext("2d"), scale = (can.width - 150) / spanX, tx = (x)=>75+(x-minX)*scale, ty = (y)=>75+(y-minY)*scale;
     ctx.save(); ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
-    pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.clip();
+    for(let i=1; i<pts.length; i++) ctx.lineTo(tx(pts[i].x), ty(pts[i].y));
+    ctx.closePath(); ctx.clip();
     ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
     let count = 0;
     for(let x=minX; x<maxX; x+=tW) for(let y=minY; y<maxY; y+=tH) {
       ctx.strokeRect(tx(x), ty(y), tW*scale, tH*scale);
-      let isInside = false; let p = {x: x+tW/2, y: y+tH/2};
-      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { if (((pts[i].y > p.y) !== (pts[j].y > p.y)) && (p.x < (pts[j].x - pts[i].x) * (p.y - pts[i].y) / (polyPts[j].y - polyPts[i].y) + pts[i].x)) isInside = !isInside; }
-      if(isInside || true) { // הפכתי ליותר סלחן בסימולציה
-          let midX = x + tW/2, midY = y + tH/2;
-          let inside = false;
-          for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-              if (((pts[i].y > midY) !== (pts[j].y > midY)) && (midX < (pts[j].x - pts[i].x) * (midY - pts[i].y) / (pts[j].y - pts[i].y) + pts[i].x)) inside = !inside;
-          }
-          if(inside) count++;
+      let midX = x + tW/2, midY = y + tH/2;
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+          if (((pts[i].y > midY) !== (pts[j].y > midY)) && (midX < (pts[j].x - pts[i].x) * (midY - pts[i].y) / (pts[j].y - pts[i].y) + pts[i].x)) inside = !inside;
       }
+      if(inside) count++;
     }
     ctx.restore();
     ctx.lineWidth = 10; ctx.font = "bold 28px Arial"; ctx.textAlign = "center";
@@ -308,15 +285,11 @@
     let sVals = [...document.getElementsByClassName("side-val")].map(i=>Number(i.value));
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
     if(tW <= 0 || tH <= 0 || sVals.some(v=>v<=0)) return alert("מלא מידות!");
-    
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
     for(let i=0; i<edgeDirs.length; i++){ curX += edgeDirs[i].dx * sVals[i]; curY += edgeDirs[i].dy * sVals[i]; pts.push({x: curX, y: curY}); }
-    
     let count = draw(document.getElementById("resultA"), pts, sVals, tW, tH);
     let area = 0; for(let i=0; i<pts.length-1; i++) area += (pts[i].x*pts[i+1].y)-(pts[i+1].x*pts[i].y);
-    let perimeter = sVals.reduce((a,b)=>a+b, 0);
-    
-    currentItemData = { mode: currentMode, area: Math.abs(area)/20000, perimeter, count, tW, tH, sVals, pts };
+    currentItemData = { mode: currentMode, area: Math.abs(area)/20000, perimeter: sVals.reduce((a,b)=>a+b,0), count, tW, tH, sVals, pts };
     document.getElementById("resHeader").textContent = `${currentMode === 'floor' ? 'רצפה' : 'קיר'} - ${tW}x${tH}`;
     document.getElementById("reportA").innerHTML = `כמות: ${count} יחידות | שטח: ${currentItemData.area.toFixed(2)} מ"ר`;
     document.getElementById("resultCard").classList.remove("hidden");
@@ -331,70 +304,46 @@
   }
 
   function updateProjectUI() {
-    let list = document.getElementById('projectList');
-    let summary = document.getElementById('projectSummary');
+    let list = document.getElementById('projectList'), summary = document.getElementById('projectSummary');
     list.innerHTML = "";
-    
-    if(projectItems.length === 0) {
-        list.innerHTML = "טרם נוספו פריטים.";
-        summary.classList.add('hidden');
-        document.getElementById('finalPdfSection').classList.add('hidden');
-        return;
-    }
-
+    if(projectItems.length === 0) { list.innerHTML = "טרם נוספו פריטים."; summary.classList.add('hidden'); document.getElementById('finalPdfSection').classList.add('hidden'); return; }
     let fM2 = 0, fT = 0, wM2 = 0, wT = 0;
     projectItems.forEach((item, i) => {
       list.innerHTML += `<div class="project-item"><span><b>#${i+1} ${item.mode==='floor'?'רצפה':'קיר'}</b> (${item.area.toFixed(2)} מ"ר)</span><span class="badge ${item.mode}">${item.count} יח'</span></div>`;
       if(item.mode==='floor'){ fM2+=item.area; fT+=item.count; } else { wM2+=item.area; wT+=item.count; }
     });
-
     summary.innerHTML = `<b>סיכום:</b> ריצוף: ${fM2.toFixed(2)} מ"ר (${fT} יח') | חיפוי: ${wM2.toFixed(2)} מ"ר (${wT} יח')`;
-    summary.classList.remove('hidden');
-    document.getElementById('finalPdfSection').classList.remove('hidden');
+    summary.classList.remove('hidden'); document.getElementById('finalPdfSection').classList.remove('hidden');
   }
 
-  // --- Pinch-to-Zoom ---
-  const container = document.getElementById("containerA");
-  const canvas = document.getElementById("resultA");
+  const container = document.getElementById("containerA"), canvas = document.getElementById("resultA");
   container.addEventListener('touchstart', e => { if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); });
   container.addEventListener('touchmove', e => {
     if(e.touches.length==2){
-      e.preventDefault();
-      let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
+      e.preventDefault(); let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
       currentScale = Math.min(Math.max(0.5, currentScale * (d/initialDist)), 5);
       canvas.style.transform = `scale(${currentScale})`; initialDist = d;
     }
   }, {passive:false});
 
   document.getElementById("btnShare").onclick = async () => {
-    const pdfDiv = document.getElementById('pdfContent');
-    const summary = document.getElementById('pdfSummaryDisplay');
-    const details = document.getElementById('pdfItemsDetail');
-    summary.innerHTML = document.getElementById('projectSummary').innerHTML;
+    const pdfDiv = document.getElementById('pdfContent'), details = document.getElementById('pdfItemsDetail');
+    document.getElementById('pdfSummaryDisplay').innerHTML = document.getElementById('projectSummary').innerHTML;
     details.innerHTML = "";
-    
     for(let item of projectItems) {
-        let can = document.createElement('canvas');
-        draw(can, item.pts, item.sVals, item.tW, item.tH);
+        let can = document.createElement('canvas'); draw(can, item.pts, item.sVals, item.tW, item.tH);
         details.innerHTML += `<div style="margin-top:20px; border-top:1px solid #ccc; padding:10px;"><h3>${item.mode==='floor'?'רצפה':'קיר'} (${item.tW}x${item.tH})</h3><img src="${can.toDataURL()}" style="width:100%"><p>שטח: ${item.area.toFixed(2)} מ"ר | אריחים: ${item.count}</p></div>`;
     }
-
     const canvasPdf = await html2canvas(pdfDiv, { scale: 2 });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', [210, (canvasPdf.height * 210) / canvasPdf.width]);
     pdf.addImage(canvasPdf.toDataURL('image/png'), 'PNG', 0, 0, 210, (canvasPdf.height * 210) / canvasPdf.width);
-    const file = new File([pdf.output('blob')], 'Project_Measurements.pdf', { type: 'application/pdf' });
+    const file = new File([pdf.output('blob')], 'Project_Report.pdf', { type: 'application/pdf' });
     if (navigator.share) await navigator.share({ files: [file], title: 'דוח מדידות' }); else pdf.save("Project.pdf");
   };
 
   function setStatus(m, t){ statusBox.textContent = m; statusBox.className = "status " + (t||""); }
 </script>
-<script>
-    // הגנה מפני רענון בטעות - הודעת אישור (אופציונלי, בנוסף לשמירה)
-    window.onbeforeunload = function() {
-        if(projectItems.length > 0) return "יש לך פרויקט שמור, האם אתה בטוח שברצונך לצאת?";
-    };
-</script>
 </body>
 </html>
-21
+22
