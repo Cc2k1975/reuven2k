@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - גרסה סופית ותקינה</title>
+<title>שרטוט חכם - פרויקט מלא עם השוואת כיוונים</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -37,10 +37,10 @@
   .status{ padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; }
   .status.good{border-color:#22c55e; color:#15803d; font-weight:bold;}
   
-  .result-container-single { width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; touch-action: none; margin-bottom: 20px; position: relative; }
+  .result-container-single { width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; touch-action: none; margin-bottom: 15px; position: relative; }
   .result-canvas { width: 100%; height: auto; display: block; transform-origin: center center; transition: transform 0.1s ease-out; }
-  .tile-label-header { padding: 12px; background: #f8fafc; border-bottom: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
-  .tile-label-footer { padding: 12px; background: #f8fafc; border-top: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
+  .tile-label-header { padding: 10px; background: #f8fafc; border-bottom: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
+  .tile-label-footer { padding: 10px; background: #f8fafc; border-top: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
   .tile-inputs-top { display: flex; gap: 10px; background: #f0f7ff; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #c0d8ff; }
   
   .project-item { padding: 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; background: white; border-radius: 8px; margin-bottom: 5px;}
@@ -54,22 +54,22 @@
 <div class="wrap">
 
   <div class="card" id="mainMenu">
-    <h2>📋 פרויקט שמור בטלפון</h2>
+    <h2>📋 פרויקט מדידות שמור</h2>
     <div id="projectList" class="note">טרם נוספו פריטים.</div>
     <div id="projectSummary" class="hidden" style="background: #e0f2fe; padding: 12px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; border: 1px solid var(--primary);"></div>
     
     <div class="row">
-      <button onclick="startMode('floor')" class="btn">➕ הוסף רצפה</button>
-      <button onclick="startMode('wall')" class="btn wall">➕ הוסף קיר</button>
+      <button onclick="startMode('floor')" class="btn">➕ הוסף רצפה (ריצוף)</button>
+      <button onclick="startMode('wall')" class="btn wall">➕ הוסף קיר (חיפוי)</button>
     </div>
-    <button id="btnNewProject" class="btn danger" style="margin-top: 10px; font-size: 14px; padding: 8px;" onclick="clearProject()">🗑️ מחק הכל והתחל פרויקט חדש</button>
+    <button class="btn danger" style="margin-top: 10px; font-size: 14px; padding: 8px;" onclick="clearProject()">🗑️ מחק פרויקט והתחל מחדש</button>
   </div>
 
   <div id="measurementSection" class="hidden">
     <div class="card">
         <h2 id="modeTitle">מדידה</h2>
         <div id="statusBox" class="status">טוען...</div>
-        <div style="margin-top:12px" id="videoContainer">
+        <div style="margin-top:12px">
           <video id="video" autoplay playsinline></video>
           <canvas id="photo" class="hidden"></canvas>
         </div>
@@ -81,7 +81,7 @@
     </div>
 
     <div class="card hidden" id="previewCard">
-        <h2>2️⃣ לחץ על מספר למעבר מהיר</h2>
+        <h2>2️⃣ לחץ על מספר למעבר לתא</h2>
         <canvas id="overlay"></canvas>
     </div>
 
@@ -91,24 +91,33 @@
           <div style="flex:1"><label>אורך אריח</label><input id="tileH" type="number" placeholder="ס״מ"></div>
         </div>
         <div id="inputs"></div>
-        <button id="btnBuild" class="btn" type="button">📐 בנה וחשב</button>
+        <button id="btnBuild" class="btn" type="button">📐 השווה כיוונים וחשב</button>
     </div>
 
     <div class="card hidden" id="resultCard">
+        <h2>4️⃣ השוואת כיווני פריסה</h2>
+        
         <div class="result-container-single" id="containerA">
-            <div class="tile-label-header" id="resHeader"></div>
+            <div class="tile-label-header" id="resHeaderA"></div>
             <canvas id="resultA" class="result-canvas"></canvas>
             <div id="reportA" class="tile-label-footer"></div>
         </div>
-        <div class="row">
-            <button onclick="saveToProject()" class="btn success">✅ שמור לפרויקט</button>
-            <button onclick="hideMeasurement()" class="btn secondary">בטל</button>
+
+        <div class="result-container-single" id="containerB">
+            <div class="tile-label-header" id="resHeaderB"></div>
+            <canvas id="resultB" class="result-canvas"></canvas>
+            <div id="reportB" class="tile-label-footer"></div>
+        </div>
+
+        <div class="row" style="margin-top: 20px;">
+            <button onclick="saveToProject()" class="btn success">✅ שמור פריט זה לפרויקט</button>
+            <button onclick="hideMeasurement()" class="btn secondary">ביטול</button>
         </div>
     </div>
   </div>
 
   <div id="finalPdfSection" class="card hidden">
-      <div id="pdfContent" style="background: white; padding: 15px;">
+      <div id="pdfContent" style="background: white; padding: 15px; direction: rtl;">
           <h1 style="text-align: center; color: #2563eb;">דוח פרויקט מרוכז</h1>
           <div id="pdfSummaryDisplay"></div>
           <div id="pdfItemsDetail"></div>
@@ -128,7 +137,7 @@
   let currentItemData = null;
 
   window.onload = () => {
-    const saved = localStorage.getItem('floorProject');
+    const saved = localStorage.getItem('floorProjectV2');
     if(saved) { projectItems = JSON.parse(saved); updateProjectUI(); }
   };
 
@@ -149,6 +158,7 @@
     currentMode = mode;
     document.getElementById('mainMenu').classList.add('hidden');
     document.getElementById('measurementSection').classList.remove('hidden');
+    document.getElementById('resultCard').classList.add('hidden');
     startCamera();
   }
 
@@ -159,7 +169,7 @@
   }
 
   function clearProject() {
-    if(confirm("בטוח שברצונך למחוק את כל הפרויקט?")) { projectItems = []; localStorage.removeItem('floorProject'); location.reload(); }
+    if(confirm("בטוח שברצונך למחוק את כל הפרויקט?")) { projectItems = []; localStorage.removeItem('floorProjectV2'); location.reload(); }
   }
 
   function snapDir(dx, dy){ return Math.abs(dx) >= Math.abs(dy) ? {dx: Math.sign(dx)||1, dy:0} : {dx:0, dy:Math.sign(dy)||1}; }
@@ -200,12 +210,14 @@
     cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
     polyPts = [];
     for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
+    
     let polyArea = 0;
     for (let i = 0; i < polyPts.length; i++) { let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length]; polyArea += (p2.x - p1.x) * (p2.y + p1.y); }
     if (polyArea < 0) polyPts.reverse();
     let topIdx = 0, minY = polyPts[0].y;
     for (let i = 1; i < polyPts.length; i++) { if (polyPts[i].y < minY) { minY = polyPts[i].y; topIdx = i; } else if (polyPts[i].y === minY && polyPts[i].x < polyPts[topIdx].x) topIdx = i; }
     polyPts = polyPts.slice(topIdx).concat(polyPts.slice(0, topIdx));
+
     overlay.width = photo.width; overlay.height = photo.height;
     buildInputsInterface(true);
     src.delete(); gray.delete(); edges.delete(); cnts.delete(); hi.delete(); approx.delete(); kernel.delete();
@@ -220,7 +232,8 @@
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
-      octx.strokeStyle = color; octx.lineWidth = 12; octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
+      octx.strokeStyle = color; octx.lineWidth = 12;
+      octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
       let mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
       numberHitZones.push({ x: mx, y: my, radius: 50, id: `inp-${i}` });
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
@@ -253,14 +266,20 @@
     let xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
     let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
     let spanX = maxX - minX || 1, spanY = maxY - minY || 1;
+    
     can.width = 1000; can.height = 1000 * (spanY/spanX);
-    let ctx = can.getContext("2d"), scale = (can.width - 150) / spanX, tx = (x)=>75+(x-minX)*scale, ty = (y)=>75+(y-minY)*scale;
+    let ctx = can.getContext("2d");
+    let pad = 80; // מרווח ביטחון כדי שלא ייחתך
+    let scale = Math.min((can.width - 2*pad) / spanX, (can.height - 2*pad) / spanY);
+    let tx = (x)=>pad+(x-minX)*scale, ty = (y)=>pad+(y-minY)*scale;
+
     ctx.save(); ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     for(let i=1; i<pts.length; i++) ctx.lineTo(tx(pts[i].x), ty(pts[i].y));
     ctx.closePath(); ctx.clip();
+    
     ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
     let count = 0;
-    for(let x=minX; x<maxX; x+=tW) for(let y=minY; y<maxY; y+=tH) {
+    for(let x=minX-tW; x<maxX+tW; x+=tW) for(let y=minY-tH; y<maxY+tH; y+=tH) {
       ctx.strokeRect(tx(x), ty(y), tW*scale, tH*scale);
       let midX = x + tW/2, midY = y + tH/2;
       let inside = false;
@@ -270,13 +289,14 @@
       if(inside) count++;
     }
     ctx.restore();
-    ctx.lineWidth = 10; ctx.font = "bold 28px Arial"; ctx.textAlign = "center";
+
+    ctx.lineWidth = 12; ctx.font = "bold 30px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for(let i=0; i<sVals.length; i++){
       let p1 = pts[i], p2 = pts[i+1], color = edgeColors[i % edgeColors.length];
       ctx.strokeStyle = color; ctx.beginPath(); ctx.moveTo(tx(p1.x), ty(p1.y)); ctx.lineTo(tx(p2.x), ty(p2.y)); ctx.stroke();
       let mx = tx((p1.x+p2.x)/2), my = ty((p1.y+p2.y)/2), dx = tx(p2.x)-tx(p1.x), dy = ty(p2.y)-ty(p1.y), angle = Math.atan2(dy, dx);
       if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
-      ctx.save(); ctx.translate(mx, my); ctx.rotate(angle); ctx.fillStyle = color; ctx.fillText(sVals[i], 0, -25); ctx.restore();
+      ctx.save(); ctx.translate(mx, my); ctx.rotate(angle); ctx.fillStyle = color; ctx.fillText(sVals[i], 0, -35); ctx.restore();
     }
     return count;
   }
@@ -284,21 +304,33 @@
   document.getElementById("btnBuild").onclick = () => {
     let sVals = [...document.getElementsByClassName("side-val")].map(i=>Number(i.value));
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
-    if(tW <= 0 || tH <= 0 || sVals.some(v=>v<=0)) return alert("מלא מידות!");
+    if(tW <= 0 || tH <= 0 || sVals.some(v=>v<=0)) return alert("מלא את כל המידות!");
+    
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
     for(let i=0; i<edgeDirs.length; i++){ curX += edgeDirs[i].dx * sVals[i]; curY += edgeDirs[i].dy * sVals[i]; pts.push({x: curX, y: curY}); }
-    let count = draw(document.getElementById("resultA"), pts, sVals, tW, tH);
+    
+    // ציור אופציה א' (מקור)
+    let countA = draw(document.getElementById("resultA"), pts, sVals, tW, tH);
+    // ציור אופציה ב' (סיבוב 90)
+    let countB = draw(document.getElementById("resultB"), pts, sVals, tH, tW);
+    
     let area = 0; for(let i=0; i<pts.length-1; i++) area += (pts[i].x*pts[i+1].y)-(pts[i+1].x*pts[i].y);
-    currentItemData = { mode: currentMode, area: Math.abs(area)/20000, perimeter: sVals.reduce((a,b)=>a+b,0), count, tW, tH, sVals, pts };
-    document.getElementById("resHeader").textContent = `${currentMode === 'floor' ? 'רצפה' : 'קיר'} - ${tW}x${tH}`;
-    document.getElementById("reportA").innerHTML = `כמות: ${count} יחידות | שטח: ${currentItemData.area.toFixed(2)} מ"ר`;
+    let areaM2 = Math.abs(area)/20000;
+
+    currentItemData = { mode: currentMode, area: areaM2, perimeter: sVals.reduce((a,b)=>a+b,0), countA, countB, tW, tH, sVals, pts };
+    
+    document.getElementById("resHeaderA").textContent = `${currentMode==='floor'?'רצפה':'קיר'} - ${tW}x${tH}`;
+    document.getElementById("resHeaderB").textContent = `${currentMode==='floor'?'רצפה':'קיר'} - ${tH}x${tW} (סובב)`;
+    document.getElementById("reportA").innerHTML = `כמות: ${countA} יחידות | שטח: ${areaM2.toFixed(2)} מ"ר`;
+    document.getElementById("reportB").innerHTML = `כמות: ${countB} יחידות | שטח: ${areaM2.toFixed(2)} מ"ר`;
+    
     document.getElementById("resultCard").classList.remove("hidden");
     document.getElementById("resultCard").scrollIntoView({behavior:"smooth"});
   };
 
   function saveToProject() {
     projectItems.push(currentItemData);
-    localStorage.setItem('floorProject', JSON.stringify(projectItems));
+    localStorage.setItem('floorProjectV2', JSON.stringify(projectItems));
     updateProjectUI();
     hideMeasurement();
   }
@@ -309,36 +341,50 @@
     if(projectItems.length === 0) { list.innerHTML = "טרם נוספו פריטים."; summary.classList.add('hidden'); document.getElementById('finalPdfSection').classList.add('hidden'); return; }
     let fM2 = 0, fT = 0, wM2 = 0, wT = 0;
     projectItems.forEach((item, i) => {
-      list.innerHTML += `<div class="project-item"><span><b>#${i+1} ${item.mode==='floor'?'רצפה':'קיר'}</b> (${item.area.toFixed(2)} מ"ר)</span><span class="badge ${item.mode}">${item.count} יח'</span></div>`;
-      if(item.mode==='floor'){ fM2+=item.area; fT+=item.count; } else { wM2+=item.area; wT+=item.count; }
+      let bestCount = Math.min(item.countA, item.countB); // מציג את האופציה החסכונית בסיכום
+      list.innerHTML += `<div class="project-item"><span><b>#${i+1} ${item.mode==='floor'?'רצפה':'קיר'}</b> (${item.area.toFixed(2)} מ"ר)</span><span class="badge ${item.mode}">${item.countA} / ${item.countB} יח'</span></div>`;
+      if(item.mode==='floor'){ fM2+=item.area; fT+=item.countA; } else { wM2+=item.area; wT+=item.countA; }
     });
     summary.innerHTML = `<b>סיכום:</b> ריצוף: ${fM2.toFixed(2)} מ"ר (${fT} יח') | חיפוי: ${wM2.toFixed(2)} מ"ר (${wT} יח')`;
     summary.classList.remove('hidden'); document.getElementById('finalPdfSection').classList.remove('hidden');
   }
 
-  const container = document.getElementById("containerA"), canvas = document.getElementById("resultA");
-  container.addEventListener('touchstart', e => { if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); });
-  container.addEventListener('touchmove', e => {
-    if(e.touches.length==2){
-      e.preventDefault(); let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
-      currentScale = Math.min(Math.max(0.5, currentScale * (d/initialDist)), 5);
-      canvas.style.transform = `scale(${currentScale})`; initialDist = d;
-    }
-  }, {passive:false});
+  // זום לשני הקנבסים
+  [document.getElementById("resultA"), document.getElementById("resultB")].forEach(can => {
+    let s = 1, d0 = 0;
+    can.parentElement.addEventListener('touchstart', e => { if(e.touches.length==2) d0 = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); });
+    can.parentElement.addEventListener('touchmove', e => {
+      if(e.touches.length==2){
+        e.preventDefault(); let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
+        s = Math.min(Math.max(0.5, s * (d/d0)), 5);
+        can.style.transform = `scale(${s})`; d0 = d;
+      }
+    }, {passive:false});
+  });
 
   document.getElementById("btnShare").onclick = async () => {
     const pdfDiv = document.getElementById('pdfContent'), details = document.getElementById('pdfItemsDetail');
     document.getElementById('pdfSummaryDisplay').innerHTML = document.getElementById('projectSummary').innerHTML;
     details.innerHTML = "";
     for(let item of projectItems) {
-        let can = document.createElement('canvas'); draw(can, item.pts, item.sVals, item.tW, item.tH);
-        details.innerHTML += `<div style="margin-top:20px; border-top:1px solid #ccc; padding:10px;"><h3>${item.mode==='floor'?'רצפה':'קיר'} (${item.tW}x${item.tH})</h3><img src="${can.toDataURL()}" style="width:100%"><p>שטח: ${item.area.toFixed(2)} מ"ר | אריחים: ${item.count}</p></div>`;
+        let canA = document.createElement('canvas'), canB = document.createElement('canvas');
+        draw(canA, item.pts, item.sVals, item.tW, item.tH);
+        draw(canB, item.pts, item.sVals, item.tH, item.tW);
+        details.innerHTML += `
+            <div style="margin-top:20px; border-top:2px solid #333; padding:10px;">
+                <h3>פריט #${projectItems.indexOf(item)+1}: ${item.mode==='floor'?'רצפה':'קיר'}</h3>
+                <p>שטח: ${item.area.toFixed(2)} מ"ר | היקף: ${item.perimeter} ס"מ</p>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1"><h4>אופציה א' (${item.tW}x${item.tH}): ${item.countA} יח'</h4><img src="${canA.toDataURL()}" style="width:100%"></div>
+                    <div style="flex:1"><h4>אופציה ב' (${item.tH}x${item.tW}): ${item.countB} יח'</h4><img src="${canB.toDataURL()}" style="width:100%"></div>
+                </div>
+            </div>`;
     }
     const canvasPdf = await html2canvas(pdfDiv, { scale: 2 });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', [210, (canvasPdf.height * 210) / canvasPdf.width]);
     pdf.addImage(canvasPdf.toDataURL('image/png'), 'PNG', 0, 0, 210, (canvasPdf.height * 210) / canvasPdf.width);
-    const file = new File([pdf.output('blob')], 'Project_Report.pdf', { type: 'application/pdf' });
+    const file = new File([pdf.output('blob')], 'Project_Measurements.pdf', { type: 'application/pdf' });
     if (navigator.share) await navigator.share({ files: [file], title: 'דוח מדידות' }); else pdf.save("Project.pdf");
   };
 
@@ -346,4 +392,4 @@
 </script>
 </body>
 </html>
-22
+23
