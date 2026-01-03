@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - השלמה חיה</title>
+<title>שרטוט חכם - גרסה סופית עם PDF ומלבן מהיר</title>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="__onCvScriptLoaded()"></script>
 
 <style>
@@ -21,6 +23,7 @@
   }
   .btn:disabled{opacity:.55; cursor:not-allowed}
   .btn.secondary{background:#111827}
+  .btn.success{background:#059669}
   .note{color:var(--muted);font-size:14px;margin-top:8px;line-height:1.45}
   video,canvas{width:100%;border-radius:12px;border:1px solid var(--line);background:#fff}
   .hidden{display:none}
@@ -35,8 +38,6 @@
     font-size:20px; outline:none; font-weight: bold;
   }
   input:focus { border-color: var(--primary); background: #f0f7ff; }
-  
-  /* עיצוב לתא שהושלם לבד */
   input.auto-filled { background-color: #f0fff4; border-color: #22c55e; color: #15803d; }
 
   .status{ padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; }
@@ -56,60 +57,63 @@
 <div class="wrap">
 
   <div class="card">
-    <h2>1️⃣ צילום השרטוט</h2>
+    <h2>1️⃣ צילום או בחירת מלבן</h2>
     <div id="statusBox" class="status">טוען OpenCV…</div>
-    <div style="margin-top:12px">
+    <div style="margin-top:12px" id="videoContainer">
       <video id="video" autoplay playsinline></video>
       <canvas id="photo" class="hidden"></canvas>
     </div>
     <div class="row" style="margin-top:12px">
       <button id="btnShot" class="btn" type="button" disabled>📸 צלם וזהה צלעות</button>
+      <button id="btnRect" class="btn success" type="button">⬜ אוסף מלבן (ללא צילום)</button>
       <button id="btnRestart" class="btn secondary" type="button">🔄 התחל מחדש</button>
     </div>
   </div>
 
-  <div class="card hidden" id="previewCard">
-    <h2>2️⃣ צלעות שזוהו (לחץ על מספר למעבר מהיר)</h2>
-    <canvas id="overlay"></canvas>
-    <div class="note"><b>שימו לב:</b> המערכת תשלים לבד מידות חסרות בזמן אמת!</div>
-  </div>
-
-  <div class="card hidden" id="inputsCard">
-    <h2>3️⃣ הזן מידות (המערכת תשלים לבד במידת האפשר)</h2>
-    <div class="tile-inputs-top">
-      <div style="flex:1"><label>רוחב אריח</label><input id="tileW" type="number" placeholder="ס״מ"></div>
-      <div style="flex:1"><label>אורך אריח</label><input id="tileH" type="number" placeholder="ס״מ"></div>
-    </div>
-    <div id="inputs"></div>
-    <button id="btnBuild" class="btn" type="button">📐 בנה שרטוט סופי</button>
-  </div>
-
-  <div class="card hidden" id="resultCard">
-    <h2>4️⃣ השוואת פריסה סופית</h2>
-    <div id="results-wrapper">
-      <div class="result-container-single" id="containerA">
-        <div class="tile-label" style="background: #f1f5f9;">אופציה א' (כיוון מקורי)</div>
-        <canvas id="resultA" class="result-canvas"></canvas>
-        <div id="reportA" class="tile-label"></div>
+  <div id="captureSection">
+      <div class="card hidden" id="previewCard">
+        <h2>2️⃣ צלעות שזוהו (לחץ על מספר למעבר מהיר)</h2>
+        <canvas id="overlay"></canvas>
       </div>
-      <div class="result-container-single" id="containerB">
-        <div class="tile-label" style="background: #f1f5f9;">אופציה ב' (סיבוב 90°)</div>
-        <canvas id="resultB" class="result-canvas"></canvas>
-        <div id="reportB" class="tile-label"></div>
+
+      <div class="card hidden" id="inputsCard">
+        <h2>3️⃣ הזן מידות (השלמה חיה פעילה)</h2>
+        <div class="tile-inputs-top">
+          <div style="flex:1"><label>רוחב אריח</label><input id="tileW" type="number" placeholder="ס״מ"></div>
+          <div style="flex:1"><label>אורך אריח</label><input id="tileH" type="number" placeholder="ס״מ"></div>
+        </div>
+        <div id="inputs"></div>
+        <button id="btnBuild" class="btn" type="button">📐 בנה שרטוט סופי</button>
       </div>
-    </div>
-    <div id="generalReport" class="note" style="text-align:center; font-size:18px; font-weight:bold; color:#111827; background:#e0f2fe; padding:15px; border-radius:12px;"></div>
+
+      <div class="card hidden" id="resultCard">
+        <div id="pdfContent">
+            <h2>4️⃣ השוואת פריסה סופית</h2>
+            <div id="results-wrapper">
+              <div class="result-container-single" id="containerA">
+                <div class="tile-label" style="background: #f1f5f9;">אופציה א' (כיוון מקורי)</div>
+                <canvas id="resultA" class="result-canvas"></canvas>
+                <div id="reportA" class="tile-label"></div>
+              </div>
+              <div class="result-container-single" id="containerB">
+                <div class="tile-label" style="background: #f1f5f9;">אופציה ב' (סיבוב 90°)</div>
+                <canvas id="resultB" class="result-canvas"></canvas>
+                <div id="reportB" class="tile-label"></div>
+              </div>
+            </div>
+            <div id="generalReport" class="note" style="text-align:center; font-size:18px; font-weight:bold; color:#111827; background:#e0f2fe; padding:15px; border-radius:12px;"></div>
+        </div>
+        <button id="btnShare" class="btn success" style="margin-top:15px;" type="button">📄 שלח שרטוט (PDF)</button>
+      </div>
   </div>
 
 </div>
 
 <script>
   const edgeColors = ['#FF0000', '#059669', '#2563eb', '#7c3aed', '#ea580c', '#db2777', '#0891b2', '#ca8a04'];
-
   let video = document.getElementById("video"), photo = document.getElementById("photo"), overlay = document.getElementById("overlay");
   let statusBox = document.getElementById("statusBox"), btnShot = document.getElementById("btnShot");
-  let cvReady = false, videoReady = false, polyPts = [], edgeDirs = [], currentScale = 1, initialDist = 0;
-  let numberHitZones = [];
+  let cvReady = false, videoReady = false, polyPts = [], edgeDirs = [], currentScale = 1, initialDist = 0, numberHitZones = [];
 
   function setStatus(m, t){ statusBox.textContent = m; statusBox.className = "status " + (t||""); }
   
@@ -128,54 +132,25 @@
 
   function snapDir(dx, dy){ return Math.abs(dx) >= Math.abs(dy) ? {dx: Math.sign(dx)||1, dy:0} : {dx:0, dy:Math.sign(dy)||1}; }
 
-  btnShot.onclick = () => {
-    photo.width = video.videoWidth; photo.height = video.videoHeight;
-    photo.getContext("2d").drawImage(video, 0, 0);
-    let src = cv.imread(photo), gray = new cv.Mat(), edges = new cv.Mat();
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    cv.GaussianBlur(gray, gray, new cv.Size(5,5), 0);
-    cv.Canny(gray, edges, 40, 120);
-    let kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3,3));
-    cv.dilate(edges, edges, kernel);
-    let cnts = new cv.MatVector(), hi = new cv.Mat();
-    cv.findContours(edges, cnts, hi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-    let big = null, maxA = 0;
-    for(let i=0; i<cnts.size(); i++){
-      let area = cv.contourArea(cnts.get(i)); if(area > maxA){ maxA = area; big = cnts.get(i); }
-    }
-    if(!big) return alert("לא מצאתי את הצורה. נסה לצלם שוב.");
-    let approx = new cv.Mat();
-    cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
-    polyPts = [];
-    for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
-
-    let polyArea = 0;
-    for (let i = 0; i < polyPts.length; i++) {
-        let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length];
-        polyArea += (p2.x - p1.x) * (p2.y + p1.y);
-    }
-    if (polyArea < 0) polyPts.reverse();
-
-    let topIdx = 0, minY = polyPts[0].y;
-    for (let i = 1; i < polyPts.length; i++) {
-        if (polyPts[i].y < minY) { minY = polyPts[i].y; topIdx = i; }
-        else if (polyPts[i].y === minY && polyPts[i].x < polyPts[topIdx].x) topIdx = i;
-    }
-    polyPts = polyPts.slice(topIdx).concat(polyPts.slice(0, topIdx));
-
-    overlay.width = photo.width; overlay.height = photo.height;
-    let octx = overlay.getContext("2d");
-    octx.drawImage(photo, 0, 0);
-    octx.lineWidth = 12;
+  // --- פונקציה לבניית ממשק הזנת המידות ---
+  function buildInputsInterface() {
     let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
     numberHitZones = [];
     edgeDirs = [];
     
+    // ניקוי הקנבס של ה-preview אם אנחנו במצב מלבן ללא תמונה
+    let octx = overlay.getContext("2d");
+    if(!polyPts[0].isReal) {
+        overlay.width = 600; overlay.height = 400;
+        octx.fillStyle = "#fff"; octx.fillRect(0,0,600,400);
+    }
+
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
-      octx.strokeStyle = color;
+      octx.strokeStyle = color; octx.lineWidth = 12;
       octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
+      
       let mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
       numberHitZones.push({ x: mx, y: my, radius: 45, id: `edge-input-${i}` });
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
@@ -191,6 +166,58 @@
     }
     document.getElementById("previewCard").classList.remove("hidden");
     document.getElementById("inputsCard").classList.remove("hidden");
+  }
+
+  // --- כפתור מלבן מוכן ---
+  document.getElementById("btnRect").onclick = () => {
+    // יצירת מלבן ידני
+    polyPts = [
+        {x: 100, y: 50, isReal: false}, // פינה עליונה שמאלית
+        {x: 500, y: 50, isReal: false}, // פינה עליונה ימנית
+        {x: 500, y: 350, isReal: false}, // פינה תחתונה ימנית
+        {x: 100, y: 350, isReal: false}  // פינה תחתונה שמאלית
+    ];
+    buildInputsInterface();
+    document.getElementById("inputsCard").scrollIntoView({behavior: "smooth"});
+  };
+
+  btnShot.onclick = () => {
+    photo.width = video.videoWidth; photo.height = video.videoHeight;
+    photo.getContext("2d").drawImage(video, 0, 0);
+    let src = cv.imread(photo), gray = new cv.Mat(), edges = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    cv.GaussianBlur(gray, gray, new cv.Size(5,5), 0);
+    cv.Canny(gray, edges, 40, 120);
+    let kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3,3));
+    cv.dilate(edges, edges, kernel);
+    let cnts = new cv.MatVector(), hi = new cv.Mat();
+    cv.findContours(edges, cnts, hi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    let big = null, maxA = 0;
+    for(let i=0; i<cnts.size(); i++){
+      let a = cv.contourArea(cnts.get(i)); if(a > maxA){ maxA = area; big = cnts.get(i); }
+    }
+    if(!big) return alert("לא מצאתי את הצורה.");
+    let approx = new cv.Mat();
+    cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
+    polyPts = [];
+    for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1], isReal: true});
+
+    let polyArea = 0;
+    for (let i = 0; i < polyPts.length; i++) {
+        let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length];
+        polyArea += (p2.x - p1.x) * (p2.y + p1.y);
+    }
+    if (polyArea < 0) polyPts.reverse();
+    let topIdx = 0, minY = polyPts[0].y;
+    for (let i = 1; i < polyPts.length; i++) {
+        if (polyPts[i].y < minY) { minY = polyPts[i].y; topIdx = i; }
+        else if (polyPts[i].y === minY && polyPts[i].x < polyPts[topIdx].x) topIdx = i;
+    }
+    polyPts = polyPts.slice(topIdx).concat(polyPts.slice(0, topIdx));
+
+    overlay.width = photo.width; overlay.height = photo.height;
+    overlay.getContext("2d").drawImage(photo, 0, 0);
+    buildInputsInterface();
     src.delete(); gray.delete(); edges.delete(); cnts.delete(); hi.delete(); approx.delete(); kernel.delete();
   };
 
@@ -207,46 +234,25 @@
     }
   };
 
-  // פונקציית ההשלמה החיה (Live Auto Solve)
   function liveAutoSolve() {
     let inputs = [...document.getElementsByClassName("side-val")];
-    // אנחנו בודקים רק תאים שהמשתמש הקליד בהם ידנית. השאר נחשבים ריקים לחישוב.
     let sVals = inputs.map(i => (i.value === "" || i.classList.contains('auto-filled')) ? null : Number(i.value));
-    
     let horiz = [], vert = [];
     for(let i=0; i<edgeDirs.length; i++) {
       if (edgeDirs[i].dx !== 0) horiz.push(i); else vert.push(i);
     }
-
     const solve = (indices, isX) => {
       let missing = indices.filter(idx => sVals[idx] === null);
-      // אם חסרה רק צלע אחת בודדת בציר הזה
       if (missing.length === 1) {
-        let targetIdx = missing[0];
-        let sum = 0;
-        indices.forEach(idx => {
-          if (idx !== targetIdx && sVals[idx] !== null) {
-            sum += (isX ? edgeDirs[idx].dx : edgeDirs[idx].dy) * sVals[idx];
-          }
-        });
+        let targetIdx = missing[0], sum = 0;
+        indices.forEach(idx => { if (idx !== targetIdx && sVals[idx] !== null) sum += (isX ? edgeDirs[idx].dx : edgeDirs[idx].dy) * sVals[idx]; });
         let result = Math.abs(sum);
-        if (result > 0) {
-          inputs[targetIdx].value = result;
-          inputs[targetIdx].classList.add("auto-filled");
-        }
+        if (result > 0) { inputs[targetIdx].value = result; inputs[targetIdx].classList.add("auto-filled"); }
       } else {
-        // אם חסרות יותר מאחת, או שהמשתמש מחק נתונים, ננקה את השדות האוטומטיים הקיימים בציר הזה
-        indices.forEach(idx => {
-          if(inputs[idx].classList.contains('auto-filled')) {
-             inputs[idx].value = "";
-             inputs[idx].classList.remove("auto-filled");
-          }
-        });
+        indices.forEach(idx => { if(inputs[idx].classList.contains('auto-filled')) { inputs[idx].value = ""; inputs[idx].classList.remove("auto-filled"); } });
       }
     };
-
-    solve(horiz, true);
-    solve(vert, false);
+    solve(horiz, true); solve(vert, false);
   }
 
   function isInside(p, poly) {
@@ -285,7 +291,7 @@
   document.getElementById("btnBuild").onclick = () => {
     let sVals = [...document.getElementsByClassName("side-val")].map(i=>Number(i.value));
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
-    if(tW <= 0 || tH <= 0 || sVals.some(v=>v<=0)) return alert("אנא מלא את כל המידות (גם אריחים וגם צלעות)!");
+    if(tW <= 0 || tH <= 0 || sVals.some(v=>v<=0)) return alert("אנא מלא את כל המידות!");
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
     for(let i=0; i<edgeDirs.length; i++){
         curX += edgeDirs[i].dx * sVals[i]; curY += edgeDirs[i].dy * sVals[i];
@@ -298,6 +304,38 @@
     document.getElementById("generalReport").innerHTML = `📐 שטח: ${(Math.abs(area)/20000).toFixed(2)} מ"ר | 📏 היקף: ${perimeter} ס״מ`;
     document.getElementById("resultCard").classList.remove("hidden");
     document.getElementById("resultCard").scrollIntoView({behavior:"smooth"});
+  };
+
+  // --- פונקציית שליחת PDF ---
+  document.getElementById("btnShare").onclick = async () => {
+    setStatus("מכין קובץ PDF...", "good");
+    const element = document.getElementById('pdfContent');
+    const canvas = await html2canvas(element, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    
+    pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+    const pdfBlob = pdf.output('blob');
+    const file = new File([pdfBlob], 'FloorPlan.pdf', { type: 'application/pdf' });
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'שרטוט רצפה ומדידות',
+          text: 'מצורף שרטוט הפריסה והמדידות שלי.'
+        });
+      } catch (err) { alert("השיתוף בוטל."); }
+    } else {
+      pdf.save("FloorPlan.pdf");
+      alert("הדפדפן שלך לא תומך בשיתוף ישיר, הקובץ הורד למכשיר.");
+    }
+    setStatus("מוכן ✅", "good");
   };
 
   startCamera();
@@ -315,4 +353,4 @@
 
 </body>
 </html>
-12
+14
