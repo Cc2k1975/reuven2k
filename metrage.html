@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - השוואת כיוונים מדויקת</title>
+<title>שרטוט חכם - זיהוי צבעוני ומדויק</title>
 
 <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="__onCvScriptLoaded()"></script>
 
@@ -24,25 +24,32 @@
   .note{color:var(--muted);font-size:14px;margin-top:8px;line-height:1.45}
   video,canvas{width:100%;border-radius:12px;border:1px solid var(--line);background:#fff}
   .hidden{display:none}
-  .input-group { margin-bottom: 12px; }
-  .input-group label { display: block; font-size: 14px; font-weight: bold; margin-bottom: 4px; color: var(--primary); }
-  input{
-    width:100%; padding:12px; border:1px solid var(--line); border-radius:12px;
-    font-size:16px; outline:none;
+  
+  /* עיצוב תיבות הזנה צבעוניות */
+  .input-group { 
+    margin-bottom: 15px; 
+    padding: 10px; 
+    border-radius: 12px; 
+    background: #fff;
+    border-width: 4px;
+    border-style: solid;
   }
-  input:focus{border-color:var(--primary); box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+  .input-group label { display: block; font-size: 16px; font-weight: bold; margin-bottom: 6px; }
+  input {
+    width:100%; padding:12px; border:1px solid #ccc; border-radius:8px;
+    font-size:18px; outline:none; font-weight: bold;
+  }
+
   .status{ padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; }
   .status.good{border-color:rgba(34,197,94,.35)}
-  .status.bad{border-color:rgba(220,38,38,.35)}
   
-  #results-wrapper { display: flex; flex-direction: column; gap: 20px; }
   .result-container-single {
     width: 100%; background: #fff; border: 1px solid var(--line); border-radius: 12px;
-    overflow: hidden; touch-action: pan-y; position: relative;
+    overflow: hidden; touch-action: pan-y; margin-bottom: 20px;
   }
   .result-canvas { width: 100%; height: auto; display: block; transform-origin: center center; }
   .tile-label { padding: 12px; background: #f8fafc; border-top: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
-  .tile-inputs { display: flex; gap: 10px; background: #f0f7ff; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #c0d8ff; }
+  .tile-inputs-top { display: flex; gap: 10px; background: #f0f7ff; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #c0d8ff; }
 </style>
 </head>
 
@@ -50,54 +57,66 @@
 <div class="wrap">
 
   <div class="card">
-    <h2>1️⃣ צילום שרטוט</h2>
-    <div id="statusBox" class="status">ממתין ל-OpenCV…</div>
+    <h2>1️⃣ צילום השרטוט</h2>
+    <div id="statusBox" class="status">טוען מערכת…</div>
     <div style="margin-top:12px">
       <video id="video" autoplay playsinline></video>
       <canvas id="photo" class="hidden"></canvas>
     </div>
     <div class="row" style="margin-top:12px">
-      <button id="btnShot" class="btn" type="button" disabled>📸 צלם</button>
-      <button id="btnRestart" class="btn secondary" type="button">🔄 אתחל מצלמה</button>
+      <button id="btnShot" class="btn" type="button" disabled>📸 צלם וזהה צלעות</button>
+      <button id="btnRestart" class="btn secondary" type="button">🔄 אתחל</button>
     </div>
   </div>
 
   <div class="card hidden" id="previewCard">
-    <h2>2️⃣ קווים מזוהים (שים לב למספרים!)</h2>
+    <h2>2️⃣ תוצאת זיהוי (התאם צבע למידה)</h2>
     <canvas id="overlay"></canvas>
-    <div class="note" style="color:red; font-weight:bold;">חשוב: הכנס את המידות בצעד הבא לפי המספרים שמופיעים על הקווים כאן למעלה.</div>
+    <div class="note">המערכת מסרה את הצלעות בצבעים שונים. בצעד הבא תזין מידות לפי הצבע התואם.</div>
   </div>
 
   <div class="card hidden" id="inputsCard">
-    <h2>3️⃣ הזן מידות לפי מספרי הצלעות</h2>
-    <div class="tile-inputs">
-      <div style="flex:1"><label>רוחב אריח</label><input id="tileW" type="number" value="60"></div>
-      <div style="flex:1"><label>אורך אריח</label><input id="tileH" type="number" value="120"></div>
+    <h2>3️⃣ הזן מידות (לפי הצבע בשרטוט)</h2>
+    <div class="tile-inputs-top">
+      <div style="flex:1"><label style="font-size:12px; font-weight:bold;">רוחב אריח</label><input id="tileW" type="number" value="60"></div>
+      <div style="flex:1"><label style="font-size:12px; font-weight:bold;">אורך אריח</label><input id="tileH" type="number" value="120"></div>
     </div>
     <div id="inputs"></div>
-    <button id="btnBuild" class="btn" type="button">📐 חשב השוואת ריצוף</button>
+    <button id="btnBuild" class="btn" type="button">📐 בנה שרטוט והשוואת ריצוף</button>
   </div>
 
   <div class="card hidden" id="resultCard">
-    <h2>4️⃣ תוצאה סופית (פרופורציה אמיתית)</h2>
+    <h2>4️⃣ פריסת ריצוף סופית</h2>
     <div id="results-wrapper">
       <div class="result-container-single" id="containerA">
-        <div class="tile-label" style="background: #eee;">כיוון א' (רוחב)</div>
+        <div class="tile-label" style="background: #eee;">כיוון א'</div>
         <canvas id="resultA" class="result-canvas"></canvas>
         <div id="reportA" class="tile-label"></div>
       </div>
       <div class="result-container-single" id="containerB">
-        <div class="tile-label" style="background: #eee;">כיוון ב' (אורך - 90°)</div>
+        <div class="tile-label" style="background: #eee;">כיוון ב' (סובב ב-90°)</div>
         <canvas id="resultB" class="result-canvas"></canvas>
         <div id="reportB" class="tile-label"></div>
       </div>
     </div>
-    <div id="generalReport" class="note" style="text-align:center; font-size:16px; margin-top:15px; font-weight:bold;"></div>
+    <div id="generalReport" class="note" style="text-align:center; font-size:18px; font-weight:bold; color:#111827;"></div>
   </div>
 
 </div>
 
 <script>
+  // רשימת צבעים בולטים למספור
+  const edgeColors = [
+    '#e11d48', // אדום
+    '#059669', // ירוק
+    '#2563eb', // כחול
+    '#7c3aed', // סגול
+    '#ea580c', // כתום
+    '#db2777', // ורוד
+    '#0891b2', // טורקיז
+    '#ca8a04'  // חרדל
+  ];
+
   let video = document.getElementById("video"), photo = document.getElementById("photo"), overlay = document.getElementById("overlay");
   let statusBox = document.getElementById("statusBox"), btnShot = document.getElementById("btnShot");
   let cvReady = false, videoReady = false, polyPts = [], edgeDirs = [], currentScale = 1, initialDist = 0;
@@ -112,7 +131,7 @@
 
   async function startCamera(){
     try {
-      let s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: 1280, height: 720 } });
+      let s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: 1920, height: 1080 } });
       video.srcObject = s; videoReady = true; if(cvReady) btnShot.disabled = false;
     } catch(e) { setStatus("שגיאת מצלמה", "bad"); }
   }
@@ -124,19 +143,20 @@
     photo.getContext("2d").drawImage(video, 0, 0);
     let src = cv.imread(photo), gray = new cv.Mat(), edges = new cv.Mat();
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    cv.Canny(gray, edges, 50, 150);
+    cv.Canny(gray, edges, 60, 180);
     let cnts = new cv.MatVector(), hi = new cv.Mat();
     cv.findContours(edges, cnts, hi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+    
     let big = null, maxA = 0;
     for(let i=0; i<cnts.size(); i++){
       let a = cv.contourArea(cnts.get(i)); if(a > maxA){ maxA = a; big = cnts.get(i); }
     }
+    
     let approx = new cv.Mat();
     cv.approxPolyDP(big, approx, 0.02 * cv.arcLength(big, true), true);
     polyPts = [];
     for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
     
-    // סדר נקודות סביב המרכז
     let c = {x: polyPts.reduce((a,b)=>a+b.x,0)/polyPts.length, y: polyPts.reduce((a,b)=>a+b.y,0)/polyPts.length};
     polyPts.sort((a,b) => Math.atan2(a.y-c.y, a.x-c.x) - Math.atan2(b.y-c.y, b.x-c.x));
 
@@ -144,20 +164,35 @@
     overlay.width = photo.width; overlay.height = photo.height;
     let octx = overlay.getContext("2d");
     octx.drawImage(photo, 0, 0);
-    octx.lineWidth = 6; octx.strokeStyle = "#2563eb"; octx.font = "bold 50px Arial"; octx.fillStyle = "red";
-    octx.beginPath(); octx.moveTo(polyPts[0].x, polyPts[0].y);
+    octx.lineWidth = 10;
+    
+    let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
+
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
-      octx.lineTo(p2.x, p2.y);
-      edgeDirs.push(snapDir(p2.x-p1.x, p2.y-p1.y));
-      octx.fillText(i+1, (p1.x+p2.x)/2, (p1.y+p2.y)/2);
-    }
-    octx.stroke();
+      let color = edgeColors[i % edgeColors.length];
+      
+      // ציור הקו בצבע הייחודי
+      octx.strokeStyle = color;
+      octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
+      
+      // ציור המספר עם רקע לבן כדי שיהיה ברור
+      let mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
+      octx.fillStyle = "white";
+      octx.beginPath(); octx.arc(mx, my, 35, 0, Math.PI*2); octx.fill();
+      octx.fillStyle = color; octx.font = "bold 50px Arial"; octx.textAlign="center"; octx.textBaseline="middle";
+      octx.fillText(i+1, mx, my);
 
-    let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
-    for(let i=0; i<polyPts.length; i++){
-      inpBox.innerHTML += `<div class="input-group"><label>צלע מס' ${i+1}</label><input type="number" class="side-val" placeholder="הכנס אורך לקו עם מספר ${i+1}"></div>`;
+      edgeDirs.push(snapDir(p2.x-p1.x, p2.y-p1.y));
+
+      // יצירת תיבת הזנה בצבע תואם
+      inpBox.innerHTML += `
+        <div class="input-group" style="border-color: ${color}">
+          <label style="color: ${color}">צלע מס' ${i+1} (בצבע השרטוט)</label>
+          <input type="number" class="side-val" placeholder="הכנס אורך בס״מ">
+        </div>`;
     }
+
     document.getElementById("previewCard").classList.remove("hidden");
     document.getElementById("inputsCard").classList.remove("hidden");
     src.delete(); gray.delete(); edges.delete(); cnts.delete(); hi.delete(); approx.delete();
@@ -176,32 +211,32 @@
     let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
     let spanX = maxX - minX, spanY = maxY - minY;
     
-    // קביעת גודל קנבס לפי פרופורציה אמיתית
     can.width = 1000; can.height = 1000 * (spanY/spanX);
-    let ctx = can.getContext("2d"), scale = (can.width - 80) / spanX, tx = (x)=>40+(x-minX)*scale, ty = (y)=>40+(y-minY)*scale;
+    let ctx = can.getContext("2d"), scale = (can.width - 100) / spanX, tx = (x)=>50+(x-minX)*scale, ty = (y)=>50+(y-minY)*scale;
 
     ctx.save(); ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.clip();
-    let count = 0; ctx.strokeStyle = "#ddd";
+    let count = 0; ctx.strokeStyle = "#eee";
     for(let x=minX; x<maxX; x+=tW) for(let y=minY; y<maxY; y+=tH) {
       ctx.strokeRect(tx(x), ty(y), tW*scale, tH*scale);
       if([{x:x,y:y},{x:x+tW,y:y},{x:x,y:y+tH},{x:x+tW,y:y+tH},{x:x+tW/2,y:y+tH/2}].some(p=>isInside(p, pts))) count++;
     }
     ctx.restore();
 
-    ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+    ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.stroke();
-    ctx.fillStyle = "#000"; ctx.font = "bold 20px Arial"; ctx.textAlign = "center";
+    
+    ctx.fillStyle = "#000"; ctx.font = "bold 22px Arial"; ctx.textAlign = "center";
     for(let i=0; i<sVals.length; i++){
-      ctx.fillText(sVals[i] + ' ס"מ', tx((pts[i].x+pts[i+1].x)/2), ty((pts[i].y+pts[i+1].y)/2) - 10);
+      ctx.fillText(sVals[i] + ' ס"מ', tx((pts[i].x+pts[i+1].x)/2), ty((pts[i].y+pts[i+1].y)/2) - 12);
     }
-    rep.innerHTML = "כמות דרושה: " + count + " אריחים";
+    rep.innerHTML = "כמות: " + count + " אריחים";
   }
 
   document.getElementById("btnBuild").onclick = () => {
     let sVals = [...document.getElementsByClassName("side-val")].map(i=>Number(i.value));
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
-    if(sVals.some(v=>v<=0)) return alert("הכנס מידות לכל הצלעות לפי המספרים!");
+    if(sVals.some(v=>v<=0)) return alert("הכנס מידות לכל הצבעים!");
 
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
     for(let i=0; i<edgeDirs.length; i++){
@@ -218,6 +253,7 @@
     document.getElementById("resultCard").scrollIntoView({behavior:"smooth"});
   };
 
+  // Pinch Zoom
   [document.getElementById("containerA"), document.getElementById("containerB")].forEach(c => {
     c.ontouchstart = (e) => { if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); };
     c.ontouchmove = (e) => { if(e.touches.length==2) {
@@ -233,4 +269,4 @@
 
 </body>
 </html>
-2
+3
