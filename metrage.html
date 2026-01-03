@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - ניהול פרויקט סופי</title>
+<title>שרטוט חכם - ניהול פרויקט גרסה סופית</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -41,6 +41,9 @@
   .tile-label-footer { padding: 10px; background: #f8fafc; border-top: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
   .tile-inputs-top { display: flex; gap: 10px; background: #f0f7ff; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #c0d8ff; }
   .project-item { padding: 12px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; background: white; border-radius: 8px; margin-bottom: 5px;}
+  .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; color: white; }
+  .badge.floor { background: var(--primary); }
+  .badge.wall { background: #7c3aed; }
 </style>
 </head>
 
@@ -48,7 +51,7 @@
 <div class="wrap">
 
   <div class="card" id="mainMenu">
-    <h2>📋 ניהול פרויקט בחדר</h2>
+    <h2>📋 ניהול פרויקט</h2>
     <div id="projectList" style="margin-bottom:10px;">טרם נוספו פריטים.</div>
     <div id="projectSummary" class="hidden" style="background:#e0f2fe; padding:12px; border-radius:10px; border:1px solid var(--primary); margin-bottom:15px;"></div>
     
@@ -131,7 +134,7 @@
   let projectItems = [], currentMode = 'floor', currentItemData = null, wallOrientation = null;
 
   window.onload = () => {
-    const saved = localStorage.getItem('floorProjectV3');
+    const saved = localStorage.getItem('floorProjectV4');
     if(saved) { projectItems = JSON.parse(saved); updateProjectUI(); }
   };
 
@@ -154,8 +157,7 @@
     document.getElementById('resultCard').classList.add('hidden');
     document.getElementById('inputsCard').classList.add('hidden');
     document.getElementById('previewCard').classList.add('hidden');
-    if(mode === 'floor') startCamera();
-    else { document.getElementById("btnRect").click(); } // קירות תמיד מתחילים במלבן מהיר
+    if(mode === 'floor') startCamera(); else document.getElementById("btnRect").click();
   }
 
   function hideMeasurement() {
@@ -166,7 +168,7 @@
   }
 
   function clearProject() {
-    if(confirm("למחוק הכל?")) { localStorage.removeItem('floorProjectV3'); location.reload(); }
+    if(confirm("למחוק הכל?")) { localStorage.removeItem('floorProjectV4'); location.reload(); }
   }
 
   overlay.onclick = (e) => {
@@ -203,13 +205,11 @@
     let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
     numberHitZones = []; edgeDirs = [];
     let octx = overlay.getContext("2d");
-    if(!withPhoto) { overlay.width = 600; overlay.height = 400; octx.fillStyle = "#fff"; octx.fillRect(0,0,600,400); }
-    else { octx.drawImage(photo, 0, 0); }
+    if(!withPhoto) { overlay.width = 600; overlay.height = 400; octx.fillStyle = "#fff"; octx.fillRect(0,0,600,400); } else octx.drawImage(photo, 0, 0);
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
-      octx.strokeStyle = color; octx.lineWidth = 12;
-      octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
+      octx.strokeStyle = color; octx.lineWidth = 12; octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
       let mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
       numberHitZones.push({ x: mx, y: my, radius: 50, id: `inp-${i}` });
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
@@ -273,15 +273,12 @@
     if(tW <= 0 || tH <= 0 || sVals.some(v=>v<=0)) return alert("מלא מידות!");
     let pts = [{x:0,y:0}], curX=0, curY=0;
     for(let i=0; i<edgeDirs.length; i++){ curX += edgeDirs[i].dx * sVals[i]; curY += edgeDirs[i].dy * sVals[i]; pts.push({x: curX, y: curY}); }
-    
-    let area = 0; for(let i=0; i<pts.length-1; i++) area += (pts[i].x*pts[i+1].y)-(pts[i+1].x*pts[i].y);
-    let areaM2 = Math.abs(area)/20000;
+    let areaM2 = Math.abs((()=>{let a=0;for(let i=0;i<pts.length-1;i++)a+=(pts[i].x*pts[i+1].y)-(pts[i+1].x*pts[i].y);return a;})())/20000;
 
-    // לוגיקה: אם זה קיר וזו לא הפעם הראשונה, הראה רק את הכיוון הנעול
     if(currentMode === 'wall' && wallOrientation) {
         let count = draw(document.getElementById("resultA"), pts, sVals, wallOrientation === 'A' ? tW : tH, wallOrientation === 'A' ? tH : tW);
         document.getElementById("containerB").classList.add('hidden');
-        document.getElementById("resHeaderA").textContent = `קיר (כיוון נעול) - ${wallOrientation === 'A' ? tW : tH}x${wallOrientation === 'A' ? tH : tW}`;
+        document.getElementById("resHeaderA").textContent = `קיר - ${wallOrientation === 'A' ? tW : tH}x${wallOrientation === 'A' ? tH : tW}`;
         document.getElementById("reportA").innerHTML = `כמות: ${count} יחידות | שטח: ${areaM2.toFixed(2)} מ"ר`;
         currentItemData = { mode: 'wall', area: areaM2, count, tW: wallOrientation === 'A' ? tW : tH, tH: wallOrientation === 'A' ? tH : tW, sVals, pts };
     } else {
@@ -299,36 +296,39 @@
   };
 
   function confirmSave(opt) {
-    if(currentMode === 'wall' && !wallOrientation) wallOrientation = opt; // נועל כיוון בקיר הראשון
-    let finalItem = {...currentItemData};
-    if(opt) {
+    if(currentMode === 'wall' && !wallOrientation) wallOrientation = opt;
+    let finalItem = JSON.parse(JSON.stringify(currentItemData));
+    
+    // תיקון: אם יש אופציות א'/ב' (רצפה או קיר ראשון), נבחר אחת. אחרת נשתמש ב'count' הקיים.
+    if(currentItemData.countA !== undefined) {
         finalItem.count = opt === 'A' ? currentItemData.countA : currentItemData.countB;
         finalItem.tW = opt === 'A' ? currentItemData.tW : currentItemData.tH;
         finalItem.tH = opt === 'A' ? currentItemData.tH : currentItemData.tW;
+        delete finalItem.countA; delete finalItem.countB;
     }
+    
     projectItems.push(finalItem);
-    localStorage.setItem('floorProjectV3', JSON.stringify(projectItems));
+    localStorage.setItem('floorProjectV4', JSON.stringify(projectItems));
     updateProjectUI();
     if(currentMode === 'wall') {
         document.getElementById('measurementSection').classList.add('hidden');
         document.getElementById('postWallMenu').classList.remove('hidden');
-    } else {
-        hideMeasurement();
-    }
+    } else hideMeasurement();
   }
 
   function duplicateLastWall() {
     let last = projectItems.filter(i => i.mode === 'wall').pop();
-    if(last) { projectItems.push({...last}); localStorage.setItem('floorProjectV3', JSON.stringify(projectItems)); updateProjectUI(); }
+    if(last) { projectItems.push(JSON.parse(JSON.stringify(last))); localStorage.setItem('floorProjectV4', JSON.stringify(projectItems)); updateProjectUI(); }
   }
 
   function updateProjectUI() {
     let list = document.getElementById('projectList'), summary = document.getElementById('projectSummary');
     list.innerHTML = "";
+    if(projectItems.length === 0) { list.innerHTML = "טרם נוספו פריטים."; summary.classList.add('hidden'); document.getElementById('finalPdfSection').classList.add('hidden'); return; }
     let fM2=0, fT=0, wM2=0, wT=0, hasFloor=false;
     projectItems.forEach((item, i) => {
       list.innerHTML += `<div class="project-item"><span><b>#${i+1} ${item.mode==='floor'?'רצפה':'קיר'}</b> (${item.area.toFixed(2)} מ"ר)</span><span>${item.count} יח'</span></div>`;
-      if(item.mode==='floor'){ fM2+=item.area; fT+=item.count; hasFloor=true; } else { wM2+=item.area; wT+=item.count; }
+      if(item.mode==='floor'){ fM2+=item.area; fT+=Number(item.count); hasFloor=true; } else { wM2+=item.area; wT+=Number(item.count); }
     });
     summary.innerHTML = `<b>סיכום:</b> ריצוף: ${fM2.toFixed(2)} מ"ר (${fT} יח') | חיפוי: ${wM2.toFixed(2)} מ"ר (${wT} יח')`;
     summary.classList.remove('hidden'); document.getElementById('finalPdfSection').classList.remove('hidden');
@@ -347,21 +347,18 @@
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', [210, (canvasPdf.height * 210) / canvasPdf.width]);
     pdf.addImage(canvasPdf.toDataURL('image/png'), 'PNG', 0, 0, 210, (canvasPdf.height * 210) / canvasPdf.width);
-    const file = new File([pdf.output('blob')], 'Project_Measurements.pdf', { type: 'application/pdf' });
+    const file = new File([pdf.output('blob')], 'Report.pdf', { type: 'application/pdf' });
     if (navigator.share) await navigator.share({ files: [file], title: 'דוח מדידות' }); else pdf.save("Project.pdf");
   };
 
   function setStatus(m, t){ statusBox.textContent = m; statusBox.className = "status " + (t||""); }
 
-  // Pinch Zoom
   [document.getElementById("resultA"), document.getElementById("resultB")].forEach(can => {
     let s = 1, d0 = 0;
     can.parentElement.addEventListener('touchstart', e => { if(e.touches.length==2) d0 = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); });
-    can.parentElement.addEventListener('touchmove', e => {
-      if(e.touches.length==2){ e.preventDefault(); let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); s = Math.min(Math.max(0.5, s * (d/d0)), 5); can.style.transform = `scale(${s})`; d0 = d; }
-    }, {passive:false});
+    can.parentElement.addEventListener('touchmove', e => { if(e.touches.length==2){ e.preventDefault(); let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); s = Math.min(Math.max(0.5, s*(d/d0)), 5); can.style.transform=`scale(${s})`; d0=d; } }, {passive:false});
   });
 </script>
 </body>
 </html>
-24
+26
