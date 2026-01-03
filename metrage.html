@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - חישוב אריחים מדויק</title>
+<title>שרטוט חכם - חישוב אריחים לפי חיתוך</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -35,7 +35,6 @@
   .tile-label-header { padding: 10px; background: #f8fafc; border-bottom: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
   .tile-label-footer { padding: 10px; background: #f8fafc; border-top: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
   .status{ padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; margin-bottom:10px;}
-  .status.good{border-color:#22c55e; color:#15803d; font-weight:bold;}
 </style>
 </head>
 
@@ -43,16 +42,16 @@
 <div class="wrap">
 
   <div class="card" id="settingsScreen">
-    <h2>📐 הגדרות מידות (ס"מ)</h2>
-    <div style="background: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
+    <h2>📐 הגדרות מידות אריחים (ס"מ)</h2>
+    <div style="background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
         <h4 style="margin-top:0">אריחי רצפה:</h4>
         <div style="display: flex; gap: 10px;">
             <div style="flex:1"><label>רוחב</label><input id="floorTileW" type="number" placeholder="ס״מ"></div>
             <div style="flex:1"><label>אורך</label><input id="floorTileH" type="number" placeholder="ס״מ"></div>
         </div>
     </div>
-    <div style="background: #fef2f2; padding: 10px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #fee2e2;">
-        <h4 style="margin-top:0">אריחי קיר:</h4>
+    <div style="background: #fff1f2; padding: 12px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #fecdd3;">
+        <h4 style="margin-top:0">אריחי קירות:</h4>
         <div style="display: flex; gap: 10px;">
             <div style="flex:1"><label>רוחב</label><input id="wallTileW" type="number" placeholder="ס״מ"></div>
             <div style="flex:1"><label>אורך</label><input id="wallTileH" type="number" placeholder="ס״מ"></div>
@@ -62,8 +61,8 @@
         <label>גובה תקרה בחדר:</label>
         <input id="ceilingHeight" type="number" placeholder="ס״מ">
     </div>
-    <button onclick="saveSettings()" class="btn success">המשך למדידת רצפה ➡️</button>
-    <button onclick="loadSavedProject()" id="btnResume" class="btn secondary hidden" style="margin-top:10px;">טען פרויקט שמור</button>
+    <button onclick="saveSettings()" class="btn success">המשך למדידה ➡️</button>
+    <button onclick="loadSavedProject()" id="btnResume" class="btn secondary hidden" style="margin-top:10px;">טען פרויקט קודם</button>
   </div>
 
   <div id="measurementSection" class="hidden">
@@ -86,7 +85,7 @@
 
     <div class="card hidden" id="inputsCard">
         <div id="inputs"></div>
-        <button onclick="processFloorResults()" class="btn">📐 חשב כמויות והשוואה</button>
+        <button onclick="processFloorResults()" class="btn">📐 חשב כמויות וקירות</button>
     </div>
 
     <div class="card hidden" id="floorResultCard">
@@ -106,7 +105,7 @@
     </div>
 
     <div class="card hidden" id="wallLockCard">
-        <h2>בחר כיוון אריח לקירות</h2>
+        <h2>בחר כיוון חיפוי לקירות</h2>
         <div class="result-container-single">
             <div class="tile-label-header">אופציה א'</div>
             <canvas id="wallResA" class="result-canvas"></canvas>
@@ -124,11 +123,11 @@
 
   <div id="finalDashboard" class="card hidden">
       <div id="pdfContent" style="background:white; padding:15px; direction:rtl;">
-          <h1 style="text-align:center; color:#2563eb;">דו"ח מדידות וחישוב אריחים</h1>
+          <h1 style="text-align:center; color:#2563eb;">דו"ח סיכום פרויקט</h1>
           <div id="summaryBox" style="background:#e0f2fe; padding:15px; border-radius:12px; margin-bottom:15px; border: 2px solid #2563eb;"></div>
           <div id="itemsDetail"></div>
       </div>
-      <button onclick="sharePDF()" class="btn success">📄 שלח דוח מלא (PDF)</button>
+      <button onclick="sharePDF()" class="btn success">📄 שלח דו"ח מלא (PDF)</button>
       <button onclick="clearAll()" class="btn danger" style="margin-top:10px;">🗑️ מחק הכל</button>
   </div>
 
@@ -140,7 +139,7 @@
   let cvReady = false, videoReady = false, polyPts = [], edgeDirs = [], numberHitZones = [];
   let settings = {}, projectData = { floor: null, walls: [], floorOrientation: null, wallOrientation: null };
 
-  window.onload = () => { if(localStorage.getItem('smartProjectFinal')) document.getElementById('btnResume').classList.remove('hidden'); };
+  window.onload = () => { if(localStorage.getItem('smartProjFinalV2')) document.getElementById('btnResume').classList.remove('hidden'); };
 
   function __onCvScriptLoaded(){
     const wait = setInterval(() => { if (window.cv && cv.Mat) { cvReady = true; setStatus("מערכת מוכנה ✅", "good"); document.getElementById("btnShot").disabled = !videoReady; clearInterval(wait); } }, 100);
@@ -157,10 +156,8 @@
 
   function saveSettings() {
     settings = {
-        fW: Number(document.getElementById('floorTileW').value),
-        fH: Number(document.getElementById('floorTileH').value),
-        wW: Number(document.getElementById('wallTileW').value),
-        wH: Number(document.getElementById('wallTileH').value),
+        fW: Number(document.getElementById('floorTileW').value), fH: Number(document.getElementById('floorTileH').value),
+        wW: Number(document.getElementById('wallTileW').value), wH: Number(document.getElementById('wallTileH').value),
         h: Number(document.getElementById('ceilingHeight').value)
     };
     if(!settings.fW || !settings.fH) return alert("אנא הזן מידות אריח לרצפה");
@@ -170,7 +167,7 @@
   }
 
   function loadSavedProject() {
-    projectData = JSON.parse(localStorage.getItem('smartProjectFinal'));
+    projectData = JSON.parse(localStorage.getItem('smartProjFinalV2'));
     settings = projectData.settings;
     document.getElementById('settingsScreen').classList.add('hidden');
     showDashboard();
@@ -220,7 +217,7 @@
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
       octx.fillStyle = color; octx.font = "bold 55px Arial"; octx.textAlign="center"; octx.textBaseline="middle"; octx.fillText(i+1, mx, my);
       edgeDirs.push(Math.abs(p2.x-p1.x) >= Math.abs(p2.y-p1.y) ? {dx: Math.sign(p2.x-p1.x)||1, dy:0} : {dx:0, dy:Math.sign(p2.y-p1.y)||1});
-      inpBox.innerHTML += `<div class="input-group" style="border-color: ${color}"><label style="color: ${color}">צלע ${i+1} (רוחב)</label><input type="number" id="inp-${i}" class="side-val" oninput="liveSolve()"></div>`;
+      inpBox.innerHTML += `<div class="input-group" style="border-color: ${color}"><label style="color: ${color}">צלע ${i+1} (רוחב בקיר)</label><input type="number" id="inp-${i}" class="side-val" oninput="liveSolve()"></div>`;
     }
     document.getElementById("previewCard").classList.remove("hidden");
     document.getElementById("inputsCard").classList.remove("hidden");
@@ -250,7 +247,13 @@
     for (let zone of numberHitZones) { if (Math.hypot(x-zone.x, y-zone.y) < zone.radius) { let t = document.getElementById(zone.id); if(t){ t.scrollIntoView({behavior:'smooth',block:'center'}); t.focus(); } break; } }
   };
 
-  // --- לוגיקת חישוב אריחים מדויקת (ספירת כל יחידה שנוגעת) ---
+  // --- פונקציית חישוב אריחים מקצועית לפי חיתוך (CEIL) ---
+  function calculateTilesCeil(width, height, tileW, tileH) {
+    let cols = Math.ceil(width / tileW);
+    let rows = Math.ceil(height / tileH);
+    return cols * rows;
+  }
+
   function drawGrid(can, pts, sVals, tW, tH) {
     let xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
     let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
@@ -258,33 +261,11 @@
     can.width = 1000; can.height = 1000 * (spanY/spanX);
     let ctx = can.getContext("2d"), pad = 80, scale = Math.min((1000-2*pad)/spanX, (can.height-2*pad)/spanY);
     let tx = (x)=>pad+(x-minX)*scale, ty = (y)=>pad+(y-minY)*scale;
-    
     ctx.save(); ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     for(let i=1; i<pts.length; i++) ctx.lineTo(tx(pts[i].x), ty(pts[i].y));
     ctx.closePath(); ctx.clip();
-    
     ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 2;
-    let count = 0;
-    // רשת אריחים
-    for(let x=minX - tW; x < maxX + tW; x += tW) {
-      for(let y=minY - tH; y < maxY + tH; y += tH) {
-        let tilePoly = [{x:x,y:y},{x:x+tW,y:y},{x:x+tW,y:y+tH},{x:x,y:y+tH}];
-        let touches = false;
-        // בדיקת נקודות האריח (פינות ומרכז) בתוך הצורה
-        let testPoints = [{x:x,y:y},{x:x+tW,y:y},{x:x,y:y+tH},{x:x+tW,y:y+tH},{x:x+tW/2,y:y+tH/2}];
-        for(let p of testPoints) {
-            let inside = false;
-            for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-                if (((pts[i].y > p.y) !== (pts[j].y > p.y)) && (p.x < (pts[j].x-pts[i].x)*(p.y-pts[i].y)/(pts[j].y-pts[i].y)+pts[i].x)) inside = !inside;
-            }
-            if(inside) { touches = true; break; }
-        }
-        if(touches) {
-            ctx.strokeRect(tx(x), ty(y), tW*scale, tH*scale);
-            count++;
-        }
-      }
-    }
+    for(let x=minX-tW; x<maxX+tW; x+=tW) for(let y=minY-tH; y<maxY+tH; y+=tH) ctx.strokeRect(tx(x), ty(y), tW*scale, tH*scale);
     ctx.restore();
     ctx.lineWidth = 12; ctx.font = "bold 30px Arial"; ctx.textAlign = "center";
     for(let i=0; i<sVals.length; i++){
@@ -293,7 +274,8 @@
       let angle = Math.atan2(ty(p2.y)-ty(p1.y), tx(p2.x)-tx(p1.x)); if(angle > Math.PI/2 || angle < -Math.PI/2) angle += Math.PI;
       ctx.save(); ctx.translate(tx((p1.x+p2.x)/2), ty((p1.y+p2.y)/2)); ctx.rotate(angle); ctx.fillStyle = color; ctx.fillText(sVals[i], 0, -35); ctx.restore();
     }
-    return count;
+    // החישוב מתבצע עבור המלבן החוסם של הצורה (לפי חיתוכים)
+    return calculateTilesCeil(spanX, spanY, tW, tH);
   }
 
   function processFloorResults() {
@@ -316,8 +298,7 @@
     projectData.floorOrientation = opt;
     let tW = opt === 'A' ? settings.fW : settings.fH;
     let tH = opt === 'A' ? settings.fH : settings.fW;
-    let can = document.createElement('canvas');
-    let count = drawGrid(can, projectData.tempFloor.pts, projectData.tempFloor.sVals, tW, tH);
+    let count = calculateTilesCeil(Math.max(...projectData.tempFloor.pts.map(p=>p.x))-Math.min(...projectData.tempFloor.pts.map(p=>p.x)), Math.max(...projectData.tempFloor.pts.map(p=>p.y))-Math.min(...projectData.tempFloor.pts.map(p=>p.y)), tW, tH);
     projectData.floor = { pts: projectData.tempFloor.pts, sVals: projectData.tempFloor.sVals, area: projectData.tempFloor.areaM2, tW, tH, count };
     if(settings.h > 0) {
         document.getElementById("floorResultCard").classList.add("hidden");
@@ -339,8 +320,7 @@
         let w = projectData.floor.sVals[i];
         let pts = [{x:0,y:0}, {x:w,y:0}, {x:w,y:settings.h}, {x:0,y:settings.h}, {x:0,y:0}];
         let sVals = [w, settings.h, w, settings.h];
-        let can = document.createElement('canvas');
-        let count = drawGrid(can, pts, sVals, tW, tH);
+        let count = calculateTilesCeil(w, settings.h, tW, tH);
         projectData.walls.push({ pts, sVals, area: (w * settings.h)/10000, count, tW, tH, edgeNum: i+1 });
     }
     showDashboard();
@@ -348,14 +328,13 @@
 
   function showDashboard() {
     projectData.settings = settings;
-    localStorage.setItem('smartProjectFinal', JSON.stringify(projectData));
+    localStorage.setItem('smartProjFinalV2', JSON.stringify(projectData));
     document.getElementById('measurementSection').classList.add('hidden');
     document.getElementById('finalDashboard').classList.remove('hidden');
     let sum = document.getElementById('summaryBox'), detail = document.getElementById('itemsDetail');
     detail.innerHTML = "";
     let totalWallM2 = 0, totalWallTiles = 0;
-    let fCan = document.createElement('canvas');
-    drawGrid(fCan, projectData.floor.pts, projectData.floor.sVals, projectData.floor.tW, projectData.floor.tH);
+    let fCan = document.createElement('canvas'); drawGrid(fCan, projectData.floor.pts, projectData.floor.sVals, projectData.floor.tW, projectData.floor.tH);
     detail.innerHTML += `<div class="card"><h3>רצפה (${projectData.floor.tW}x${projectData.floor.tH})</h3><img src="${fCan.toDataURL()}" style="width:100%"><p>שטח: ${projectData.floor.area.toFixed(2)} מ"ר | אריחים: ${projectData.floor.count}</p></div>`;
     projectData.walls.forEach(w => {
         totalWallM2 += w.area; totalWallTiles += w.count;
@@ -365,7 +344,7 @@
     sum.innerHTML = `<h3 style="margin:0">סה"כ ריצוף: ${projectData.floor.area.toFixed(2)} מ"ר (${projectData.floor.count} יח')</h3><h3 style="margin:5px 0 0">סה"כ חיפוי: ${totalWallM2.toFixed(2)} מ"ר (${totalWallTiles} יח')</h3>`;
   }
 
-  function clearAll() { if(confirm("למחוק הכל?")) { localStorage.removeItem('smartProjectFinal'); location.reload(); } }
+  function clearAll() { if(confirm("למחוק הכל?")) { localStorage.removeItem('smartProjFinalV2'); location.reload(); } }
 
   async function sharePDF() {
     const el = document.getElementById('pdfContent');
@@ -379,4 +358,4 @@
 </script>
 </body>
 </html>
-28
+29
