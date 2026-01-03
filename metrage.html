@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - השוואת ריצוף צבעונית</title>
+<title>שרטוט חכם - סופי</title>
 
 <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="__onCvScriptLoaded()"></script>
 
@@ -99,7 +99,6 @@
 </div>
 
 <script>
-  // רשימת הצבעים הקבועה לכל אורך התהליך
   const edgeColors = ['#FF0000', '#059669', '#2563eb', '#7c3aed', '#ea580c', '#db2777', '#0891b2', '#ca8a04'];
 
   let video = document.getElementById("video"), photo = document.getElementById("photo"), overlay = document.getElementById("overlay");
@@ -141,11 +140,9 @@
     if(!big) return alert("לא מצאתי את הצורה. נסה לצלם שוב.");
     let approx = new cv.Mat();
     cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
-    
     polyPts = [];
     for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
 
-    // סדר שעון מלמעלה
     let polyArea = 0;
     for (let i = 0; i < polyPts.length; i++) {
         let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length];
@@ -165,7 +162,6 @@
     octx.drawImage(photo, 0, 0);
     octx.lineWidth = 12;
     let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
-    
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
@@ -194,15 +190,13 @@
     return inside;
   }
 
-  // פונקציית הציור המעודכנת עם צלעות צבעוניות
   function draw(can, rep, pts, sVals, tW, tH) {
     let xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
     let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
     let spanX = maxX - minX || 1, spanY = maxY - minY || 1;
     can.width = 1000; can.height = 1000 * (spanY/spanX);
-    let ctx = can.getContext("2d"), scale = (can.width - 120) / spanX, tx = (x)=>60+(x-minX)*scale, ty = (y)=>60+(y-minY)*scale;
+    let ctx = can.getContext("2d"), scale = (can.width - 150) / spanX, tx = (x)=>75+(x-minX)*scale, ty = (y)=>75+(y-minY)*scale;
 
-    // ציור ריצוף (Clipping)
     ctx.save(); ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     pts.forEach(p => ctx.lineTo(tx(p.x), ty(p.y))); ctx.closePath(); ctx.clip();
     let count = 0; ctx.strokeStyle = "#e2e8f0";
@@ -212,9 +206,12 @@
     }
     ctx.restore();
 
-    // ציור צלעות בשרטוט הסופי - כל אחת בצבע שלה!
     ctx.lineWidth = 10;
     ctx.lineCap = "round";
+    ctx.font = "bold 28px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
     for(let i=0; i<sVals.length; i++){
       let p1 = pts[i], p2 = pts[i+1];
       let color = edgeColors[i % edgeColors.length];
@@ -225,12 +222,23 @@
       ctx.lineTo(tx(p2.x), ty(p2.y));
       ctx.stroke();
 
-      // כתיבת מידה בצבע תואם
-      ctx.fillStyle = color;
-      ctx.font = "bold 26px Arial";
-      ctx.textAlign = "center";
       let mx = tx((p1.x+p2.x)/2), my = ty((p1.y+p2.y)/2);
-      ctx.fillText(sVals[i], mx, my - 15);
+      let dx = tx(p2.x) - tx(p1.x);
+      let dy = ty(p2.y) - ty(p1.y);
+      let angle = Math.atan2(dy, dx);
+
+      // הופך טקסט אם הוא הפוך
+      if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
+          angle += Math.PI;
+      }
+
+      ctx.save();
+      ctx.translate(mx, my);
+      ctx.rotate(angle);
+      ctx.fillStyle = color;
+      // הזזה של הטקסט מעל הקו
+      ctx.fillText(sVals[i], 0, -25);
+      ctx.restore();
     }
     
     rep.innerHTML = "כמות דרושה: " + count + " יחידות";
@@ -265,7 +273,6 @@
   startCamera();
   document.getElementById("btnRestart").onclick = () => location.reload();
 
-  // Pinch Zoom
   [document.getElementById("containerA"), document.getElementById("containerB")].forEach(c => {
     c.ontouchstart = (e) => { if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); };
     c.ontouchmove = (e) => { if(e.touches.length==2) {
@@ -278,4 +285,4 @@
 
 </body>
 </html>
-7
+9
