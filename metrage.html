@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - גרסה סופית עם PDF ומלבן מהיר</title>
+<title>שרטוט חכם - גרסה סופית עם PDF תקין</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -87,8 +87,9 @@
       </div>
 
       <div class="card hidden" id="resultCard">
-        <div id="pdfContent">
-            <h2>4️⃣ השוואת פריסה סופית</h2>
+        <div id="pdfContent" style="background: white; padding: 10px;">
+            <h2 style="text-align: center; color: #2563eb;">דוח פריסת ריצוף ומדידות</h2>
+            <hr>
             <div id="results-wrapper">
               <div class="result-container-single" id="containerA">
                 <div class="tile-label" style="background: #f1f5f9;">אופציה א' (כיוון מקורי)</div>
@@ -103,7 +104,8 @@
             </div>
             <div id="generalReport" class="note" style="text-align:center; font-size:18px; font-weight:bold; color:#111827; background:#e0f2fe; padding:15px; border-radius:12px;"></div>
         </div>
-        <button id="btnShare" class="btn success" style="margin-top:15px;" type="button">📄 שלח שרטוט (PDF)</button>
+        
+        <button id="btnShare" class="btn success" style="margin-top:15px;" type="button">📄 שלח שרטוט מלא (PDF)</button>
       </div>
   </div>
 
@@ -132,51 +134,34 @@
 
   function snapDir(dx, dy){ return Math.abs(dx) >= Math.abs(dy) ? {dx: Math.sign(dx)||1, dy:0} : {dx:0, dy:Math.sign(dy)||1}; }
 
-  // --- פונקציה לבניית ממשק הזנת המידות ---
   function buildInputsInterface() {
     let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
     numberHitZones = [];
     edgeDirs = [];
-    
-    // ניקוי הקנבס של ה-preview אם אנחנו במצב מלבן ללא תמונה
     let octx = overlay.getContext("2d");
     if(!polyPts[0].isReal) {
         overlay.width = 600; overlay.height = 400;
         octx.fillStyle = "#fff"; octx.fillRect(0,0,600,400);
     }
-
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
       octx.strokeStyle = color; octx.lineWidth = 12;
       octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
-      
       let mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
       numberHitZones.push({ x: mx, y: my, radius: 45, id: `edge-input-${i}` });
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
       octx.fillStyle = color; octx.font = "bold 60px Arial"; octx.textAlign="center"; octx.textBaseline="middle";
       octx.fillText(i+1, mx, my);
       edgeDirs.push(snapDir(p2.x-p1.x, p2.y-p1.y));
-      
-      inpBox.innerHTML += `
-        <div class="input-group" id="group-${i}" style="border-color: ${color}">
-          <label style="color: ${color}">צלע מס' ${i+1}</label>
-          <input type="number" id="edge-input-${i}" class="side-val" placeholder="הכנס אורך ס״מ" oninput="liveAutoSolve()">
-        </div>`;
+      inpBox.innerHTML += `<div class="input-group" id="group-${i}" style="border-color: ${color}"><label style="color: ${color}">צלע מס' ${i+1}</label><input type="number" id="edge-input-${i}" class="side-val" placeholder="הכנס אורך ס״מ" oninput="liveAutoSolve()"></div>`;
     }
     document.getElementById("previewCard").classList.remove("hidden");
     document.getElementById("inputsCard").classList.remove("hidden");
   }
 
-  // --- כפתור מלבן מוכן ---
   document.getElementById("btnRect").onclick = () => {
-    // יצירת מלבן ידני
-    polyPts = [
-        {x: 100, y: 50, isReal: false}, // פינה עליונה שמאלית
-        {x: 500, y: 50, isReal: false}, // פינה עליונה ימנית
-        {x: 500, y: 350, isReal: false}, // פינה תחתונה ימנית
-        {x: 100, y: 350, isReal: false}  // פינה תחתונה שמאלית
-    ];
+    polyPts = [{x:100,y:50,isReal:false},{x:500,y:50,isReal:false},{x:500,y:350,isReal:false},{x:100,y:350,isReal:false}];
     buildInputsInterface();
     document.getElementById("inputsCard").scrollIntoView({behavior: "smooth"});
   };
@@ -193,28 +178,18 @@
     let cnts = new cv.MatVector(), hi = new cv.Mat();
     cv.findContours(edges, cnts, hi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
     let big = null, maxA = 0;
-    for(let i=0; i<cnts.size(); i++){
-      let a = cv.contourArea(cnts.get(i)); if(a > maxA){ maxA = area; big = cnts.get(i); }
-    }
+    for(let i=0; i<cnts.size(); i++){ let a = cv.contourArea(cnts.get(i)); if(a > maxA){ maxA = a; big = cnts.get(i); } }
     if(!big) return alert("לא מצאתי את הצורה.");
     let approx = new cv.Mat();
     cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
     polyPts = [];
     for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1], isReal: true});
-
     let polyArea = 0;
-    for (let i = 0; i < polyPts.length; i++) {
-        let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length];
-        polyArea += (p2.x - p1.x) * (p2.y + p1.y);
-    }
+    for (let i = 0; i < polyPts.length; i++) { let p1 = polyPts[i], p2 = polyPts[(i + 1) % polyPts.length]; polyArea += (p2.x - p1.x) * (p2.y + p1.y); }
     if (polyArea < 0) polyPts.reverse();
     let topIdx = 0, minY = polyPts[0].y;
-    for (let i = 1; i < polyPts.length; i++) {
-        if (polyPts[i].y < minY) { minY = polyPts[i].y; topIdx = i; }
-        else if (polyPts[i].y === minY && polyPts[i].x < polyPts[topIdx].x) topIdx = i;
-    }
+    for (let i = 1; i < polyPts.length; i++) { if (polyPts[i].y < minY) { minY = polyPts[i].y; topIdx = i; } else if (polyPts[i].y === minY && polyPts[i].x < polyPts[topIdx].x) topIdx = i; }
     polyPts = polyPts.slice(topIdx).concat(polyPts.slice(0, topIdx));
-
     overlay.width = photo.width; overlay.height = photo.height;
     overlay.getContext("2d").drawImage(photo, 0, 0);
     buildInputsInterface();
@@ -225,22 +200,14 @@
     const rect = overlay.getBoundingClientRect();
     const scaleX = overlay.width / rect.width, scaleY = overlay.height / rect.height;
     const clickX = (e.clientX - rect.left) * scaleX, clickY = (e.clientY - rect.top) * scaleY;
-    for (let zone of numberHitZones) {
-      if (Math.hypot(clickX - zone.x, clickY - zone.y) < zone.radius) {
-        let t = document.getElementById(zone.id);
-        if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.focus(); }
-        break;
-      }
-    }
+    for (let zone of numberHitZones) { if (Math.hypot(clickX - zone.x, clickY - zone.y) < zone.radius) { let t = document.getElementById(zone.id); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.focus(); } break; } }
   };
 
   function liveAutoSolve() {
     let inputs = [...document.getElementsByClassName("side-val")];
     let sVals = inputs.map(i => (i.value === "" || i.classList.contains('auto-filled')) ? null : Number(i.value));
     let horiz = [], vert = [];
-    for(let i=0; i<edgeDirs.length; i++) {
-      if (edgeDirs[i].dx !== 0) horiz.push(i); else vert.push(i);
-    }
+    for(let i=0; i<edgeDirs.length; i++) { if (edgeDirs[i].dx !== 0) horiz.push(i); else vert.push(i); }
     const solve = (indices, isX) => {
       let missing = indices.filter(idx => sVals[idx] === null);
       if (missing.length === 1) {
@@ -248,18 +215,14 @@
         indices.forEach(idx => { if (idx !== targetIdx && sVals[idx] !== null) sum += (isX ? edgeDirs[idx].dx : edgeDirs[idx].dy) * sVals[idx]; });
         let result = Math.abs(sum);
         if (result > 0) { inputs[targetIdx].value = result; inputs[targetIdx].classList.add("auto-filled"); }
-      } else {
-        indices.forEach(idx => { if(inputs[idx].classList.contains('auto-filled')) { inputs[idx].value = ""; inputs[idx].classList.remove("auto-filled"); } });
-      }
+      } else { indices.forEach(idx => { if(inputs[idx].classList.contains('auto-filled')) { inputs[idx].value = ""; inputs[idx].classList.remove("auto-filled"); } }); }
     };
     solve(horiz, true); solve(vert, false);
   }
 
   function isInside(p, poly) {
     let inside = false;
-    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-      if (((poly[i].y > p.y) !== (poly[j].y > p.y)) && (p.x < (poly[j].x - poly[i].x) * (p.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)) inside = !inside;
-    }
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { if (((poly[i].y > p.y) !== (poly[j].y > p.y)) && (p.x < (poly[j].x - poly[i].x) * (p.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)) inside = !inside; }
     return inside;
   }
 
@@ -293,47 +256,55 @@
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
     if(tW <= 0 || tH <= 0 || sVals.some(v=>v<=0)) return alert("אנא מלא את כל המידות!");
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
-    for(let i=0; i<edgeDirs.length; i++){
-        curX += edgeDirs[i].dx * sVals[i]; curY += edgeDirs[i].dy * sVals[i];
-        pts.push({x: curX, y: curY});
-    }
+    for(let i=0; i<edgeDirs.length; i++){ curX += edgeDirs[i].dx * sVals[i]; curY += edgeDirs[i].dy * sVals[i]; pts.push({x: curX, y: curY}); }
     draw(document.getElementById("resultA"), document.getElementById("reportA"), pts, sVals, tW, tH);
     draw(document.getElementById("resultB"), document.getElementById("reportB"), pts, sVals, tH, tW);
     let area = 0; for(let i=0; i<pts.length-1; i++) area += (pts[i].x*pts[i+1].y)-(pts[i+1].x*pts[i].y);
     let perimeter = sVals.reduce((a,b)=>a+b, 0);
-    document.getElementById("generalReport").innerHTML = `📐 שטח: ${(Math.abs(area)/20000).toFixed(2)} מ"ר | 📏 היקף: ${perimeter} ס״מ`;
+    document.getElementById("generalReport").innerHTML = `📐 שטח: ${(Math.abs(area)/20000).toFixed(2)} מ"ר | 📏 היקף (פנלים): ${perimeter} ס״מ (${(perimeter/100).toFixed(2)} מטר)`;
     document.getElementById("resultCard").classList.remove("hidden");
     document.getElementById("resultCard").scrollIntoView({behavior:"smooth"});
   };
 
-  // --- פונקציית שליחת PDF ---
+  // --- תיקון פונקציית ה-PDF ---
   document.getElementById("btnShare").onclick = async () => {
-    setStatus("מכין קובץ PDF...", "good");
+    setStatus("מכין קובץ PDF מלא...", "good");
     const element = document.getElementById('pdfContent');
-    const canvas = await html2canvas(element, { scale: 2 });
+
+    // צילום האלמנט ברזולוציה גבוהה
+    const canvas = await html2canvas(element, { 
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff"
+    });
+
     const imgData = canvas.toDataURL('image/png');
-    
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
     
-    pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+    // יצירת PDF בגודל מותאם לתוכן (לא מוגבל ל-A4 קבוע)
+    const pdfWidth = 210; // רוחב A4 סטנדרטי במ"מ
+    const pageHeight = (canvas.height * pdfWidth) / canvas.width;
+    
+    // יצירת PDF עם גובה דף דינמי כדי ששום דבר לא ייחתך
+    const pdf = new jsPDF('p', 'mm', [pdfWidth, pageHeight]);
+    
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pageHeight);
+    
     const pdfBlob = pdf.output('blob');
-    const file = new File([pdfBlob], 'FloorPlan.pdf', { type: 'application/pdf' });
+    const file = new File([pdfBlob], 'FloorPlan_Full.pdf', { type: 'application/pdf' });
 
     if (navigator.share) {
       try {
         await navigator.share({
           files: [file],
-          title: 'שרטוט רצפה ומדידות',
-          text: 'מצורף שרטוט הפריסה והמדידות שלי.'
+          title: 'דוח שרטוט ומדידות מלא',
+          text: 'מצורף הדוח המלא הכולל את שתי האופציות והמטראז\'.'
         });
-      } catch (err) { alert("השיתוף בוטל."); }
+      } catch (err) { /* בוטל ע"י משתמש */ }
     } else {
-      pdf.save("FloorPlan.pdf");
-      alert("הדפדפן שלך לא תומך בשיתוף ישיר, הקובץ הורד למכשיר.");
+      pdf.save("FloorPlan_Full.pdf");
+      alert("הקובץ הורד למכשיר.");
     }
     setStatus("מוכן ✅", "good");
   };
@@ -343,14 +314,10 @@
 
   [document.getElementById("containerA"), document.getElementById("containerB")].forEach(c => {
     c.ontouchstart = (e) => { if(e.touches.length==2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); };
-    c.ontouchmove = (e) => { if(e.touches.length==2) {
-      e.preventDefault(); let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
-      currentScale = Math.min(Math.max(0.5, currentScale * (d/initialDist)), 4);
-      c.querySelector('canvas').style.transform = `scale(${currentScale})`; initialDist = d;
-    }};
+    c.ontouchmove = (e) => { if(e.touches.length==2) { e.preventDefault(); let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); currentScale = Math.min(Math.max(0.5, currentScale * (d/initialDist)), 4); c.querySelector('canvas').style.transform = `scale(${currentScale})`; initialDist = d; }};
   });
 </script>
 
 </body>
 </html>
-14
+15
