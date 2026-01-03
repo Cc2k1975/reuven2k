@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - השוואת כיווני ריצוף</title>
+<title>שרטוט חכם - פרופורציות מדויקות</title>
 
 <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="__onCvScriptLoaded()"></script>
 
@@ -21,7 +21,6 @@
   }
   .btn:disabled{opacity:.55; cursor:not-allowed}
   .btn.secondary{background:#111827}
-  .btn.danger{background:var(--danger)}
   .note{color:var(--muted);font-size:14px;margin-top:8px;line-height:1.45}
   video,canvas{width:100%;border-radius:12px;border:1px solid var(--line);background:#fff}
   .hidden{display:none}
@@ -39,44 +38,33 @@
   
   #results-wrapper {
     display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
   }
   .result-container-single {
-    flex: 1;
-    min-width: 300px;
+    width: 100%;
     background: #fff;
-    position: relative;
     border: 1px solid var(--line);
     border-radius: 12px;
-    text-align: center;
-    /* touch-action: auto מאפשר גלילה רגילה בדף */
-    touch-action: auto; 
     overflow: hidden;
+    touch-action: pan-y; /* מאפשר גלילה של הדף, וזום רק על האלמנט */
   }
   .result-canvas {
     width: 100%;
-    transform-origin: center center;
-    transition: transform 0.1s ease-out;
+    height: auto; /* שומר על פרופורציה אמיתית */
     display: block;
-    border: none;
+    transform-origin: center center;
   }
   .tile-label {
-    padding: 10px;
+    padding: 12px;
     background: #f8fafc;
     border-top: 1px solid var(--line);
     font-weight: bold;
     color: var(--primary);
+    text-align: center;
   }
   .tile-inputs {
-    display: flex;
-    gap: 10px;
-    background: #f0f7ff;
-    padding: 12px;
-    border-radius: 12px;
-    margin-bottom: 15px;
-    border: 1px solid #c0d8ff;
+    display: flex; gap: 10px; background: #f0f7ff; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #c0d8ff;
   }
 </style>
 </head>
@@ -100,42 +88,39 @@
   <div class="card hidden" id="previewCard">
     <h2>2️⃣ קווים מזוהים</h2>
     <canvas id="overlay"></canvas>
-    <div id="overlayInfo" class="note"></div>
   </div>
 
   <div class="card hidden" id="inputsCard">
     <h2>3️⃣ הזן מידות שטח וריצוף (ס״מ)</h2>
-    
     <div class="tile-inputs">
       <div style="flex:1">
-        <label style="font-size: 13px; font-weight: bold; display:block; margin-bottom:4px;">רוחב אריח (ס"מ)</label>
+        <label style="font-size: 13px; font-weight: bold;">רוחב אריח</label>
         <input id="tileW" type="number" value="60">
       </div>
       <div style="flex:1">
-        <label style="font-size: 13px; font-weight: bold; display:block; margin-bottom:4px;">אורך אריח (ס"מ)</label>
+        <label style="font-size: 13px; font-weight: bold;">אורך אריח</label>
         <input id="tileH" type="number" value="120">
       </div>
     </div>
-
     <div id="inputs"></div>
     <button id="btnBuild" class="btn" type="button">📐 השווה כיווני ריצוף</button>
   </div>
 
   <div class="card hidden" id="resultCard">
-    <h2>4️⃣ השוואת כיווני פריסה</h2>
+    <h2>4️⃣ השוואת כיווני פריסה (פרופורציה אמיתית)</h2>
     <div id="results-wrapper">
       <div class="result-container-single" id="containerA">
-        <div style="padding: 5px; font-size: 12px; font-weight: bold;">אופציה א' (מקור)</div>
+        <div style="padding: 8px; font-size: 14px; font-weight: bold; background: #f1f5f9;">אופציה א' (מקור)</div>
         <canvas id="resultA" class="result-canvas"></canvas>
         <div id="reportA" class="tile-label"></div>
       </div>
       <div class="result-container-single" id="containerB">
-        <div style="padding: 5px; font-size: 12px; font-weight: bold;">אופציה ב' (90°)</div>
+        <div style="padding: 8px; font-size: 14px; font-weight: bold; background: #f1f5f9;">אופציה ב' (90°)</div>
         <canvas id="resultB" class="result-canvas"></canvas>
         <div id="reportB" class="tile-label"></div>
       </div>
     </div>
-    <div id="generalReport" class="note" style="margin-top:15px; text-align:center; font-size:16px; color: #111827;"></div>
+    <div id="generalReport" class="note" style="margin-top:15px; text-align:center; font-size:16px; color:#111827;"></div>
   </div>
 
 </div>
@@ -167,14 +152,12 @@
     if(type) statusBox.classList.add(type);
   }
 
-  function updateShotEnabled(){ btnShot.disabled = !(videoReady && cvReady); }
-
   function __onCvScriptLoaded(){
     const wait = setInterval(() => {
       if (window.cv && cv.Mat) {
         cvReady = true;
         setStatus("מערכת מוכנה ✅", "good");
-        updateShotEnabled();
+        btnShot.disabled = !videoReady;
         clearInterval(wait);
       }
     }, 100);
@@ -182,23 +165,13 @@
 
   async function startCamera(){
     try{
-      if (stream) stream.getTracks().forEach(t => t.stop());
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width:{ideal:1920}, height:{ideal:1080} }
       });
       video.srcObject = stream;
-      await video.play();
       videoReady = true;
-      setStatus("מצלמה מוכנה ✅", "good");
-      updateShotEnabled();
+      if(cvReady) btnShot.disabled = false;
     } catch(err){ setStatus("שגיאה במצלמה", "bad"); }
-  }
-
-  function captureToCanvas(){
-    const vw = video.videoWidth, vh = video.videoHeight;
-    photo.width = vw; photo.height = vh;
-    const ctx = photo.getContext("2d", { willReadFrequently:true });
-    ctx.drawImage(video, 0, 0, vw, vh);
   }
 
   function centroid(pts){
@@ -216,12 +189,16 @@
     return Math.abs(dx) >= Math.abs(dy) ? {dx: Math.sign(dx) || 1, dy: 0} : {dx: 0, dy: Math.sign(dy) || 1};
   }
 
-  function detectAndNumberEdges(){
+  function captureAndDetect(){
+    const vw = video.videoWidth, vh = video.videoHeight;
+    photo.width = vw; photo.height = vh;
+    photo.getContext("2d").drawImage(video, 0, 0, vw, vh);
+
     let src = cv.imread(photo);
-    let gray = new cv.Mat(), blur = new cv.Mat(), edges = new cv.Mat();
+    let gray = new cv.Mat(), edges = new cv.Mat();
     cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
-    cv.Canny(blur, edges, 60, 180);
+    cv.Canny(gray, edges, 60, 180);
+    
     let contours = new cv.MatVector(), hierarchy = new cv.Mat();
     cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
     
@@ -230,7 +207,6 @@
       let area = cv.contourArea(contours.get(i));
       if(area > maxArea){ maxArea = area; biggest = contours.get(i); }
     }
-    if(!biggest) throw new Error("לא זוהתה צורה");
 
     let approx = new cv.Mat();
     cv.approxPolyDP(biggest, approx, 0.02 * cv.arcLength(biggest, true), true);
@@ -248,29 +224,24 @@
       edgeDirs.push(snapDir(b.x - a.x, b.y - a.y));
     }
 
-    overlay.width = photo.width; overlay.height = photo.height;
+    overlay.width = vw; overlay.height = vh;
     let octx = overlay.getContext("2d");
     octx.drawImage(photo, 0, 0);
-    octx.lineWidth = 6; octx.strokeStyle = "#2563eb";
-    octx.beginPath();
-    octx.moveTo(polyPts[0].x, polyPts[0].y);
+    octx.lineWidth = 8; octx.strokeStyle = "#2563eb";
+    octx.beginPath(); octx.moveTo(polyPts[0].x, polyPts[0].y);
     polyPts.forEach(p => octx.lineTo(p.x, p.y));
     octx.closePath(); octx.stroke();
 
-    buildInputs(edgeCount);
-    previewCard.classList.remove("hidden");
-    src.delete(); gray.delete(); blur.delete(); edges.delete(); contours.delete(); hierarchy.delete(); approx.delete();
-  }
-
-  function buildInputs(n){
     const box = document.getElementById("inputs");
     box.innerHTML = "";
-    for(let i=0; i<n; i++){
+    for(let i=0; i<edgeCount; i++){
       let input = document.createElement("input");
       input.type="number"; input.placeholder = `צלע ${i+1} (ס״מ)`;
       box.appendChild(input);
     }
+    previewCard.classList.remove("hidden");
     inputsCard.classList.remove("hidden");
+    src.delete(); gray.delete(); edges.delete(); contours.delete(); hierarchy.delete(); approx.delete();
   }
 
   function isPointInPoly(p, poly) {
@@ -283,50 +254,57 @@
   }
 
   function drawLayout(canvas, reportEl, pts, sideValues, tW, tH) {
-    const W = 600, H = 500;
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext("2d");
-    
-    const xs = pts.map(p=>p.x), ys=pts.map(p=>p.y);
-    const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
-    const pad=50, scale = Math.min((W-2*pad)/(maxX-minX), (H-2*pad)/(maxY-minY));
-    const tx = (px) => pad + (px - minX)*scale, ty = (py) => pad + (py - minY)*scale;
+    const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const spanX = maxX - minX, spanY = maxY - minY;
 
-    // פריסת אריחים
+    // הגדרת רזולוציה פנימית של הקנבס לפי פרופורציית החדר
+    const baseSize = 800;
+    if (spanX > spanY) {
+      canvas.width = baseSize;
+      canvas.height = baseSize * (spanY / spanX);
+    } else {
+      canvas.height = baseSize;
+      canvas.width = baseSize * (spanX / spanY);
+    }
+
+    const ctx = canvas.getContext("2d");
+    const pad = 40;
+    const scale = Math.min((canvas.width - 2 * pad) / spanX, (canvas.height - 2 * pad) / spanY);
+    const tx = (px) => pad + (px - minX) * scale;
+    const ty = (py) => pad + (py - minY) * scale;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // ציור ריצוף
     ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+    ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     for(let i=1; i<pts.length; i++) ctx.lineTo(tx(pts[i].x), ty(pts[i].y));
-    ctx.closePath();
-    ctx.clip();
+    ctx.closePath(); ctx.clip();
 
     let count = 0;
-    ctx.strokeStyle = "#e2e8f0";
+    ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
     for(let gx = minX; gx < maxX; gx += tW){
       for(let gy = minY; gy < maxY; gy += tH){
-        ctx.strokeRect(tx(gx), ty(gy), tW*scale, tH*scale);
+        ctx.strokeRect(tx(gx), ty(gy), tW * scale, tH * scale);
         const tests = [{x:gx,y:gy},{x:gx+tW,y:gy},{x:gx,y:gy+tH},{x:gx+tW,y:gy+tH},{x:gx+tW/2,y:gy+tH/2}];
         if(tests.some(p => isPointInPoly(p, pts))) count++;
       }
     }
     ctx.restore();
 
-    // ציור קירות
-    ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
+    // ציור קירות ומידות
+    ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 5; ctx.lineJoin = "round";
+    ctx.beginPath(); ctx.moveTo(tx(pts[0].x), ty(pts[0].y));
     for(let i=1; i<pts.length; i++) ctx.lineTo(tx(pts[i].x), ty(pts[i].y));
     ctx.closePath(); ctx.stroke();
 
-    // הוספת מידות צלעות
-    ctx.fillStyle = "#1e293b";
-    ctx.font = "bold 14px Arial";
-    ctx.textAlign = "center";
+    ctx.fillStyle = "#1e293b"; ctx.font = "bold 16px Arial"; ctx.textAlign = "center";
     for(let i=0; i<edgeCount; i++){
       let p1 = pts[i], p2 = pts[i+1];
       let mx = tx((p1.x + p2.x)/2), my = ty((p1.y + p2.y)/2);
-      // הסטה קלה של הטקסט שלא יהיה על הקו
-      ctx.fillText(sideValues[i] + " ס״מ", mx, my - 8);
+      ctx.fillText(sideValues[i] + " ס״מ", mx, my - 10);
     }
 
     reportEl.innerHTML = `כמות: ${count} יחידות`;
@@ -336,56 +314,38 @@
     const values = [...document.querySelectorAll("#inputs input")].map(i=>Number(i.value));
     const tW = Number(document.getElementById("tileW").value);
     const tH = Number(document.getElementById("tileH").value);
-    
     if(values.some(v => v<=0) || tW<=0 || tH<=0) return alert("הזן מידות תקינות");
 
     let pts = [{x:0,y:0}];
-    let x=0, y=0;
+    let curX=0, curY=0;
     for(let i=0; i<edgeCount; i++){
-      x += edgeDirs[i].dx * values[i];
-      y += edgeDirs[i].dy * values[i];
-      pts.push({x,y});
+      curX += edgeDirs[i].dx * values[i];
+      curY += edgeDirs[i].dy * values[i];
+      pts.push({x: curX, y: curY});
     }
-
-    let areaCm2 = 0;
-    for (let i = 0; i < pts.length - 1; i++) {
-      areaCm2 += (pts[i].x * pts[i+1].y) - (pts[i+1].x * pts[i].y);
-    }
-    areaCm2 = Math.abs(areaCm2) / 2;
 
     drawLayout(document.getElementById("resultA"), document.getElementById("reportA"), pts, values, tW, tH);
     drawLayout(document.getElementById("resultB"), document.getElementById("reportB"), pts, values, tH, tW);
 
-    document.getElementById("generalReport").innerHTML = `
-      <b>סיכום מידות:</b> היקף ${values.reduce((a,b)=>a+b,0)} ס"מ | שטח ${(areaCm2/10000).toFixed(2)} מ"ר
-    `;
+    let area = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      area += (pts[i].x * pts[i+1].y) - (pts[i+1].x * pts[i].y);
+    }
+    document.getElementById("generalReport").innerHTML = `שטח: ${(Math.abs(area)/20000).toFixed(2)} מ"ר | היקף: ${values.reduce((a,b)=>a+b,0)} ס"מ`;
     resultCard.classList.remove("hidden");
-    
-    // גלילה אוטומטית לתוצאה
     resultCard.scrollIntoView({ behavior: 'smooth' });
   }
 
-  btnShot.addEventListener("click", () => {
-    try {
-      captureToCanvas();
-      detectAndNumberEdges();
-      setStatus("זיהוי הושלם ✅", "good");
-    } catch(e) { setStatus(e.message, "bad"); }
-  });
-
+  btnShot.addEventListener("click", captureAndDetect);
   btnRestart.addEventListener("click", () => location.reload());
   btnBuild.addEventListener("click", buildFinal);
 
-  // לוגיקת זום מתוקנת שלא חוסמת גלילה
+  // לוגיקת זום - עובדת רק עם 2 אצבעות
   [document.getElementById("containerA"), document.getElementById("containerB")].forEach(cont => {
-    cont.addEventListener('touchstart', e => { 
-      if(e.touches.length === 2) {
-        initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
-      }
-    });
+    cont.addEventListener('touchstart', e => { if(e.touches.length === 2) initialDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY); });
     cont.addEventListener('touchmove', e => {
       if(e.touches.length === 2){
-        e.preventDefault(); // מונע גלילה רק כשמבצעים זום עם 2 אצבעות
+        e.preventDefault();
         let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
         currentScale = Math.min(Math.max(0.5, currentScale * (d/initialDist)), 4);
         cont.querySelector('canvas').style.transform = `scale(${currentScale})`;
