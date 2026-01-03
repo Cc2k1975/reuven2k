@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-<title>שרטוט חכם - סופי</title>
+<title>שרטוט חכם - גרסה סופית ואינטראקטיבית</title>
 
 <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="__onCvScriptLoaded()"></script>
 
@@ -34,6 +34,7 @@
     width:100%; padding:14px; border:1px solid #ddd; border-radius:8px;
     font-size:20px; outline:none; font-weight: bold;
   }
+  input:focus { border-color: var(--primary); background: #f0f7ff; }
 
   .status{ padding:10px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font-size:14px; }
   .status.good{border-color:#22c55e; color:#15803d; font-weight:bold;}
@@ -45,6 +46,8 @@
   .result-canvas { width: 100%; height: auto; display: block; transform-origin: center center; }
   .tile-label { padding: 12px; background: #f8fafc; border-top: 1px solid var(--line); font-weight: bold; color: var(--primary); text-align: center; }
   .tile-inputs-top { display: flex; gap: 10px; background: #f0f7ff; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #c0d8ff; }
+  
+  #overlay { cursor: crosshair; }
 </style>
 </head>
 
@@ -65,22 +68,23 @@
   </div>
 
   <div class="card hidden" id="previewCard">
-    <h2>2️⃣ צלעות שזוהו (סדר שעון מלמעלה)</h2>
+    <h2>2️⃣ צלעות שזוהו (לחץ על מספר למעבר מהיר)</h2>
     <canvas id="overlay"></canvas>
+    <div class="note"><b>טיפ:</b> לחץ על אחד המספרים בשרטוט כדי לקפוץ ישירות לתא המידה שלו.</div>
   </div>
 
   <div class="card hidden" id="inputsCard">
     <h2>3️⃣ הזן מידות (לפי הצבע בשרטוט)</h2>
     <div class="tile-inputs-top">
-      <div style="flex:1"><label>רוחב אריח</label><input id="tileW" type="number" value="60"></div>
-      <div style="flex:1"><label>אורך אריח</label><input id="tileH" type="number" value="120"></div>
+      <div style="flex:1"><label>רוחב אריח</label><input id="tileW" type="number" placeholder="ס״מ"></div>
+      <div style="flex:1"><label>אורך אריח</label><input id="tileH" type="number" placeholder="ס״מ"></div>
     </div>
     <div id="inputs"></div>
     <button id="btnBuild" class="btn" type="button">📐 בנה שרטוט סופי</button>
   </div>
 
   <div class="card hidden" id="resultCard">
-    <h2>4️⃣ השוואת פריסה עם צבעים תואמים</h2>
+    <h2>4️⃣ השוואת פריסה סופית</h2>
     <div id="results-wrapper">
       <div class="result-container-single" id="containerA">
         <div class="tile-label" style="background: #f1f5f9;">אופציה א' (כיוון מקורי)</div>
@@ -104,6 +108,9 @@
   let video = document.getElementById("video"), photo = document.getElementById("photo"), overlay = document.getElementById("overlay");
   let statusBox = document.getElementById("statusBox"), btnShot = document.getElementById("btnShot");
   let cvReady = false, videoReady = false, polyPts = [], edgeDirs = [], currentScale = 1, initialDist = 0;
+  
+  // נתונים לצורך הלחיצה על המספרים
+  let numberHitZones = [];
 
   function setStatus(m, t){ statusBox.textContent = m; statusBox.className = "status " + (t||""); }
   
@@ -140,6 +147,7 @@
     if(!big) return alert("לא מצאתי את הצורה. נסה לצלם שוב.");
     let approx = new cv.Mat();
     cv.approxPolyDP(big, approx, 0.015 * cv.arcLength(big, true), true);
+    
     polyPts = [];
     for(let i=0; i<approx.rows; i++) polyPts.push({x: approx.intPtr(i,0)[0], y: approx.intPtr(i,0)[1]});
 
@@ -162,24 +170,53 @@
     octx.drawImage(photo, 0, 0);
     octx.lineWidth = 12;
     let inpBox = document.getElementById("inputs"); inpBox.innerHTML = "";
+    numberHitZones = [];
+    
     for(let i=0; i<polyPts.length; i++){
       let p1 = polyPts[i], p2 = polyPts[(i+1)%polyPts.length];
       let color = edgeColors[i % edgeColors.length];
       octx.strokeStyle = color;
       octx.beginPath(); octx.moveTo(p1.x, p1.y); octx.lineTo(p2.x, p2.y); octx.stroke();
+      
       let mx = (p1.x+p2.x)/2, my = (p1.y+p2.y)/2;
+      
+      // שמירת אזור הלחיצה (מרכז המספר ורדיוס)
+      numberHitZones.push({ x: mx, y: my, radius: 45, id: `edge-input-${i}` });
+
       octx.fillStyle = "white"; octx.beginPath(); octx.arc(mx, my, 40, 0, 7); octx.fill();
       octx.fillStyle = color; octx.font = "bold 60px Arial"; octx.textAlign="center"; octx.textBaseline="middle";
       octx.fillText(i+1, mx, my);
+      
       inpBox.innerHTML += `
-        <div class="input-group" style="border-color: ${color}">
+        <div class="input-group" id="group-${i}" style="border-color: ${color}">
           <label style="color: ${color}">צלע מס' ${i+1}</label>
-          <input type="number" class="side-val" placeholder="הכנס אורך בס״מ">
+          <input type="number" id="edge-input-${i}" class="side-val" placeholder="הכנס אורך בס״מ">
         </div>`;
     }
     document.getElementById("previewCard").classList.remove("hidden");
     document.getElementById("inputsCard").classList.remove("hidden");
     src.delete(); gray.delete(); edges.delete(); cnts.delete(); hi.delete(); approx.delete(); kernel.delete();
+  };
+
+  // לוגיקת לחיצה על הקנבס למעבר מהיר
+  overlay.onclick = (e) => {
+    const rect = overlay.getBoundingClientRect();
+    const scaleX = overlay.width / rect.width;
+    const scaleY = overlay.height / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
+
+    for (let zone of numberHitZones) {
+      const dist = Math.hypot(clickX - zone.x, clickY - zone.y);
+      if (dist < zone.radius) {
+        const targetInput = document.getElementById(zone.id);
+        if (targetInput) {
+          targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          targetInput.focus();
+        }
+        break;
+      }
+    }
   };
 
   function isInside(p, poly) {
@@ -215,7 +252,6 @@
     for(let i=0; i<sVals.length; i++){
       let p1 = pts[i], p2 = pts[i+1];
       let color = edgeColors[i % edgeColors.length];
-      
       ctx.strokeStyle = color;
       ctx.beginPath();
       ctx.moveTo(tx(p1.x), ty(p1.y));
@@ -223,30 +259,25 @@
       ctx.stroke();
 
       let mx = tx((p1.x+p2.x)/2), my = ty((p1.y+p2.y)/2);
-      let dx = tx(p2.x) - tx(p1.x);
-      let dy = ty(p2.y) - ty(p1.y);
+      let dx = tx(p2.x) - tx(p1.x), dy = ty(p2.y) - ty(p1.y);
       let angle = Math.atan2(dy, dx);
-
-      // הופך טקסט אם הוא הפוך
-      if (angle > Math.PI / 2 || angle < -Math.PI / 2) {
-          angle += Math.PI;
-      }
+      if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
 
       ctx.save();
       ctx.translate(mx, my);
       ctx.rotate(angle);
       ctx.fillStyle = color;
-      // הזזה של הטקסט מעל הקו
       ctx.fillText(sVals[i], 0, -25);
       ctx.restore();
     }
-    
     rep.innerHTML = "כמות דרושה: " + count + " יחידות";
   }
 
   document.getElementById("btnBuild").onclick = () => {
     let sVals = [...document.getElementsByClassName("side-val")].map(i=>Number(i.value));
     let tW = Number(document.getElementById("tileW").value), tH = Number(document.getElementById("tileH").value);
+    
+    if(tW <= 0 || tH <= 0) return alert("אנא הזן את גודל האריחים!");
     if(sVals.some(v=>v<=0)) return alert("אנא הכנס מידות לכל הצלעות!");
     
     let pts = [{x:0,y:0}], curX = 0, curY = 0;
@@ -285,4 +316,4 @@
 
 </body>
 </html>
-9
+1
