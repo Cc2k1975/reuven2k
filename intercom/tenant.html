@@ -7,9 +7,9 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #000; color: #fff; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
         #remoteVideo { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #222; z-index: 5; display: none; }
-        #setup, #incoming { z-index: 20; background: rgba(30,30,30,0.9); padding: 30px; border-radius: 20px; text-align: center; width: 85%; border: 1px solid #3498db; }
+        #setup, #incoming { z-index: 20; background: rgba(30,30,30,0.95); padding: 30px; border-radius: 20px; text-align: center; width: 85%; border: 1px solid #3498db; }
         .controls { position: fixed; bottom: 40px; z-index: 30; width: 100%; display: none; justify-content: space-around; }
-        .btn { padding: 20px; border-radius: 50%; border: none; width: 80px; height: 80px; font-size: 1.5rem; cursor: pointer; color: white; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .btn { padding: 20px; border-radius: 50%; border: none; width: 80px; height: 80px; font-size: 1.5rem; cursor: pointer; color: white; }
         #log { position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.7); font-size: 11px; color: #0f0; padding: 5px; z-index: 100; text-align: left; }
     </style>
 </head>
@@ -51,20 +51,22 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const log = (m) => { document.getElementById('log').innerText += ` | ${m}`; console.log(m); };
+        const log = (m) => { document.getElementById('log').innerText += ` | ${m}`; };
         
         let pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun1.l.google.com:19302' }] });
-        let callId = null, callData = null;
+        let callId = null;
+        let isAlreadyConnected = false;
 
         pc.ontrack = (e) => {
             log("Track received!");
             const v = document.getElementById('remoteVideo');
-            v.srcObject = e.streams[0];
-            v.style.display = 'block'; // מוודא שהווידאו מוצג
-            document.getElementById('controls').style.display = 'flex';
-            
-            // מנסה להפעיל את הווידאו בכוח
-            v.play().then(() => log("Video Playing")).catch(err => log("Play block: " + err));
+            // מונע טעינה כפולה של הווידאו שגורמת לשגיאת Abort
+            if (v.srcObject !== e.streams[0]) {
+                v.srcObject = e.streams[0];
+                v.style.display = 'block';
+                document.getElementById('controls').style.display = 'flex';
+                log("Video Stream Set");
+            }
         };
 
         window.start = () => {
@@ -73,10 +75,11 @@
             document.getElementById('setup').style.display = 'none';
             log(`Listening to apt ${apt}`);
 
-            onSnapshot(query(collection(db, "calls"), where("apartment", "==", parseInt(apt)), where("status", "==", "dialing")), (sn) => {
+            const q = query(collection(db, "calls"), where("apartment", "==", parseInt(apt)), where("status", "==", "dialing"));
+            onSnapshot(q, (sn) => {
                 sn.docChanges().forEach(c => {
-                    if(c.type === "added") {
-                        callId = c.doc.id; callData = c.doc.data();
+                    if(c.type === "added" && !isAlreadyConnected) {
+                        callId = c.doc.id;
                         document.getElementById('incoming').style.display = 'block';
                         log("Call detected");
                     }
@@ -85,13 +88,21 @@
         };
 
         window.accept = async () => {
+            isAlreadyConnected = true;
             document.getElementById('incoming').style.display = 'none';
-            log("Connecting...");
+            log("Connecting WebRTC...");
             
-            await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            await updateDoc(doc(db, "calls", callId), { answer: { type: answer.type, sdp: answer.sdp }, status: "connected" });
+            const callDoc = doc(db, "calls", callId);
+            const snapshot = await onSnapshot(callDoc, async (s) => {
+                const data = s.data();
+                if (data.offer && !pc.currentRemoteDescription) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
+                    await updateDoc(callDoc, { answer: { type: answer.type, sdp: answer.sdp }, status: "connected" });
+                    log("Answer Sent");
+                }
+            });
 
             onSnapshot(collection(db, "calls", callId, "offerCandidates"), (s) => {
                 s.docChanges().forEach(c => c.type === "added" && pc.addIceCandidate(new RTCIceCandidate(c.doc.data())));
@@ -108,4 +119,4 @@
     </script>
 </body>
 </html>
-4
+6
