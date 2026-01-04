@@ -3,23 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>שער</title>
+    <style>
+        body { margin:0; background:#000; color:#0f0; font-family:monospace; }
+        #status { padding:10px; background:#222; font-size:12px; height:40px; }
+        video { width:100%; height:calc(100vh - 40px); object-fit:cover; }
+    </style>
 </head>
-<body style="margin:0; background:#000; text-align:center;">
-    <video id="v" autoplay playsinline muted style="width:100%; max-width:400px; transform:scaleX(-1);"></video>
+<body>
+    <div id="status">טוען...</div>
+    <video id="v" autoplay playsinline muted></video>
     
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script>
-        // מזהה קבוע ופשוט
-        const peer = new Peer('zamir-gate-unique-id-123');
+        const log = m => document.getElementById('status').innerText = m;
+        const peer = new Peer('zamir-gate-123');
 
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-            document.getElementById('v').srcObject = stream;
-            // כשמישהו מתקשר - תענה לו עם הוידאו שלך
-            peer.on('call', call => {
-                call.answer(stream);
-            });
-        });
+        peer.on('open', id => log("שרת מחובר. מזהה: " + id));
+        peer.on('error', e => log("שגיאה: " + e.type));
+
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                document.getElementById('v').srcObject = stream;
+                log("מצלמה מוכנה. מחכה לדייר...");
+                
+                peer.on('call', call => {
+                    log("דייר מתקשר! שולח וידאו...");
+                    call.answer(stream);
+                });
+            })
+            .catch(err => log("שגיאת מצלמה: " + err.message));
     </script>
 </body>
 </html>
