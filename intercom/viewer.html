@@ -1,34 +1,52 @@
-
 <!DOCTYPE html>
 <html lang="he">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>דייר</title>
     <style>
-        body { margin:0; background:#000; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
-        #v { flex:1; width:100%; object-fit:cover; background:#222; }
-        button { background:#2ecc71; color:#fff; padding:30px; font-size:2rem; border:none; cursor:pointer; font-family:sans-serif; }
+        body { margin:0; background:#000; display:flex; flex-direction:column; height:100vh; color:#0f0; font-family:monospace; }
+        #status { padding:10px; background:#222; font-size:12px; height:50px; overflow:hidden; }
+        #v { flex:1; width:100%; background:#111; object-fit:cover; }
+        .btns { display:flex; gap:2px; }
+        button { flex:1; padding:20px; font-size:1.5rem; border:none; cursor:pointer; font-weight:bold; }
     </style>
 </head>
 <body>
+    <div id="status">מערכת הופעלה. לחץ להתחברות.</div>
     <video id="v" autoplay playsinline></video>
-    <button onclick="connect()">התחבר לצפייה ✔</button>
-    <button onclick="alert('נפתח!')" style="background:#3498db; margin-top:5px;">פתח דלת 🔓</button>
+    
+    <div class="btns">
+        <button onclick="connect()" style="background:#2ecc71; color:white;">1. התחבר לצפייה</button>
+        <button onclick="alert('נפתח!')" style="background:#3498db; color:white;">2. פתח דלת</button>
+    </div>
 
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script>
+        const log = m => document.getElementById('status').innerText = m;
         const peer = new Peer();
-        
+
+        peer.on('open', id => log("מחובר לשרת. מוכן לחיוג לשער."));
+        peer.on('error', e => log("שגיאת תקשורת: " + e.type));
+
         function connect() {
-            // התקשר לשער (בלי לשלוח וידאו מהטלפון כדי שלא ייחסם)
-            const call = peer.call('zamir-gate-unique-id-123', new MediaStream());
+            log("מנסה להתקשר לשער (zamir-gate-123)...");
+            
+            // אנחנו יוצרים זרם ריק כדי שהחיוג יתבצע
+            const call = peer.call('zamir-gate-123', new MediaStream());
             
             call.on('stream', stream => {
+                log("וידאו התקבל! מציג על המסך...");
                 const video = document.getElementById('v');
                 video.srcObject = stream;
-                video.play();
+                video.play().catch(e => log("שגיאת ניגון: " + e.message));
             });
+
+            // אם תוך 5 שניות אין וידאו
+            setTimeout(() => {
+                if (!document.getElementById('v').srcObject) {
+                    log("אין תשובה מהשער. וודא שדף המצלמה פתוח!");
+                }
+            }, 5000);
         }
     </script>
 </body>
