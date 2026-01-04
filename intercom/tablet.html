@@ -1,80 +1,129 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>שער - זמיר 15</title>
-    <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 10px; text-align: center; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .btn { background: #333; padding: 20px; border: 1px solid #555; border-radius: 8px; font-size: 1.2rem; cursor: pointer; }
-        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
-        video { width: 250px; border: 2px solid #3498db; border-radius: 10px; margin-bottom: 10px; background: #000; }
-        #log { position: fixed; bottom: 0; left: 0; width: 100%; background: #000; color: #0f0; font-size: 12px; height: 80px; overflow-y: scroll; text-align: left; padding: 5px; border-top: 1px solid #0f0; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>זמיר 15 - שער</title>
+  <style>
+    body { font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; text-align: center; }
+    header { background: #000; padding: 20px; border-bottom: 2px solid #3498db; }
+    #grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 20px; }
+    .btn { background: #2d2d2d; padding: 20px; border-radius: 10px; cursor: pointer; border: 1px solid #444; user-select: none; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none;
+      flex-direction: column; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+    video { width: 80%; max-width: 340px; border: 2px solid #3498db; border-radius: 10px; background: #000; }
+    .hint { opacity: 0.85; font-size: 0.95rem; margin-top: 10px; }
+  </style>
 </head>
 <body>
-    <h2>זמיר 15 - שער</h2>
-    <div id="grid" class="grid"></div>
-    <div id="log">L: Ready</div>
+  <header><h1>זמיר 15</h1></header>
+  <div id="grid"></div>
 
-    <div id="overlay">
-        <video id="localVideo" autoplay playsinline muted></video>
-        <h2 id="status">מחייג...</h2>
-        <button onclick="location.reload()" style="padding:15px; background:red; color:white; border:none;">ביטול</button>
-    </div>
+  <div id="status" class="overlay">
+    <video id="localVideo" autoplay playsinline muted></video>
+    <h2 id="statusText">מחייג...</h2>
+    <div id="dbg" class="hint"></div>
+    <button onclick="location.reload()" style="padding:15px; background:#e74c3c; color:white; border:none; border-radius:8px; margin-top: 15px;">ביטול</button>
+  </div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import {
+      getFirestore, collection, doc, setDoc, onSnapshot, addDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyALAVQSl6FcuF0HYhCfIgVz-GUMSJKcT5c",
-            authDomain: "zamir15-intercom.firebaseapp.com",
-            projectId: "zamir15-intercom",
-            storageBucket: "zamir15-intercom.firebasestorage.app",
-            messagingSenderId: "823056442276",
-            appId: "1:823056442276:web:a4235e2219152bb6789731"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const log = (m) => { document.getElementById('log').innerHTML += ` | ${m}`; console.log(m); };
+    const firebaseConfig = {
+      apiKey: "AIzaSyALAVQSl6FcuF0HYhCfIgVz-GUMSJKcT5c",
+      authDomain: "zamir15-intercom.firebaseapp.com",
+      projectId: "zamir15-intercom",
+      storageBucket: "zamir15-intercom.firebasestorage.app",
+      messagingSenderId: "823056442276",
+      appId: "1:823056442276:web:a4235e2219152bb6789731"
+    };
 
-        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-        const grid = document.getElementById('grid');
-        for (let i = 1; i <= 24; i++) {
-            const b = document.createElement('div');
-            b.className = 'btn'; b.innerText = `דירה ${i}`;
-            b.onclick = () => startCall(i);
-            grid.appendChild(b);
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    });
+
+    const grid = document.getElementById("grid");
+    const dbgEl = document.getElementById("dbg");
+    const statusText = document.getElementById("statusText");
+
+    function dbg(msg) { dbgEl.textContent = msg; }
+
+    pc.onconnectionstatechange = () => {
+      dbg("מצב חיבור: " + pc.connectionState);
+    };
+
+    for (let i = 1; i <= 24; i++) {
+      const div = document.createElement("div");
+      div.className = "btn";
+      div.textContent = `דירה ${i}`;
+      div.onclick = () => startCall(i);
+      grid.appendChild(div);
+    }
+
+    async function startCall(aptId) {
+      document.getElementById("status").style.display = "flex";
+      statusText.textContent = "מבקש הרשאות מצלמה/מיקרופון...";
+
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch (err) {
+        alert("אין הרשאת מצלמה/מיקרופון: " + (err?.message || err));
+        location.reload();
+        return;
+      }
+
+      document.getElementById("localVideo").srcObject = stream;
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+
+      // יוצרים מסמך שיחה חדש
+      const callDocRef = doc(collection(db, "calls"));
+
+      // חשוב: onicecandidate מוגדר מוקדם
+      pc.onicecandidate = async (e) => {
+        if (!e.candidate) return;
+        await addDoc(collection(callDocRef, "offerCandidates"), e.candidate.toJSON());
+      };
+
+      statusText.textContent = "מחייג...";
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      await setDoc(callDocRef, {
+        apartment: aptId,
+        status: "dialing",
+        offer: { type: offer.type, sdp: offer.sdp },
+        createdAt: serverTimestamp()
+      });
+
+      // מאזין ל-answer
+      onSnapshot(callDocRef, async (s) => {
+        const d = s.data();
+        if (!d) return;
+
+        if (d.answer && !pc.currentRemoteDescription) {
+          await pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+          statusText.textContent = "מחובר ✅";
         }
+        if (d.status === "opened") location.reload();
+      });
 
-        async function startCall(apt) {
-            document.getElementById('overlay').style.display = 'flex';
-            log(`Call apt ${apt}`);
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            document.getElementById('localVideo').srcObject = stream;
-            stream.getTracks().forEach(t => pc.addTrack(t, stream));
-
-            const callDoc = db.collection('calls').doc();
-            pc.onicecandidate = (e) => e.candidate && callDoc.collection('offerCandidates').add(e.candidate.toJSON());
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await callDoc.set({ apartment: apt, status: 'dialing', offer: { type: offer.type, sdp: offer.sdp } });
-
-            callDoc.onSnapshot(s => {
-                const d = s.data();
-                if (d.answer && !pc.currentRemoteDescription) pc.setRemoteDescription(new RTCSessionDescription(d.answer));
-                if (d.status === 'opened') location.reload();
-            });
-
-            callDoc.collection('answerCandidates').onSnapshot(s => {
-                s.docChanges().forEach(c => c.type === 'added' && pc.addIceCandidate(new RTCIceCandidate(c.doc.data())));
-            });
-        }
-    </script>
+      // מאזין ל-answerCandidates
+      onSnapshot(collection(callDocRef, "answerCandidates"), (s) => {
+        s.docChanges().forEach((c) => {
+          if (c.type === "added") {
+            pc.addIceCandidate(new RTCIceCandidate(c.doc.data())).catch(() => {});
+          }
+        });
+      });
+    }
+  </script>
 </body>
 </html>
-10
