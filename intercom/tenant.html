@@ -6,15 +6,57 @@
     <title>דייר - זמיר 15</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #000; color: #fff; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
-        #remoteVideo { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #222; z-index: 5; display: none; }
-        #setup, #incoming { z-index: 20; background: rgba(30,30,30,0.95); padding: 30px; border-radius: 20px; text-align: center; width: 85%; border: 1px solid #3498db; }
-        .controls { position: fixed; bottom: 40px; z-index: 30; width: 100%; display: none; justify-content: space-around; }
-        .btn { padding: 20px; border-radius: 50%; border: none; width: 80px; height: 80px; font-size: 1.5rem; cursor: pointer; color: white; }
-        #log { position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.7); font-size: 11px; color: #0f0; padding: 5px; z-index: 100; text-align: left; }
+        
+        /* הווידאו תמיד קיים ברקע, אך שחור עד שמתחיל */
+        #remoteVideo { 
+            position: fixed; 
+            inset: 0; 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            background: #111; 
+            z-index: 1;
+        }
+
+        #setup, #incoming { 
+            z-index: 20; 
+            background: rgba(30,30,30,0.9); 
+            padding: 30px; 
+            border-radius: 20px; 
+            text-align: center; 
+            width: 85%; 
+            border: 1px solid #3498db; 
+        }
+
+        .controls { 
+            position: fixed; 
+            bottom: 40px; 
+            z-index: 30; 
+            width: 100%; 
+            display: none; 
+            justify-content: space-around; 
+        }
+
+        .btn { padding: 20px; border-radius: 50%; border: none; width: 80px; height: 80px; font-size: 1.5rem; cursor: pointer; color: white; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        
+        #log { 
+            position: fixed; 
+            top: 0; 
+            width: 100%; 
+            background: rgba(0,0,0,0.8); 
+            font-size: 10px; 
+            color: #0f0; 
+            padding: 5px; 
+            z-index: 100; 
+            text-align: left; 
+            max-height: 80px; 
+            overflow-y: auto;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
-    <div id="log">Log: Ready</div>
+    <div id="log">Log: Waiting for setup</div>
 
     <div id="setup">
         <h2>זמיר 15 - כניסת דייר</h2>
@@ -51,22 +93,28 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const log = (m) => { document.getElementById('log').innerText += ` | ${m}`; };
+        const log = (m) => { document.getElementById('log').innerText += ` | ${m}`; console.log(m); };
         
         let pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun1.l.google.com:19302' }] });
         let callId = null;
-        let isAlreadyConnected = false;
 
+        // טיפול במסלול הווידאו
         pc.ontrack = (e) => {
             log("Track received!");
             const v = document.getElementById('remoteVideo');
-            // מונע טעינה כפולה של הווידאו שגורמת לשגיאת Abort
             if (v.srcObject !== e.streams[0]) {
                 v.srcObject = e.streams[0];
-                v.style.display = 'block';
-                document.getElementById('controls').style.display = 'flex';
-                log("Video Stream Set");
+                log("Stream attached to element");
             }
+            
+            // הצגת הכפתורים מיד כשהמידע מגיע
+            document.getElementById('controls').style.display = 'flex';
+            
+            // ניסיון ניגון אגרסיבי
+            v.onloadedmetadata = () => {
+                log("Metadata loaded, playing...");
+                v.play().then(() => log("Playing Success")).catch(err => log("Play fail: " + err));
+            };
         };
 
         window.start = () => {
@@ -78,45 +126,55 @@
             const q = query(collection(db, "calls"), where("apartment", "==", parseInt(apt)), where("status", "==", "dialing"));
             onSnapshot(q, (sn) => {
                 sn.docChanges().forEach(c => {
-                    if(c.type === "added" && !isAlreadyConnected) {
+                    if(c.type === "added") {
                         callId = c.doc.id;
                         document.getElementById('incoming').style.display = 'block';
-                        log("Call detected");
+                        log("Incoming Call!");
                     }
                 });
             });
         };
 
         window.accept = async () => {
-            isAlreadyConnected = true;
             document.getElementById('incoming').style.display = 'none';
-            log("Connecting WebRTC...");
+            log("Answering...");
             
             const callDoc = doc(db, "calls", callId);
-            const snapshot = await onSnapshot(callDoc, async (s) => {
+            
+            // האזנה להצעה (Offer) מהענן
+            onSnapshot(callDoc, async (s) => {
                 const data = s.data();
                 if (data.offer && !pc.currentRemoteDescription) {
+                    log("Offer found, setting RemoteDesc");
                     await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                     const answer = await pc.createAnswer();
                     await pc.setLocalDescription(answer);
                     await updateDoc(callDoc, { answer: { type: answer.type, sdp: answer.sdp }, status: "connected" });
-                    log("Answer Sent");
+                    log("Answer sent to cloud");
                 }
             });
 
+            // האזנה ל-ICE Candidates
             onSnapshot(collection(db, "calls", callId, "offerCandidates"), (s) => {
-                s.docChanges().forEach(c => c.type === "added" && pc.addIceCandidate(new RTCIceCandidate(c.doc.data())));
+                s.docChanges().forEach(c => {
+                    if (c.type === "added") {
+                        pc.addIceCandidate(new RTCIceCandidate(c.doc.data())).catch(e => log("ICE Error"));
+                    }
+                });
             });
-            pc.onicecandidate = (e) => e.candidate && addDoc(collection(db, "calls", callId, "answerCandidates"), e.candidate.toJSON());
+
+            pc.onicecandidate = (e) => {
+                if (e.candidate) addDoc(collection(db, "calls", callId, "answerCandidates"), e.candidate.toJSON());
+            };
         };
 
         window.openDoor = async () => {
             if(callId) {
                 await updateDoc(doc(db, "calls", callId), { status: "opened" });
-                alert("נפתח!"); location.reload();
+                alert("נפתח!");
+                location.reload();
             }
         };
     </script>
 </body>
 </html>
-6
