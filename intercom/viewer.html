@@ -1,47 +1,33 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>צד ב' - צופה</title>
+    <style>
+        body { margin: 0; padding: 0; background: #000; color: white; text-align: center; font-family: sans-serif; }
+        #meet { width: 100%; height: 80vh; }
+        .info { padding: 20px; background: #222; }
+    </style>
+</head>
 <body>
-    <h2>צופה (טלפון)</h2>
-    <video id="v" autoplay playsinline muted style="width:100%; height:300px; background:black;"></video>
-    <button id="btn" onclick="connect()" style="padding:20px; background:green; color:white;">לחץ להתחבר ולראות</button>
+    <div class="info">
+        <h2>צד ב': הטלפון של הדייר</h2>
+        <p>אם הצד השני דולק, אתה תראה אותו כאן מיד.</p>
+    </div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <div id="meet"></div>
+
+    <script src="https://meet.jit.si/external_api.js"></script>
     <script>
-        const config = {
-            apiKey: "AIzaSyALAVQSl6FcuF0HYhCfIgVz-GUMSJKcT5c",
-            authDomain: "zamir15-intercom.firebaseapp.com",
-            projectId: "zamir15-intercom"
+        const domain = "meet.jit.si";
+        const options = {
+            roomName: "Zamir15_Test_Room_Unique_999", // חייב להיות אותו שם בדיוק!
+            width: "100%",
+            height: "100%",
+            parentNode: document.querySelector('#meet'),
+            configOverwrite: { startWithVideoMuted: true, startWithAudioMuted: true }
         };
-        firebase.initializeApp(config);
-        const db = firebase.firestore();
-        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-
-        pc.ontrack = e => {
-            console.log("Track received!");
-            const video = document.getElementById('v');
-            if (video.srcObject !== e.streams[0]) {
-                video.srcObject = e.streams[0];
-                video.play().catch(err => console.log("Play failed: " + err));
-            }
-        };
-
-        async function connect() {
-            const doc = db.collection('calls').doc('test');
-            const data = (await doc.get()).data();
-            if (!data) return alert("אין שידור פעיל");
-
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            await doc.update({ answer: { type: answer.type, sdp: answer.sdp } });
-
-            doc.collection('o').onSnapshot(snap => {
-                snap.docChanges().forEach(c => c.type === 'added' && pc.addIceCandidate(new RTCIceCandidate(c.doc.data())));
-            });
-            pc.onicecandidate = e => e.candidate && doc.collection('a').add(e.candidate.toJSON());
-            document.getElementById('btn').innerText = "מחובר - מחכה לווידאו";
-        }
+        const api = new JitsiMeetExternalAPI(domain, options);
     </script>
 </body>
 </html>
