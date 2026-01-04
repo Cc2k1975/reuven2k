@@ -1,57 +1,42 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>מצלמה - בדיקה</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; }
-        video { width: 300px; border: 2px solid #3498db; border-radius: 10px; }
-    </style>
-</head>
 <body>
-    <h2>צד א': מצלמה משדרת</h2>
-    <video id="localVideo" autoplay playsinline muted></video>
-    <br><br>
-    <button id="startBtn" style="padding:15px; font-size:1.2rem; cursor:pointer;">1. הפעל מצלמה ושידור</button>
+    <h2>משדר (מצלמה)</h2>
+    <video id="v" autoplay playsinline muted style="width:200px; border:1px solid red;"></video>
+    <button onclick="start()">הפעל שידור</button>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
     <script>
-        const firebaseConfig = {
+        const config = {
             apiKey: "AIzaSyALAVQSl6FcuF0HYhCfIgVz-GUMSJKcT5c",
             authDomain: "zamir15-intercom.firebaseapp.com",
-            projectId: "zamir15-intercom",
-            storageBucket: "zamir15-intercom.firebasestorage.app",
-            messagingSenderId: "823056442276",
-            appId: "1:823056442276:web:a4235e2219152bb6789731"
+            projectId: "zamir15-intercom"
         };
-        firebase.initializeApp(firebaseConfig);
+        firebase.initializeApp(config);
         const db = firebase.firestore();
         const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
 
-        document.getElementById('startBtn').onclick = async () => {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            document.getElementById('localVideo').srcObject = stream;
-            stream.getTracks().forEach(t => pc.addTrack(t, stream));
+        async function start() {
+            const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('v').srcObject = s;
+            s.getTracks().forEach(t => pc.addTrack(t, s));
 
-            const callDoc = db.collection('calls').doc('test-room');
-            pc.onicecandidate = (e) => e.candidate && callDoc.collection('offerCandidates').add(e.candidate.toJSON());
+            const doc = db.collection('calls').doc('test');
+            pc.onicecandidate = e => e.candidate && doc.collection('o').add(e.candidate.toJSON());
 
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            await callDoc.set({ offer: { type: offer.type, sdp: offer.sdp }, status: 'dialing' });
+            await doc.set({ offer: { type: offer.type, sdp: offer.sdp } });
 
-            callDoc.onSnapshot(s => {
-                const d = s.data();
+            doc.onSnapshot(snap => {
+                const d = snap.data();
                 if (d?.answer && !pc.currentRemoteDescription) pc.setRemoteDescription(new RTCSessionDescription(d.answer));
             });
-
-            callDoc.collection('answerCandidates').onSnapshot(s => {
-                s.docChanges().forEach(c => c.type === 'added' && pc.addIceCandidate(new RTCIceCandidate(c.doc.data())));
+            doc.collection('a').onSnapshot(snap => {
+                snap.docChanges().forEach(c => c.type === 'added' && pc.addIceCandidate(new RTCIceCandidate(c.doc.data())));
             });
-            alert("השידור התחיל! עכשיו פתח את הדף השני");
-        };
+        }
     </script>
 </body>
 </html>
