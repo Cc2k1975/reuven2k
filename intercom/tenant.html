@@ -2,80 +2,33 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>דייר - זמיר 15</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #000; color: #fff; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
-        
-        /* הווידאו תמיד קיים ברקע, אך שחור עד שמתחיל */
-        #remoteVideo { 
-            position: fixed; 
-            inset: 0; 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            background: #111; 
-            z-index: 1;
-        }
-
-        #setup, #incoming { 
-            z-index: 20; 
-            background: rgba(30,30,30,0.9); 
-            padding: 30px; 
-            border-radius: 20px; 
-            text-align: center; 
-            width: 85%; 
-            border: 1px solid #3498db; 
-        }
-
-        .controls { 
-            position: fixed; 
-            bottom: 40px; 
-            z-index: 30; 
-            width: 100%; 
-            display: none; 
-            justify-content: space-around; 
-        }
-
-        .btn { padding: 20px; border-radius: 50%; border: none; width: 80px; height: 80px; font-size: 1.5rem; cursor: pointer; color: white; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
-        
-        #log { 
-            position: fixed; 
-            top: 0; 
-            width: 100%; 
-            background: rgba(0,0,0,0.8); 
-            font-size: 10px; 
-            color: #0f0; 
-            padding: 5px; 
-            z-index: 100; 
-            text-align: left; 
-            max-height: 80px; 
-            overflow-y: auto;
-            word-break: break-all;
-        }
+        body { font-family: sans-serif; background: #000; color: #fff; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; background: #000; }
+        .ui { z-index: 10; position: relative; text-align: center; background: rgba(0,0,0,0.7); padding: 20px; border-radius: 15px; }
+        .controls { position: fixed; bottom: 40px; width: 100%; display: none; justify-content: space-around; z-index: 20; }
+        .btn { width: 80px; height: 80px; border-radius: 50%; border: none; font-size: 2rem; cursor: pointer; color: white; }
     </style>
 </head>
 <body>
-    <div id="log">Log: Waiting for setup</div>
-
-    <div id="setup">
-        <h2>זמיר 15 - כניסת דייר</h2>
-        <input type="number" id="aptInput" placeholder="דירה" style="padding: 15px; width: 80px; text-align: center; font-size: 1.2rem; border-radius: 10px;">
-        <br><br>
-        <button onclick="start()" style="padding: 15px 40px; background: #3498db; color: white; border: none; border-radius: 10px; font-size: 1.1rem; cursor: pointer;">התחל האזנה</button>
+    <div id="setup" class="ui">
+        <h2>הגדרת דירה</h2>
+        <input type="number" id="apt" style="padding:10px; width:60px;">
+        <button onclick="listen()" style="padding:10px; background:#3498db; color:white; border:none;">התחל</button>
     </div>
 
-    <div id="incoming" style="display:none;">
-        <h1 style="font-size: 3rem;">📞</h1>
-        <h2>שיחה מהשער</h2>
-        <button onclick="accept()" style="padding: 20px 50px; background: #2ecc71; color: white; border: none; border-radius: 50px; font-size: 1.5rem; width: 100%; cursor: pointer;">ענה וצפה בווידאו</button>
+    <div id="incoming" class="ui" style="display:none;">
+        <h1>📞 שיחה מהשער</h1>
+        <button onclick="accept()" style="padding:20px 40px; background:#2ecc71; color:white; border:none; border-radius:50px; font-size:1.5rem;">ענה וצפה</button>
     </div>
 
     <video id="remoteVideo" autoplay playsinline muted></video>
 
     <div id="controls" class="controls">
-        <button class="btn" style="background: #e74c3c;" onclick="location.reload()">✖</button>
-        <button class="btn" style="background: #2ecc71;" onclick="openDoor()">✔</button>
+        <button class="btn" style="background:#e74c3c;" onclick="location.reload()">✖</button>
+        <button class="btn" style="background:#2ecc71;" onclick="openDoor()">✔</button>
     </div>
 
     <script type="module">
@@ -93,43 +46,28 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const log = (m) => { document.getElementById('log').innerText += ` | ${m}`; console.log(m); };
-        
-        let pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun1.l.google.com:19302' }] });
+        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
         let callId = null;
 
-        // טיפול במסלול הווידאו
         pc.ontrack = (e) => {
-            log("Track received!");
             const v = document.getElementById('remoteVideo');
             if (v.srcObject !== e.streams[0]) {
                 v.srcObject = e.streams[0];
-                log("Stream attached to element");
+                v.onloadedmetadata = () => {
+                    v.play();
+                    document.getElementById('controls').style.display = 'flex';
+                };
             }
-            
-            // הצגת הכפתורים מיד כשהמידע מגיע
-            document.getElementById('controls').style.display = 'flex';
-            
-            // ניסיון ניגון אגרסיבי
-            v.onloadedmetadata = () => {
-                log("Metadata loaded, playing...");
-                v.play().then(() => log("Playing Success")).catch(err => log("Play fail: " + err));
-            };
         };
 
-        window.start = () => {
-            const apt = document.getElementById('aptInput').value;
-            if(!apt) return;
+        window.listen = () => {
+            const aptNum = parseInt(document.getElementById('apt').value);
             document.getElementById('setup').style.display = 'none';
-            log(`Listening to apt ${apt}`);
-
-            const q = query(collection(db, "calls"), where("apartment", "==", parseInt(apt)), where("status", "==", "dialing"));
-            onSnapshot(q, (sn) => {
+            onSnapshot(query(collection(db, "calls"), where("apartment", "==", aptNum), where("status", "==", "dialing")), (sn) => {
                 sn.docChanges().forEach(c => {
-                    if(c.type === "added") {
+                    if (c.type === "added") {
                         callId = c.doc.id;
                         document.getElementById('incoming').style.display = 'block';
-                        log("Incoming Call!");
                     }
                 });
             });
@@ -137,44 +75,27 @@
 
         window.accept = async () => {
             document.getElementById('incoming').style.display = 'none';
-            log("Answering...");
-            
             const callDoc = doc(db, "calls", callId);
-            
-            // האזנה להצעה (Offer) מהענן
             onSnapshot(callDoc, async (s) => {
                 const data = s.data();
                 if (data.offer && !pc.currentRemoteDescription) {
-                    log("Offer found, setting RemoteDesc");
                     await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                     const answer = await pc.createAnswer();
                     await pc.setLocalDescription(answer);
                     await updateDoc(callDoc, { answer: { type: answer.type, sdp: answer.sdp }, status: "connected" });
-                    log("Answer sent to cloud");
                 }
             });
-
-            // האזנה ל-ICE Candidates
-            onSnapshot(collection(db, "calls", callId, "offerCandidates"), (s) => {
-                s.docChanges().forEach(c => {
-                    if (c.type === "added") {
-                        pc.addIceCandidate(new RTCIceCandidate(c.doc.data())).catch(e => log("ICE Error"));
-                    }
-                });
+            onSnapshot(collection(callDoc, "offerCandidates"), (s) => {
+                s.docChanges().forEach(c => c.type === "added" && pc.addIceCandidate(new RTCIceCandidate(c.doc.data())));
             });
-
-            pc.onicecandidate = (e) => {
-                if (e.candidate) addDoc(collection(db, "calls", callId, "answerCandidates"), e.candidate.toJSON());
-            };
+            pc.onicecandidate = (e) => e.candidate && addDoc(collection(callDoc, "answerCandidates"), e.candidate.toJSON());
         };
 
         window.openDoor = async () => {
-            if(callId) {
-                await updateDoc(doc(db, "calls", callId), { status: "opened" });
-                alert("נפתח!");
-                location.reload();
-            }
+            if(callId) await updateDoc(doc(db, "calls", callId), { status: "opened" });
+            location.reload();
         };
     </script>
 </body>
 </html>
+7
