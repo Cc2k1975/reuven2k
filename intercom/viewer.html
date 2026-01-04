@@ -3,49 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>דייר - זמיר 15</title>
+    <title>דייר - צפייה</title>
     <style>
         body { margin: 0; background: #000; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        #remoteVideo { flex: 1; width: 100%; object-fit: cover; background: #222; }
+        #remoteVideo { flex: 1; width: 100%; object-fit: cover; background: #111; }
         .open-btn { 
             background: #2ecc71; color: white; padding: 25px; font-size: 2rem; 
             font-weight: bold; border: none; cursor: pointer; font-family: sans-serif;
         }
-        .open-btn:active { background: #27ae60; }
     </style>
 </head>
 <body>
     <video id="remoteVideo" autoplay playsinline></video>
-    <button class="open-btn" onclick="openDoor()">פתח דלת ✔</button>
+    
+    <button class="open-btn" onclick="alert('הדלת נפתחה!')">פתח דלת ✔</button>
 
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
     <script>
-        // Firebase בשביל ה-Shelly
-        firebase.initializeApp({
-            apiKey: "AIzaSyALAVQSl6FcuF0HYhCfIgVz-GUMSJKcT5c",
-            authDomain: "zamir15-intercom.firebaseapp.com",
-            projectId: "zamir15-intercom"
-        });
-        const db = firebase.firestore();
-
-        // התחברות למצלמה
-        const peer = new Peer();
+        const peer = new Peer(); // ID אקראי לדייר
         
-        // ברגע שהדף נטען - "תתקשר" למצלמה של השער
+        // ברגע שהדף נפתח - תתקשר אוטומטית לשער
         peer.on('open', () => {
-            const call = peer.call('zamir15-gate-camera-unique', new MediaStream());
+            const call = peer.call('zamir15-gate-camera-777', new MediaStream());
+            
             call.on('stream', remoteStream => {
-                document.getElementById('remoteVideo').srcObject = remoteStream;
+                const video = document.getElementById('remoteVideo');
+                video.srcObject = remoteStream;
+                video.play();
             });
         });
-
-        function openDoor() {
-            db.collection("commands").add({ action: "OPEN", time: firebase.firestore.FieldValue.serverTimestamp() });
-            alert("הדלת נפתחת!");
-        }
     </script>
 </body>
 </html>
