@@ -5,26 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>אינטרקום זמיר 15 - שער</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #1a1a1a; color: white; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         header { background: #000; padding: 15px; text-align: center; border-bottom: 2px solid #3498db; }
         #tenants-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; overflow-y: auto; }
         .tenant-btn { background: #2d2d2d; border: 1px solid #444; border-radius: 10px; display: flex; align-items: center; padding: 15px; cursor: pointer; }
         .apt-number { background: #3498db; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-left: 15px; font-weight: bold; }
         .status-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
         .status-overlay.active { display: flex; }
-        #localVideo { width: 80%; max-width: 300px; border-radius: 15px; border: 2px solid #3498db; margin-bottom: 20px; }
-        #log { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7); font-size: 10px; color: #0f0; padding: 5px; height: 60px; overflow-y: auto; pointer-events: none; z-index: 200; }
+        #localVideo { width: 80%; max-width: 300px; border-radius: 15px; border: 2px solid #3498db; background: #000; }
+        #log { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); font-size: 11px; color: #0f0; padding: 5px; height: 50px; overflow-y: auto; z-index: 200; }
     </style>
 </head>
 <body>
     <header><h1>זמיר 15 - שער</h1></header>
     <div id="tenants-grid"></div>
-    <div id="log">לוג מערכת: מוכן...</div>
+    <div id="log">מערכת מוכנה...</div>
 
     <div id="calling-status" class="status-overlay">
         <video id="localVideo" autoplay playsinline muted></video>
-        <h2 id="status-text">מתחבר...</h2>
-        <button onclick="location.reload()" style="padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 5px;">ביטול</button>
+        <h2 id="status-text" style="margin: 20px 0;">מחייג...</h2>
+        <button onclick="location.reload()" style="padding: 15px 30px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-size: 1.2rem;">ביטול</button>
     </div>
 
     <script type="module">
@@ -42,67 +42,48 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const log = (msg) => { document.getElementById('log').innerHTML += `<br>${msg}`; console.log(msg); };
+        const log = (m) => { document.getElementById('log').innerText += ` | ${m}`; };
 
-        const grid = document.getElementById('tenants-grid');
         for (let i = 1; i <= 24; i++) {
             const btn = document.createElement('div');
             btn.className = 'tenant-btn';
             btn.innerHTML = `<div class="apt-number">${i}</div><div>משפחת דייר ${i}</div>`;
             btn.onclick = () => startCall(i);
-            grid.appendChild(btn);
+            document.getElementById('tenants-grid').appendChild(btn);
         }
 
         async function startCall(aptId) {
             document.getElementById('calling-status').classList.add('active');
-            log(`מתחיל שיחה לדירה ${aptId}`);
-
-            const pc = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }] });
-
+            const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun1.l.google.com:19302' }] });
+            
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById('localVideo').srcObject = stream;
-                stream.getTracks().forEach(track => pc.addTrack(track, stream));
-                log("מצלמה הופעלה");
+                stream.getTracks().forEach(t => pc.addTrack(t, stream));
 
                 const callDoc = doc(collection(db, "calls"));
-                const offerCandidates = collection(callDoc, "offerCandidates");
-                const answerCandidates = collection(callDoc, "answerCandidates");
+                pc.onicecandidate = (e) => e.candidate && addDoc(collection(callDoc, "offerCandidates"), e.candidate.toJSON());
 
-                pc.onicecandidate = (e) => e.candidate && addDoc(offerCandidates, e.candidate.toJSON());
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await setDoc(callDoc, { apartment: aptId, status: "dialing", offer: { type: offer.type, sdp: offer.sdp }, createdAt: serverTimestamp() });
 
-                const offerDescription = await pc.createOffer();
-                await pc.setLocalDescription(offerDescription);
-
-                await setDoc(callDoc, {
-                    apartment: aptId,
-                    status: "dialing",
-                    offer: { type: offerDescription.type, sdp: offerDescription.sdp },
-                    createdAt: serverTimestamp()
-                });
-                log("הצעה (Offer) נשלחה לענן");
-
-                onSnapshot(callDoc, (snapshot) => {
-                    const data = snapshot.data();
-                    if (data?.answer && !pc.currentRemoteDescription) {
-                        log("תשובה התקבלה! מחבר וידאו...");
-                        pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                onSnapshot(callDoc, (s) => {
+                    const d = s.data();
+                    if (d?.answer && !pc.currentRemoteDescription) pc.setRemoteDescription(new RTCSessionDescription(d.answer));
+                    if (d?.status === "opened") {
+                        document.getElementById('status-text').innerText = "נפתח!";
+                        setTimeout(() => location.reload(), 2000);
                     }
-                    if (data?.status === "opened") location.reload();
                 });
 
-                onSnapshot(answerCandidates, (snapshot) => {
-                    snapshot.docChanges().forEach((change) => {
-                        if (change.type === "added") {
-                            log("ICE Candidate התקבל מהדייר");
-                            pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                        }
-                    });
+                onSnapshot(collection(callDoc, "answerCandidates"), (s) => {
+                    s.docChanges().forEach(c => c.type === "added" && pc.addIceCandidate(new RTCIceCandidate(c.doc.data())));
                 });
-
+                log("חיוג נשלח");
             } catch (e) { log("שגיאה: " + e.message); }
         }
     </script>
 </body>
 </html>
-2
+3
