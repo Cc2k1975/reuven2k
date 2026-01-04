@@ -2,36 +2,31 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מצלמה - זמיר 15</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
-        #meet { width: 100%; height: 100%; }
+        body { margin: 0; background: #000; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        video { width: 90%; border-radius: 15px; border: 2px solid #3498db; transform: scaleX(-1); }
     </style>
 </head>
 <body>
-    <div id="meet"></div>
-    <script src="https://meet.jit.si/external_api.js"></script>
+    <video id="localVideo" autoplay playsinline muted></video>
+
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script>
-        const api = new JitsiMeetExternalAPI("meet.jit.si", {
-            roomName: "Zamir15_Secure_Gate_Room_2024",
-            width: "100%", height: "100%",
-            parentNode: document.querySelector('#meet'),
-            configOverwrite: {
-                prejoinPageEnabled: false,
-                disableDeepLinking: true,
-                startWithAudioMuted: true,
-                toolbarButtons: [], // ריק לגמרי
-                settingsSections: [],
-                disableSelfView: true,
-                hideConferenceTimer: true,
-                enableLobby: false // מבטל המתנה לאישור
-            },
-            interfaceConfigOverwrite: {
-                TOOLBAR_BUTTONS: [],
-                SHOW_JITSI_WATERMARK: false,
-                SHOW_PROMOTIONAL_CLOSE_PAGE: false
-            }
+        // זה ה-ID של השער שלך
+        const peer = new Peer('zamir15-gate-camera-unique');
+
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+            document.getElementById('localVideo').srcObject = stream;
+
+            // כשמישהו (הדייר) מתקשר - תענה לו עם הווידאו
+            peer.on('call', call => {
+                call.answer(stream);
+                console.log("משדר לדייר...");
+            });
         });
     </script>
 </body>
 </html>
+
