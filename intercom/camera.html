@@ -1,42 +1,34 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>צד א' - מצלמה</title>
+    <style>
+        body { margin: 0; padding: 0; background: #1a1a1a; color: white; text-align: center; font-family: sans-serif; }
+        #meet { width: 100%; height: 80vh; background: #000; }
+        .info { padding: 20px; }
+    </style>
+</head>
 <body>
-    <h2>משדר (מצלמה)</h2>
-    <video id="v" autoplay playsinline muted style="width:200px; border:1px solid red;"></video>
-    <button onclick="start()">הפעל שידור</button>
+    <div class="info">
+        <h2>צד א': המצלמה בשער</h2>
+        <p>ברגע שהווידאו עולה, פתח לשונית חדשה עם הקובץ השני.</p>
+    </div>
+    
+    <div id="meet"></div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://meet.jit.si/external_api.js"></script>
     <script>
-        const config = {
-            apiKey: "AIzaSyALAVQSl6FcuF0HYhCfIgVz-GUMSJKcT5c",
-            authDomain: "zamir15-intercom.firebaseapp.com",
-            projectId: "zamir15-intercom"
+        const domain = "meet.jit.si";
+        const options = {
+            roomName: "Zamir15_Test_Room_Unique_999", // שם חדר קבוע לבדיקה
+            width: "100%",
+            height: "100%",
+            parentNode: document.querySelector('#meet'),
+            configOverwrite: { startWithAudioMuted: true },
+            interfaceConfigOverwrite: { TOOLBAR_BUTTONS: [] } // מסתיר כפתורים מיותרים
         };
-        firebase.initializeApp(config);
-        const db = firebase.firestore();
-        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-
-        async function start() {
-            const s = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            document.getElementById('v').srcObject = s;
-            s.getTracks().forEach(t => pc.addTrack(t, s));
-
-            const doc = db.collection('calls').doc('test');
-            pc.onicecandidate = e => e.candidate && doc.collection('o').add(e.candidate.toJSON());
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await doc.set({ offer: { type: offer.type, sdp: offer.sdp } });
-
-            doc.onSnapshot(snap => {
-                const d = snap.data();
-                if (d?.answer && !pc.currentRemoteDescription) pc.setRemoteDescription(new RTCSessionDescription(d.answer));
-            });
-            doc.collection('a').onSnapshot(snap => {
-                snap.docChanges().forEach(c => c.type === 'added' && pc.addIceCandidate(new RTCIceCandidate(c.doc.data())));
-            });
-        }
+        const api = new JitsiMeetExternalAPI(domain, options);
     </script>
 </body>
 </html>
