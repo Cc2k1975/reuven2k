@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>סורק Pro - רב עמודים</title>
+  <title>סורק Pro - רב עמודים עם חיתוך ידני</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://docs.opencv.org/4.7.0/opencv.js"></script>
@@ -56,7 +56,6 @@
     .btn-blue { background: #0b5ed7; color: #fff; }
     .btn-red { background: #b02a37; color: #fff; }
 
-    /* thumbnails */
     #thumbs {
       width: min(720px, 96%);
       display: none;
@@ -79,86 +78,54 @@
     .spinner { width: 40px; height: 40px; border: 4px solid #222; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Preview Modal */
-    #previewModal {
+    /* Preview & Crop Modals */
+    #previewModal, #cropModal {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.92);
+      background: rgba(0,0,0,0.96);
       z-index: 999;
       display: none;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column;
       padding: 14px 12px calc(14px + env(safe-area-inset-bottom));
     }
-    #previewWrap {
+    #previewWrap, #cropWrap {
       width: min(980px, 100%);
-      height: min(86vh, 100%);
+      height: 100%;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
-    #previewTop {
+    .modal-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    
+    /* Crop Interface */
+    #cropContainer {
+      position: relative;
+      flex: 1;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    #previewTitle {
-      font-weight: 800;
-      font-size: 15px;
-      color: #fff;
-    }
-    #previewImg {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      border-radius: 12px;
-      border: 1px solid #333;
-      background: #000;
-    }
-
-    /* ✅ שכבת חיתוך */
-    #cropOverlay {
-      position: absolute;
-      inset: 0;
-      display: none;
-      z-index: 50;
-      pointer-events: none;
-    }
-    #cropSvg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-    }
-    .cropHandle {
-      position: absolute;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: #fff;
-      border: 3px solid #007bff;
-      transform: translate(-50%, -50%);
-      z-index: 60;
-      pointer-events: auto;
+      justify-content: center;
+      overflow: hidden;
       touch-action: none;
     }
-    .cropHint {
+    #cropImg { max-width: 100%; max-height: 100%; user-select: none; pointer-events: none; }
+    .crop-handle {
       position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.6);
-      border: 1px solid #333;
-      color: #fff;
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 13px;
-      pointer-events: none;
-      z-index: 55;
-      white-space: nowrap;
+      width: 34px; height: 34px;
+      background: rgba(11, 94, 215, 0.7);
+      border: 3px solid #fff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 1001;
+      touch-action: none;
     }
+    #cropOverlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+    }
+    #previewImg { width: 100%; height: 100%; object-fit: contain; border-radius: 12px; background: #000; }
   </style>
 </head>
 
@@ -171,19 +138,9 @@
   <div class="app">
     <div id="debug">Log: ממתין ל-OpenCV</div>
 
-    <div class="viewer" id="viewer">
+    <div class="viewer">
       <video id="video" autoplay playsinline muted></video>
       <canvas id="canvasOutput"></canvas>
-
-      <!-- ✅ Overlay חיתוך -->
-      <div id="cropOverlay">
-        <div class="cropHint">הזז את הפינות על הדף ואז לחץ "✅ שמור עמוד"</div>
-        <svg id="cropSvg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
-        <div class="cropHandle" id="h0"></div>
-        <div class="cropHandle" id="h1"></div>
-        <div class="cropHandle" id="h2"></div>
-        <div class="cropHandle" id="h3"></div>
-      </div>
     </div>
 
     <div class="footer">
@@ -191,35 +148,46 @@
 
       <div class="row" id="rowCapture">
         <div class="pill" id="pagesInfo">עמודים: 0</div>
-
         <button class="btn" id="modeBtn">🩶 אפור</button>
-
-        <div class="snap-btn" id="snapBtn" aria-label="צילום">
-          <div class="snap-inner"></div>
-        </div>
-
+        <div class="snap-btn" id="snapBtn"><div class="snap-inner"></div></div>
         <button class="btn btn-red" id="resetBtn">איפוס</button>
       </div>
 
       <div id="thumbs"></div>
 
-      <!-- ✅ אותו אזור פעולות – רק הוספתי שני כפתורים למצב חיתוך -->
       <div class="row" id="rowActions" style="display:none">
         <button class="btn btn-blue" id="addPageBtn">➕ הוסף עמוד</button>
         <button class="btn btn-green" id="makePdfBtn">📩 שלח PDF</button>
+      </div>
+    </div>
+  </div>
 
-        <button class="btn btn-green" id="confirmCropBtn" style="display:none">✅ שמור עמוד</button>
-        <button class="btn" id="retakeBtn" style="display:none">↩️ צלם שוב</button>
+  <div id="cropModal">
+    <div id="cropWrap">
+      <div class="modal-top">
+        <div style="font-weight: 800;">יישור וחיתוך</div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-red" id="cancelCropBtn">ביטול</button>
+            <button class="btn btn-blue" id="saveCropBtn">שמור דף ✅</button>
+        </div>
+      </div>
+      <div id="cropContainer">
+        <img id="cropImg" alt="to crop" />
+        <canvas id="cropOverlay"></canvas>
+        <div id="h0" class="crop-handle" data-id="0"></div>
+        <div id="h1" class="crop-handle" data-id="1"></div>
+        <div id="h2" class="crop-handle" data-id="2"></div>
+        <div id="h3" class="crop-handle" data-id="3"></div>
       </div>
     </div>
   </div>
 
   <div id="previewModal">
     <div id="previewWrap">
-      <div id="previewTop">
+      <div class="modal-top">
         <div id="previewTitle">תצוגה מקדימה</div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn btn-red" id="deletePageBtn">🗑️ מחק עמוד</button>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-red" id="deletePageBtn">🗑️ מחק</button>
           <button class="btn" id="closePreviewBtn">סגור ✖️</button>
         </div>
       </div>
@@ -230,503 +198,243 @@
 <script>
   const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
 
-  const viewer = document.getElementById('viewer');
   const video = document.getElementById('video');
   const canvas = document.getElementById('canvasOutput');
-
   const loader = document.getElementById('loader');
   const msg = document.getElementById('msg');
-
   const snapBtn = document.getElementById('snapBtn');
   const resetBtn = document.getElementById('resetBtn');
-
   const pagesInfo = document.getElementById('pagesInfo');
   const thumbs = document.getElementById('thumbs');
   const rowActions = document.getElementById('rowActions');
   const addPageBtn = document.getElementById('addPageBtn');
   const makePdfBtn = document.getElementById('makePdfBtn');
 
-  const confirmCropBtn = document.getElementById('confirmCropBtn');
-  const retakeBtn = document.getElementById('retakeBtn');
+  // Crop Elements
+  const cropModal = document.getElementById('cropModal');
+  const cropImg = document.getElementById('cropImg');
+  const cropOverlay = document.getElementById('cropOverlay');
+  const saveCropBtn = document.getElementById('saveCropBtn');
+  const cancelCropBtn = document.getElementById('cancelCropBtn');
+  const handles = [document.getElementById('h0'), document.getElementById('h1'), document.getElementById('h2'), document.getElementById('h3')];
 
+  // Preview Elements
   const previewModal = document.getElementById('previewModal');
   const previewImg = document.getElementById('previewImg');
   const previewTitle = document.getElementById('previewTitle');
   const closePreviewBtn = document.getElementById('closePreviewBtn');
   const deletePageBtn = document.getElementById('deletePageBtn');
 
-  const cropOverlay = document.getElementById('cropOverlay');
-  const cropSvg = document.getElementById('cropSvg');
-  const handles = [
-    document.getElementById('h0'),
-    document.getElementById('h1'),
-    document.getElementById('h2'),
-    document.getElementById('h3')
-  ];
-
   const modeBtn = document.getElementById('modeBtn');
-  let scanMode = "bw";
+  let scanMode = "bw"; 
+
+  let cvReady = false;
+  let cameraReady = false;
+  let currentRawMat = null;
+  const pages = [];
+  let previewIndex = -1;
+
+  // Corner points state (relative to image display size)
+  let corners = [{x:0, y:0}, {x:0, y:0}, {x:0, y:0}, {x:0, y:0}];
 
   modeBtn.addEventListener('click', () => {
     scanMode = (scanMode === "bw") ? "gray" : "bw";
     modeBtn.innerText = (scanMode === "bw") ? "🩶 אפור" : "⬛ שחור-לבן";
-    log("מצב סריקה: " + (scanMode === "bw" ? "שחור-לבן" : "אפור"));
   });
 
-  let cvReady = false;
-  let cameraReady = false;
-  let streamRef = null;
-
-  const pages = [];
-  let previewIndex = -1;
-
-  let cropModeActive = false;
-  let capturedMatRGBA = null; // ה-frame המצולם (Mat RGBA) לשלב החיתוך
-
-  // נקודות חיתוך (בקואורדינטות של התמונה - canvas pixels)
-  // סדר: [tl, tr, br, bl]
-  let cropPts = [
-    {x: 100, y: 100},
-    {x: 400, y: 100},
-    {x: 400, y: 600},
-    {x: 100, y: 600}
-  ];
-
-  snapBtn.addEventListener('click', () => {
-    if (!cropModeActive) startCaptureAndCrop();
-  });
+  snapBtn.addEventListener('click', captureForCrop);
   resetBtn.addEventListener('click', () => location.reload());
-
   addPageBtn.addEventListener('click', backToCamera);
   makePdfBtn.addEventListener('click', sendMultiPagePdf);
-
-  confirmCropBtn.addEventListener('click', confirmCropAndStore);
-  retakeBtn.addEventListener('click', () => {
-    exitCropMode();
-    backToCamera();
-  });
-
-  closePreviewBtn.addEventListener('click', closePreview);
-  previewModal.addEventListener('click', (e) => { if (e.target === previewModal) closePreview(); });
+  saveCropBtn.addEventListener('click', applyCropAndStore);
+  cancelCropBtn.addEventListener('click', () => { cropModal.style.display='none'; if(currentRawMat) currentRawMat.delete(); });
+  closePreviewBtn.addEventListener('click', () => previewModal.style.display = 'none');
   deletePageBtn.addEventListener('click', deleteCurrentPreviewPage);
 
   cv.onRuntimeInitialized = async () => {
     cvReady = true;
-    log("OpenCV מוכן, פותח מצלמה...");
     await initCamera();
   };
 
   async function initCamera() {
     try {
-      streamRef = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: false
       });
-
-      video.srcObject = streamRef;
-
-      await new Promise((resolve) => {
-        const onReady = () => {
-          if (video.videoWidth > 0 && video.videoHeight > 0) {
-            video.removeEventListener('loadedmetadata', onReady);
-            video.removeEventListener('canplay', onReady);
-            resolve();
-          }
-        };
-        video.addEventListener('loadedmetadata', onReady);
-        video.addEventListener('canplay', onReady);
-      });
-
-      cameraReady = true;
-      loader.style.display = "none";
-      log(`מערכת מוכנה ✅ (${video.videoWidth}x${video.videoHeight})`);
-    } catch (e) {
-      loader.style.display = "none";
-      log("שגיאה בפתיחת מצלמה");
-      alert("לא הצלחתי לפתוח מצלמה.");
-      console.error(e);
-    }
+      video.srcObject = stream;
+      video.onloadedmetadata = () => {
+        cameraReady = true;
+        loader.style.display = "none";
+        log("מערכת מוכנה ✅");
+      };
+    } catch (e) { log("שגיאה במצלמה"); }
   }
 
-  function grabFrameToMat() {
+  function captureForCrop() {
+    if (!cvReady || !cameraReady) return;
+    log("מעבד חיתוך...");
     const w = video.videoWidth;
     const h = video.videoHeight;
     const tmp = document.createElement('canvas');
-    tmp.width = w;
-    tmp.height = h;
-    const ctx = tmp.getContext('2d', { willReadFrequently: true });
+    tmp.width = w; tmp.height = h;
+    const ctx = tmp.getContext('2d');
     ctx.drawImage(video, 0, 0, w, h);
-    return cv.imread(tmp);
+    
+    if (currentRawMat) currentRawMat.delete();
+    currentRawMat = cv.imread(tmp);
+    
+    cropImg.src = tmp.toDataURL('image/jpeg', 0.9);
+    cropModal.style.display = 'flex';
+    
+    // Set default corners after image loads
+    cropImg.onload = () => {
+        const rect = cropImg.getBoundingClientRect();
+        cropOverlay.width = rect.width;
+        cropOverlay.height = rect.height;
+        
+        // Default: 10% margin
+        const padW = rect.width * 0.1;
+        const padH = rect.height * 0.1;
+        corners = [
+            {x: padW, y: padH}, 
+            {x: rect.width - padW, y: padH}, 
+            {x: rect.width - padW, y: rect.height - padH}, 
+            {x: padW, y: rect.height - padH}
+        ];
+        updateHandles();
+    };
   }
 
-  function backToCamera() {
-    exitCropMode();
-    canvas.style.display = 'none';
-    video.style.display = 'block';
-    msg.innerText = "כוון אל הדף ולחץ צילום";
-    log("חזרה למצלמה");
+  function updateHandles() {
+    corners.forEach((p, i) => {
+        handles[i].style.left = `${p.x}px`;
+        handles[i].style.top = `${p.y}px`;
+    });
+    drawOverlay();
+  }
+
+  function drawOverlay() {
+    const ctx = cropOverlay.getContext('2d');
+    ctx.clearRect(0, 0, cropOverlay.width, cropOverlay.height);
+    ctx.strokeStyle = "#0b5ed7";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    corners.forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.closePath();
+    ctx.stroke();
+    // Fill mask
+    ctx.fillStyle = "rgba(11, 94, 215, 0.1)";
+    ctx.fill();
+  }
+
+  // Handle Dragging
+  let activeHandle = null;
+  const startDrag = (e) => {
+    if (e.target.classList.contains('crop-handle')) {
+        activeHandle = parseInt(e.target.dataset.id);
+        e.preventDefault();
+    }
+  };
+  const moveDrag = (e) => {
+    if (activeHandle === null) return;
+    const rect = cropImg.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    const x = Math.max(0, Math.min(touch.clientX - rect.left, rect.width));
+    const y = Math.max(0, Math.min(touch.clientY - rect.top, rect.height));
+    corners[activeHandle] = {x, y};
+    updateHandles();
+  };
+  const stopDrag = () => activeHandle = null;
+
+  document.getElementById('cropContainer').addEventListener('mousedown', startDrag);
+  window.addEventListener('mousemove', moveDrag);
+  window.addEventListener('mouseup', stopDrag);
+  document.getElementById('cropContainer').addEventListener('touchstart', startDrag, {passive: false});
+  window.addEventListener('touchmove', moveDrag, {passive: false});
+  window.addEventListener('touchend', stopDrag);
+
+  function applyCropAndStore() {
+    log("מיישר ושומר...");
+    const rect = cropImg.getBoundingClientRect();
+    const scaleX = currentRawMat.cols / rect.width;
+    const scaleY = currentRawMat.rows / rect.height;
+
+    const srcCoords = corners.flatMap(p => [p.x * scaleX, p.y * scaleY]);
+    const srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, srcCoords);
+
+    // Calc target size (A4 ratio approx)
+    const w1 = Math.hypot(srcCoords[2]-srcCoords[0], srcCoords[3]-srcCoords[1]);
+    const h1 = Math.hypot(srcCoords[6]-srcCoords[0], srcCoords[7]-srcCoords[1]);
+    const destW = Math.max(w1, 500);
+    const destH = Math.max(h1, 700);
+
+    const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, destW, 0, destW, destH, 0, destH]);
+    const M = cv.getPerspectiveTransform(srcPts, dstPts);
+    let warped = new cv.Mat();
+    cv.warpPerspective(currentRawMat, warped, M, new cv.Size(destW, destH));
+
+    let final = new cv.Mat();
+    cv.cvtColor(warped, final, cv.COLOR_RGBA2GRAY);
+    if (scanMode === "bw") {
+        cv.adaptiveThreshold(final, final, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 12);
+    }
+
+    canvas.width = final.cols; canvas.height = final.rows;
+    cv.imshow(canvas, final);
+    
+    pages.push(canvas.toDataURL('image/jpeg', 0.92));
+    updatePagesUI();
+    
+    // Cleanup
+    cropModal.style.display = 'none';
+    srcPts.delete(); dstPts.delete(); M.delete(); warped.delete(); final.delete();
+    if(currentRawMat) { currentRawMat.delete(); currentRawMat = null; }
+    
+    video.style.display = 'none';
+    canvas.style.display = 'block';
+    msg.innerText = `נסרק עמוד ${pages.length}`;
+    log("נשמר ✅");
   }
 
   function updatePagesUI() {
     pagesInfo.innerText = `עמודים: ${pages.length}`;
-    rowActions.style.display = (pages.length > 0 || cropModeActive) ? 'flex' : 'none';
+    rowActions.style.display = pages.length > 0 ? 'flex' : 'none';
     thumbs.style.display = pages.length > 0 ? 'flex' : 'none';
     thumbs.innerHTML = "";
-    pages.forEach((dataUrl, idx) => {
+    pages.forEach((data, i) => {
       const img = document.createElement('img');
-      img.src = dataUrl;
-      img.className = "thumb";
-      img.title = `עמוד ${idx+1}`;
-      img.addEventListener('click', () => openPreview(idx));
+      img.src = data; img.className = "thumb";
+      img.onclick = () => { previewIndex = i; previewImg.src = data; previewTitle.innerText = `עמוד ${i+1}`; previewModal.style.display='flex'; };
       thumbs.appendChild(img);
     });
-
-    // כפתורי מצב רגיל/חיתוך
-    addPageBtn.style.display = cropModeActive ? "none" : "inline-block";
-    makePdfBtn.style.display = cropModeActive ? "none" : "inline-block";
-    confirmCropBtn.style.display = cropModeActive ? "inline-block" : "none";
-    retakeBtn.style.display = cropModeActive ? "inline-block" : "none";
   }
 
-  function openPreview(index) {
-    previewIndex = index;
-    previewImg.src = pages[index];
-    previewTitle.innerText = `תצוגה מקדימה - עמוד ${index+1} מתוך ${pages.length}`;
-    previewModal.style.display = 'flex';
-  }
-
-  function closePreview() {
-    previewModal.style.display = 'none';
-    previewIndex = -1;
+  function backToCamera() {
+    canvas.style.display = 'none'; video.style.display = 'block';
+    msg.innerText = "כוון אל הדף ולחץ צילום";
   }
 
   function deleteCurrentPreviewPage() {
-    if (previewIndex < 0 || previewIndex >= pages.length) return;
     pages.splice(previewIndex, 1);
-    if (pages.length === 0) {
-      closePreview();
-      updatePagesUI();
-      backToCamera();
-      return;
-    }
-    if (previewIndex >= pages.length) previewIndex = pages.length - 1;
+    previewModal.style.display = 'none';
     updatePagesUI();
-    openPreview(previewIndex);
-  }
-
-  // ------------------------------
-  // ✅ כלי עזר לפרספקטיבה
-  // ------------------------------
-  function dist(a, b) {
-    const dx = a.x - b.x, dy = a.y - b.y;
-    return Math.sqrt(dx*dx + dy*dy);
-  }
-
-  function orderPoints(pts) {
-    // מחזיר [tl, tr, br, bl]
-    const sum = pts.map(p => p.x + p.y);
-    const diff = pts.map(p => p.x - p.y);
-
-    const tl = pts[sum.indexOf(Math.min(...sum))];
-    const br = pts[sum.indexOf(Math.max(...sum))];
-    const tr = pts[diff.indexOf(Math.max(...diff))];
-    const bl = pts[diff.indexOf(Math.min(...diff))];
-    return [tl, tr, br, bl];
-  }
-
-  function fourPointTransform(srcRGBA, quadPts) {
-    const [tl, tr, br, bl] = orderPoints(quadPts);
-
-    const widthA = dist(br, bl);
-    const widthB = dist(tr, tl);
-    const maxW = Math.max(widthA, widthB);
-
-    const heightA = dist(tr, br);
-    const heightB = dist(tl, bl);
-    const maxH = Math.max(heightA, heightB);
-
-    const dstW = Math.max(1, Math.round(maxW));
-    const dstH = Math.max(1, Math.round(maxH));
-
-    const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-      tl.x, tl.y,
-      tr.x, tr.y,
-      br.x, br.y,
-      bl.x, bl.y
-    ]);
-
-    const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-      0, 0,
-      dstW - 1, 0,
-      dstW - 1, dstH - 1,
-      0, dstH - 1
-    ]);
-
-    const M = cv.getPerspectiveTransform(srcTri, dstTri);
-    const warped = new cv.Mat();
-    cv.warpPerspective(srcRGBA, warped, M, new cv.Size(dstW, dstH), cv.INTER_LINEAR, cv.BORDER_REPLICATE);
-
-    srcTri.delete(); dstTri.delete(); M.delete();
-    return warped;
-  }
-
-  // ------------------------------
-  // ✅ התחלת צילום + כניסה למצב חיתוך
-  // ------------------------------
-  function startCaptureAndCrop() {
-    if (!cvReady || !cameraReady) return;
-
-    try {
-      log("מצלם...");
-
-      // לוקחים פריים
-      const src = grabFrameToMat(); // RGBA
-      if (capturedMatRGBA) capturedMatRGBA.delete();
-      capturedMatRGBA = src;
-
-      // מציגים את התמונה על canvas (כדי שיהיה לך מה לסמן)
-      canvas.width = capturedMatRGBA.cols;
-      canvas.height = capturedMatRGBA.rows;
-      cv.imshow(canvas, capturedMatRGBA);
-
-      video.style.display = 'none';
-      canvas.style.display = 'block';
-
-      // ברירת מחדל למסגרת: כמעט כל התמונה (המשתמש יכוון)
-      const padX = Math.round(canvas.width * 0.08);
-      const padY = Math.round(canvas.height * 0.08);
-      cropPts = [
-        { x: padX, y: padY },                                  // tl
-        { x: canvas.width - padX, y: padY },                   // tr
-        { x: canvas.width - padX, y: canvas.height - padY },   // br
-        { x: padX, y: canvas.height - padY }                   // bl
-      ];
-
-      enterCropMode();
-
-    } catch (e) {
-      log("שגיאה בצילום");
-      console.error(e);
-    }
-  }
-
-  function enterCropMode() {
-    cropModeActive = true;
-    msg.innerText = "מקם את הפינות על הדף ואז לחץ ✅ שמור עמוד";
-    cropOverlay.style.display = "block";
-    updatePagesUI();
-    drawCropUI();
-    log("מצב חיתוך פעיל");
-  }
-
-  function exitCropMode() {
-    cropModeActive = false;
-    cropOverlay.style.display = "none";
-    updatePagesUI();
-  }
-
-  // ------------------------------
-  // ✅ ציור המסגרת + ידיות (על המסך)
-  // ------------------------------
-  function getCanvasRectOnScreen() {
-    return canvas.getBoundingClientRect();
-  }
-
-  function imageToScreen(pt) {
-    const r = getCanvasRectOnScreen();
-    // canvas מוצג בדיוק ביחס של pixels שלו (בגלל max-width/max-height)
-    // המיפוי: pt ביחידות canvas-pixels -> מסך
-    const sx = r.left + (pt.x / canvas.width) * r.width;
-    const sy = r.top + (pt.y / canvas.height) * r.height;
-    return { x: sx, y: sy };
-  }
-
-  function screenToImage(sx, sy) {
-    const r = getCanvasRectOnScreen();
-    const x = ((sx - r.left) / r.width) * canvas.width;
-    const y = ((sy - r.top) / r.height) * canvas.height;
-    return {
-      x: Math.max(0, Math.min(canvas.width - 1, x)),
-      y: Math.max(0, Math.min(canvas.height - 1, y))
-    };
-  }
-
-  function drawCropUI() {
-    if (!cropModeActive) return;
-
-    // עדכון ידיות
-    for (let i = 0; i < 4; i++) {
-      const s = imageToScreen(cropPts[i]);
-      handles[i].style.left = s.x + "px";
-      handles[i].style.top  = s.y + "px";
-    }
-
-    // ציור פוליגון SVG + הצללה
-    // נשתמש ב-viewBox 0..100 כדי להימנע מתלות בפיקסלים
-    const ptsNorm = cropPts.map(p => ({
-      x: (p.x / canvas.width) * 100,
-      y: (p.y / canvas.height) * 100
-    }));
-
-    const poly = ptsNorm.map(p => `${p.x},${p.y}`).join(" ");
-    cropSvg.innerHTML = `
-      <defs>
-        <mask id="m">
-          <rect x="0" y="0" width="100" height="100" fill="white"></rect>
-          <polygon points="${poly}" fill="black"></polygon>
-        </mask>
-      </defs>
-      <rect x="0" y="0" width="100" height="100" fill="rgba(0,0,0,0.45)" mask="url(#m)"></rect>
-      <polygon points="${poly}" fill="none" stroke="rgba(0,123,255,0.95)" stroke-width="1.6"></polygon>
-    `;
-  }
-
-  // redraw on resize/orientation
-  window.addEventListener('resize', () => {
-    if (cropModeActive) drawCropUI();
-  });
-
-  // ------------------------------
-  // ✅ גרירה של ידיות
-  // ------------------------------
-  let draggingIndex = -1;
-
-  handles.forEach((h, idx) => {
-    h.addEventListener('pointerdown', (e) => {
-      if (!cropModeActive) return;
-      draggingIndex = idx;
-      h.setPointerCapture(e.pointerId);
-      e.preventDefault();
-    });
-
-    h.addEventListener('pointermove', (e) => {
-      if (!cropModeActive) return;
-      if (draggingIndex !== idx) return;
-
-      const p = screenToImage(e.clientX, e.clientY);
-      cropPts[idx] = p;
-      drawCropUI();
-      e.preventDefault();
-    });
-
-    h.addEventListener('pointerup', (e) => {
-      if (!cropModeActive) return;
-      draggingIndex = -1;
-      try { h.releasePointerCapture(e.pointerId); } catch {}
-      e.preventDefault();
-    });
-
-    h.addEventListener('pointercancel', () => {
-      draggingIndex = -1;
-    });
-  });
-
-  // ------------------------------
-  // ✅ אישור חיתוך -> יישור פרספקטיבה -> פילטר -> שמירה
-  // ------------------------------
-  function confirmCropAndStore() {
-    if (!cvReady || !capturedMatRGBA) return;
-
-    let warped = null;
-    let gray = null;
-    let blur = null;
-    let out = null;
-
-    try {
-      log("חותך ושומר...");
-
-      const ordered = orderPoints(cropPts);
-      warped = fourPointTransform(capturedMatRGBA, ordered);
-
-      gray = new cv.Mat();
-      cv.cvtColor(warped, gray, cv.COLOR_RGBA2GRAY);
-
-      blur = new cv.Mat();
-      cv.GaussianBlur(gray, blur, new cv.Size(3, 3), 0);
-
-      out = new cv.Mat();
-      if (scanMode === "gray") {
-        out = blur.clone();
-      } else {
-        cv.adaptiveThreshold(blur, out, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 12);
-      }
-
-      canvas.width = out.cols;
-      canvas.height = out.rows;
-      cv.imshow(canvas, out);
-
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-      pages.push(dataUrl);
-
-      msg.innerText = `נשמר עמוד ${pages.length}.`;
-      exitCropMode();
-      updatePagesUI();
-
-      log("נשמר רק מה שסימנת ✅");
-
-    } catch (e) {
-      log("שגיאה בשמירה");
-      console.error(e);
-    } finally {
-      if (warped) warped.delete();
-      if (gray) gray.delete();
-      if (blur) blur.delete();
-      if (out) out.delete();
-
-      // חשוב: משאירים capturedMatRGBA כדי שאם תרצה לשמור שוב בלי לצלם – אבל פה זה לא נדרש.
-      // אם אתה רוצה לחסוך זיכרון בכל שמירה:
-      // capturedMatRGBA.delete(); capturedMatRGBA = null;
-    }
+    if (pages.length === 0) backToCamera();
   }
 
   async function sendMultiPagePdf() {
-    if (pages.length === 0) return;
-
-    try {
-      log("מכין PDF לשיתוף...");
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p' });
-      const pageW = 210, pageH = 297;
-
-      for (let i = 0; i < pages.length; i++) {
+    log("מכין PDF...");
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF();
+    for (let i = 0; i < pages.length; i++) {
         if (i > 0) pdf.addPage();
-        const imgData = pages[i];
-        const dims = await new Promise((resolve) => {
-          const im = new Image();
-          im.onload = () => resolve({ w: im.width, h: im.height });
-          im.src = imgData;
-        });
-        const imgRatio = dims.w / dims.h;
-        let drawW = pageW;
-        let drawH = drawW / imgRatio;
-        if (drawH > pageH) { drawH = pageH; drawW = drawH * imgRatio; }
-        const x = (pageW - drawW) / 2;
-        const y = (pageH - drawH) / 2;
-        pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
-      }
-
-      const blob = pdf.output('blob');
-      const fileName = `סריקה_${new Date().toLocaleDateString('he-IL').replace(/\//g,'-')}.pdf`;
-      const file = new File([blob], fileName, { type: "application/pdf" });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'הסריקה שלי',
-          text: 'מצורף הקובץ שסרקתי'
-        });
-        log("תפריט שיתוף נפתח");
-      } else {
-        pdf.save(fileName);
-        log("הדפדפן לא תומך בשיתוף ישיר - הקובץ הורד");
-      }
-    } catch (e) {
-      log("השיתוף בוטל");
+        pdf.addImage(pages[i], 'JPEG', 10, 10, 190, 277);
     }
+    const blob = pdf.output('blob');
+    const file = new File([blob], "Srika.pdf", { type: "application/pdf" });
+    if (navigator.share) await navigator.share({ files: [file], title: 'הסריקה שלי' });
+    else pdf.save("Srika.pdf");
   }
 </script>
 </body>
