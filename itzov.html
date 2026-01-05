@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>פן אקספרס - הגרסה הסופית</title>
+
+  <!-- ✅ תוספת יחידה ל-GIF -->
+  <script src="https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.js"></script>
+
   <style>
     :root { --primary: #ff6b81; --bg: #f8f9fa; --purple: #6c5ce7; }
     body { font-family: system-ui, sans-serif; text-align: center; background-color: var(--bg); margin: 0; padding: 10px; }
@@ -99,6 +103,11 @@
 
   <button id="btnCreate" style="display:none; background:#2ed573;" type="button">צור סרטון ממותג 🎬</button>
 
+  <!-- ✅ תוספת יחידה: כפתור GIF + תצוגה + הורדה -->
+  <button id="btnGif" style="display:none; background:#ffa502;" type="button">צור GIF ממותג 🎞️</button>
+  <img id="finalGif" style="width:100%; border-radius:15px; display:none; margin-top:15px; box-shadow:0 5px 20px rgba(0,0,0,0.2);" alt="">
+  <a id="btnDownloadGif" class="save-btn" style="display:none;">שמירה GIF ⬇️</a>
+
   <div id="status"></div>
   <video id="finalVid" controls playsinline loop muted></video>
   <a id="btnDownload" class="save-btn">שמירה לגלריה ⬇️</a>
@@ -111,6 +120,10 @@
   const btnOpen = document.getElementById('btnOpenCam');
   const btnSnap = document.getElementById('btnSnap');
   const btnCreate = document.getElementById('btnCreate');
+  const btnGif = document.getElementById('btnGif');                 // ✅
+  const finalGif = document.getElementById('finalGif');             // ✅
+  const btnDownloadGif = document.getElementById('btnDownloadGif'); // ✅
+
   const adjustArea = document.getElementById('adjustArea');
   const adjustCanvas = document.getElementById('adjustCanvas');
   const statusEl = document.getElementById('status');
@@ -167,7 +180,6 @@
       btnOpen.style.display = 'none';
       setStatus("✅ מצלמה פתוחה. לחץ לצילום.");
     } catch (e) {
-      // אם משהו נכשל — רושם סטטוס ועובר לפולבאק
       setStatus("❌ מצלמה חיה לא נפתחת. עובר למצלמה רגילה.");
       openFallbackCamera();
     }
@@ -207,7 +219,6 @@
         document.getElementById('imgB').src = data;
         mode = 'after';
         setStatus("מעולה! עכשיו צלם את ה'אחרי'");
-        // להשאיר את המצלמה פתוחה לצילום הבא:
         if (btnOpen.style.display === 'none') {
           camContainer.style.display = 'block';
           btnSnap.style.display = 'block';
@@ -233,6 +244,7 @@
   function initAdjust() {
     adjustArea.style.display = 'block';
     btnCreate.style.display = 'block';
+    btnGif.style.display = 'block'; // ✅ רק הוספה
 
     adjustCanvas.width = beforeImg.naturalWidth || beforeImg.width;
     adjustCanvas.height = beforeImg.naturalHeight || beforeImg.height;
@@ -252,7 +264,6 @@
     ctx.globalAlpha = 0.5;
     ctx.drawImage(afterImg, offsetX, offsetY, w, h);
 
-    // קו התאמה בקנבס כמו שהיה אצלך (25%)
     ctx.globalAlpha = 1;
     ctx.strokeStyle = "yellow";
     ctx.lineWidth = 10;
@@ -303,6 +314,7 @@
   btnCreate.addEventListener('click', () => {
     setStatus("⏳ מייצר סרטון... לא לצאת");
     btnCreate.disabled = true;
+    btnGif.disabled = true; // ✅
 
     const vCanvas = document.createElement('canvas');
     const vCtx = vCanvas.getContext('2d');
@@ -321,6 +333,7 @@
     } catch (e) {
       setStatus("❌ אין תמיכה בהקלטת וידאו במכשיר הזה.");
       btnCreate.disabled = false;
+      btnGif.disabled = false; // ✅
       return;
     }
 
@@ -341,6 +354,8 @@
       btnDownload.style.display = 'block';
 
       setStatus("✅ מוכן!");
+      btnCreate.disabled = false;
+      btnGif.disabled = false; // ✅
     };
 
     recorder.start();
@@ -386,9 +401,112 @@
     render();
   });
 
+  // ✅ GIF (7 שניות בלופ) — תוספת בלבד, בלי לגעת בשום דבר אחר
+  btnGif.addEventListener('click', () => {
+    try {
+      setStatus("⏳ מייצר GIF... לא לצאת");
+      btnGif.disabled = true;
+      btnCreate.disabled = true;
+
+      // אם gif.js לא נטען
+      if (typeof GIF === "undefined") {
+        setStatus("❌ ספריית GIF לא נטענה. בדוק אינטרנט/חסימת CDN.");
+        btnGif.disabled = false;
+        btnCreate.disabled = false;
+        return;
+      }
+
+      const w0 = beforeImg.naturalWidth || beforeImg.width;
+      const h0 = beforeImg.naturalHeight || beforeImg.height;
+
+      // GIF כבד יותר: מקטין פנימית (לא משנה שום דבר בדף/תמונות)
+      const maxW = 720;
+      const scale = Math.min(1, maxW / w0);
+      const w = Math.round(w0 * scale);
+      const h = Math.round(h0 * scale);
+
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+
+      const fps = 12;
+      const dur = 7000;
+      const delay = Math.round(1000 / fps);
+      const frames = Math.max(1, Math.round(dur / delay));
+
+      const ox = offsetX * scale;
+      const oy = offsetY * scale;
+
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: w,
+        height: h,
+        workerScript: "https://cdn.jsdelivr.net/npm/gif.js.optimized/dist/gif.worker.js"
+      });
+
+      function drawFrame(elapsed) {
+        ctx.clearRect(0,0,w,h);
+
+        let op = 1;
+        if (elapsed < 2000) op = 1;
+        else if (elapsed < 5000) op = 1 - (elapsed - 2000) / 3000;
+        else op = 0;
+
+        ctx.globalAlpha = 1; ctx.drawImage(afterImg, ox, oy, w, h);
+        ctx.globalAlpha = op; ctx.drawImage(beforeImg, 0, 0, w, h);
+
+        ctx.globalAlpha = 1;
+        const fs = w * 0.06;
+        ctx.font = `900 ${fs}px system-ui`;
+        ctx.textAlign = "center";
+        const txt = "פן אקספרס 0507449001";
+
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = fs * 0.2;
+        ctx.strokeText(txt, w/2, h * 0.95);
+
+        ctx.fillStyle = "#ff0000";
+        ctx.fillText(txt, w/2, h * 0.95);
+
+        ctx.fillStyle = "white";
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "black";
+        ctx.fillText(op > 0.5 ? "לפני" : "אחרי ✨", w/2, h * 0.1);
+        ctx.shadowBlur = 0;
+      }
+
+      for (let i = 0; i < frames; i++) {
+        const elapsed = i * delay;
+        drawFrame(elapsed);
+        gif.addFrame(ctx, { copy: true, delay });
+      }
+
+      gif.on('finished', (blob) => {
+        const url = URL.createObjectURL(blob);
+
+        finalGif.src = url;
+        finalGif.style.display = 'block';
+
+        btnDownloadGif.href = url;
+        btnDownloadGif.download = "Express_Hair.gif";
+        btnDownloadGif.style.display = 'block';
+
+        setStatus("✅ GIF מוכן!");
+        btnGif.disabled = false;
+        btnCreate.disabled = false;
+      });
+
+      gif.render();
+    } catch (e) {
+      setStatus("❌ שגיאה ביצירת GIF. נסה שוב.");
+      btnGif.disabled = false;
+      btnCreate.disabled = false;
+    }
+  });
+
   window.addEventListener('pagehide', stopLiveCamera);
 
-  // סימן חיים ברור: אם אתה רואה את זה — JS רץ
   setStatus("מוכן ✅");
 })();
 </script>
