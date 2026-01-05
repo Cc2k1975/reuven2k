@@ -1,403 +1,270 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>סורק Pro - רב עמודים</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>סורק חכם - חיתוך אוטומטי</title>
+    <script src="https://docs.opencv.org/4.7.0/opencv.js" async></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        * { box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .app { display: flex; flex-direction: column; height: 100dvh; }
+        
+        .viewer { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; }
+        video, canvas { width: 100%; height: 100%; object-fit: contain; }
+        #canvasOutput { display: none; }
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://docs.opencv.org/4.7.0/opencv.js"></script>
+        .footer { background: #111; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; border-top-left-radius: 20px; border-top-right-radius: 20px; }
+        
+        #msg { font-size: 14px; color: #ccc; }
 
-  <style>
-    * { box-sizing: border-box; }
-    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: system-ui, sans-serif; }
-    .app { display: flex; flex-direction: column; height: 100dvh; }
+        /* כפתור צילום */
+        .snap-btn-container { display: flex; justify-content: center; width: 100%; }
+        .snap-btn { width: 70px; height: 70px; background: white; border-radius: 50%; border: 4px solid rgba(255,255,255,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .snap-btn:active { transform: scale(0.95); }
+        .snap-inner { width: 54px; height: 54px; border-radius: 50%; border: 2px solid #000; }
 
-    #debug { background: #1a1a1a; color: #0f0; font-size: 12px; padding: 8px; text-align: center; border-bottom: 1px solid #333; }
+        /* בקרים אחרי צילום */
+        .result-controls { display: none; flex-direction: column; gap: 15px; width: 100%; max-width: 400px; }
+        
+        .filter-toggle { display: flex; align-items: center; justify-content: space-between; background: #222; padding: 10px 15px; border-radius: 10px; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #2ecc71; }
+        input:checked + .slider:before { transform: translateX(26px); }
 
-    .viewer { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
-    video, canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
-    #canvasOutput { display: none; }
+        .btn-group { display: flex; gap: 10px; }
+        .btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: 600; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-send { background: #2ecc71; color: white; }
+        .btn-cancel { background: #333; color: white; }
 
-    .footer {
-      flex: 0 0 auto;
-      background: #111;
-      border-top: 1px solid #222;
-      padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #msg { text-align: center; font-size: 16px; }
-
-    .snap-btn {
-      width: 78px; height: 78px;
-      background: #fff;
-      border-radius: 50%;
-      border: 6px solid #333;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: 0.15s;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .snap-btn:active { transform: scale(0.92); background: #ddd; }
-    .snap-inner { width: 56px; height: 56px; border-radius: 50%; border: 2px solid #000; }
-
-    .row { width: min(720px, 96%); display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
-    .pill { font-size: 13px; padding: 6px 10px; border: 1px solid #444; border-radius: 999px; background: #0d0d0d; color: #ddd; }
-
-    .btn { padding: 12px 14px; border-radius: 12px; border: none; font-weight: 800; font-size: 15px; cursor: pointer; background: #333; color: #fff; }
-    .btn:active { transform: scale(0.98); }
-    .btn-green { background: #25d366; color: #fff; }
-    .btn-blue { background: #0b5ed7; color: #fff; }
-    .btn-red { background: #b02a37; color: #fff; }
-
-    /* thumbnails */
-    #thumbs {
-      width: min(720px, 96%);
-      display: none;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 6px 2px;
-      justify-content: flex-start;
-      align-items: center;
-    }
-    .thumb {
-      height: 56px;
-      border-radius: 10px;
-      border: 1px solid #333;
-      background: #000;
-      flex: 0 0 auto;
-      cursor: pointer;
-    }
-
-    #loader { position: fixed; inset: 0; background: #000; z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .spinner { width: 40px; height: 40px; border: 4px solid #222; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* Preview Modal */
-    #previewModal {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.92);
-      z-index: 999;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 14px 12px calc(14px + env(safe-area-inset-bottom));
-    }
-    #previewWrap {
-      width: min(980px, 100%);
-      height: min(86vh, 100%);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    #previewTop {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    #previewTitle {
-      font-weight: 800;
-      font-size: 15px;
-      color: #fff;
-    }
-    #previewImg {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      border-radius: 12px;
-      border: 1px solid #333;
-      background: #000;
-    }
-  </style>
+        #loader { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
-
 <body>
-  <div id="loader">
+
+<div id="loader">
     <div class="spinner"></div>
-    <p>טוען את המערכת...</p>
-  </div>
+    <p style="margin-top: 15px;">מכין את המערכת...</p>
+</div>
 
-  <div class="app">
-    <div id="debug">Log: ממתין ל-OpenCV</div>
-
+<div class="app">
     <div class="viewer">
-      <video id="video" autoplay playsinline muted></video>
-      <canvas id="canvasOutput"></canvas>
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvasOutput"></canvas>
     </div>
 
     <div class="footer">
-      <div id="msg">כוון אל הדף ולחץ צילום</div>
-
-      <div class="row" id="rowCapture">
-        <div class="pill" id="pagesInfo">עמודים: 0</div>
-
-        <button class="btn" id="modeBtn">🩶 אפור</button>
-
-        <div class="snap-btn" id="snapBtn" aria-label="צילום">
-          <div class="snap-inner"></div>
+        <div id="msg">מקם את הדף במרכז ולחץ על הצילום</div>
+        
+        <div id="ui-capture" class="snap-btn-container">
+            <div class="snap-btn" onclick="processDoc()">
+                <div class="snap-inner"></div>
+            </div>
         </div>
 
-        <button class="btn btn-red" id="resetBtn">איפוס</button>
-      </div>
-
-      <div id="thumbs"></div>
-
-      <div class="row" id="rowActions" style="display:none">
-        <button class="btn btn-blue" id="addPageBtn">➕ הוסף עמוד</button>
-        <button class="btn btn-green" id="makePdfBtn">📩 שלח PDF</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="previewModal">
-    <div id="previewWrap">
-      <div id="previewTop">
-        <div id="previewTitle">תצוגה מקדימה</div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn btn-red" id="deletePageBtn">🗑️ מחק עמוד</button>
-          <button class="btn" id="closePreviewBtn">סגור ✖️</button>
+        <div id="ui-result" class="result-controls">
+            <div class="filter-toggle">
+                <span>סריקה בשחור-לבן נקי</span>
+                <label class="switch">
+                    <input type="checkbox" id="bwToggle" checked onchange="applyFilter()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-cancel" onclick="reset()">🔄 צלם שוב</button>
+                <button class="btn btn-send" onclick="sendToWhatsApp()">📩 שלח PDF</button>
+            </div>
         </div>
-      </div>
-      <img id="previewImg" alt="preview" />
     </div>
-  </div>
+</div>
 
 <script>
-  const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvasOutput');
+    const msg = document.getElementById('msg');
+    const bwToggle = document.getElementById('bwToggle');
+    let isReady = false;
+    let originalCapture = null; // לשמירת התמונה המקורית (החתוכה)
 
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvasOutput');
+    window.onload = () => {
+        let timer = setInterval(() => {
+            if (typeof cv !== 'undefined' && cv.Mat) {
+                clearInterval(timer);
+                isReady = true;
+                document.getElementById('loader').style.display = 'none';
+                initCamera();
+            }
+        }, 200);
+    };
 
-  const loader = document.getElementById('loader');
-  const msg = document.getElementById('msg');
-
-  const snapBtn = document.getElementById('snapBtn');
-  const resetBtn = document.getElementById('resetBtn');
-
-  const pagesInfo = document.getElementById('pagesInfo');
-  const thumbs = document.getElementById('thumbs');
-  const rowActions = document.getElementById('rowActions');
-  const addPageBtn = document.getElementById('addPageBtn');
-  const makePdfBtn = document.getElementById('makePdfBtn');
-
-  const previewModal = document.getElementById('previewModal');
-  const previewImg = document.getElementById('previewImg');
-  const previewTitle = document.getElementById('previewTitle');
-  const closePreviewBtn = document.getElementById('closePreviewBtn');
-  const deletePageBtn = document.getElementById('deletePageBtn');
-
-  const modeBtn = document.getElementById('modeBtn');
-  let scanMode = "bw"; 
-
-  modeBtn.addEventListener('click', () => {
-    scanMode = (scanMode === "bw") ? "gray" : "bw";
-    modeBtn.innerText = (scanMode === "bw") ? "🩶 אפור" : "⬛ שחור-לבן";
-    log("מצב סריקה: " + (scanMode === "bw" ? "שחור-לבן" : "אפור"));
-  });
-
-  let cvReady = false;
-  let cameraReady = false;
-  let streamRef = null;
-
-  const pages = [];
-  let previewIndex = -1;
-
-  snapBtn.addEventListener('click', processDocAndStore);
-  resetBtn.addEventListener('click', () => location.reload());
-  addPageBtn.addEventListener('click', backToCamera);
-  makePdfBtn.addEventListener('click', sendMultiPagePdf);
-
-  closePreviewBtn.addEventListener('click', closePreview);
-  previewModal.addEventListener('click', (e) => { if (e.target === previewModal) closePreview(); });
-  deletePageBtn.addEventListener('click', deleteCurrentPreviewPage);
-
-  cv.onRuntimeInitialized = async () => {
-    cvReady = true;
-    log("OpenCV מוכן, פותח מצלמה...");
-    await initCamera();
-  };
-
-  async function initCamera() {
-    try {
-      streamRef = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      });
-
-      video.srcObject = streamRef;
-
-      await new Promise((resolve) => {
-        const onReady = () => {
-          if (video.videoWidth > 0 && video.videoHeight > 0) {
-            video.removeEventListener('loadedmetadata', onReady);
-            video.removeEventListener('canplay', onReady);
-            resolve();
-          }
-        };
-        video.addEventListener('loadedmetadata', onReady);
-        video.addEventListener('canplay', onReady);
-      });
-
-      cameraReady = true;
-      loader.style.display = "none";
-      log(`מערכת מוכנה ✅ (${video.videoWidth}x${video.videoHeight})`);
-    } catch (e) {
-      loader.style.display = "none";
-      log("שגיאה בפתיחת מצלמה");
-      alert("לא הצלחתי לפתוח מצלמה.");
-      console.error(e);
+    async function initCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } 
+            });
+            video.srcObject = stream;
+        } catch (e) { alert("גישה למצלמה מחייבת HTTPS"); }
     }
-  }
 
-  function grabFrameToMat() {
-    const w = video.videoWidth;
-    const h = video.videoHeight;
-    const tmp = document.createElement('canvas');
-    tmp.width = w;
-    tmp.height = h;
-    const ctx = tmp.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(video, 0, 0, w, h);
-    return cv.imread(tmp);
-  }
+    function processDoc() {
+        if (!isReady) return;
+        msg.innerText = "מעבד תמונה...";
+        
+        let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
+        let cap = new cv.VideoCapture(video);
+        cap.read(src);
 
-  function backToCamera() {
-    canvas.style.display = 'none';
-    video.style.display = 'block';
-    msg.innerText = "כוון אל הדף ולחץ צילום";
-    log("חזרה למצלמה");
-  }
+        // 1. מציאת קונטור הדף
+        let docContour = findDocumentContour(src);
+        
+        // 2. ביצוע חיתוך ויישור
+        if (docContour) {
+            msg.innerText = "דף זוהה! מבצע חיתוך...";
+            originalCapture = warpDocument(src, docContour);
+            docContour.delete();
+        } else {
+            msg.innerText = "לא זוהה דף ברור. מציג תמונה מלאה.";
+            originalCapture = src.clone();
+        }
+        src.delete();
 
-  function updatePagesUI() {
-    pagesInfo.innerText = `עמודים: ${pages.length}`;
-    rowActions.style.display = pages.length > 0 ? 'flex' : 'none';
-    thumbs.style.display = pages.length > 0 ? 'flex' : 'none';
-    thumbs.innerHTML = "";
-    pages.forEach((dataUrl, idx) => {
-      const img = document.createElement('img');
-      img.src = dataUrl;
-      img.className = "thumb";
-      img.title = `עמוד ${idx+1}`;
-      img.addEventListener('click', () => openPreview(idx));
-      thumbs.appendChild(img);
-    });
-  }
-
-  function openPreview(index) {
-    previewIndex = index;
-    previewImg.src = pages[index];
-    previewTitle.innerText = `תצוגה מקדימה - עמוד ${index+1} מתוך ${pages.length}`;
-    previewModal.style.display = 'flex';
-  }
-
-  function closePreview() {
-    previewModal.style.display = 'none';
-    previewIndex = -1;
-  }
-
-  function deleteCurrentPreviewPage() {
-    if (previewIndex < 0 || previewIndex >= pages.length) return;
-    pages.splice(previewIndex, 1);
-    if (pages.length === 0) {
-      closePreview();
-      updatePagesUI();
-      backToCamera();
-      return;
+        // 3. הצגת התוצאה והחלת פילטר ראשוני
+        applyFilter();
+        
+        video.style.display = 'none';
+        canvas.style.display = 'block';
+        document.getElementById('ui-capture').style.display = 'none';
+        document.getElementById('ui-result').style.display = 'flex';
     }
-    if (previewIndex >= pages.length) previewIndex = pages.length - 1;
-    updatePagesUI();
-    openPreview(previewIndex);
-  }
 
-  function processDocAndStore() {
-    if (!cvReady || !cameraReady) return;
-    try {
-      log("מעבד... נא לא להזיז");
-      let src = grabFrameToMat();
-      let gray = new cv.Mat();
-      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-      let blur = new cv.Mat();
-      cv.GaussianBlur(gray, blur, new cv.Size(3, 3), 0);
-      let out = new cv.Mat();
-      if (scanMode === "gray") {
-        out = blur.clone();
-      } else {
-        cv.adaptiveThreshold(blur, out, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 12);
-      }
-      canvas.width = out.cols;
-      canvas.height = out.rows;
-      cv.imshow(canvas, out);
-      video.style.display = 'none';
-      canvas.style.display = 'block';
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-      pages.push(dataUrl);
-      msg.innerText = `נסרק עמוד ${pages.length}.`;
-      updatePagesUI();
-      src.delete(); gray.delete(); blur.delete(); out.delete();
-      log("הסריקה נשמרה");
-    } catch (err) {
-      log("שגיאה בעיבוד");
+    // פונקציה למציאת המרובע הגדול ביותר בתמונה
+    function findDocumentContour(src) {
+        let gray = new cv.Mat();
+        let blurred = new cv.Mat();
+        let edged = new cv.Mat();
+        
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+        cv.Canny(blurred, edged, 75, 200);
+
+        let contours = new cv.MatVector();
+        let hierarchy = new cv.Mat();
+        cv.findContours(edged, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+        let maxArea = 0;
+        let bestCnt = null;
+        const minArea = (src.rows * src.cols) * 0.1; // הדף חייב להיות לפחות 10% מהתמונה
+
+        for (let i = 0; i < contours.size(); ++i) {
+            let cnt = contours.get(i);
+            let area = cv.contourArea(cnt);
+            
+            if (area > minArea) {
+                let peri = cv.arcLength(cnt, true);
+                let approx = new cv.Mat();
+                cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+                
+                if (approx.rows === 4 && area > maxArea) {
+                    maxArea = area;
+                    if (bestCnt) bestCnt.delete();
+                    bestCnt = approx.clone();
+                }
+                approx.delete();
+            }
+        }
+        gray.delete(); blurred.delete(); edged.delete(); contours.delete(); hierarchy.delete();
+        return bestCnt;
     }
-  }
 
-  async function sendMultiPagePdf() {
-    if (pages.length === 0) return;
-
-    try {
-      log("מכין PDF לשיתוף...");
-      const { jsPDF } = window.jspdf;
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p' });
-      const pageW = 210, pageH = 297;
-
-      for (let i = 0; i < pages.length; i++) {
-        if (i > 0) pdf.addPage();
-        const imgData = pages[i];
-        const dims = await new Promise((resolve) => {
-          const im = new Image();
-          im.onload = () => resolve({ w: im.width, h: im.height });
-          im.src = imgData;
-        });
-        const imgRatio = dims.w / dims.h;
-        let drawW = pageW;
-        let drawH = drawW / imgRatio;
-        if (drawH > pageH) { drawH = pageH; drawW = drawH * imgRatio; }
-        const x = (pageW - drawW) / 2;
-        const y = (pageH - drawH) / 2;
-        pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
-      }
-
-      const blob = pdf.output('blob');
-      const fileName = `סריקה_${new Date().toLocaleDateString('he-IL').replace(/\//g,'-')}.pdf`;
-      const file = new File([blob], fileName, { type: "application/pdf" });
-
-      // ✅ כאן קורה הקסם: שימוש ב-Web Share API שיפתח את התפריט לבחור SEND/WhatsApp
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'הסריקה שלי',
-          text: 'מצורף הקובץ שסרקתי'
-        });
-        log("תפריט שיתוף נפתח");
-      } else {
-        // גיבוי למקרה שהדפדפן ישן או לא תומך בשיתוף קבצים
-        pdf.save(fileName);
-        log("הדפדפן לא תומך בשיתוף ישיר - הקובץ הורד");
-      }
-    } catch (e) {
-      log("השיתוף בוטל");
+    // פונקציית עזר לסידור נקודות הפינה
+    function orderPoints(pts) {
+        let points = [];
+        for (let i = 0; i < 4; i++) {
+            points.push({ x: pts.data32S[i * 2], y: pts.data32S[i * 2 + 1] });
+        }
+        points.sort((a, b) => (a.x + a.y) - (b.x + b.y));
+        let tl = points[0]; let br = points[3];
+        let others = [points[1], points[2]].sort((a, b) => (a.y - a.x) - (b.y - b.x));
+        let tr = others[0]; let bl = others[1];
+        return [tl, tr, br, bl];
     }
-  }
+
+    // פונקציה לביצוע טרנספורמציית פרספקטיבה (החיתוך והיישור בפועל)
+    function warpDocument(src, cnt) {
+        let orderedPts = orderPoints(cnt);
+        
+        let widthA = Math.hypot(orderedPts[2].x - orderedPts[3].x, orderedPts[2].y - orderedPts[3].y);
+        let widthB = Math.hypot(orderedPts[1].x - orderedPts[0].x, orderedPts[1].y - orderedPts[0].y);
+        let maxWidth = Math.max(widthA, widthB);
+
+        let heightA = Math.hypot(orderedPts[1].x - orderedPts[2].x, orderedPts[1].y - orderedPts[2].y);
+        let heightB = Math.hypot(orderedPts[0].x - orderedPts[3].x, orderedPts[0].y - orderedPts[3].y);
+        let maxHeight = Math.max(heightA, heightB);
+
+        let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [orderedPts[0].x, orderedPts[0].y, orderedPts[1].x, orderedPts[1].y, orderedPts[2].x, orderedPts[2].y, orderedPts[3].x, orderedPts[3].y]);
+        let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, maxWidth - 1, 0, maxWidth - 1, maxHeight - 1, 0, maxHeight - 1]);
+
+        let M = cv.getPerspectiveTransform(srcTri, dstTri);
+        let warped = new cv.Mat();
+        cv.warpPerspective(src, warped, M, new cv.Size(maxWidth, maxHeight));
+
+        srcTri.delete(); dstTri.delete(); M.delete();
+        return warped;
+    }
+
+    // החלת הפילטר (שחור-לבן או צבעוני) על התמונה החתוכה
+    function applyFilter() {
+        if (!originalCapture) return;
+        let dst = new cv.Mat();
+        if (bwToggle.checked) {
+            cv.cvtColor(originalCapture, dst, cv.COLOR_RGBA2GRAY);
+            cv.adaptiveThreshold(dst, dst, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 12);
+        } else {
+            originalCapture.copyTo(dst);
+        }
+        cv.imshow('canvasOutput', dst);
+        dst.delete();
+    }
+
+    async function sendToWhatsApp() {
+        msg.innerText = "מכין PDF...";
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF();
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        
+        const blob = pdf.output('blob');
+        const file = new File([blob], "scanned_document.pdf", { type: "application/pdf" });
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ files: [file], title: 'המסמך הסרוק שלי' });
+            } catch (e) { msg.innerText = "השיתוף בוטל"; }
+        } else {
+            pdf.save("scanned_document.pdf");
+            msg.innerText = "הקובץ הורד למכשיר";
+        }
+    }
+
+    function reset() {
+        if (originalCapture) originalCapture.delete();
+        originalCapture = null;
+        video.style.display = 'block';
+        canvas.style.display = 'none';
+        document.getElementById('ui-capture').style.display = 'flex';
+        document.getElementById('ui-result').style.display = 'none';
+        msg.innerText = "מקם את הדף במרכז ולחץ על הצילום";
+    }
 </script>
 </body>
 </html>
+charles.s
