@@ -68,7 +68,7 @@
 
     #adjustArea { display: none; border: 2px solid var(--purple); border-radius: 15px; overflow: hidden; background: #000; margin-top: 15px; touch-action: none; }
 
-    /* ✅ תוספת בלבד: גלגל שיניים + חלון הגדרות */
+    /* גלגל שיניים + חלון הגדרות */
     #gearBtn{
       position: absolute;
       top: 12px;
@@ -155,12 +155,26 @@
       min-width: 46px;
       text-align: left;
     }
+
+    /* ✅ תוספת בלבד: כפתור שליחה לוואטסאפ */
+    #btnShareGif{
+      display: none;
+      background: #25D366;
+      color: #fff;
+      border: none;
+      padding: 18px;
+      width: 100%;
+      border-radius: 50px;
+      font-weight: 900;
+      margin-top: 10px;
+      cursor: pointer;
+      font-size: 18px;
+    }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <!-- ✅ תוספת בלבד -->
   <button id="gearBtn" type="button" aria-label="הגדרות">⚙️</button>
 
   <h2 style="margin-bottom:5px;">✨ פן אקספרס ✨</h2>
@@ -194,12 +208,14 @@
   <img id="finalGif" style="width:100%; border-radius:15px; display:none; margin-top:15px; box-shadow:0 5px 20px rgba(0,0,0,0.2);" alt="">
   <a id="btnDownloadGif" class="save-btn" style="display:none;">שמירה GIF ⬇️</a>
 
+  <!-- ✅ כפתור שליחה לוואטסאפ -->
+  <button id="btnShareGif" type="button">שלח GIF לוואטסאפ 📲</button>
+
   <div id="status"></div>
   <video id="finalVid" controls playsinline loop muted></video>
   <a id="btnDownload" class="save-btn">שמירה לגלריה ⬇️</a>
 </div>
 
-<!-- ✅ תוספת בלבד: חלון הגדרות -->
 <div id="settingsOverlay">
   <div id="settingsPanel">
     <h3>הגדרות</h3>
@@ -223,6 +239,9 @@
 
 <script>
 (function(){
+  // ✅ מספר וואטסאפ יעד: 0507449001 -> 972507449001
+  const WA_PHONE_E164_DIGITS = "972507449001";
+
   const video = document.getElementById('videoLive');
   const camContainer = document.getElementById('camContainer');
   const btnOpen = document.getElementById('btnOpenCam');
@@ -232,6 +251,7 @@
   const btnGif = document.getElementById('btnGif');
   const finalGif = document.getElementById('finalGif');
   const btnDownloadGif = document.getElementById('btnDownloadGif');
+  const btnShareGif = document.getElementById('btnShareGif');
 
   const adjustArea = document.getElementById('adjustArea');
   const adjustCanvas = document.getElementById('adjustCanvas');
@@ -246,7 +266,10 @@
   // Worker Blob cache (כדי ש-GIF יעבוד באנדרואיד)
   let workerBlobUrl = null;
 
-  // ✅ תוספת בלבד: הגדרות
+  // ✅ שומרים את ה-GIF האחרון לשליחה
+  let lastGifBlob = null;
+
+  // הגדרות
   const gearBtn = document.getElementById('gearBtn');
   const settingsOverlay = document.getElementById('settingsOverlay');
   const closeSettings = document.getElementById('closeSettings');
@@ -255,10 +278,7 @@
   const gifScaleVal = document.getElementById('gifScaleVal');
 
   const SETTINGS_KEY = "fx_settings_v1";
-  const defaultSettings = {
-    showStamp: true,     // ✅ ברירת מחדל פעיל
-    gifScalePct: 60      // ✅ ברירת מחדל כמו עכשיו
-  };
+  const defaultSettings = { showStamp: true, gifScalePct: 60 };
   let settings = loadSettings();
 
   function loadSettings(){
@@ -274,32 +294,18 @@
       return { ...defaultSettings };
     }
   }
-  function saveSettings(){
-    try{
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    }catch(e){}
-  }
+  function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
   function syncSettingsUI(){
     stampToggle.checked = settings.showStamp;
     gifScaleRange.value = String(settings.gifScalePct);
     gifScaleVal.textContent = settings.gifScalePct + "%";
   }
 
-  gearBtn.addEventListener('click', () => {
-    syncSettingsUI();
-    settingsOverlay.style.display = "flex";
-  });
-  closeSettings.addEventListener('click', () => {
-    settingsOverlay.style.display = "none";
-  });
-  settingsOverlay.addEventListener('click', (e) => {
-    if (e.target === settingsOverlay) settingsOverlay.style.display = "none";
-  });
+  gearBtn.addEventListener('click', () => { syncSettingsUI(); settingsOverlay.style.display = "flex"; });
+  closeSettings.addEventListener('click', () => { settingsOverlay.style.display = "none"; });
+  settingsOverlay.addEventListener('click', (e) => { if (e.target === settingsOverlay) settingsOverlay.style.display = "none"; });
 
-  stampToggle.addEventListener('change', () => {
-    settings.showStamp = stampToggle.checked;
-    saveSettings();
-  });
+  stampToggle.addEventListener('change', () => { settings.showStamp = stampToggle.checked; saveSettings(); });
   gifScaleRange.addEventListener('input', () => {
     settings.gifScalePct = Math.min(100, Math.max(10, parseInt(gifScaleRange.value, 10) || 60));
     gifScaleVal.textContent = settings.gifScalePct + "%";
@@ -338,11 +344,8 @@
 
       stopLiveCamera();
 
-      try {
-        liveStream = await navigator.mediaDevices.getUserMedia(c1);
-      } catch (e1) {
-        liveStream = await navigator.mediaDevices.getUserMedia(c2);
-      }
+      try { liveStream = await navigator.mediaDevices.getUserMedia(c1); }
+      catch (e1) { liveStream = await navigator.mediaDevices.getUserMedia(c2); }
 
       video.srcObject = liveStream;
       await video.play();
@@ -483,7 +486,6 @@
     return '';
   }
 
-  // ✅ פונקציה אחת לשימוש גם בוידאו וגם ב-GIF (רק כדי לשלוט בחותמת)
   function drawStamp(ctx, w, h){
     if(!settings.showStamp) return;
 
@@ -566,7 +568,6 @@
       vCtx.globalAlpha = 1; vCtx.drawImage(afterImg, offsetX, offsetY, w, h);
       vCtx.globalAlpha = op; vCtx.drawImage(beforeImg, 0, 0, w, h);
 
-      // ✅ חותמת רק אם מסומן בהגדרות
       vCtx.globalAlpha = 1;
       drawStamp(vCtx, w, h);
 
@@ -581,7 +582,6 @@
     render();
   });
 
-  // מביא worker פעם אחת ויוצר ממנו Blob URL (כדי ש-GIF יעבוד באנדרואיד)
   async function ensureWorkerBlobUrl() {
     if (workerBlobUrl) return workerBlobUrl;
 
@@ -594,25 +594,20 @@
     return workerBlobUrl;
   }
 
-  // GIF (7 שניות בלופ) - גודל לפי סליידר באחוזים
   btnGif.addEventListener('click', async () => {
     try {
       setStatus("⏳ מייצר GIF... לא לצאת");
       btnGif.disabled = true;
       btnCreate.disabled = true;
 
-      if (typeof GIF === "undefined") {
-        throw new Error("GIF_library_missing");
-      }
+      if (typeof GIF === "undefined") throw new Error("GIF_library_missing");
 
       const w0 = beforeImg.naturalWidth || beforeImg.width;
-      const h0 = beforeImg.naturalHeight || beforeImg.height;
 
-      // ✅ לפי ההגדרה (10%–100%)
       const scale = Math.min(1, Math.max(0.10, (settings.gifScalePct / 100)));
 
-      const w = Math.max(1, Math.round(w0 * scale));
-      const h = Math.max(1, Math.round(h0 * scale));
+      const w = Math.max(1, Math.round((beforeImg.naturalWidth || beforeImg.width) * scale));
+      const h = Math.max(1, Math.round((beforeImg.naturalHeight || beforeImg.height) * scale));
 
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
@@ -647,7 +642,6 @@
         ctx.globalAlpha = 1; ctx.drawImage(afterImg, ox, oy, w, h);
         ctx.globalAlpha = op; ctx.drawImage(beforeImg, 0, 0, w, h);
 
-        // ✅ חותמת רק אם מסומן בהגדרות
         ctx.globalAlpha = 1;
         drawStamp(ctx, w, h);
 
@@ -664,14 +658,17 @@
       }
 
       gif.on('finished', (blob) => {
-        const url = URL.createObjectURL(blob);
+        lastGifBlob = blob;
 
+        const url = URL.createObjectURL(blob);
         finalGif.src = url;
         finalGif.style.display = 'block';
 
         btnDownloadGif.href = url;
         btnDownloadGif.download = "Express_Hair.gif";
         btnDownloadGif.style.display = 'block';
+
+        btnShareGif.style.display = 'block';
 
         setStatus("✅ GIF מוכן!");
         btnGif.disabled = false;
@@ -686,11 +683,39 @@
     }
   });
 
+  // ✅ שליחה לוואטסאפ: שיתוף קובץ GIF + פתיחת צ'אט למספר
+  btnShareGif.addEventListener('click', async () => {
+    try {
+      if (!lastGifBlob) {
+        setStatus("❌ עדיין אין GIF מוכן לשליחה.");
+        return;
+      }
+
+      // פותח צ'אט ליעד (כדי להגיע מהר למספר)
+      window.open("https://wa.me/" + WA_PHONE_E164_DIGITS, "_blank");
+
+      const file = new File([lastGifBlob], "Express_Hair.gif", { type: "image/gif" });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: "פן אקספרס",
+          text: "GIF לפני/אחרי ✨",
+          files: [file]
+        });
+        setStatus("✅ נפתח שיתוף – בחר WhatsApp ושלח.");
+        return;
+      }
+
+      setStatus("ℹ️ אין תמיכת שיתוף קבצים במכשיר/דפדפן. שמור GIF ואז צרף ידנית בוואטסאפ.");
+      alert("המכשיר/דפדפן לא תומך בשיתוף קובץ ישירות.\nשמור את ה-GIF ואז פתח וואטסאפ וצירף אותו ידנית.");
+    } catch (e) {
+      setStatus("❌ שגיאה בשליחה לוואטסאפ: " + (e && e.message ? e.message : "unknown"));
+    }
+  });
+
   window.addEventListener('pagehide', stopLiveCamera);
 
-  // אתחול UI של ההגדרות כברירת מחדל
   syncSettingsUI();
-
   setStatus("מוכן ✅");
 })();
 </script>
