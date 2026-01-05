@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MP3 Downloader</title>
+    <title>MP3 Downloader + Debug</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -39,84 +39,37 @@
             border: 1px solid rgba(255,255,255,0.05);
         }
 
-        .logo {
-            font-size: 40px;
-            margin-bottom: 10px;
-        }
-
-        h1 {
-            font-weight: 900;
-            font-size: 28px;
-            margin: 0 0 10px 0;
-            background: linear-gradient(45deg, #ff4757, #ff6b81);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        p {
-            color: #a4a4a4;
-            font-size: 16px;
-            margin-bottom: 25px;
-        }
+        .logo { font-size: 40px; margin-bottom: 10px; }
+        h1 { font-weight: 900; font-size: 28px; margin: 0 0 10px 0; background: linear-gradient(45deg, #ff4757, #ff6b81); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        p { color: #a4a4a4; font-size: 16px; margin-bottom: 25px; }
 
         input[type="text"] {
-            width: 100%;
-            padding: 18px;
-            border-radius: 15px;
-            border: 2px solid #333;
-            background: #252525;
-            color: white;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.3s;
-            box-sizing: border-box;
-            text-align: center;
+            width: 100%; padding: 18px; border-radius: 15px; border: 2px solid #333; background: #252525; color: white; font-size: 16px; outline: none; transition: border-color 0.3s; box-sizing: border-box; text-align: center;
         }
 
-        input[type="text"]:focus {
-            border-color: var(--primary);
-        }
+        input[type="text"]:focus { border-color: var(--primary); }
 
         .download-btn {
-            width: 100%;
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 18px;
-            border-radius: 15px;
-            font-size: 18px;
-            font-weight: 700;
-            margin-top: 15px;
-            cursor: pointer;
-            box-shadow: 0 10px 20px rgba(255, 71, 87, 0.3);
-            transition: transform 0.2s, background 0.2s;
-            -webkit-tap-highlight-color: transparent;
+            width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 15px; font-size: 18px; font-weight: 700; margin-top: 15px; cursor: pointer; box-shadow: 0 10px 20px rgba(255, 71, 87, 0.3); transition: transform 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent;
         }
 
-        .download-btn:active {
-            transform: scale(0.98);
-            background: #e04050;
-        }
+        #loader-container { margin-top: 25px; display: none; border-radius: 15px; overflow: hidden; background: white; min-height: 80px; }
+        iframe { width: 100%; height: 80px; border: none; }
 
-        #loader-container {
-            margin-top: 25px;
-            display: none;
-            border-radius: 15px;
-            overflow: hidden;
-            background: white;
-            min-height: 80px;
-        }
-
-        iframe {
-            width: 100%;
-            height: 80px;
-            border: none;
-        }
-
-        .footer-note {
+        /* עיצוב לתיבת הלוגים */
+        #debug-log {
             margin-top: 20px;
-            font-size: 12px;
-            color: #555;
+            background: #000;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 11px;
+            text-align: left;
+            padding: 10px;
+            border-radius: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            direction: ltr;
         }
     </style>
 </head>
@@ -125,41 +78,84 @@
     <div class="app-card">
         <div class="logo">🎵</div>
         <h1>MP3 הוריד</h1>
-        <p>פשוט להדביק ולהוריד</p>
+        <p>גרסת ניפוי שגיאות (Debug)</p>
 
         <input type="text" id="ytUrl" placeholder="הדבק כאן קישור מיוטיוב..." autocomplete="off">
         
         <button class="download-btn" onclick="startDownload()">הורד עכשיו</button>
 
-        <div id="loader-container">
-            </div>
+        <div id="loader-container"></div>
 
-        <div class="footer-note">
-            אם הכפתור לא מופיע, וודא שהקישור תקין.
-        </div>
+        <div id="debug-log">ממתין לפעולה...</div>
     </div>
 
     <script>
+        const logElement = document.getElementById('debug-log');
+
+        function addLog(message) {
+            const time = new Date().toLocaleTimeString();
+            logElement.innerHTML += `<div>[${time}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(message);
+        }
+
         function startDownload() {
             const url = document.getElementById('ytUrl').value;
             const container = document.getElementById('loader-container');
             
-            if (!url || !url.includes('youtu')) {
+            addLog("--- התחלת תהליך חדש ---");
+            
+            if (!url) {
+                addLog("שגיאה: שדה הכתובת ריק");
+                alert("אנא הדבק קישור");
+                return;
+            }
+
+            addLog(`בודק כתובת: ${url}`);
+            if (!url.includes('youtu')) {
+                addLog("שגיאה: הכתובת לא נראית כמו קישור יוטיוב תקין");
                 alert('בבקשה שים קישור תקין של יוטיוב');
                 return;
             }
 
-            // הצגת האזור של ההורדה
-            container.style.display = 'block';
-            container.innerHTML = `<p style="color:black; padding:10px;">טוען שרת הורדה...</p>`;
-
-            // שימוש ב-API היציב ביותר כרגע
-            const apiUrl = `https://p.oceansaver.in/api/button/?url=${encodeURIComponent(url)}&color=ff4757`;
+            addLog("מעבד כתובת לפורמט בטוח (Encoding)...");
+            const encodedUrl = encodeURIComponent(url);
             
+            // נסיון עם שרת אחר אם הקודם נכשל
+            const apiUrl = `https://p.oceansaver.in/api/button/?url=${encodedUrl}&color=ff4757`;
+            addLog(`מנסה להתחבר ל-API: oceansaver.in`);
+
+            container.style.display = 'block';
+            container.innerHTML = `<p style="color:black; padding:10px;">טוען שרת...</p>`;
+
+            // יצירת ה-Iframe בצורה ידנית כדי לנטר שגיאות
+            const ifrm = document.createElement("iframe");
+            ifrm.setAttribute("src", apiUrl);
+            ifrm.setAttribute("scrolling", "no");
+            
+            ifrm.onload = function() {
+                addLog("הצלחה: ה-Iframe נטען מהשרת בהצלחה.");
+            };
+
+            ifrm.onerror = function() {
+                addLog("שגיאה קריטית: ה-Iframe נכשל בטעינה. ייתכן שהשרת למטה או חסום.");
+            };
+
+            // ניקוי והוספה
             setTimeout(() => {
-                container.innerHTML = `<iframe src="${apiUrl}" scrolling="no"></iframe>`;
+                container.innerHTML = "";
+                container.appendChild(ifrm);
+                addLog("ה-Iframe נוסף לדף. ממתין לתגובת השרת בפנים...");
             }, 500);
         }
+
+        // בדיקת חיבור בסיסית בעת הטעינה
+        window.onload = () => {
+            addLog("הדף נטען. דפדפן: " + navigator.userAgent.split(' ').pop());
+            if (!navigator.onLine) {
+                addLog("אזהרה: אין חיבור לאינטרנט!");
+            }
+        };
     </script>
 
 </body>
