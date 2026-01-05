@@ -12,7 +12,8 @@
         /* אזור מצלמה חיה */
         #camContainer { width: 100%; aspect-ratio: 3/4; background: #000; position: relative; border-radius: 20px; overflow: hidden; display: none; margin-bottom: 15px; }
         #videoLive { width: 100%; height: 100%; object-fit: cover; }
-        .yellow-line { position: absolute; top: 25%; left: 0; width: 100%; height: 4px; background: yellow; box-shadow: 0 0 15px yellow; z-index: 10; }
+        /* הועלה מ-25% ל-10% (קרוב לחלק העליון) */
+        .yellow-line { position: absolute; top: 10%; left: 0; width: 100%; height: 4px; background: yellow; box-shadow: 0 0 15px yellow; z-index: 10; }
 
         .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .box { border: 2px dashed #ddd; border-radius: 15px; height: 120px; display: flex; align-items: center; justify-content: center; position: relative; background: #fafafa; overflow: hidden; }
@@ -41,21 +42,21 @@
         <div class="yellow-line"></div>
     </div>
 
-    <div class="upload-grid">
-        <div class="box" id="boxB"><span>לפני</span><img id="imgB" class="prev"></div>
-        <div class="box" id="boxA"><span>אחרי</span><img id="imgA" class="prev"></div>
-    </div>
-
+    <!-- ✅ העברתי את אזור הכפתורים למעלה (לפני התצוגה המקדימה) -->
     <div id="ui-capture">
         <button id="btnOpenCam">פתח מצלמה עם פס צהוב 📸</button>
         <button id="btnSnap" class="snap-btn" style="display:none">לחיצה לצילום 📸</button>
         <div style="margin-top:10px">
             <label id="fallbackLabel" style="font-size:12px; color:#888; display:none;">המצלמה לא נפתחת? השתמש במצלמה הרגילה:</label>
             <button id="btnFallback" class="fallback-btn" style="display:none" onclick="document.getElementById('fileIn').click()">מצלמה רגילה (ללא פס)</button>
-
-            <!-- שינוי קטן: capture=environment כדי לכוון אחורית -->
             <input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none">
         </div>
+    </div>
+
+    <!-- ✅ התצוגה המקדימה ירדה למטה -->
+    <div class="upload-grid">
+        <div class="box" id="boxB"><span>לפני</span><img id="imgB" class="prev"></div>
+        <div class="box" id="boxA"><span>אחרי</span><img id="imgA" class="prev"></div>
     </div>
 
     <div id="adjustArea">
@@ -104,16 +105,13 @@
     }
 
     async function openLiveCamera() {
-        // מצלמה חיה עובדת רק ב-Secure Context (HTTPS או localhost)
         if (!window.isSecureContext) {
             showFallbackUI("ℹ️ מצלמה חיה נחסמת בלי HTTPS. השתמש במצלמה הרגילה.");
             document.getElementById('btnFallback').click();
             return;
         }
 
-        // ניסיון 1: אילוצים "אחורית" + איכות
         const c1 = { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
-        // ניסיון 2: רק וידאו (למכשירים בעייתיים)
         const c2 = { video: true, audio: false };
 
         try {
@@ -124,7 +122,6 @@
                 stopLiveCamera();
                 liveStream = await navigator.mediaDevices.getUserMedia(c2);
             } catch (e2) {
-                // פה לרוב זה: NotAllowedError / SecurityError / NotFoundError
                 const name = (e2 && e2.name) ? e2.name : "CameraError";
                 let msg = "המצלמה החיה חסומה במכשיר הזה. השתמש במצלמה הרגילה.";
                 if (name === "NotAllowedError" || name === "SecurityError") {
@@ -140,21 +137,17 @@
         }
 
         video.srcObject = liveStream;
-
-        // חשוב: לפעמים חייבים play מפורש אחרי הצמדה
         try { await video.play(); } catch {}
 
         camContainer.style.display = 'block';
         btnSnap.style.display = 'block';
         btnOpen.style.display = 'none';
-        showFallbackUI(""); // מציג גם את כפתור ה-fallback כגיבוי
+        showFallbackUI("");
         statusEl.innerText = "✅ מצלמה חיה פתוחה. לחץ לצילום.";
     }
 
-    // פתיחת מצלמה חיה
     btnOpen.onclick = () => openLiveCamera();
 
-    // צילום מהווידאו
     btnSnap.onclick = () => {
         if (!video.videoWidth || !video.videoHeight) {
             alert("המצלמה עדיין לא מוכנה. נסה שוב בעוד שנייה.");
@@ -167,14 +160,12 @@
         processPhoto(data);
     };
 
-    // צילום ממצלמה רגילה (Fallback)
     fileIn.onchange = (e) => {
         const f = e.target.files && e.target.files[0];
         if (!f) return;
         const reader = new FileReader();
         reader.onload = (ev) => processPhoto(ev.target.result);
         reader.readAsDataURL(f);
-        // מאפשר לבחור שוב אותו קובץ אם צריך
         e.target.value = "";
     };
 
@@ -192,7 +183,6 @@
             afterImg.onload = () => {
                 document.getElementById('imgA').src = data;
 
-                // סוגר מצלמה חיה אם פתוחה
                 stopLiveCamera();
 
                 camContainer.style.display = 'none';
@@ -208,7 +198,6 @@
         adjustArea.style.display = 'block';
         btnCreate.style.display = 'block';
 
-        // מוודא שהקנבס נבנה לפי BEFORE (כמו שהיה אצלך)
         adjustCanvas.width = beforeImg.naturalWidth || beforeImg.width;
         adjustCanvas.height = beforeImg.naturalHeight || beforeImg.height;
 
@@ -236,27 +225,24 @@
         ctx.stroke();
     }
 
-    // גרירה לתיקון (רק Y כמו שהיה אצלך)
     let isDrag = false, startY;
     adjustCanvas.ontouchstart = (e) => { isDrag = true; startY = e.touches[0].clientY - offsetY; };
     adjustCanvas.ontouchmove = (e) => { if(!isDrag) return; offsetY = e.touches[0].clientY - startY; drawAdjust(); };
     adjustCanvas.ontouchend = () => isDrag = false;
 
     function pickSupportedMime() {
-        // MP4 כמעט תמיד בעייתי בדפדפנים. בוחרים אוטומטית משהו נתמך.
         const candidates = [
             'video/webm;codecs=vp9',
             'video/webm;codecs=vp8',
             'video/webm',
-            'video/mp4' // רק אם ממש נתמך
+            'video/mp4'
         ];
         for (const c of candidates) {
             if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
         }
-        return ''; // ייתן לדפדפן לבחור ברירת מחדל
+        return '';
     }
 
-    // יצירת וידאו
     btnCreate.onclick = () => {
         statusEl.innerText = "⏳ מייצר סרטון... לא לצאת";
         btnCreate.disabled = true;
@@ -324,7 +310,6 @@
             vCtx.globalAlpha = op;
             vCtx.drawImage(beforeImg, 0, 0, w, h);
 
-            // חותמת מותג
             vCtx.globalAlpha = 1;
             const fs = w * 0.06;
             vCtx.font = `900 ${fs}px system-ui`;
@@ -349,7 +334,6 @@
         render();
     };
 
-    // בטיחות: כשעוזבים דף, לסגור מצלמה
     window.addEventListener('pagehide', stopLiveCamera);
 </script>
 </body>
