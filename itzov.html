@@ -1,367 +1,271 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>פן אקספרס - הגרסה הסופית</title>
-    <style>
-        :root { --primary: #ff6b81; --bg: #f8f9fa; --purple: #6c5ce7; }
-        body { font-family: system-ui, sans-serif; text-align: center; background-color: var(--bg); margin: 0; padding: 10px; }
-        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding-bottom: 50px; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>פן אקספרס - הגרסה הסופית</title>
+  <style>
+    :root { --primary: #ff6b81; --bg: #f8f9fa; --purple: #6c5ce7; }
+    body { font-family: system-ui, sans-serif; text-align: center; background-color: var(--bg); margin: 0; padding: 10px; }
+    .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding-bottom: 50px; }
 
-        /* אזור מצלמה חיה */
-        #camContainer { width: 100%; aspect-ratio: 3/4; background: #000; position: relative; border-radius: 20px; overflow: hidden; display: none; margin-bottom: 15px; }
-        #videoLive { width: 100%; height: 100%; object-fit: cover; }
+    /* אזור מצלמה חיה */
+    #camContainer {
+      width: 100%;
+      aspect-ratio: 4/5;          /* היה 3/4 -> עכשיו מעט יותר נמוך כדי שייכנס הכפתור + ה-preview במסך */
+      max-height: 48vh;           /* מבטיח שלא “יבלע” את המסך */
+      background: #000;
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      display: none;
+      margin-bottom: 10px;        /* מעט פחות כדי לחסוך מקום */
+    }
+    #videoLive { width: 100%; height: 100%; object-fit: cover; }
 
-        /* ✅ כוונת ראש: חצי-עיגול צהוב במקום פס */
-        .head-guide{
-            position:absolute;
-            top: 10%;                 /* אותו מיקום מצוין שהיה לפס */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 68%;               /* רוחב הכוונת ביחס למסך */
-            max-width: 420px;         /* שלא יהיה ענק במכשירים גדולים */
-            aspect-ratio: 2 / 1;      /* חצי עיגול: רוחב כפול מהגובה */
-            border: 6px solid yellow; /* עובי הצהוב */
-            border-bottom: none;      /* הופך לחצי עיגול */
-            border-radius: 9999px 9999px 0 0;
-            box-shadow: 0 0 18px yellow;
-            z-index: 10;
-            pointer-events: none;
-        }
-        /* “סימון מרכז” קטן עדין שעוזר לכוון את העורף בדיוק באמצע */
-        .head-guide::after{
-            content:"";
-            position:absolute;
-            left:50%;
-            bottom:-3px;
-            transform: translateX(-50%);
-            width: 44px;
-            height: 6px;
-            background: yellow;
-            border-radius: 999px;
-            box-shadow: 0 0 12px yellow;
-            opacity: 0.9;
-        }
+    /* ✅ כוונת ראש: חצי-עיגול צהוב */
+    .head-guide{
+      position:absolute;
+      top: 10%;                 /* המיקום המצויין */
+      left: 50%;
+      transform: translateX(-50%);
+      width: 68%;
+      max-width: 420px;
+      aspect-ratio: 2 / 1;
+      border: 6px solid yellow;
+      border-bottom: none;
+      border-radius: 9999px 9999px 0 0;
+      box-shadow: 0 0 18px yellow;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .head-guide::after{
+      content:"";
+      position:absolute;
+      left:50%;
+      bottom:-3px;
+      transform: translateX(-50%);
+      width: 44px;
+      height: 6px;
+      background: yellow;
+      border-radius: 999px;
+      box-shadow: 0 0 12px yellow;
+      opacity: 0.9;
+    }
 
-        .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .box { border: 2px dashed #ddd; border-radius: 15px; height: 120px; display: flex; align-items: center; justify-content: center; position: relative; background: #fafafa; overflow: hidden; }
-        img.prev { width: 100%; height: 100%; object-fit: contain; position: absolute; }
+    .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .box { border: 2px dashed #ddd; border-radius: 15px; height: 105px; display: flex; align-items: center; justify-content: center; position: relative; background: #fafafa; overflow: hidden; }
+    img.prev { width: 100%; height: 100%; object-fit: contain; position: absolute; }
 
-        button { background: var(--purple); color: white; border: none; padding: 15px; font-size: 18px; border-radius: 15px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
-        .snap-btn { background: var(--primary); margin-top: 5px; }
-        .fallback-btn { background: #555; font-size: 14px; }
+    button { background: var(--purple); color: white; border: none; padding: 15px; font-size: 18px; border-radius: 15px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 10px; }
+    .snap-btn { background: var(--primary); margin-top: 6px; }
 
-        #status { font-weight: bold; color: var(--primary); margin: 15px 0; }
-        video#finalVid { width: 100%; border-radius: 15px; display: none; margin-top: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
-        .save-btn { background: #2ed573; text-decoration: none; display: none; padding: 18px; border-radius: 50px; color: white; font-weight: bold; margin-top: 15px; }
+    #status { font-weight: bold; color: var(--primary); margin: 12px 0; }
+    video#finalVid { width: 100%; border-radius: 15px; display: none; margin-top: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
+    .save-btn { background: #2ed573; text-decoration: none; display: none; padding: 18px; border-radius: 50px; color: white; font-weight: bold; margin-top: 15px; }
 
-        #adjustArea { display: none; border: 2px solid var(--purple); border-radius: 15px; overflow: hidden; background: #000; margin-top: 15px; touch-action: none; }
-    </style>
+    /* כלי כיוונון ידני */
+    #adjustArea { display: none; border: 2px solid var(--purple); border-radius: 15px; overflow: hidden; background: #000; margin-top: 15px; touch-action: none; }
+  </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 style="margin-bottom:5px;">✨ פן אקספרס ✨</h2>
-    <p style="font-size: 12px; color: #666; margin-bottom: 15px;">צילום עם כוונת להתאמה מושלמת</p>
+  <h2 style="margin-bottom:5px;">✨ פן אקספרס ✨</h2>
+  <p style="font-size: 12px; color: #666; margin-bottom: 12px;">צילום עם כוונת להתאמה מושלמת</p>
 
-    <div id="camContainer">
-        <video id="videoLive" autoplay playsinline muted></video>
-        <!-- ✅ במקום פס צהוב -->
-        <div class="head-guide"></div>
-    </div>
+  <div id="camContainer">
+    <video id="videoLive" autoplay playsinline muted></video>
+    <div class="head-guide"></div>
+  </div>
 
-    <div id="ui-capture">
-        <button id="btnOpenCam">פתח מצלמה עם כוונת ראש 📸</button>
-        <button id="btnSnap" class="snap-btn" style="display:none">לחיצה לצילום 📸</button>
-        <div style="margin-top:10px">
-            <label id="fallbackLabel" style="font-size:12px; color:#888; display:none;">המצלמה לא נפתחת? השתמש במצלמה הרגילה:</label>
-            <button id="btnFallback" class="fallback-btn" style="display:none" onclick="document.getElementById('fileIn').click()">מצלמה רגילה (ללא כוונת)</button>
-            <input type="file" id="fileIn" accept="image/*" capture="environment" style="display:none">
-        </div>
-    </div>
+  <div id="ui-capture">
+    <button id="btnOpenCam">פתח מצלמה עם כוונת ראש 📸</button>
+    <button id="btnSnap" class="snap-btn" style="display:none">לחיצה לצילום 📸</button>
+  </div>
 
-    <div class="upload-grid">
-        <div class="box" id="boxB"><span>לפני</span><img id="imgB" class="prev"></div>
-        <div class="box" id="boxA"><span>אחרי</span><img id="imgA" class="prev"></div>
-    </div>
+  <div class="upload-grid">
+    <div class="box" id="boxB"><span>לפני</span><img id="imgB" class="prev"></div>
+    <div class="box" id="boxA"><span>אחרי</span><img id="imgA" class="prev"></div>
+  </div>
 
-    <div id="adjustArea">
-        <p style="color:white; font-size:12px; margin:5px;">כוון את הקודקוד לכוונת 👆</p>
-        <canvas id="adjustCanvas" style="width:100%; display:block;"></canvas>
-    </div>
+  <div id="adjustArea">
+    <p style="color:white; font-size:12px; margin:5px;">כוון תמונה על תמונה 👆 (גרור חופשי לכל כיוון)</p>
+    <canvas id="adjustCanvas" style="width:100%; display:block;"></canvas>
+  </div>
 
-    <button id="btnCreate" style="display:none; background:#2ed573;">צור סרטון ממותג 🎬</button>
+  <button id="btnCreate" style="display:none; background:#2ed573;">צור סרטון ממותג 🎬</button>
 
-    <div id="status"></div>
-    <video id="finalVid" controls playsinline loop muted></video>
-    <a id="btnDownload" class="save-btn">שמירה לגלריה ⬇️</a>
+  <div id="status"></div>
+  <video id="finalVid" controls playsinline loop muted></video>
+  <a id="btnDownload" class="save-btn">שמירה לגלריה ⬇️</a>
 </div>
 
 <script>
-    const video = document.getElementById('videoLive');
-    const camContainer = document.getElementById('camContainer');
-    const btnOpen = document.getElementById('btnOpenCam');
-    const btnSnap = document.getElementById('btnSnap');
-    const btnCreate = document.getElementById('btnCreate');
-    const fileIn = document.getElementById('fileIn');
-    const adjustArea = document.getElementById('adjustArea');
-    const adjustCanvas = document.getElementById('adjustCanvas');
-    const statusEl = document.getElementById('status');
+  const video = document.getElementById('videoLive');
+  const camContainer = document.getElementById('camContainer');
+  const btnOpen = document.getElementById('btnOpenCam');
+  const btnSnap = document.getElementById('btnSnap');
+  const btnCreate = document.getElementById('btnCreate');
+  const adjustArea = document.getElementById('adjustArea');
+  const adjustCanvas = document.getElementById('adjustCanvas');
+  const statusEl = document.getElementById('status');
 
-    let beforeImg = new Image(), afterImg = new Image();
-    let mode = 'before';
-    let offsetX = 0, offsetY = 0;
+  let beforeImg = new Image(), afterImg = new Image();
+  let mode = 'before';
+  let offsetX = 0, offsetY = 0;
 
-    let liveStream = null;
+  let liveStream = null;
 
-    function showFallbackUI(msg) {
-        if (msg) statusEl.innerText = msg;
-        document.getElementById('fallbackLabel').style.display = 'block';
-        document.getElementById('btnFallback').style.display = 'block';
+  function stopLiveCamera() {
+    try {
+      if (liveStream) {
+        liveStream.getTracks().forEach(t => t.stop());
+        liveStream = null;
+      }
+      video.srcObject = null;
+    } catch {}
+  }
+
+  async function openLiveCamera() {
+    if (!window.isSecureContext) {
+      alert("מצלמה חיה דורשת HTTPS. פתח את הדף דרך https://");
+      return;
     }
 
-    function stopLiveCamera() {
-        try {
-            if (liveStream) {
-                liveStream.getTracks().forEach(t => t.stop());
-                liveStream = null;
-            }
-            video.srcObject = null;
-        } catch {}
+    const c1 = { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+    const c2 = { video: true, audio: false };
+
+    try {
+      stopLiveCamera();
+      liveStream = await navigator.mediaDevices.getUserMedia(c1);
+    } catch (e1) {
+      try {
+        stopLiveCamera();
+        liveStream = await navigator.mediaDevices.getUserMedia(c2);
+      } catch (e2) {
+        const name = (e2 && e2.name) ? e2.name : "CameraError";
+        let msg = "המצלמה החיה חסומה במכשיר הזה.";
+        if (name === "NotAllowedError" || name === "SecurityError") {
+          msg = "אין גישה למצלמה (נחסם/אין הרשאה/דפדפן פנימי).";
+        } else if (name === "NotFoundError") {
+          msg = "לא נמצאה מצלמה זמינה.";
+        }
+        alert(msg);
+        return;
+      }
     }
 
-    async function openLiveCamera() {
-        if (!window.isSecureContext) {
-            showFallbackUI("ℹ️ מצלמה חיה נחסמת בלי HTTPS. השתמש במצלמה הרגילה.");
-            document.getElementById('btnFallback').click();
-            return;
-        }
+    video.srcObject = liveStream;
+    try { await video.play(); } catch {}
 
-        const c1 = { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
-        const c2 = { video: true, audio: false };
+    camContainer.style.display = 'block';
+    btnSnap.style.display = 'block';
+    btnOpen.style.display = 'none';
+    statusEl.innerText = "✅ מצלמה פתוחה. לחץ לצילום.";
+  }
 
-        try {
-            stopLiveCamera();
-            liveStream = await navigator.mediaDevices.getUserMedia(c1);
-        } catch (e1) {
-            try {
-                stopLiveCamera();
-                liveStream = await navigator.mediaDevices.getUserMedia(c2);
-            } catch (e2) {
-                const name = (e2 && e2.name) ? e2.name : "CameraError";
-                let msg = "המצלמה החיה חסומה במכשיר הזה. השתמש במצלמה הרגילה.";
-                if (name === "NotAllowedError" || name === "SecurityError") {
-                    msg = "אין גישה למצלמה חיה (לרוב בגלל דפדפן פנימי/לא HTTPS). עובר למצלמה הרגילה.";
-                } else if (name === "NotFoundError") {
-                    msg = "לא נמצאה מצלמה זמינה. עובר למצלמה הרגילה.";
-                }
-                alert(msg);
-                showFallbackUI("📷 עברת למצלמה רגילה.");
-                document.getElementById('btnFallback').click();
-                return;
-            }
-        }
+  btnOpen.onclick = () => openLiveCamera();
 
-        video.srcObject = liveStream;
-        try { await video.play(); } catch {}
+  btnSnap.onclick = () => {
+    if (!video.videoWidth || !video.videoHeight) {
+      alert("המצלמה עדיין לא מוכנה. נסה שוב בעוד שנייה.");
+      return;
+    }
+    const c = document.createElement('canvas');
+    c.width = video.videoWidth; c.height = video.videoHeight;
+    c.getContext('2d').drawImage(video, 0, 0);
+    const data = c.toDataURL('image/jpeg', 0.92);
+    processPhoto(data);
+  };
 
+  function processPhoto(data) {
+    if (mode === 'before') {
+      beforeImg = new Image();
+      beforeImg.onload = () => {
+        document.getElementById('imgB').src = data;
+        mode = 'after';
+        statusEl.innerText = "מעולה! עכשיו צלם את ה'אחרי'";
+        // משאיר מצלמה פתוחה + כוונת, ממשיכים לצילום הבא
+        btnOpen.style.display = 'none';
         camContainer.style.display = 'block';
         btnSnap.style.display = 'block';
-        btnOpen.style.display = 'none';
-        showFallbackUI("");
-        statusEl.innerText = "✅ מצלמה חיה פתוחה. לחץ לצילום.";
+      };
+      beforeImg.src = data;
+    } else {
+      afterImg = new Image();
+      afterImg.onload = () => {
+        document.getElementById('imgA').src = data;
+
+        stopLiveCamera();
+
+        camContainer.style.display = 'none';
+        btnSnap.style.display = 'none';
+        document.getElementById('ui-capture').style.display = 'none';
+
+        initAdjust();
+      };
+      afterImg.src = data;
     }
+  }
 
-    btnOpen.onclick = () => openLiveCamera();
+  function initAdjust() {
+    adjustArea.style.display = 'block';
+    btnCreate.style.display = 'block';
 
-    btnSnap.onclick = () => {
-        if (!video.videoWidth || !video.videoHeight) {
-            alert("המצלמה עדיין לא מוכנה. נסה שוב בעוד שנייה.");
-            return;
-        }
-        const c = document.createElement('canvas');
-        c.width = video.videoWidth; c.height = video.videoHeight;
-        c.getContext('2d').drawImage(video, 0, 0);
-        const data = c.toDataURL('image/jpeg', 0.92);
-        processPhoto(data);
-    };
+    adjustCanvas.width = beforeImg.naturalWidth || beforeImg.width;
+    adjustCanvas.height = beforeImg.naturalHeight || beforeImg.height;
 
-    fileIn.onchange = (e) => {
-        const f = e.target.files && e.target.files[0];
-        if (!f) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => processPhoto(ev.target.result);
-        reader.readAsDataURL(f);
-        e.target.value = "";
-    };
+    offsetX = 0; offsetY = 0;
+    drawAdjust();
+  }
 
-    function processPhoto(data) {
-        if (mode === 'before') {
-            beforeImg = new Image();
-            beforeImg.onload = () => {
-                document.getElementById('imgB').src = data;
-                mode = 'after';
-                statusEl.innerText = "מעולה! עכשיו צלם את ה'אחרי'";
-            };
-            beforeImg.src = data;
-        } else {
-            afterImg = new Image();
-            afterImg.onload = () => {
-                document.getElementById('imgA').src = data;
+  function drawAdjust() {
+    const ctx = adjustCanvas.getContext('2d');
+    const w = adjustCanvas.width, h = adjustCanvas.height;
+    ctx.clearRect(0,0,w,h);
 
-                stopLiveCamera();
+    ctx.globalAlpha = 1;
+    ctx.drawImage(beforeImg, 0, 0, w, h);
 
-                camContainer.style.display = 'none';
-                btnSnap.style.display = 'none';
-                document.getElementById('ui-capture').style.display = 'none';
-                initAdjust();
-            };
-            afterImg.src = data;
-        }
-    }
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(afterImg, offsetX, offsetY, w, h);
 
-    function initAdjust() {
-        adjustArea.style.display = 'block';
-        btnCreate.style.display = 'block';
+    // משאיר את קו ההתאמה בקנבס כמו שהיה אצלך (25%)
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "yellow";
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(0, h*0.25);
+    ctx.lineTo(w, h*0.25);
+    ctx.stroke();
+  }
 
-        adjustCanvas.width = beforeImg.naturalWidth || beforeImg.width;
-        adjustCanvas.height = beforeImg.naturalHeight || beforeImg.height;
+  /* ✅ גרירה חופשית X+Y (גם לטאץ' וגם לעכבר) */
+  let isDrag = false;
+  let startPX = 0, startPY = 0;
+  let startOX = 0, startOY = 0;
 
-        offsetX = 0; offsetY = 0;
-        drawAdjust();
-    }
+  function getPoint(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
 
-    function drawAdjust() {
-        const ctx = adjustCanvas.getContext('2d');
-        const w = adjustCanvas.width, h = adjustCanvas.height;
-        ctx.clearRect(0,0,w,h);
+  function dragStart(e) {
+    isDrag = true;
+    const p = getPoint(e);
+    startPX = p.x; startPY = p.y;
+    startOX = offsetX; startOY = offsetY;
+    e.preventDefault?.();
+  }
 
-        ctx.globalAlpha = 1;
-        ctx.drawImage(beforeImg, 0, 0, w, h);
+  function dragMove(e) {
+    if (!isDrag) return;
+    const p = getPoint(e);
+    const dx = p.x - startPX;
+    const dy = p.y - startPY;
 
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(afterImg, offsetX, offsetY, w, h);
-
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = "yellow";
-        ctx.lineWidth = 10;
-        ctx.beginPath();
-        ctx.moveTo(0, h*0.25);
-        ctx.lineTo(w, h*0.25);
-        ctx.stroke();
-    }
-
-    let isDrag = false, startY;
-    adjustCanvas.ontouchstart = (e) => { isDrag = true; startY = e.touches[0].clientY - offsetY; };
-    adjustCanvas.ontouchmove = (e) => { if(!isDrag) return; offsetY = e.touches[0].clientY - startY; drawAdjust(); };
-    adjustCanvas.ontouchend = () => isDrag = false;
-
-    function pickSupportedMime() {
-        const candidates = [
-            'video/webm;codecs=vp9',
-            'video/webm;codecs=vp8',
-            'video/webm',
-            'video/mp4'
-        ];
-        for (const c of candidates) {
-            if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
-        }
-        return '';
-    }
-
-    btnCreate.onclick = () => {
-        statusEl.innerText = "⏳ מייצר סרטון... לא לצאת";
-        btnCreate.disabled = true;
-
-        const vCanvas = document.createElement('canvas');
-        const vCtx = vCanvas.getContext('2d');
-
-        const w = beforeImg.naturalWidth || beforeImg.width;
-        const h = beforeImg.naturalHeight || beforeImg.height;
-        vCanvas.width = w; vCanvas.height = h;
-
-        const stream = vCanvas.captureStream(30);
-        const mimeType = pickSupportedMime();
-
-        let recorder;
-        try {
-            recorder = mimeType
-                ? new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 6000000 })
-                : new MediaRecorder(stream, { videoBitsPerSecond: 6000000 });
-        } catch (e) {
-            alert("הדפדפן לא תומך בהקלטת וידאו כאן. אם תרצה, נעבור ליצירת תמונת 'לפני/אחרי' במקום סרטון.");
-            btnCreate.disabled = false;
-            statusEl.innerText = "❌ אין תמיכה בהקלטת וידאו במכשיר הזה.";
-            return;
-        }
-
-        const chunks = [];
-        recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
-        recorder.onstop = () => {
-            const finalType = (mimeType && mimeType.includes('mp4')) ? 'video/mp4' : 'video/webm';
-            const blob = new Blob(chunks, { type: finalType });
-            const url = URL.createObjectURL(blob);
-
-            const finalVid = document.getElementById('finalVid');
-            finalVid.src = url;
-            finalVid.style.display = 'block';
-
-            const btnDownload = document.getElementById('btnDownload');
-            btnDownload.href = url;
-            btnDownload.download = finalType === 'video/mp4' ? 'Express_Hair.mp4' : 'Express_Hair.webm';
-            btnDownload.style.display = 'block';
-
-            statusEl.innerText = "✅ מוכן!";
-        };
-
-        recorder.start();
-
-        const start = Date.now();
-        const dur = 8000;
-
-        function render() {
-            const elapsed = Date.now() - start;
-            if (elapsed >= dur) { recorder.stop(); return; }
-
-            vCtx.clearRect(0,0,w,h);
-
-            let op = 1;
-            if (elapsed < 2000) op = 1;
-            else if (elapsed < 5000) op = 1 - (elapsed - 2000) / 3000;
-            else op = 0;
-
-            vCtx.globalAlpha = 1;
-            vCtx.drawImage(afterImg, offsetX, offsetY, w, h);
-
-            vCtx.globalAlpha = op;
-            vCtx.drawImage(beforeImg, 0, 0, w, h);
-
-            vCtx.globalAlpha = 1;
-            const fs = w * 0.06;
-            vCtx.font = `900 ${fs}px system-ui`;
-            vCtx.textAlign = "center";
-            const txt = "פן אקספרס 0507449001";
-
-            vCtx.strokeStyle = "white";
-            vCtx.lineWidth = fs * 0.2;
-            vCtx.strokeText(txt, w/2, h * 0.95);
-
-            vCtx.fillStyle = "#ff0000";
-            vCtx.fillText(txt, w/2, h * 0.95);
-
-            vCtx.fillStyle = "white";
-            vCtx.shadowBlur = 10;
-            vCtx.shadowColor = "black";
-            vCtx.fillText(op > 0.5 ? "לפני" : "אחרי ✨", w/2, h * 0.1);
-            vCtx.shadowBlur = 0;
-
-            requestAnimationFrame(render);
-        }
-        render();
-    };
-
-    window.addEventListener('pagehide', stopLiveCamera);
-</script>
-</body>
-</html>
+    // ממירים תזוזה על המסך ל”פיקסלים” של הקנבס
+    const rect = adjustCanvas.getBoundingClientRect();
+    const scaleX = adjustCanvas.width / rect.width;
+    const scale
