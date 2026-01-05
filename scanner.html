@@ -1,195 +1,565 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סורק Pro - פתרון שגיאת Mat</title>
-    <script src="https://docs.opencv.org/4.7.0/opencv.js" async></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
-    <style>
-        :root { --primary: #007aff; --success: #2ecc71; --bg: #000; }
-        * { box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--bg); color: white; font-family: system-ui, sans-serif; }
-        .app-container { display: flex; flex-direction: column; height: 100dvh; }
-        
-        #debug { background: #1a1a1a; color: #0f0; font-size: 11px; padding: 5px; text-align: center; border-bottom: 1px solid #333; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>סורק Pro - רב עמודים</title>
 
-        .viewer { flex: 1; position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        video { width: 100%; height: 100%; object-fit: contain; }
-        /* קנבסים מוסתרים לעיבוד */
-        #hiddenCanvas, #outputCanvas { display: none; }
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://docs.opencv.org/4.7.0/opencv.js"></script>
 
-        .thumbnails-strip { height: 100px; background: #111; display: flex; gap: 10px; padding: 10px; overflow-x: auto; border-top: 1px solid #333; }
-        .thumb { width: 60px; height: 80px; background: #333; border-radius: 6px; object-fit: cover; border: 2px solid #555; }
+  <style>
+    * { box-sizing: border-box; }
+    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: system-ui, sans-serif; }
+    .app { display: flex; flex-direction: column; height: 100dvh; }
 
-        .controls { background: #111; padding: 20px; border-top: 1px solid #222; display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        .main-row { display: flex; align-items: center; justify-content: space-around; width: 100%; }
+    #debug { background: #1a1a1a; color: #0f0; font-size: 12px; padding: 8px; text-align: center; border-bottom: 1px solid #333; }
 
-        .snap-btn { width: 75px; height: 75px; background: white; border-radius: 50%; border: 6px solid #444; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .snap-btn:active { transform: scale(0.9); background: #ddd; }
-        .snap-inner { width: 55px; height: 55px; border-radius: 50%; border: 2px solid black; }
+    .viewer { flex: 1; min-height: 0; position: relative; display: flex; align-items: center; justify-content: center; background: #000; }
+    video, canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+    #canvasOutput { display: none; }
 
-        .btn { padding: 15px 25px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; color: white; display: flex; align-items: center; gap: 8px; }
-        .btn-pdf { background: var(--success); width: 90%; justify-content: center; font-size: 16px; }
-        .btn-reset { background: #333; font-size: 12px; }
-        .counter { background: #222; padding: 8px 15px; border-radius: 20px; font-size: 13px; border: 1px solid #444; }
+    .footer {
+      flex: 0 0 auto;
+      background: #111;
+      border-top: 1px solid #222;
+      padding: 10px 12px calc(12px + env(safe-area-inset-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+    }
 
-        #loader { position: fixed; inset: 0; background: #000; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .spinner { width: 40px; height: 40px; border: 3px solid #222; border-top: 3px solid white; border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+    #msg { text-align: center; font-size: 16px; }
+
+    .snap-btn {
+      width: 78px; height: 78px;
+      background: #fff;
+      border-radius: 50%;
+      border: 6px solid #333;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: 0.15s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .snap-btn:active { transform: scale(0.92); background: #ddd; }
+    .snap-inner { width: 56px; height: 56px; border-radius: 50%; border: 2px solid #000; }
+
+    .row { width: min(720px, 96%); display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap; }
+    .pill { font-size: 13px; padding: 6px 10px; border: 1px solid #444; border-radius: 999px; background: #0d0d0d; color: #ddd; }
+
+    .btn { padding: 12px 14px; border-radius: 12px; border: none; font-weight: 800; font-size: 15px; cursor: pointer; background: #333; color: #fff; }
+    .btn:active { transform: scale(0.98); }
+    .btn-green { background: #25d366; color: #fff; }
+    .btn-blue { background: #0b5ed7; color: #fff; }
+    .btn-red { background: #b02a37; color: #fff; }
+
+    /* thumbnails */
+    #thumbs {
+      width: min(720px, 96%);
+      display: none;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 6px 2px;
+      justify-content: flex-start;
+      align-items: center;
+    }
+    .thumb {
+      height: 56px;
+      border-radius: 10px;
+      border: 1px solid #333;
+      background: #000;
+      flex: 0 0 auto;
+      cursor: pointer;
+    }
+
+    #loader { position: fixed; inset: 0; background: #000; z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #222; border-top: 4px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Preview Modal */
+    #previewModal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 12px calc(14px + env(safe-area-inset-bottom));
+    }
+    #previewWrap {
+      width: min(980px, 100%);
+      height: min(86vh, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #previewTop {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    #previewTitle {
+      font-weight: 800;
+      font-size: 15px;
+      color: #fff;
+    }
+    #previewImg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+      border: 1px solid #333;
+      background: #000;
+    }
+  </style>
 </head>
+
 <body>
-
-<div id="loader">
+  <div id="loader">
     <div class="spinner"></div>
-    <p style="margin-top: 15px;">טוען את הסורק...</p>
-</div>
+    <p>טוען את המערכת...</p>
+  </div>
 
-<div class="app-container">
-    <div id="debug">Log: מאתחל...</div>
+  <div class="app">
+    <div id="debug">Log: ממתין ל-OpenCV</div>
 
     <div class="viewer">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="hiddenCanvas"></canvas>
-        <canvas id="outputCanvas"></canvas>
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvasOutput"></canvas>
     </div>
 
-    <div class="thumbnails-strip" id="thumbnails"></div>
+    <div class="footer">
+      <div id="msg">כוון אל הדף ולחץ צילום</div>
 
-    <div class="controls">
-        <div class="main-row">
-            <button class="btn btn-reset" onclick="resetAll()">איפוס</button>
-            
-            <div class="snap-btn" onclick="captureAndProcess()">
-                <div class="snap-inner"></div>
-            </div>
+      <div class="row" id="rowCapture">
+        <div class="pill" id="pagesInfo">עמודים: 0</div>
 
-            <div class="counter">מסמכים: <span id="pageCount">0</span></div>
+        <button class="btn" id="modeBtn">🩶 אפור</button>
+
+        <div class="snap-btn" id="snapBtn" aria-label="צילום">
+          <div class="snap-inner"></div>
         </div>
 
-        <div id="finalActions" style="display: none; width: 100%; justify-content: center;">
-            <button class="btn btn-pdf" onclick="sendPDF()">📩 שלח PDF בוואטסאפ</button>
-        </div>
+        <button class="btn btn-red" id="resetBtn">איפוס</button>
+      </div>
+
+      <div id="thumbs"></div>
+
+      <div class="row" id="rowActions" style="display:none">
+        <button class="btn btn-blue" id="addPageBtn">➕ הוסף עמוד</button>
+        <button class="btn btn-green" id="makePdfBtn">📩 שלח PDF</button>
+      </div>
     </div>
-</div>
+  </div>
+
+  <div id="previewModal">
+    <div id="previewWrap">
+      <div id="previewTop">
+        <div id="previewTitle">תצוגה מקדימה</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-red" id="deletePageBtn">🗑️ מחק עמוד</button>
+          <button class="btn" id="closePreviewBtn">סגור ✖️</button>
+        </div>
+      </div>
+      <img id="previewImg" alt="preview" />
+    </div>
+  </div>
 
 <script>
-    const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
-    const video = document.getElementById('video');
-    const hiddenCanvas = document.getElementById('hiddenCanvas');
-    const outputCanvas = document.getElementById('outputCanvas');
-    const thumbnailsDiv = document.getElementById('thumbnails');
-    
-    let scannedPages = [];
-    let cvReady = false;
+  const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
 
-    // 1. טעינת OpenCV בצורה בטוחה
-    window.onload = () => {
-        let checkCV = setInterval(() => {
-            if (typeof cv !== 'undefined' && cv.Mat) {
-                clearInterval(checkCV);
-                cvReady = true;
-                document.getElementById('loader').style.display = 'none';
-                log("OpenCV מוכן");
-                initCamera();
-            }
-        }, 500);
-    };
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvasOutput');
 
-    async function initCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } 
-            });
-            video.srcObject = stream;
-        } catch (e) { log("שגיאת מצלמה: " + e.message); }
+  const loader = document.getElementById('loader');
+  const msg = document.getElementById('msg');
+
+  const snapBtn = document.getElementById('snapBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  const pagesInfo = document.getElementById('pagesInfo');
+  const thumbs = document.getElementById('thumbs');
+  const rowActions = document.getElementById('rowActions');
+  const addPageBtn = document.getElementById('addPageBtn');
+  const makePdfBtn = document.getElementById('makePdfBtn');
+
+  const previewModal = document.getElementById('previewModal');
+  const previewImg = document.getElementById('previewImg');
+  const previewTitle = document.getElementById('previewTitle');
+  const closePreviewBtn = document.getElementById('closePreviewBtn');
+  const deletePageBtn = document.getElementById('deletePageBtn');
+
+  const modeBtn = document.getElementById('modeBtn');
+  let scanMode = "bw";
+
+  modeBtn.addEventListener('click', () => {
+    scanMode = (scanMode === "bw") ? "gray" : "bw";
+    modeBtn.innerText = (scanMode === "bw") ? "🩶 אפור" : "⬛ שחור-לבן";
+    log("מצב סריקה: " + (scanMode === "bw" ? "שחור-לבן" : "אפור"));
+  });
+
+  let cvReady = false;
+  let cameraReady = false;
+  let streamRef = null;
+
+  const pages = [];
+  let previewIndex = -1;
+
+  snapBtn.addEventListener('click', processDocAndStore);
+  resetBtn.addEventListener('click', () => location.reload());
+  addPageBtn.addEventListener('click', backToCamera);
+  makePdfBtn.addEventListener('click', sendMultiPagePdf);
+
+  closePreviewBtn.addEventListener('click', closePreview);
+  previewModal.addEventListener('click', (e) => { if (e.target === previewModal) closePreview(); });
+  deletePageBtn.addEventListener('click', deleteCurrentPreviewPage);
+
+  cv.onRuntimeInitialized = async () => {
+    cvReady = true;
+    log("OpenCV מוכן, פותח מצלמה...");
+    await initCamera();
+  };
+
+  async function initCamera() {
+    try {
+      streamRef = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+
+      video.srcObject = streamRef;
+
+      await new Promise((resolve) => {
+        const onReady = () => {
+          if (video.videoWidth > 0 && video.videoHeight > 0) {
+            video.removeEventListener('loadedmetadata', onReady);
+            video.removeEventListener('canplay', onReady);
+            resolve();
+          }
+        };
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('canplay', onReady);
+      });
+
+      cameraReady = true;
+      loader.style.display = "none";
+      log(`מערכת מוכנה ✅ (${video.videoWidth}x${video.videoHeight})`);
+    } catch (e) {
+      loader.style.display = "none";
+      log("שגיאה בפתיחת מצלמה");
+      alert("לא הצלחתי לפתוח מצלמה.");
+      console.error(e);
+    }
+  }
+
+  function grabFrameToMat() {
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    const tmp = document.createElement('canvas');
+    tmp.width = w;
+    tmp.height = h;
+    const ctx = tmp.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(video, 0, 0, w, h);
+    return cv.imread(tmp);
+  }
+
+  function backToCamera() {
+    canvas.style.display = 'none';
+    video.style.display = 'block';
+    msg.innerText = "כוון אל הדף ולחץ צילום";
+    log("חזרה למצלמה");
+  }
+
+  function updatePagesUI() {
+    pagesInfo.innerText = `עמודים: ${pages.length}`;
+    rowActions.style.display = pages.length > 0 ? 'flex' : 'none';
+    thumbs.style.display = pages.length > 0 ? 'flex' : 'none';
+    thumbs.innerHTML = "";
+    pages.forEach((dataUrl, idx) => {
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.className = "thumb";
+      img.title = `עמוד ${idx+1}`;
+      img.addEventListener('click', () => openPreview(idx));
+      thumbs.appendChild(img);
+    });
+  }
+
+  function openPreview(index) {
+    previewIndex = index;
+    previewImg.src = pages[index];
+    previewTitle.innerText = `תצוגה מקדימה - עמוד ${index+1} מתוך ${pages.length}`;
+    previewModal.style.display = 'flex';
+  }
+
+  function closePreview() {
+    previewModal.style.display = 'none';
+    previewIndex = -1;
+  }
+
+  function deleteCurrentPreviewPage() {
+    if (previewIndex < 0 || previewIndex >= pages.length) return;
+    pages.splice(previewIndex, 1);
+    if (pages.length === 0) {
+      closePreview();
+      updatePagesUI();
+      backToCamera();
+      return;
+    }
+    if (previewIndex >= pages.length) previewIndex = pages.length - 1;
+    updatePagesUI();
+    openPreview(previewIndex);
+  }
+
+  // ------------------------------
+  // ✅ חדש: זיהוי דף + יישור פרספקטיבה (כמו סורק)
+  // ------------------------------
+
+  function dist(a, b) {
+    const dx = a.x - b.x, dy = a.y - b.y;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+
+  function orderPoints(pts) {
+    // pts: [{x,y},{x,y},{x,y},{x,y}]
+    // מחזיר: [tl, tr, br, bl]
+    const sum = pts.map(p => p.x + p.y);
+    const diff = pts.map(p => p.x - p.y);
+
+    const tl = pts[sum.indexOf(Math.min(...sum))];
+    const br = pts[sum.indexOf(Math.max(...sum))];
+    const tr = pts[diff.indexOf(Math.max(...diff))];
+    const bl = pts[diff.indexOf(Math.min(...diff))];
+    return [tl, tr, br, bl];
+  }
+
+  function fourPointTransform(src, quadPts /* array of 4 points in src coords */) {
+    const [tl, tr, br, bl] = orderPoints(quadPts);
+
+    const widthA = dist(br, bl);
+    const widthB = dist(tr, tl);
+    const maxW = Math.max(widthA, widthB);
+
+    const heightA = dist(tr, br);
+    const heightB = dist(tl, bl);
+    const maxH = Math.max(heightA, heightB);
+
+    const dstW = Math.max(1, Math.round(maxW));
+    const dstH = Math.max(1, Math.round(maxH));
+
+    const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      tl.x, tl.y,
+      tr.x, tr.y,
+      br.x, br.y,
+      bl.x, bl.y
+    ]);
+
+    const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      0, 0,
+      dstW - 1, 0,
+      dstW - 1, dstH - 1,
+      0, dstH - 1
+    ]);
+
+    const M = cv.getPerspectiveTransform(srcTri, dstTri);
+    const warped = new cv.Mat();
+    const dsize = new cv.Size(dstW, dstH);
+    cv.warpPerspective(src, warped, M, dsize, cv.INTER_LINEAR, cv.BORDER_REPLICATE);
+
+    srcTri.delete(); dstTri.delete(); M.delete();
+    return warped;
+  }
+
+  function detectDocumentQuad(srcRGBA) {
+    // עובד על גרסה מוקטנת בשביל מהירות, ואז מחזיר נקודות בקואורדינטות המקור
+    const maxSide = 900; // איזון מהירות/דיוק
+    const w0 = srcRGBA.cols, h0 = srcRGBA.rows;
+    const scale = Math.min(1, maxSide / Math.max(w0, h0));
+    let small = srcRGBA;
+    let resized = null;
+
+    if (scale < 1) {
+      resized = new cv.Mat();
+      cv.resize(srcRGBA, resized, new cv.Size(Math.round(w0 * scale), Math.round(h0 * scale)), 0, 0, cv.INTER_AREA);
+      small = resized;
     }
 
-    // 2. צילום ועיבוד - הפתרון לשגיאת Bad Size
-    function captureAndProcess() {
-        if (!cvReady) return;
-        log("מעבד סריקה...");
+    let gray = new cv.Mat();
+    cv.cvtColor(small, gray, cv.COLOR_RGBA2GRAY);
 
-        // א) ציור הפריים לקנבס מוסתר כדי לקבע את המידות
-        const width = video.videoWidth;
-        const height = video.videoHeight;
-        hiddenCanvas.width = width;
-        hiddenCanvas.height = height;
-        const ctx = hiddenCanvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, width, height);
+    let blur = new cv.Mat();
+    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
 
-        try {
-            // ב) קריאה מהקנבס ל-OpenCV (זה תמיד עובד כי הגדלים מסונכרנים)
-            let src = cv.imread(hiddenCanvas);
-            let dst = new cv.Mat();
+    let edges = new cv.Mat();
+    cv.Canny(blur, edges, 60, 180);
 
-            // ג) עיבוד שחור-לבן מקצועי
-            cv.cvtColor(src, dst, cv.COLOR_RGBA2GRAY);
-            cv.adaptiveThreshold(dst, dst, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 15);
+    // מחזק קווים כדי לסגור "פערים"
+    let kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5,5));
+    cv.dilate(edges, edges, kernel);
 
-            // ד) הצגת התוצאה בקנבס הפלט ושמירה
-            cv.imshow('outputCanvas', dst);
-            const imgData = outputCanvas.toDataURL('image/jpeg', 0.8);
-            scannedPages.push(imgData);
+    let contours = new cv.MatVector();
+    let hierarchy = new cv.Mat();
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-            // ה) ניקוי זיכרון
-            src.delete(); dst.delete();
-            
-            updateUI();
-            log("עמוד נסרק בהצלחה");
-        } catch (err) {
-            log("שגיאה: " + err.message);
-            console.error(err);
-        }
+    let best = null;
+    let bestArea = 0;
+
+    for (let i = 0; i < contours.size(); i++) {
+      const cnt = contours.get(i);
+      const area = cv.contourArea(cnt);
+      if (area < 1000) { cnt.delete(); continue; }
+
+      const peri = cv.arcLength(cnt, true);
+      const approx = new cv.Mat();
+      cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+
+      if (approx.rows === 4 && area > bestArea) {
+        if (best) best.delete();
+        best = approx.clone();
+        bestArea = area;
+      }
+
+      approx.delete();
+      cnt.delete();
     }
 
-    function updateUI() {
-        document.getElementById('pageCount').innerText = scannedPages.length;
-        thumbnailsDiv.innerHTML = "";
-        scannedPages.forEach(img => {
-            const el = document.createElement('img');
-            el.src = img;
-            el.className = 'thumb';
-            thumbnailsDiv.appendChild(el);
+    // ניקוי
+    gray.delete(); blur.delete(); edges.delete(); kernel.delete();
+    contours.delete(); hierarchy.delete();
+    if (resized) resized.delete();
+
+    if (!best) return null;
+
+    // best הוא Mat של 4 נקודות ב-scale של small
+    // המרה למערך נקודות בקואורדינטות מקור
+    const pts = [];
+    const data = best.data32S; // approxPolyDP מחזיר int
+    // data בפורמט [x0,y0,x1,y1,...]
+    for (let i = 0; i < 8; i += 2) {
+      const x = data[i];
+      const y = data[i + 1];
+      pts.push({ x: x / scale, y: y / scale });
+    }
+    best.delete();
+    return pts;
+  }
+
+  function processDocAndStore() {
+    if (!cvReady || !cameraReady) return;
+
+    let src = null, warped = null, out = null;
+    let gray2 = null, blur2 = null;
+
+    try {
+      log("מעבד... נא לא להזיז");
+      src = grabFrameToMat(); // RGBA
+
+      // ✅ נסה לזהות דף ולחתוך אותו
+      const quad = detectDocumentQuad(src);
+      if (quad) {
+        warped = fourPointTransform(src, quad); // עדיין RGBA
+      } else {
+        // fallback: כמו שהיה (לא לשבור כלום אם לא זוהה דף)
+        warped = src.clone();
+        log("לא זוהה דף בצורה טובה — נשמר fallback");
+      }
+
+      // עכשיו מפעילים "סריקה" רק על הדף (warped)
+      gray2 = new cv.Mat();
+      cv.cvtColor(warped, gray2, cv.COLOR_RGBA2GRAY);
+
+      blur2 = new cv.Mat();
+      cv.GaussianBlur(gray2, blur2, new cv.Size(3, 3), 0);
+
+      out = new cv.Mat();
+      if (scanMode === "gray") {
+        out = blur2.clone();
+      } else {
+        cv.adaptiveThreshold(blur2, out, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 12);
+      }
+
+      canvas.width = out.cols;
+      canvas.height = out.rows;
+      cv.imshow(canvas, out);
+
+      video.style.display = 'none';
+      canvas.style.display = 'block';
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      pages.push(dataUrl);
+
+      msg.innerText = `נסרק עמוד ${pages.length}.`;
+      updatePagesUI();
+      log("הסריקה נשמרה (ללא רקע)");
+
+    } catch (err) {
+      log("שגיאה בעיבוד");
+      console.error(err);
+    } finally {
+      // ניקוי זיכרון
+      if (src) src.delete();
+      if (warped) warped.delete();
+      if (gray2) gray2.delete();
+      if (blur2) blur2.delete();
+      if (out) out.delete();
+    }
+  }
+
+  async function sendMultiPagePdf() {
+    if (pages.length === 0) return;
+
+    try {
+      log("מכין PDF לשיתוף...");
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'p' });
+      const pageW = 210, pageH = 297;
+
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) pdf.addPage();
+        const imgData = pages[i];
+        const dims = await new Promise((resolve) => {
+          const im = new Image();
+          im.onload = () => resolve({ w: im.width, h: im.height });
+          im.src = imgData;
         });
-        if (scannedPages.length > 0) {
-            document.getElementById('finalActions').style.display = 'flex';
-        }
+        const imgRatio = dims.w / dims.h;
+        let drawW = pageW;
+        let drawH = drawW / imgRatio;
+        if (drawH > pageH) { drawH = pageH; drawW = drawH * imgRatio; }
+        const x = (pageW - drawW) / 2;
+        const y = (pageH - drawH) / 2;
+        pdf.addImage(imgData, 'JPEG', x, y, drawW, drawH, undefined, 'FAST');
+      }
+
+      const blob = pdf.output('blob');
+      const fileName = `סריקה_${new Date().toLocaleDateString('he-IL').replace(/\//g,'-')}.pdf`;
+      const file = new File([blob], fileName, { type: "application/pdf" });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'הסריקה שלי',
+          text: 'מצורף הקובץ שסרקתי'
+        });
+        log("תפריט שיתוף נפתח");
+      } else {
+        pdf.save(fileName);
+        log("הדפדפן לא תומך בשיתוף ישיר - הקובץ הורד");
+      }
+    } catch (e) {
+      log("השיתוף בוטל");
     }
-
-    async function sendPDF() {
-        log("מייצר קובץ PDF...");
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF();
-
-        for (let i = 0; i < scannedPages.length; i++) {
-            if (i > 0) pdf.addPage();
-            // התאמת התמונה לגודל דף A4
-            pdf.addImage(scannedPages[i], 'JPEG', 0, 0, 210, 297);
-        }
-
-        const blob = pdf.output('blob');
-        const file = new File([blob], "Srika_Pro.pdf", { type: "application/pdf" });
-
-        if (navigator.share) {
-            try {
-                await navigator.share({ files: [file], title: 'הסריקה שלי' });
-            } catch (e) { log("שיתוף בוטל"); }
-        } else {
-            pdf.save("scan.pdf");
-        }
-    }
-
-    function resetAll() {
-        if (confirm("למחוק הכל?")) {
-            scannedPages = [];
-            updateUI();
-            document.getElementById('finalActions').style.display = 'none';
-            log("אופס");
-        }
-    }
+  }
 </script>
 </body>
 </html>
+charles.s
