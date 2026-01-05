@@ -2,89 +2,165 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>מוריד השירים האישי שלי</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MP3 Downloader</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --primary: #ff4757;
+            --secondary: #2f3542;
+            --bg: #121212;
+            --card: #1e1e1e;
+            --text: #ffffff;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            font-family: 'Heebo', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0;
-        }
-        .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            text-align: center;
-            width: 400px;
-        }
-        h1 { color: #ff0000; }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 20px 0;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
             box-sizing: border-box;
-            font-size: 16px;
         }
-        button {
-            background-color: #ff0000;
+
+        .app-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card);
+            border-radius: 30px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .logo {
+            font-size: 40px;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-weight: 900;
+            font-size: 28px;
+            margin: 0 0 10px 0;
+            background: linear-gradient(45deg, #ff4757, #ff6b81);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            color: #a4a4a4;
+            font-size: 16px;
+            margin-bottom: 25px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 18px;
+            border-radius: 15px;
+            border: 2px solid #333;
+            background: #252525;
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        .download-btn {
+            width: 100%;
+            background: var(--primary);
             color: white;
             border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
+            padding: 18px;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: 700;
+            margin-top: 15px;
             cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: background 0.3s;
+            box-shadow: 0 10px 20px rgba(255, 71, 87, 0.3);
+            transition: transform 0.2s, background 0.2s;
+            -webkit-tap-highlight-color: transparent;
         }
-        button:hover { background-color: #cc0000; }
-        #downloadArea { margin-top: 20px; }
-        iframe { border: none; width: 100%; height: 60px; }
+
+        .download-btn:active {
+            transform: scale(0.98);
+            background: #e04050;
+        }
+
+        #loader-container {
+            margin-top: 25px;
+            display: none;
+            border-radius: 15px;
+            overflow: hidden;
+            background: white;
+            min-height: 80px;
+        }
+
+        iframe {
+            width: 100%;
+            height: 80px;
+            border: none;
+        }
+
+        .footer-note {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #555;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>יוטיוב ל-MP3</h1>
-    <p>הדבק קישור מיוטיוב והורד בלחיצה:</p>
-    
-    <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
-    <button onclick="generateDownload()">הכן הורדה</button>
+    <div class="app-card">
+        <div class="logo">🎵</div>
+        <h1>MP3 הוריד</h1>
+        <p>פשוט להדביק ולהוריד</p>
 
-    <div id="downloadArea">
+        <input type="text" id="ytUrl" placeholder="הדבק כאן קישור מיוטיוב..." autocomplete="off">
+        
+        <button class="download-btn" onclick="startDownload()">הורד עכשיו</button>
+
+        <div id="loader-container">
+            </div>
+
+        <div class="footer-note">
+            אם הכפתור לא מופיע, וודא שהקישור תקין.
         </div>
-</div>
+    </div>
 
-<script>
-    function generateDownload() {
-        const urlInput = document.getElementById('videoUrl').value;
-        const downloadArea = document.getElementById('downloadArea');
-        
-        // חילוץ ה-ID של הסרטון מתוך הקישור
-        const videoId = extractVideoId(urlInput);
-        
-        if (videoId) {
-            // שימוש ב-Widget של שירות המרה מוכר (למשל loader.to)
-            downloadArea.innerHTML = `
-                <iframe src="https://loader.to/api/button/?url=${urlInput}&f=mp3" 
-                        scrolling="no"></iframe>
-            `;
-        } else {
-            alert("אופס! נראה שהקישור לא תקין. וודא שהעתקת קישור מלא מיוטיוב.");
+    <script>
+        function startDownload() {
+            const url = document.getElementById('ytUrl').value;
+            const container = document.getElementById('loader-container');
+            
+            if (!url || !url.includes('youtu')) {
+                alert('בבקשה שים קישור תקין של יוטיוב');
+                return;
+            }
+
+            // הצגת האזור של ההורדה
+            container.style.display = 'block';
+            container.innerHTML = `<p style="color:black; padding:10px;">טוען שרת הורדה...</p>`;
+
+            // שימוש ב-API היציב ביותר כרגע
+            const apiUrl = `https://p.oceansaver.in/api/button/?url=${encodeURIComponent(url)}&color=ff4757`;
+            
+            setTimeout(() => {
+                container.innerHTML = `<iframe src="${apiUrl}" scrolling="no"></iframe>`;
+            }, 500);
         }
-    }
-
-    function extractVideoId(url) {
-        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-        const match = url.match(regExp);
-        return (match && match[2].length === 11) ? match[2] : null;
-    }
-</script>
+    </script>
 
 </body>
 </html>
