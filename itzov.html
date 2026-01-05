@@ -155,21 +155,6 @@
       min-width: 46px;
       text-align: left;
     }
-
-    /* ✅ תוספת בלבד: כפתור שליחה לוואטסאפ */
-    #btnShareGif{
-      display: none;
-      background: #25D366;
-      color: #fff;
-      border: none;
-      padding: 18px;
-      width: 100%;
-      border-radius: 50px;
-      font-weight: 900;
-      margin-top: 10px;
-      cursor: pointer;
-      font-size: 18px;
-    }
   </style>
 </head>
 <body>
@@ -208,9 +193,6 @@
   <img id="finalGif" style="width:100%; border-radius:15px; display:none; margin-top:15px; box-shadow:0 5px 20px rgba(0,0,0,0.2);" alt="">
   <a id="btnDownloadGif" class="save-btn" style="display:none;">שמירה GIF ⬇️</a>
 
-  <!-- ✅ כפתור שליחה לוואטסאפ -->
-  <button id="btnShareGif" type="button">שלח GIF לוואטסאפ 📲</button>
-
   <div id="status"></div>
   <video id="finalVid" controls playsinline loop muted></video>
   <a id="btnDownload" class="save-btn">שמירה לגלריה ⬇️</a>
@@ -239,9 +221,6 @@
 
 <script>
 (function(){
-  // ✅ מספר וואטסאפ יעד: 0507449001 -> 972507449001
-  const WA_PHONE_E164_DIGITS = "972507449001";
-
   const video = document.getElementById('videoLive');
   const camContainer = document.getElementById('camContainer');
   const btnOpen = document.getElementById('btnOpenCam');
@@ -251,7 +230,6 @@
   const btnGif = document.getElementById('btnGif');
   const finalGif = document.getElementById('finalGif');
   const btnDownloadGif = document.getElementById('btnDownloadGif');
-  const btnShareGif = document.getElementById('btnShareGif');
 
   const adjustArea = document.getElementById('adjustArea');
   const adjustCanvas = document.getElementById('adjustCanvas');
@@ -265,9 +243,6 @@
 
   // Worker Blob cache (כדי ש-GIF יעבוד באנדרואיד)
   let workerBlobUrl = null;
-
-  // ✅ שומרים את ה-GIF האחרון לשליחה
-  let lastGifBlob = null;
 
   // הגדרות
   const gearBtn = document.getElementById('gearBtn');
@@ -603,11 +578,12 @@
       if (typeof GIF === "undefined") throw new Error("GIF_library_missing");
 
       const w0 = beforeImg.naturalWidth || beforeImg.width;
+      const h0 = beforeImg.naturalHeight || beforeImg.height;
 
       const scale = Math.min(1, Math.max(0.10, (settings.gifScalePct / 100)));
 
-      const w = Math.max(1, Math.round((beforeImg.naturalWidth || beforeImg.width) * scale));
-      const h = Math.max(1, Math.round((beforeImg.naturalHeight || beforeImg.height) * scale));
+      const w = Math.max(1, Math.round(w0 * scale));
+      const h = Math.max(1, Math.round(h0 * scale));
 
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
@@ -658,17 +634,14 @@
       }
 
       gif.on('finished', (blob) => {
-        lastGifBlob = blob;
-
         const url = URL.createObjectURL(blob);
+
         finalGif.src = url;
         finalGif.style.display = 'block';
 
         btnDownloadGif.href = url;
         btnDownloadGif.download = "Express_Hair.gif";
         btnDownloadGif.style.display = 'block';
-
-        btnShareGif.style.display = 'block';
 
         setStatus("✅ GIF מוכן!");
         btnGif.disabled = false;
@@ -680,36 +653,6 @@
       setStatus("❌ שגיאה ביצירת GIF: " + (e && e.message ? e.message : "unknown") + " . נסה שוב.");
       btnGif.disabled = false;
       btnCreate.disabled = false;
-    }
-  });
-
-  // ✅ שליחה לוואטסאפ: שיתוף קובץ GIF + פתיחת צ'אט למספר
-  btnShareGif.addEventListener('click', async () => {
-    try {
-      if (!lastGifBlob) {
-        setStatus("❌ עדיין אין GIF מוכן לשליחה.");
-        return;
-      }
-
-      // פותח צ'אט ליעד (כדי להגיע מהר למספר)
-      window.open("https://wa.me/" + WA_PHONE_E164_DIGITS, "_blank");
-
-      const file = new File([lastGifBlob], "Express_Hair.gif", { type: "image/gif" });
-
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: "פן אקספרס",
-          text: "GIF לפני/אחרי ✨",
-          files: [file]
-        });
-        setStatus("✅ נפתח שיתוף – בחר WhatsApp ושלח.");
-        return;
-      }
-
-      setStatus("ℹ️ אין תמיכת שיתוף קבצים במכשיר/דפדפן. שמור GIF ואז צרף ידנית בוואטסאפ.");
-      alert("המכשיר/דפדפן לא תומך בשיתוף קובץ ישירות.\nשמור את ה-GIF ואז פתח וואטסאפ וצירף אותו ידנית.");
-    } catch (e) {
-      setStatus("❌ שגיאה בשליחה לוואטסאפ: " + (e && e.message ? e.message : "unknown"));
     }
   });
 
