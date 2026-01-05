@@ -3,73 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MP3 Downloader + Debug</title>
+    <title>MP3 Downloader PRO</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --primary: #ff4757;
-            --secondary: #2f3542;
-            --bg: #121212;
-            --card: #1e1e1e;
-            --text: #ffffff;
-        }
-
-        body {
-            font-family: 'Heebo', sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .app-card {
-            width: 100%;
-            max-width: 400px;
-            background: var(--card);
-            border-radius: 30px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
+        :root { --primary: #ff4757; --secondary: #2f3542; --bg: #121212; --card: #1e1e1e; --text: #ffffff; }
+        body { font-family: 'Heebo', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        .app-card { width: 100%; max-width: 400px; background: var(--card); border-radius: 30px; padding: 30px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); text-align: center; border: 1px solid rgba(255,255,255,0.05); }
         .logo { font-size: 40px; margin-bottom: 10px; }
         h1 { font-weight: 900; font-size: 28px; margin: 0 0 10px 0; background: linear-gradient(45deg, #ff4757, #ff6b81); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         p { color: #a4a4a4; font-size: 16px; margin-bottom: 25px; }
-
-        input[type="text"] {
-            width: 100%; padding: 18px; border-radius: 15px; border: 2px solid #333; background: #252525; color: white; font-size: 16px; outline: none; transition: border-color 0.3s; box-sizing: border-box; text-align: center;
-        }
-
+        input[type="text"] { width: 100%; padding: 18px; border-radius: 15px; border: 2px solid #333; background: #252525; color: white; font-size: 16px; outline: none; transition: border-color 0.3s; box-sizing: border-box; text-align: center; direction: ltr; }
         input[type="text"]:focus { border-color: var(--primary); }
-
-        .download-btn {
-            width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 15px; font-size: 18px; font-weight: 700; margin-top: 15px; cursor: pointer; box-shadow: 0 10px 20px rgba(255, 71, 87, 0.3); transition: transform 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent;
-        }
-
-        #loader-container { margin-top: 25px; display: none; border-radius: 15px; overflow: hidden; background: white; min-height: 100px; }
-        iframe { width: 100%; height: 100px; border: none; }
-
-        #debug-log {
-            margin-top: 20px;
-            background: #000;
-            color: #00ff00;
-            font-family: monospace;
-            font-size: 11px;
-            text-align: left;
-            padding: 10px;
-            border-radius: 10px;
-            max-height: 150px;
-            overflow-y: auto;
-            border: 1px solid #333;
-            direction: ltr;
-        }
+        .download-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 15px; font-size: 18px; font-weight: 700; margin-top: 15px; cursor: pointer; box-shadow: 0 10px 20px rgba(255, 71, 87, 0.3); transition: transform 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent; }
+        #loader-container { margin-top: 25px; display: none; border-radius: 15px; overflow: hidden; background: #f9f9f9; padding: 15px; }
+        #debug-log { margin-top: 20px; background: #000; color: #00ff00; font-family: monospace; font-size: 11px; text-align: left; padding: 10px; border-radius: 10px; max-height: 150px; overflow-y: auto; border: 1px solid #333; direction: ltr; }
+        .dl-link { display: inline-block; padding: 15px 25px; background: #2ed573; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -77,55 +25,79 @@
     <div class="app-card">
         <div class="logo">🎵</div>
         <h1>MP3 הוריד</h1>
-        <p>גרסת ניפוי שגיאות (Debug)</p>
+        <p>גרסת ניפוי שגיאות מתקדמת</p>
 
-        <input type="text" id="ytUrl" placeholder="הדבק כאן קישור מיוטיוב..." autocomplete="off">
+        <input type="text" id="ytUrl" placeholder="הדבק כאן קישור..." autocomplete="off">
         
         <button class="download-btn" onclick="startDownload()">הורד עכשיו</button>
 
         <div id="loader-container"></div>
-
         <div id="debug-log">ממתין לפעולה...</div>
     </div>
 
     <script>
-        const logElement = document.getElementById('debug-log');
-
-        function addLog(message) {
+        const logBox = document.getElementById('debug-log');
+        
+        function addLog(msg, color = "#00ff00") {
             const time = new Date().toLocaleTimeString();
-            logElement.innerHTML += `<div>[${time}] ${message}</div>`;
-            logElement.scrollTop = logElement.scrollHeight;
+            logBox.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function cleanUrl(url) {
+            try {
+                // ניקוי פרמטרים כמו ?si= שמשבשים חלק מהשרתים
+                const u = new URL(url.includes('http') ? url : 'https://' + url);
+                addLog(`מנקה כתובת: ${u.hostname}${u.pathname}`);
+                return u.origin + u.pathname;
+            } catch(e) {
+                return url;
+            }
         }
 
         function startDownload() {
-            const url = document.getElementById('ytUrl').value;
+            let url = document.getElementById('ytUrl').value;
             const container = document.getElementById('loader-container');
             
-            addLog("--- התחלה מחדש (שרת Loader) ---");
-            
-            if (!url) {
-                addLog("שגיאה: אין קישור");
+            logBox.innerHTML = ""; // איפוס לוג
+            addLog("--- התחלת תהליך הורדה ---");
+
+            if (!url || !url.includes('youtu')) {
+                addLog("שגיאה: כתובת לא תקינה", "#ff4757");
                 return;
             }
 
-            // החלפת השרת ל-Loader.to - יותר ידידותי ל-iFrames
-            const apiUrl = `https://loader.to/api/button/?url=${encodeURIComponent(url)}&f=mp3&color=ff4757`;
-            
-            addLog("מנסה לטעון API חדש...");
+            url = cleanUrl(url);
             container.style.display = 'block';
-            container.innerHTML = `<iframe id="dlFrame" src="${apiUrl}" scrolling="no"></iframe>`;
+            container.innerHTML = `<p style="color:#333">מכין קישור הורדה...</p>`;
 
+            // שימוש בשרת API יציב שלא חוסם iframes בקלות
+            const apiUrl = `https://api.vevioz.com/@api/button/mp3/${encodeURIComponent(url)}`;
+            
+            addLog(`מנסה להתחבר לשרת Vevioz...`);
+            
+            // ניסיון טעינה בתוך Iframe
+            container.innerHTML = `<iframe id="dlFrame" src="${apiUrl}" scrolling="no" style="width:100%; height:60px; border:none;"></iframe>`;
+            
             const frame = document.getElementById('dlFrame');
             
-            frame.onload = function() {
-                addLog("הצלחה: השרת הגיב.");
-                addLog("אם עדיין רואים ריבוע לבן, האתר חוסם אותך - ננסה גיבוי.");
-            };
+            // בדיקת "הצלה" - אם השרת חוסם Iframe, ניתן קישור ישיר
+            let checkTimeout = setTimeout(() => {
+                addLog("אזהרה: השרת איטי או חוסם תצוגה פנימית.", "#ffa502");
+                addLog("יוצר קישור גיבוי חיצוני...");
+                
+                const backupUrl = `https://ytmp3.nu/?url=${encodeURIComponent(url)}`;
+                container.innerHTML += `
+                    <div style="border-top: 1px solid #ddd; margin-top: 10px; padding-top: 10px;">
+                        <a href="${backupUrl}" target="_blank" class="dl-link">לחץ כאן להורדה ישירה</a>
+                    </div>
+                `;
+            }, 4000);
 
-            // אם אחרי 5 שניות עדיין יש בעיה, נוסיף כפתור חירום
-            setTimeout(() => {
-                addLog("בדיקת תקינות סופית...");
-            }, 5000);
+            frame.onload = () => {
+                clearTimeout(checkTimeout);
+                addLog("הצלחה: השרת הגיב ונטען.");
+            };
         }
     </script>
 </body>
