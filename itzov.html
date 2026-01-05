@@ -130,7 +130,7 @@
   let offsetX = 0, offsetY = 0;
   let liveStream = null;
 
-  // ✅ Worker Blob cache (כדי ש-GIF יעבוד באנדרואיד)
+  // Worker Blob cache (כדי ש-GIF יעבוד באנדרואיד)
   let workerBlobUrl = null;
 
   function setStatus(t){ statusEl.innerText = t || ""; }
@@ -400,7 +400,7 @@
     render();
   });
 
-  // ✅ מביא worker פעם אחת ויוצר ממנו Blob URL (זה התיקון שעושה את GIF עובד באנדרואיד)
+  // מביא worker פעם אחת ויוצר ממנו Blob URL (כדי ש-GIF יעבוד באנדרואיד)
   async function ensureWorkerBlobUrl() {
     if (workerBlobUrl) return workerBlobUrl;
 
@@ -413,7 +413,7 @@
     return workerBlobUrl;
   }
 
-  // GIF (7 שניות בלופ)
+  // GIF (7 שניות בלופ) - ✅ הוקטנה ל-60% רק ל-GIF
   btnGif.addEventListener('click', async () => {
     try {
       setStatus("⏳ מייצר GIF... לא לצאת");
@@ -427,11 +427,11 @@
       const w0 = beforeImg.naturalWidth || beforeImg.width;
       const h0 = beforeImg.naturalHeight || beforeImg.height;
 
-      // GIF כבד יותר: מקטין פנימית (לא משנה שום דבר בדף)
-      const maxW = 720;
-      const scale = Math.min(1, maxW / w0);
-      const w = Math.round(w0 * scale);
-      const h = Math.round(h0 * scale);
+      // ✅ שינוי יחיד שביקשת: 60% גודל רק ל-GIF
+      const scale = 0.60;
+
+      const w = Math.max(1, Math.round(w0 * scale));
+      const h = Math.max(1, Math.round(h0 * scale));
 
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
@@ -508,7 +508,6 @@
 
       gif.render();
     } catch (e) {
-      // ✅ נותן לך גם סיבה אמיתית במקום "שגיאה" בלי מידע
       setStatus("❌ שגיאה ביצירת GIF: " + (e && e.message ? e.message : "unknown") + " . נסה שוב.");
       btnGif.disabled = false;
       btnCreate.disabled = false;
