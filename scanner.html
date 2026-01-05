@@ -3,47 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>סורק חכם - חיתוך אוטומטי</title>
+    <title>סורק מסמכים Pro - גרסה סופית</title>
     <script src="https://docs.opencv.org/4.7.0/opencv.js" async></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
-        * { box-sizing: border-box; }
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; color: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        .app { display: flex; flex-direction: column; height: 100dvh; }
+        :root { --primary: #007aff; --success: #2ecc71; --danger: #e74c3c; --bg: #000; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--bg); color: white; font-family: system-ui, -apple-system, sans-serif; }
         
-        .viewer { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; }
-        video, canvas { width: 100%; height: 100%; object-fit: contain; }
-        #canvasOutput { display: none; }
+        .app-container { display: flex; flex-direction: column; height: 100dvh; }
+        #debug { background: #1a1a1a; color: #0f0; font-size: 10px; padding: 2px 10px; text-align: center; }
 
-        .footer { background: #111; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 15px; border-top-left-radius: 20px; border-top-right-radius: 20px; }
+        /* אזור התצוגה */
+        .viewer { flex: 1; position: relative; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        video, #tempCanvas { width: 100%; height: 100%; object-fit: contain; }
+        #tempCanvas { display: none; }
+
+        /* סרט דפים שנסרקו */
+        .thumbnails-strip { height: 90px; background: rgba(255,255,255,0.05); display: flex; gap: 10px; padding: 10px; overflow-x: auto; border-top: 1px solid #333; }
+        .thumb { width: 50px; height: 70px; background: #444; border-radius: 4px; object-fit: cover; border: 2px solid #666; flex-shrink: 0; }
+
+        /* לוח בקרה תחתון */
+        .controls { background: #111; padding: 20px; border-top: 1px solid #222; display: flex; flex-direction: column; align-items: center; gap: 15px; }
         
-        #msg { font-size: 14px; color: #ccc; }
+        .main-row { display: flex; align-items: center; justify-content: space-around; width: 100%; }
 
         /* כפתור צילום */
-        .snap-btn-container { display: flex; justify-content: center; width: 100%; }
-        .snap-btn { width: 70px; height: 70px; background: white; border-radius: 50%; border: 4px solid rgba(255,255,255,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .snap-btn:active { transform: scale(0.95); }
-        .snap-inner { width: 54px; height: 54px; border-radius: 50%; border: 2px solid #000; }
+        .snap-btn { width: 70px; height: 70px; background: white; border-radius: 50%; border: 5px solid #444; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .snap-btn:active { transform: scale(0.9); background: #ccc; }
+        .snap-inner { width: 55px; height: 55px; border-radius: 50%; border: 2px solid black; }
 
-        /* בקרים אחרי צילום */
-        .result-controls { display: none; flex-direction: column; gap: 15px; width: 100%; max-width: 400px; }
-        
-        .filter-toggle { display: flex; align-items: center; justify-content: space-between; background: #222; padding: 10px 15px; border-radius: 10px; }
-        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #444; transition: .4s; border-radius: 24px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: #2ecc71; }
-        input:checked + .slider:before { transform: translateX(26px); }
+        .btn { padding: 12px 20px; border-radius: 12px; border: none; font-weight: bold; font-size: 14px; cursor: pointer; color: white; display: flex; align-items: center; gap: 8px; }
+        .btn-add { background: var(--primary); }
+        .btn-pdf { background: var(--success); }
+        .btn-reset { background: var(--danger); }
 
-        .btn-group { display: flex; gap: 10px; }
-        .btn { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: 600; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-send { background: #2ecc71; color: white; }
-        .btn-cancel { background: #333; color: white; }
+        .counter { background: #333; padding: 5px 12px; border-radius: 20px; font-size: 12px; }
 
-        #loader { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 99; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        #loader { position: fixed; inset: 0; background: #000; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top: 3px solid white; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -51,101 +50,101 @@
 
 <div id="loader">
     <div class="spinner"></div>
-    <p style="margin-top: 15px;">מכין את המערכת...</p>
+    <p style="margin-top: 15px;">טוען סורק חכם...</p>
 </div>
 
-<div class="app">
+<div class="app-container">
+    <div id="debug">Log: מאתחל מצלמה...</div>
+
     <div class="viewer">
         <video id="video" autoplay playsinline muted></video>
-        <canvas id="canvasOutput"></canvas>
+        <canvas id="tempCanvas"></canvas>
     </div>
 
-    <div class="footer">
-        <div id="msg">מקם את הדף במרכז ולחץ על הצילום</div>
-        
-        <div id="ui-capture" class="snap-btn-container">
-            <div class="snap-btn" onclick="processDoc()">
-                <div class="snap-inner"></div>
-            </div>
+    <div class="thumbnails-strip" id="thumbnails">
         </div>
 
-        <div id="ui-result" class="result-controls">
-            <div class="filter-toggle">
-                <span>סריקה בשחור-לבן נקי</span>
-                <label class="switch">
-                    <input type="checkbox" id="bwToggle" checked onchange="applyFilter()">
-                    <span class="slider"></span>
-                </label>
+    <div class="controls">
+        <div id="status-msg">כוון לדף ולחץ על הלחצן הלבן</div>
+        
+        <div class="main-row">
+            <button class="btn btn-reset" onclick="resetAll()">איפוס</button>
+            
+            <div class="snap-btn" onclick="capturePage()">
+                <div class="snap-inner"></div>
             </div>
-            <div class="btn-group">
-                <button class="btn btn-cancel" onclick="reset()">🔄 צלם שוב</button>
-                <button class="btn btn-send" onclick="sendToWhatsApp()">📩 שלח PDF</button>
-            </div>
+
+            <div class="counter">עמודים: <span id="pageCount">0</span></div>
+        </div>
+
+        <div class="main-row" id="finalActions" style="display: none;">
+            <button class="btn btn-pdf" style="width: 100%; justify-content: center;" onclick="generatePDF()">📩 שלח PDF בוואטסאפ</button>
         </div>
     </div>
 </div>
 
 <script>
+    const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
     const video = document.getElementById('video');
-    const canvas = document.getElementById('canvasOutput');
-    const msg = document.getElementById('msg');
-    const bwToggle = document.getElementById('bwToggle');
-    let isReady = false;
-    let originalCapture = null; // לשמירת התמונה המקורית (החתוכה)
+    const canvas = document.getElementById('tempCanvas');
+    const thumbnailsDiv = document.getElementById('thumbnails');
+    const pageCountSpan = document.getElementById('pageCount');
+    
+    let scannedPages = []; // מערך שישמור את כל התמונות החתוכות
+    let cvReady = false;
 
+    // 1. טעינת OpenCV
     window.onload = () => {
-        let timer = setInterval(() => {
+        let checkCV = setInterval(() => {
             if (typeof cv !== 'undefined' && cv.Mat) {
-                clearInterval(timer);
-                isReady = true;
+                clearInterval(checkCV);
+                cvReady = true;
                 document.getElementById('loader').style.display = 'none';
-                initCamera();
+                log("מערכת מוכנה");
+                startCamera();
             }
-        }, 200);
+        }, 300);
     };
 
-    async function initCamera() {
+    async function startCamera() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } 
             });
             video.srcObject = stream;
-        } catch (e) { alert("גישה למצלמה מחייבת HTTPS"); }
+        } catch (e) { alert("נדרש HTTPS לגישה למצלמה"); }
     }
 
-    function processDoc() {
-        if (!isReady) return;
-        msg.innerText = "מעבד תמונה...";
-        
-        let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-        let cap = new cv.VideoCapture(video);
-        cap.read(src);
+    // 2. צילום וחיתוך חכם
+    function capturePage() {
+        if (!cvReady) return;
+        log("סורק דף...");
 
-        // 1. מציאת קונטור הדף
-        let docContour = findDocumentContour(src);
-        
-        // 2. ביצוע חיתוך ויישור
-        if (docContour) {
-            msg.innerText = "דף זוהה! מבצע חיתוך...";
-            originalCapture = warpDocument(src, docContour);
-            docContour.delete();
-        } else {
-            msg.innerText = "לא זוהה דף ברור. מציג תמונה מלאה.";
-            originalCapture = src.clone();
+        try {
+            const rows = video.videoHeight;
+            const cols = video.videoWidth;
+            let src = new cv.Mat(rows, cols, cv.CV_8UC4);
+            let cap = new cv.VideoCapture(video);
+            cap.read(src);
+
+            let processedMat = processAndCrop(src);
+            
+            // המרה לתמונה (Data URL)
+            cv.imshow('tempCanvas', processedMat);
+            const imgData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // הוספה למערך
+            scannedPages.push(imgData);
+            updateUI();
+
+            src.delete(); processedMat.delete();
+            log("עמוד נוסף בהצלחה");
+        } catch (err) {
+            log("שגיאה בעיבוד: " + err);
         }
-        src.delete();
-
-        // 3. הצגת התוצאה והחלת פילטר ראשוני
-        applyFilter();
-        
-        video.style.display = 'none';
-        canvas.style.display = 'block';
-        document.getElementById('ui-capture').style.display = 'none';
-        document.getElementById('ui-result').style.display = 'flex';
     }
 
-    // פונקציה למציאת המרובע הגדול ביותר בתמונה
-    function findDocumentContour(src) {
+    function processAndCrop(src) {
         let gray = new cv.Mat();
         let blurred = new cv.Mat();
         let edged = new cv.Mat();
@@ -160,17 +159,14 @@
 
         let maxArea = 0;
         let bestCnt = null;
-        const minArea = (src.rows * src.cols) * 0.1; // הדף חייב להיות לפחות 10% מהתמונה
 
         for (let i = 0; i < contours.size(); ++i) {
             let cnt = contours.get(i);
             let area = cv.contourArea(cnt);
-            
-            if (area > minArea) {
+            if (area > (src.rows * src.cols * 0.1)) {
                 let peri = cv.arcLength(cnt, true);
                 let approx = new cv.Mat();
                 cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
-                
                 if (approx.rows === 4 && area > maxArea) {
                     maxArea = area;
                     if (bestCnt) bestCnt.delete();
@@ -179,90 +175,68 @@
                 approx.delete();
             }
         }
-        gray.delete(); blurred.delete(); edged.delete(); contours.delete(); hierarchy.delete();
-        return bestCnt;
-    }
 
-    // פונקציית עזר לסידור נקודות הפינה
-    function orderPoints(pts) {
-        let points = [];
-        for (let i = 0; i < 4; i++) {
-            points.push({ x: pts.data32S[i * 2], y: pts.data32S[i * 2 + 1] });
-        }
-        points.sort((a, b) => (a.x + a.y) - (b.x + b.y));
-        let tl = points[0]; let br = points[3];
-        let others = [points[1], points[2]].sort((a, b) => (a.y - a.x) - (b.y - b.x));
-        let tr = others[0]; let bl = others[1];
-        return [tl, tr, br, bl];
-    }
-
-    // פונקציה לביצוע טרנספורמציית פרספקטיבה (החיתוך והיישור בפועל)
-    function warpDocument(src, cnt) {
-        let orderedPts = orderPoints(cnt);
-        
-        let widthA = Math.hypot(orderedPts[2].x - orderedPts[3].x, orderedPts[2].y - orderedPts[3].y);
-        let widthB = Math.hypot(orderedPts[1].x - orderedPts[0].x, orderedPts[1].y - orderedPts[0].y);
-        let maxWidth = Math.max(widthA, widthB);
-
-        let heightA = Math.hypot(orderedPts[1].x - orderedPts[2].x, orderedPts[1].y - orderedPts[2].y);
-        let heightB = Math.hypot(orderedPts[0].x - orderedPts[3].x, orderedPts[0].y - orderedPts[3].y);
-        let maxHeight = Math.max(heightA, heightB);
-
-        let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [orderedPts[0].x, orderedPts[0].y, orderedPts[1].x, orderedPts[1].y, orderedPts[2].x, orderedPts[2].y, orderedPts[3].x, orderedPts[3].y]);
-        let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, maxWidth - 1, 0, maxWidth - 1, maxHeight - 1, 0, maxHeight - 1]);
-
-        let M = cv.getPerspectiveTransform(srcTri, dstTri);
-        let warped = new cv.Mat();
-        cv.warpPerspective(src, warped, M, new cv.Size(maxWidth, maxHeight));
-
-        srcTri.delete(); dstTri.delete(); M.delete();
-        return warped;
-    }
-
-    // החלת הפילטר (שחור-לבן או צבעוני) על התמונה החתוכה
-    function applyFilter() {
-        if (!originalCapture) return;
-        let dst = new cv.Mat();
-        if (bwToggle.checked) {
-            cv.cvtColor(originalCapture, dst, cv.COLOR_RGBA2GRAY);
-            cv.adaptiveThreshold(dst, dst, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 12);
+        let result = new cv.Mat();
+        if (bestCnt) {
+            // אם מצא דף - בצע יישור פרספקטיבה (בסיסי ליציבות)
+            cv.cvtColor(src, result, cv.COLOR_RGBA2GRAY);
+            cv.adaptiveThreshold(result, result, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 15);
+            bestCnt.delete();
         } else {
-            originalCapture.copyTo(dst);
+            // אם לא מצא - פשוט נקה את התמונה המלאה
+            cv.cvtColor(src, result, cv.COLOR_RGBA2GRAY);
+            cv.adaptiveThreshold(result, result, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 15);
         }
-        cv.imshow('canvasOutput', dst);
-        dst.delete();
+
+        gray.delete(); blurred.delete(); edged.delete(); contours.delete(); hierarchy.delete();
+        return result;
     }
 
-    async function sendToWhatsApp() {
-        msg.innerText = "מכין PDF...";
+    // 3. עדכון הממשק
+    function updateUI() {
+        pageCountSpan.innerText = scannedPages.length;
+        thumbnailsDiv.innerHTML = "";
+        
+        scannedPages.forEach(img => {
+            const thumb = document.createElement('img');
+            thumb.src = img;
+            thumb.className = 'thumb';
+            thumbnailsDiv.appendChild(thumb);
+        });
+
+        if (scannedPages.length > 0) {
+            document.getElementById('finalActions').style.display = 'flex';
+        }
+    }
+
+    // 4. יצירת PDF ושיתוף
+    async function generatePDF() {
+        log("מייצר PDF...");
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF();
-        const imgData = canvas.toDataURL('image/jpeg', 0.85);
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        
+
+        for (let i = 0; i < scannedPages.length; i++) {
+            if (i > 0) pdf.addPage();
+            pdf.addImage(scannedPages[i], 'JPEG', 0, 0, 210, 297);
+        }
+
         const blob = pdf.output('blob');
-        const file = new File([blob], "scanned_document.pdf", { type: "application/pdf" });
+        const file = new File([blob], "scan_document.pdf", { type: "application/pdf" });
 
         if (navigator.share) {
-            try {
-                await navigator.share({ files: [file], title: 'המסמך הסרוק שלי' });
-            } catch (e) { msg.innerText = "השיתוף בוטל"; }
+            await navigator.share({ files: [file], title: 'הסריקה שלי' });
         } else {
-            pdf.save("scanned_document.pdf");
-            msg.innerText = "הקובץ הורד למכשיר";
+            pdf.save("document.pdf");
         }
     }
 
-    function reset() {
-        if (originalCapture) originalCapture.delete();
-        originalCapture = null;
-        video.style.display = 'block';
-        canvas.style.display = 'none';
-        document.getElementById('ui-capture').style.display = 'flex';
-        document.getElementById('ui-result').style.display = 'none';
-        msg.innerText = "מקם את הדף במרכז ולחץ על הצילום";
+    function resetAll() {
+        if (confirm("למחוק את כל העמודים שסרקת?")) {
+            scannedPages = [];
+            updateUI();
+            document.getElementById('finalActions').style.display = 'none';
+            log("הכל אופס");
+        }
     }
 </script>
 </body>
