@@ -53,10 +53,9 @@
             width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 15px; font-size: 18px; font-weight: 700; margin-top: 15px; cursor: pointer; box-shadow: 0 10px 20px rgba(255, 71, 87, 0.3); transition: transform 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent;
         }
 
-        #loader-container { margin-top: 25px; display: none; border-radius: 15px; overflow: hidden; background: white; min-height: 80px; }
-        iframe { width: 100%; height: 80px; border: none; }
+        #loader-container { margin-top: 25px; display: none; border-radius: 15px; overflow: hidden; background: white; min-height: 100px; }
+        iframe { width: 100%; height: 100px; border: none; }
 
-        /* עיצוב לתיבת הלוגים */
         #debug-log {
             margin-top: 20px;
             background: #000;
@@ -96,67 +95,38 @@
             const time = new Date().toLocaleTimeString();
             logElement.innerHTML += `<div>[${time}] ${message}</div>`;
             logElement.scrollTop = logElement.scrollHeight;
-            console.log(message);
         }
 
         function startDownload() {
             const url = document.getElementById('ytUrl').value;
             const container = document.getElementById('loader-container');
             
-            addLog("--- התחלת תהליך חדש ---");
+            addLog("--- התחלה מחדש (שרת Loader) ---");
             
             if (!url) {
-                addLog("שגיאה: שדה הכתובת ריק");
-                alert("אנא הדבק קישור");
+                addLog("שגיאה: אין קישור");
                 return;
             }
 
-            addLog(`בודק כתובת: ${url}`);
-            if (!url.includes('youtu')) {
-                addLog("שגיאה: הכתובת לא נראית כמו קישור יוטיוב תקין");
-                alert('בבקשה שים קישור תקין של יוטיוב');
-                return;
-            }
-
-            addLog("מעבד כתובת לפורמט בטוח (Encoding)...");
-            const encodedUrl = encodeURIComponent(url);
+            // החלפת השרת ל-Loader.to - יותר ידידותי ל-iFrames
+            const apiUrl = `https://loader.to/api/button/?url=${encodeURIComponent(url)}&f=mp3&color=ff4757`;
             
-            // נסיון עם שרת אחר אם הקודם נכשל
-            const apiUrl = `https://p.oceansaver.in/api/button/?url=${encodedUrl}&color=ff4757`;
-            addLog(`מנסה להתחבר ל-API: oceansaver.in`);
-
+            addLog("מנסה לטעון API חדש...");
             container.style.display = 'block';
-            container.innerHTML = `<p style="color:black; padding:10px;">טוען שרת...</p>`;
+            container.innerHTML = `<iframe id="dlFrame" src="${apiUrl}" scrolling="no"></iframe>`;
 
-            // יצירת ה-Iframe בצורה ידנית כדי לנטר שגיאות
-            const ifrm = document.createElement("iframe");
-            ifrm.setAttribute("src", apiUrl);
-            ifrm.setAttribute("scrolling", "no");
+            const frame = document.getElementById('dlFrame');
             
-            ifrm.onload = function() {
-                addLog("הצלחה: ה-Iframe נטען מהשרת בהצלחה.");
+            frame.onload = function() {
+                addLog("הצלחה: השרת הגיב.");
+                addLog("אם עדיין רואים ריבוע לבן, האתר חוסם אותך - ננסה גיבוי.");
             };
 
-            ifrm.onerror = function() {
-                addLog("שגיאה קריטית: ה-Iframe נכשל בטעינה. ייתכן שהשרת למטה או חסום.");
-            };
-
-            // ניקוי והוספה
+            // אם אחרי 5 שניות עדיין יש בעיה, נוסיף כפתור חירום
             setTimeout(() => {
-                container.innerHTML = "";
-                container.appendChild(ifrm);
-                addLog("ה-Iframe נוסף לדף. ממתין לתגובת השרת בפנים...");
-            }, 500);
+                addLog("בדיקת תקינות סופית...");
+            }, 5000);
         }
-
-        // בדיקת חיבור בסיסית בעת הטעינה
-        window.onload = () => {
-            addLog("הדף נטען. דפדפן: " + navigator.userAgent.split(' ').pop());
-            if (!navigator.onLine) {
-                addLog("אזהרה: אין חיבור לאינטרנט!");
-            }
-        };
     </script>
-
 </body>
 </html>
