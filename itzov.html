@@ -11,7 +11,7 @@
   <style>
     :root { --primary: #ff6b81; --bg: #f8f9fa; --purple: #6c5ce7; }
     body { font-family: system-ui, sans-serif; text-align: center; background-color: var(--bg); margin: 0; padding: 10px; }
-    .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding-bottom: 50px; }
+    .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding-bottom: 50px; position: relative; }
 
     #camContainer {
       width: 100%;
@@ -67,11 +67,102 @@
     .save-btn { background: #2ed573; text-decoration: none; display: none; padding: 18px; border-radius: 50px; color: white; font-weight: bold; margin-top: 15px; }
 
     #adjustArea { display: none; border: 2px solid var(--purple); border-radius: 15px; overflow: hidden; background: #000; margin-top: 15px; touch-action: none; }
+
+    /* ✅ תוספת בלבד: גלגל שיניים + חלון הגדרות */
+    #gearBtn{
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(108,92,231,0.12);
+      color: var(--purple);
+      border: 1px solid rgba(108,92,231,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: pointer;
+      user-select: none;
+      padding: 0;
+      margin: 0;
+    }
+    #settingsOverlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      box-sizing: border-box;
+    }
+    #settingsPanel{
+      width: min(520px, 100%);
+      background: #fff;
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.25);
+      text-align: right;
+    }
+    #settingsPanel h3{
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      color: #222;
+      text-align: center;
+    }
+    .setRow{
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 8px;
+      border-radius: 14px;
+      background: #fafafa;
+      margin-bottom: 10px;
+    }
+    .setRow label{
+      font-size: 14px;
+      color: #222;
+      font-weight: 700;
+    }
+    .setHint{
+      font-size: 12px;
+      color: #666;
+      margin-top: 6px;
+      text-align: right;
+    }
+    #gifScaleRange{
+      width: 55%;
+    }
+    #closeSettings{
+      background: var(--purple);
+      color: #fff;
+      border: none;
+      padding: 12px;
+      width: 100%;
+      border-radius: 14px;
+      font-weight: 900;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    #gifScaleVal{
+      font-weight: 900;
+      color: var(--purple);
+      min-width: 46px;
+      text-align: left;
+    }
   </style>
 </head>
 <body>
 
 <div class="container">
+  <!-- ✅ תוספת בלבד -->
+  <button id="gearBtn" type="button" aria-label="הגדרות">⚙️</button>
+
   <h2 style="margin-bottom:5px;">✨ פן אקספרס ✨</h2>
   <p style="font-size: 12px; color: #666; margin-bottom: 12px;">צילום עם כוונת להתאמה מושלמת</p>
 
@@ -108,6 +199,28 @@
   <a id="btnDownload" class="save-btn">שמירה לגלריה ⬇️</a>
 </div>
 
+<!-- ✅ תוספת בלבד: חלון הגדרות -->
+<div id="settingsOverlay">
+  <div id="settingsPanel">
+    <h3>הגדרות</h3>
+
+    <div class="setRow">
+      <label for="stampToggle">חותמת “פן אקספרס + טלפון”</label>
+      <input id="stampToggle" type="checkbox">
+    </div>
+    <div class="setHint">ברירת מחדל: פעיל (מופיע גם בסרטון וגם ב-GIF)</div>
+
+    <div class="setRow" style="flex-wrap: wrap;">
+      <label for="gifScaleRange" style="flex: 1 1 100%;">גודל GIF (באחוזים)</label>
+      <input id="gifScaleRange" type="range" min="10" max="100" step="1">
+      <div id="gifScaleVal">60%</div>
+    </div>
+    <div class="setHint">100% = הכי גדול. 60% = כמו עכשיו. אפשר לרדת גם ל-40% כדי להקטין עוד.</div>
+
+    <button id="closeSettings" type="button">סגור</button>
+  </div>
+</div>
+
 <script>
 (function(){
   const video = document.getElementById('videoLive');
@@ -132,6 +245,66 @@
 
   // Worker Blob cache (כדי ש-GIF יעבוד באנדרואיד)
   let workerBlobUrl = null;
+
+  // ✅ תוספת בלבד: הגדרות
+  const gearBtn = document.getElementById('gearBtn');
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const closeSettings = document.getElementById('closeSettings');
+  const stampToggle = document.getElementById('stampToggle');
+  const gifScaleRange = document.getElementById('gifScaleRange');
+  const gifScaleVal = document.getElementById('gifScaleVal');
+
+  const SETTINGS_KEY = "fx_settings_v1";
+  const defaultSettings = {
+    showStamp: true,     // ✅ ברירת מחדל פעיל
+    gifScalePct: 60      // ✅ ברירת מחדל כמו עכשיו
+  };
+  let settings = loadSettings();
+
+  function loadSettings(){
+    try{
+      const raw = localStorage.getItem(SETTINGS_KEY);
+      if(!raw) return { ...defaultSettings };
+      const obj = JSON.parse(raw);
+      return {
+        showStamp: (obj.showStamp !== undefined ? !!obj.showStamp : defaultSettings.showStamp),
+        gifScalePct: (Number.isFinite(obj.gifScalePct) ? Math.min(100, Math.max(10, Math.round(obj.gifScalePct))) : defaultSettings.gifScalePct)
+      };
+    }catch(e){
+      return { ...defaultSettings };
+    }
+  }
+  function saveSettings(){
+    try{
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }catch(e){}
+  }
+  function syncSettingsUI(){
+    stampToggle.checked = settings.showStamp;
+    gifScaleRange.value = String(settings.gifScalePct);
+    gifScaleVal.textContent = settings.gifScalePct + "%";
+  }
+
+  gearBtn.addEventListener('click', () => {
+    syncSettingsUI();
+    settingsOverlay.style.display = "flex";
+  });
+  closeSettings.addEventListener('click', () => {
+    settingsOverlay.style.display = "none";
+  });
+  settingsOverlay.addEventListener('click', (e) => {
+    if (e.target === settingsOverlay) settingsOverlay.style.display = "none";
+  });
+
+  stampToggle.addEventListener('change', () => {
+    settings.showStamp = stampToggle.checked;
+    saveSettings();
+  });
+  gifScaleRange.addEventListener('input', () => {
+    settings.gifScalePct = Math.min(100, Math.max(10, parseInt(gifScaleRange.value, 10) || 60));
+    gifScaleVal.textContent = settings.gifScalePct + "%";
+    saveSettings();
+  });
 
   function setStatus(t){ statusEl.innerText = t || ""; }
 
@@ -310,6 +483,23 @@
     return '';
   }
 
+  // ✅ פונקציה אחת לשימוש גם בוידאו וגם ב-GIF (רק כדי לשלוט בחותמת)
+  function drawStamp(ctx, w, h){
+    if(!settings.showStamp) return;
+
+    const fs = w * 0.06;
+    ctx.font = `900 ${fs}px system-ui`;
+    ctx.textAlign = "center";
+    const txt = "פן אקספרס 0507449001";
+
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = fs * 0.2;
+    ctx.strokeText(txt, w/2, h * 0.95);
+
+    ctx.fillStyle = "#ff0000";
+    ctx.fillText(txt, w/2, h * 0.95);
+  }
+
   btnCreate.addEventListener('click', () => {
     setStatus("⏳ מייצר סרטון... לא לצאת");
     btnCreate.disabled = true;
@@ -376,18 +566,9 @@
       vCtx.globalAlpha = 1; vCtx.drawImage(afterImg, offsetX, offsetY, w, h);
       vCtx.globalAlpha = op; vCtx.drawImage(beforeImg, 0, 0, w, h);
 
+      // ✅ חותמת רק אם מסומן בהגדרות
       vCtx.globalAlpha = 1;
-      const fs = w * 0.06;
-      vCtx.font = `900 ${fs}px system-ui`;
-      vCtx.textAlign = "center";
-      const txt = "פן אקספרס 0507449001";
-
-      vCtx.strokeStyle = "white";
-      vCtx.lineWidth = fs * 0.2;
-      vCtx.strokeText(txt, w/2, h * 0.95);
-
-      vCtx.fillStyle = "#ff0000";
-      vCtx.fillText(txt, w/2, h * 0.95);
+      drawStamp(vCtx, w, h);
 
       vCtx.fillStyle = "white";
       vCtx.shadowBlur = 10;
@@ -413,7 +594,7 @@
     return workerBlobUrl;
   }
 
-  // GIF (7 שניות בלופ) - ✅ הוקטנה ל-60% רק ל-GIF
+  // GIF (7 שניות בלופ) - גודל לפי סליידר באחוזים
   btnGif.addEventListener('click', async () => {
     try {
       setStatus("⏳ מייצר GIF... לא לצאת");
@@ -427,8 +608,8 @@
       const w0 = beforeImg.naturalWidth || beforeImg.width;
       const h0 = beforeImg.naturalHeight || beforeImg.height;
 
-      // ✅ שינוי יחיד שביקשת: 60% גודל רק ל-GIF
-      const scale = 0.60;
+      // ✅ לפי ההגדרה (10%–100%)
+      const scale = Math.min(1, Math.max(0.10, (settings.gifScalePct / 100)));
 
       const w = Math.max(1, Math.round(w0 * scale));
       const h = Math.max(1, Math.round(h0 * scale));
@@ -466,18 +647,9 @@
         ctx.globalAlpha = 1; ctx.drawImage(afterImg, ox, oy, w, h);
         ctx.globalAlpha = op; ctx.drawImage(beforeImg, 0, 0, w, h);
 
+        // ✅ חותמת רק אם מסומן בהגדרות
         ctx.globalAlpha = 1;
-        const fs = w * 0.06;
-        ctx.font = `900 ${fs}px system-ui`;
-        ctx.textAlign = "center";
-        const txt = "פן אקספרס 0507449001";
-
-        ctx.strokeStyle = "white";
-        ctx.lineWidth = fs * 0.2;
-        ctx.strokeText(txt, w/2, h * 0.95);
-
-        ctx.fillStyle = "#ff0000";
-        ctx.fillText(txt, w/2, h * 0.95);
+        drawStamp(ctx, w, h);
 
         ctx.fillStyle = "white";
         ctx.shadowBlur = 10;
@@ -515,6 +687,9 @@
   });
 
   window.addEventListener('pagehide', stopLiveCamera);
+
+  // אתחול UI של ההגדרות כברירת מחדל
+  syncSettingsUI();
 
   setStatus("מוכן ✅");
 })();
