@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מערכת ניהול אזורים</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; font-family: system-ui, sans-serif; background: #eef2f3; overflow: hidden; }
+        
+        /* דף התפריט הראשי */
+        #main-menu {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            gap: 50px;
+        }
+        
+        .circle-container { display: flex; gap: 40px; }
+        
+        .circle-btn {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 60px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        
+        .circle-btn:active { transform: scale(0.9); }
+        .btn-l { background: linear-gradient(135deg, #1e3c72, #2a5298); }
+        .btn-d { background: linear-gradient(135deg, #d31027, #ea384d); }
+
+        /* מסך המפה */
+        #map-screen { display: none; height: 100%; width: 100%; position: relative; }
+        #map { height: 100%; width: 100%; background: #000; }
+
+        .mobile-header {
+            position: absolute;
+            top: 10px; left: 10px; right: 10px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+
+        .back-btn {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            z-index: 1000;
+            background: white;
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            border: none;
+            font-size: 24px;
+        }
+
+        .phone-input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; text-align: center; }
+        .btn-wa-send { background: #25D366; color: white !important; padding: 12px; text-decoration: none; border-radius: 8px; display: block; font-weight: bold; text-align: center; border: none; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div id="main-menu">
+    <h1 style="color: #2c3e50;">בחר שטח</h1>
+    <div class="circle-container">
+        <button class="circle-btn btn-l" onclick="startApp('L')">L</button>
+        <button class="circle-btn btn-d" onclick="startApp('D')">D</button>
+    </div>
+</div>
+
+<div id="map-screen">
+    <div class="mobile-header" id="header-content"></div>
+    <div id="map"></div>
+    <button class="back-btn" onclick="exitMap()">🏠</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+    let map;
+    let marker;
+    let activeConfig = {};
+
+    // הגדרות שטח L (בר לב)
+    const configL = {
+        center: [32.855955, 35.280726],
+        title: "שטח L (2.62 קמ\"ר)",
+        waText: "המיקום המדויק שלי בשטח L: ",
+        polygon: [
+            [32.8570621, 35.2696307], [32.8527140, 35.2685520],
+            [32.8470588, 35.2700243], [32.8450786, 35.2901042],
+            [32.8473477, 35.2920490], [32.8504651, 35.2923296],
+            [32.8531419, 35.2895791], [32.8559410, 35.2874601],
+            [32.8587594, 35.2858396], [32.8584843, 35.2812415],
+            [32.8582676, 35.2741404], [32.8570621, 35.2696307]
+        ]
+    };
+
+    // הגדרות שטח D (מיקום חדש לפי התמונה)
+    const configD = {
+        center: [32.864167, 35.094444], // המיקום המדויק מהתמונה האחרונה
+        title: "שטח D (אזור פעילות מוגדר)",
+        waText: "המיקום המדויק שבחרתי בשטח D: ",
+        polygon: [
+            [32.869305, 35.095692], [32.869321, 35.094677], [32.870716, 35.094849],
+            [32.873117, 35.095185], [32.874426, 35.095331], [32.876492, 35.095347],
+            [32.877645, 35.095121], [32.878448, 35.094810], [32.878884, 35.094334],
+            [32.884153, 35.090497], [32.883374, 35.088395], [32.877660, 35.090015],
+            [32.875373, 35.090012], [32.874741, 35.091706], [32.872492, 35.090859],
+            [32.869218, 35.089885], [32.866931, 35.087960], [32.864918, 35.085841],
+            [32.861330, 35.083404], [32.861133, 35.085374], [32.858259, 35.090585],
+            [32.860495, 35.094521], [32.862330, 35.094744], [32.863249, 35.094902],
+            [32.864143, 35.094989], [32.865938, 35.095176], [32.869305, 35.095692]
+        ]
+    };
+
+    function startApp(mode) {
+        activeConfig = (mode === 'L') ? configL : configD;
+        
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('map-screen').style.display = 'block';
+        document.getElementById('header-content').innerHTML = `<strong>${activeConfig.title}</strong><br><small>גע בנקודה מדויקת לשיתוף</small>`;
+
+        if (!map) {
+            map = L.map('map', { zoomControl: false });
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+        } else {
+            // ניקוי שכבות קודמות
+            map.eachLayer(l => { if(l instanceof L.Polygon) map.removeLayer(l); });
+        }
+
+        map.setView(activeConfig.center, 18);
+
+        // יצירת מסכה (החשכה) וגבול צהוב
+        const outer = [[90, -180], [90, 180], [-90, 180], [-90, -180]];
+        L.polygon([outer, activeConfig.polygon], { color: 'black', fillColor: 'black', fillOpacity: 0.6, weight: 0 }).addTo(map);
+        L.polygon(activeConfig.polygon, { color: 'yellow', weight: 1, fillColor: 'transparent' }).addTo(map);
+
+        map.on('click', handleMapClick);
+    }
+
+    function handleMapClick(e) {
+        const lat = e.latlng.lat.toFixed(6);
+        const lng = e.latlng.lng.toFixed(6);
+
+        if (marker) marker.setLatLng(e.latlng);
+        else marker = L.marker(e.latlng).addTo(map);
+
+        const popupBody = `
+            <div style="text-align:center; min-width:180px;">
+                <b>מיקום נבחר</b><br>
+                <input type="tel" id="inputPhone" class="phone-input" placeholder="מספר ידני (אופציונלי)">
+                <button onclick="shareDirectly('${lat}', '${lng}')" class="btn-wa-send">שתף ב-WhatsApp</button>
+            </div>
+        `;
+        marker.bindPopup(popupBody).openPopup();
+    }
+
+    window.shareDirectly = function(lat, lng) {
+        const phone = document.getElementById('inputPhone').value.replace(/\D/g, '');
+        const mapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
+        const finalMsg = encodeURIComponent(activeConfig.waText + mapsLink);
+        
+        let url = `https://wa.me/?text=${finalMsg}`;
+        if (phone.length >= 9) {
+            let cleanPhone = (phone.startsWith('0')) ? '972' + phone.substring(1) : phone;
+            url = `https://wa.me/${cleanPhone}?text=${finalMsg}`;
+        }
+        window.open(url, '_blank');
+    };
+
+    function exitMap() {
+        document.getElementById('main-menu').style.display = 'flex';
+        document.getElementById('map-screen').style.display = 'none';
+        if (marker) { map.removeLayer(marker); marker = null; }
+    }
+</script>
+
+</body>
+</html>
