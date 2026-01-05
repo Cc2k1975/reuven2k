@@ -15,8 +15,10 @@
         input[type="text"] { width: 100%; padding: 18px; border-radius: 15px; border: 2px solid #333; background: #252525; color: white; font-size: 16px; outline: none; transition: border-color 0.3s; box-sizing: border-box; text-align: center; direction: ltr; }
         input[type="text"]:focus { border-color: var(--primary); }
         .download-btn { width: 100%; background: var(--primary); color: white; border: none; padding: 18px; border-radius: 15px; font-size: 18px; font-weight: 700; margin-top: 15px; cursor: pointer; box-shadow: 0 10px 20px rgba(255, 71, 87, 0.3); transition: transform 0.2s, background 0.2s; -webkit-tap-highlight-color: transparent; }
+        .service-select { width: 100%; padding: 15px; border-radius: 15px; border: 2px solid #333; background: #252525; color: white; font-size: 16px; margin-top: 15px; text-align: center; }
         #status-box { margin-top: 25px; display: none; border-radius: 15px; background: #f9f9f9; padding: 20px; color: #333; font-weight: bold; }
         #debug-log { margin-top: 20px; background: #000; color: #00ff00; font-family: monospace; font-size: 11px; text-align: left; padding: 10px; border-radius: 10px; max-height: 150px; overflow-y: auto; border: 1px solid #333; direction: ltr; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
@@ -26,7 +28,14 @@
         <h1>MP3 הוריד</h1>
         <p>גרסה סופית - עוקף חסימות</p>
 
-        <input type="text" id="ytUrl" placeholder="הדבק כאן קישור..." autocomplete="off">
+        <input type="text" id="ytUrl" placeholder="הדבק כאן קישור יוטיוב..." autocomplete="off">
+        
+        <select class="service-select" id="serviceSelect">
+            <option value="ssyoutube">ssyoutube.com (מומלץ)</option>
+            <option value="y2mate">y2mate.com</option>
+            <option value="ytmp3">ytmp3.cc</option>
+            <option value="onlinevideoconverter">onlinevideoconverter.com</option>
+        </select>
         
         <button class="download-btn" onclick="startDownload()">הורד עכשיו</button>
 
@@ -50,10 +59,33 @@
             return (match && match[7].length == 11) ? match[7] : false;
         }
 
+        function isValidYouTubeUrl(url) {
+            const patterns = [
+                /^https?:\/\/(www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
+                /^https?:\/\/youtu\.be\/([a-zA-Z0-9_-]{11})/,
+                /^https?:\/\/(www\.)?youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+                /^https?:\/\/(www\.)?youtube\.com\/v\/([a-zA-Z0-9_-]{11})/
+            ];
+            
+            return patterns.some(pattern => pattern.test(url));
+        }
+
         function startDownload() {
             let rawUrl = document.getElementById('ytUrl').value;
+            const service = document.getElementById('serviceSelect').value;
+            
             logBox.innerHTML = ""; 
             addLog("--- מתחיל תהליך הורדה חסין ---");
+
+            // ניקוי הקישור
+            rawUrl = rawUrl.trim();
+            
+            // בדיקה אם הקישור תקני
+            if (!isValidYouTubeUrl(rawUrl)) {
+                addLog("שגיאה: הקישור לא תקין", "#ff4757");
+                alert("⚠️ הקישור לא תקין!\n\nאנא הדבק קישור יוטיוב תקין:\n- https://www.youtube.com/watch?v=...\n- https://youtu.be/...");
+                return;
+            }
 
             const videoId = extractVideoId(rawUrl);
 
@@ -67,23 +99,77 @@
             statusBox.style.display = 'block';
             statusBox.innerHTML = `מעביר אותך לדף ההורדה...`;
 
-            // שימוש בקישור ה-"pp" - זו הדרך הכי אמינה בעולם כרגע
-            // זה פותח את y2mate ישירות על הסרטון הנכון בלי שגיאות 404
-            const finalUrl = `https://www.youtubepp.com/watch?v=${videoId}`;
+            // יצירת קישורים לפי השירות שנבחר
+            let finalUrl = '';
             
-            addLog("פותח טאב הורדה בטוח...");
-
-            // בטלפון חייבים לפתוח מיד כדי שהדפדפן לא יחסום את הפופ-אפ
-            const newWindow = window.open(finalUrl, '_blank');
-            
-            if (newWindow) {
-                statusBox.innerHTML = "✅ נפתח! בחר MP3 והורד.";
-                addLog("הצלחה!");
-            } else {
-                statusBox.innerHTML = "⚠️ הפופ-אפ נחסם! לחץ שוב.";
-                addLog("שגיאה: הדפדפן חסם את פתיחת החלון", "#ffa502");
+            switch(service) {
+                case 'ssyoutube':
+                    finalUrl = `https://ssyoutube.com/watch?v=${videoId}`;
+                    break;
+                case 'y2mate':
+                    finalUrl = `https://www.y2mate.com/youtube/${videoId}`;
+                    break;
+                case 'ytmp3':
+                    finalUrl = `https://ytmp3.cc/en13/?v=${videoId}`;
+                    break;
+                case 'onlinevideoconverter':
+                    finalUrl = `https://onlinevideoconverter.com/mp3-converter?url=https://www.youtube.com/watch?v=${videoId}`;
+                    break;
+                default:
+                    finalUrl = `https://ssyoutube.com/watch?v=${videoId}`;
             }
+
+            addLog(`משתמש בשירות: ${service}`);
+            addLog(`פותח קישור: ${finalUrl}`);
+
+            // פתיחת חלון חדש עם אפשרויות שונות לטאבים חסומים
+            setTimeout(() => {
+                const newWindow = window.open(finalUrl, '_blank');
+                
+                if (newWindow) {
+                    statusBox.innerHTML = "✅ נפתח! בחר MP3 והורד.";
+                    addLog("הצלחה! החלון נפתח.");
+                } else {
+                    // אם החלון נחסם, נציג הודעה עם קישור ללחיצה
+                    statusBox.innerHTML = `
+                        <div style="text-align: center; padding: 10px;">
+                            <div style="color: #ffa502; margin-bottom: 10px;">⚠️ הפופ-אפ נחסם!</div>
+                            <div style="margin-bottom: 15px;">לחץ על הקישור למטה:</div>
+                            <a href="${finalUrl}" target="_blank" style="
+                                display: inline-block;
+                                background: var(--primary);
+                                color: white;
+                                padding: 10px 20px;
+                                border-radius: 10px;
+                                text-decoration: none;
+                                font-weight: bold;
+                                margin-top: 10px;
+                            ">לחץ כאן להורדה</a>
+                        </div>
+                    `;
+                    addLog("שגיאה: הדפדפן חסם את פתיחת החלון", "#ffa502");
+                    addLog(`לחץ על הקישור: ${finalUrl}`);
+                }
+            }, 500);
         }
+
+        // אפשרות להקיש Enter במקום ללחוץ על הכפתור
+        document.getElementById('ytUrl').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                startDownload();
+            }
+        });
+
+        // הוספת דוגמה לקישור כדי להקל על המשתמש
+        document.getElementById('ytUrl').addEventListener('focus', function() {
+            if (this.value === '') {
+                this.placeholder = 'לדוגמה: https://youtu.be/dQw4w9WgXcQ';
+            }
+        });
+
+        document.getElementById('ytUrl').addEventListener('blur', function() {
+            this.placeholder = 'הדבק כאן קישור יוטיוב...';
+        });
     </script>
 </body>
 </html>
