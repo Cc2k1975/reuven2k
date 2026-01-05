@@ -116,6 +116,49 @@
       border: 1px solid #333;
       background: #000;
     }
+
+    /* ✅ שכבת חיתוך */
+    #cropOverlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      z-index: 50;
+      pointer-events: none;
+    }
+    #cropSvg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .cropHandle {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid #007bff;
+      transform: translate(-50%, -50%);
+      z-index: 60;
+      pointer-events: auto;
+      touch-action: none;
+    }
+    .cropHint {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      border: 1px solid #333;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      pointer-events: none;
+      z-index: 55;
+      white-space: nowrap;
+    }
   </style>
 </head>
 
@@ -128,9 +171,19 @@
   <div class="app">
     <div id="debug">Log: ממתין ל-OpenCV</div>
 
-    <div class="viewer">
+    <div class="viewer" id="viewer">
       <video id="video" autoplay playsinline muted></video>
       <canvas id="canvasOutput"></canvas>
+
+      <!-- ✅ Overlay חיתוך -->
+      <div id="cropOverlay">
+        <div class="cropHint">הזז את הפינות על הדף ואז לחץ "✅ שמור עמוד"</div>
+        <svg id="cropSvg" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+        <div class="cropHandle" id="h0"></div>
+        <div class="cropHandle" id="h1"></div>
+        <div class="cropHandle" id="h2"></div>
+        <div class="cropHandle" id="h3"></div>
+      </div>
     </div>
 
     <div class="footer">
@@ -150,9 +203,13 @@
 
       <div id="thumbs"></div>
 
+      <!-- ✅ אותו אזור פעולות – רק הוספתי שני כפתורים למצב חיתוך -->
       <div class="row" id="rowActions" style="display:none">
         <button class="btn btn-blue" id="addPageBtn">➕ הוסף עמוד</button>
         <button class="btn btn-green" id="makePdfBtn">📩 שלח PDF</button>
+
+        <button class="btn btn-green" id="confirmCropBtn" style="display:none">✅ שמור עמוד</button>
+        <button class="btn" id="retakeBtn" style="display:none">↩️ צלם שוב</button>
       </div>
     </div>
   </div>
@@ -173,6 +230,7 @@
 <script>
   const log = (m) => document.getElementById('debug').innerText = "Log: " + m;
 
+  const viewer = document.getElementById('viewer');
   const video = document.getElementById('video');
   const canvas = document.getElementById('canvasOutput');
 
@@ -188,11 +246,23 @@
   const addPageBtn = document.getElementById('addPageBtn');
   const makePdfBtn = document.getElementById('makePdfBtn');
 
+  const confirmCropBtn = document.getElementById('confirmCropBtn');
+  const retakeBtn = document.getElementById('retakeBtn');
+
   const previewModal = document.getElementById('previewModal');
   const previewImg = document.getElementById('previewImg');
   const previewTitle = document.getElementById('previewTitle');
   const closePreviewBtn = document.getElementById('closePreviewBtn');
   const deletePageBtn = document.getElementById('deletePageBtn');
+
+  const cropOverlay = document.getElementById('cropOverlay');
+  const cropSvg = document.getElementById('cropSvg');
+  const handles = [
+    document.getElementById('h0'),
+    document.getElementById('h1'),
+    document.getElementById('h2'),
+    document.getElementById('h3')
+  ];
 
   const modeBtn = document.getElementById('modeBtn');
   let scanMode = "bw";
@@ -210,10 +280,31 @@
   const pages = [];
   let previewIndex = -1;
 
-  snapBtn.addEventListener('click', processDocAndStore);
+  let cropModeActive = false;
+  let capturedMatRGBA = null; // ה-frame המצולם (Mat RGBA) לשלב החיתוך
+
+  // נקודות חיתוך (בקואורדינטות של התמונה - canvas pixels)
+  // סדר: [tl, tr, br, bl]
+  let cropPts = [
+    {x: 100, y: 100},
+    {x: 400, y: 100},
+    {x: 400, y: 600},
+    {x: 100, y: 600}
+  ];
+
+  snapBtn.addEventListener('click', () => {
+    if (!cropModeActive) startCaptureAndCrop();
+  });
   resetBtn.addEventListener('click', () => location.reload());
+
   addPageBtn.addEventListener('click', backToCamera);
   makePdfBtn.addEventListener('click', sendMultiPagePdf);
+
+  confirmCropBtn.addEventListener('click', confirmCropAndStore);
+  retakeBtn.addEventListener('click', () => {
+    exitCropMode();
+    backToCamera();
+  });
 
   closePreviewBtn.addEventListener('click', closePreview);
   previewModal.addEventListener('click', (e) => { if (e.target === previewModal) closePreview(); });
@@ -273,6 +364,7 @@
   }
 
   function backToCamera() {
+    exitCropMode();
     canvas.style.display = 'none';
     video.style.display = 'block';
     msg.innerText = "כוון אל הדף ולחץ צילום";
@@ -281,7 +373,7 @@
 
   function updatePagesUI() {
     pagesInfo.innerText = `עמודים: ${pages.length}`;
-    rowActions.style.display = pages.length > 0 ? 'flex' : 'none';
+    rowActions.style.display = (pages.length > 0 || cropModeActive) ? 'flex' : 'none';
     thumbs.style.display = pages.length > 0 ? 'flex' : 'none';
     thumbs.innerHTML = "";
     pages.forEach((dataUrl, idx) => {
@@ -292,6 +384,12 @@
       img.addEventListener('click', () => openPreview(idx));
       thumbs.appendChild(img);
     });
+
+    // כפתורי מצב רגיל/חיתוך
+    addPageBtn.style.display = cropModeActive ? "none" : "inline-block";
+    makePdfBtn.style.display = cropModeActive ? "none" : "inline-block";
+    confirmCropBtn.style.display = cropModeActive ? "inline-block" : "none";
+    retakeBtn.style.display = cropModeActive ? "inline-block" : "none";
   }
 
   function openPreview(index) {
@@ -321,17 +419,15 @@
   }
 
   // ------------------------------
-  // ✅ חדש: זיהוי דף + יישור פרספקטיבה (כמו סורק)
+  // ✅ כלי עזר לפרספקטיבה
   // ------------------------------
-
   function dist(a, b) {
     const dx = a.x - b.x, dy = a.y - b.y;
     return Math.sqrt(dx*dx + dy*dy);
   }
 
   function orderPoints(pts) {
-    // pts: [{x,y},{x,y},{x,y},{x,y}]
-    // מחזיר: [tl, tr, br, bl]
+    // מחזיר [tl, tr, br, bl]
     const sum = pts.map(p => p.x + p.y);
     const diff = pts.map(p => p.x - p.y);
 
@@ -342,7 +438,7 @@
     return [tl, tr, br, bl];
   }
 
-  function fourPointTransform(src, quadPts /* array of 4 points in src coords */) {
+  function fourPointTransform(srcRGBA, quadPts) {
     const [tl, tr, br, bl] = orderPoints(quadPts);
 
     const widthA = dist(br, bl);
@@ -372,145 +468,218 @@
 
     const M = cv.getPerspectiveTransform(srcTri, dstTri);
     const warped = new cv.Mat();
-    const dsize = new cv.Size(dstW, dstH);
-    cv.warpPerspective(src, warped, M, dsize, cv.INTER_LINEAR, cv.BORDER_REPLICATE);
+    cv.warpPerspective(srcRGBA, warped, M, new cv.Size(dstW, dstH), cv.INTER_LINEAR, cv.BORDER_REPLICATE);
 
     srcTri.delete(); dstTri.delete(); M.delete();
     return warped;
   }
 
-  function detectDocumentQuad(srcRGBA) {
-    // עובד על גרסה מוקטנת בשביל מהירות, ואז מחזיר נקודות בקואורדינטות המקור
-    const maxSide = 900; // איזון מהירות/דיוק
-    const w0 = srcRGBA.cols, h0 = srcRGBA.rows;
-    const scale = Math.min(1, maxSide / Math.max(w0, h0));
-    let small = srcRGBA;
-    let resized = null;
-
-    if (scale < 1) {
-      resized = new cv.Mat();
-      cv.resize(srcRGBA, resized, new cv.Size(Math.round(w0 * scale), Math.round(h0 * scale)), 0, 0, cv.INTER_AREA);
-      small = resized;
-    }
-
-    let gray = new cv.Mat();
-    cv.cvtColor(small, gray, cv.COLOR_RGBA2GRAY);
-
-    let blur = new cv.Mat();
-    cv.GaussianBlur(gray, blur, new cv.Size(5,5), 0);
-
-    let edges = new cv.Mat();
-    cv.Canny(blur, edges, 60, 180);
-
-    // מחזק קווים כדי לסגור "פערים"
-    let kernel = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5,5));
-    cv.dilate(edges, edges, kernel);
-
-    let contours = new cv.MatVector();
-    let hierarchy = new cv.Mat();
-    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-
-    let best = null;
-    let bestArea = 0;
-
-    for (let i = 0; i < contours.size(); i++) {
-      const cnt = contours.get(i);
-      const area = cv.contourArea(cnt);
-      if (area < 1000) { cnt.delete(); continue; }
-
-      const peri = cv.arcLength(cnt, true);
-      const approx = new cv.Mat();
-      cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
-
-      if (approx.rows === 4 && area > bestArea) {
-        if (best) best.delete();
-        best = approx.clone();
-        bestArea = area;
-      }
-
-      approx.delete();
-      cnt.delete();
-    }
-
-    // ניקוי
-    gray.delete(); blur.delete(); edges.delete(); kernel.delete();
-    contours.delete(); hierarchy.delete();
-    if (resized) resized.delete();
-
-    if (!best) return null;
-
-    // best הוא Mat של 4 נקודות ב-scale של small
-    // המרה למערך נקודות בקואורדינטות מקור
-    const pts = [];
-    const data = best.data32S; // approxPolyDP מחזיר int
-    // data בפורמט [x0,y0,x1,y1,...]
-    for (let i = 0; i < 8; i += 2) {
-      const x = data[i];
-      const y = data[i + 1];
-      pts.push({ x: x / scale, y: y / scale });
-    }
-    best.delete();
-    return pts;
-  }
-
-  function processDocAndStore() {
+  // ------------------------------
+  // ✅ התחלת צילום + כניסה למצב חיתוך
+  // ------------------------------
+  function startCaptureAndCrop() {
     if (!cvReady || !cameraReady) return;
 
-    let src = null, warped = null, out = null;
-    let gray2 = null, blur2 = null;
+    try {
+      log("מצלם...");
+
+      // לוקחים פריים
+      const src = grabFrameToMat(); // RGBA
+      if (capturedMatRGBA) capturedMatRGBA.delete();
+      capturedMatRGBA = src;
+
+      // מציגים את התמונה על canvas (כדי שיהיה לך מה לסמן)
+      canvas.width = capturedMatRGBA.cols;
+      canvas.height = capturedMatRGBA.rows;
+      cv.imshow(canvas, capturedMatRGBA);
+
+      video.style.display = 'none';
+      canvas.style.display = 'block';
+
+      // ברירת מחדל למסגרת: כמעט כל התמונה (המשתמש יכוון)
+      const padX = Math.round(canvas.width * 0.08);
+      const padY = Math.round(canvas.height * 0.08);
+      cropPts = [
+        { x: padX, y: padY },                                  // tl
+        { x: canvas.width - padX, y: padY },                   // tr
+        { x: canvas.width - padX, y: canvas.height - padY },   // br
+        { x: padX, y: canvas.height - padY }                   // bl
+      ];
+
+      enterCropMode();
+
+    } catch (e) {
+      log("שגיאה בצילום");
+      console.error(e);
+    }
+  }
+
+  function enterCropMode() {
+    cropModeActive = true;
+    msg.innerText = "מקם את הפינות על הדף ואז לחץ ✅ שמור עמוד";
+    cropOverlay.style.display = "block";
+    updatePagesUI();
+    drawCropUI();
+    log("מצב חיתוך פעיל");
+  }
+
+  function exitCropMode() {
+    cropModeActive = false;
+    cropOverlay.style.display = "none";
+    updatePagesUI();
+  }
+
+  // ------------------------------
+  // ✅ ציור המסגרת + ידיות (על המסך)
+  // ------------------------------
+  function getCanvasRectOnScreen() {
+    return canvas.getBoundingClientRect();
+  }
+
+  function imageToScreen(pt) {
+    const r = getCanvasRectOnScreen();
+    // canvas מוצג בדיוק ביחס של pixels שלו (בגלל max-width/max-height)
+    // המיפוי: pt ביחידות canvas-pixels -> מסך
+    const sx = r.left + (pt.x / canvas.width) * r.width;
+    const sy = r.top + (pt.y / canvas.height) * r.height;
+    return { x: sx, y: sy };
+  }
+
+  function screenToImage(sx, sy) {
+    const r = getCanvasRectOnScreen();
+    const x = ((sx - r.left) / r.width) * canvas.width;
+    const y = ((sy - r.top) / r.height) * canvas.height;
+    return {
+      x: Math.max(0, Math.min(canvas.width - 1, x)),
+      y: Math.max(0, Math.min(canvas.height - 1, y))
+    };
+  }
+
+  function drawCropUI() {
+    if (!cropModeActive) return;
+
+    // עדכון ידיות
+    for (let i = 0; i < 4; i++) {
+      const s = imageToScreen(cropPts[i]);
+      handles[i].style.left = s.x + "px";
+      handles[i].style.top  = s.y + "px";
+    }
+
+    // ציור פוליגון SVG + הצללה
+    // נשתמש ב-viewBox 0..100 כדי להימנע מתלות בפיקסלים
+    const ptsNorm = cropPts.map(p => ({
+      x: (p.x / canvas.width) * 100,
+      y: (p.y / canvas.height) * 100
+    }));
+
+    const poly = ptsNorm.map(p => `${p.x},${p.y}`).join(" ");
+    cropSvg.innerHTML = `
+      <defs>
+        <mask id="m">
+          <rect x="0" y="0" width="100" height="100" fill="white"></rect>
+          <polygon points="${poly}" fill="black"></polygon>
+        </mask>
+      </defs>
+      <rect x="0" y="0" width="100" height="100" fill="rgba(0,0,0,0.45)" mask="url(#m)"></rect>
+      <polygon points="${poly}" fill="none" stroke="rgba(0,123,255,0.95)" stroke-width="1.6"></polygon>
+    `;
+  }
+
+  // redraw on resize/orientation
+  window.addEventListener('resize', () => {
+    if (cropModeActive) drawCropUI();
+  });
+
+  // ------------------------------
+  // ✅ גרירה של ידיות
+  // ------------------------------
+  let draggingIndex = -1;
+
+  handles.forEach((h, idx) => {
+    h.addEventListener('pointerdown', (e) => {
+      if (!cropModeActive) return;
+      draggingIndex = idx;
+      h.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    h.addEventListener('pointermove', (e) => {
+      if (!cropModeActive) return;
+      if (draggingIndex !== idx) return;
+
+      const p = screenToImage(e.clientX, e.clientY);
+      cropPts[idx] = p;
+      drawCropUI();
+      e.preventDefault();
+    });
+
+    h.addEventListener('pointerup', (e) => {
+      if (!cropModeActive) return;
+      draggingIndex = -1;
+      try { h.releasePointerCapture(e.pointerId); } catch {}
+      e.preventDefault();
+    });
+
+    h.addEventListener('pointercancel', () => {
+      draggingIndex = -1;
+    });
+  });
+
+  // ------------------------------
+  // ✅ אישור חיתוך -> יישור פרספקטיבה -> פילטר -> שמירה
+  // ------------------------------
+  function confirmCropAndStore() {
+    if (!cvReady || !capturedMatRGBA) return;
+
+    let warped = null;
+    let gray = null;
+    let blur = null;
+    let out = null;
 
     try {
-      log("מעבד... נא לא להזיז");
-      src = grabFrameToMat(); // RGBA
+      log("חותך ושומר...");
 
-      // ✅ נסה לזהות דף ולחתוך אותו
-      const quad = detectDocumentQuad(src);
-      if (quad) {
-        warped = fourPointTransform(src, quad); // עדיין RGBA
-      } else {
-        // fallback: כמו שהיה (לא לשבור כלום אם לא זוהה דף)
-        warped = src.clone();
-        log("לא זוהה דף בצורה טובה — נשמר fallback");
-      }
+      const ordered = orderPoints(cropPts);
+      warped = fourPointTransform(capturedMatRGBA, ordered);
 
-      // עכשיו מפעילים "סריקה" רק על הדף (warped)
-      gray2 = new cv.Mat();
-      cv.cvtColor(warped, gray2, cv.COLOR_RGBA2GRAY);
+      gray = new cv.Mat();
+      cv.cvtColor(warped, gray, cv.COLOR_RGBA2GRAY);
 
-      blur2 = new cv.Mat();
-      cv.GaussianBlur(gray2, blur2, new cv.Size(3, 3), 0);
+      blur = new cv.Mat();
+      cv.GaussianBlur(gray, blur, new cv.Size(3, 3), 0);
 
       out = new cv.Mat();
       if (scanMode === "gray") {
-        out = blur2.clone();
+        out = blur.clone();
       } else {
-        cv.adaptiveThreshold(blur2, out, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 12);
+        cv.adaptiveThreshold(blur, out, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 12);
       }
 
       canvas.width = out.cols;
       canvas.height = out.rows;
       cv.imshow(canvas, out);
 
-      video.style.display = 'none';
-      canvas.style.display = 'block';
-
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
       pages.push(dataUrl);
 
-      msg.innerText = `נסרק עמוד ${pages.length}.`;
+      msg.innerText = `נשמר עמוד ${pages.length}.`;
+      exitCropMode();
       updatePagesUI();
-      log("הסריקה נשמרה (ללא רקע)");
 
-    } catch (err) {
-      log("שגיאה בעיבוד");
-      console.error(err);
+      log("נשמר רק מה שסימנת ✅");
+
+    } catch (e) {
+      log("שגיאה בשמירה");
+      console.error(e);
     } finally {
-      // ניקוי זיכרון
-      if (src) src.delete();
       if (warped) warped.delete();
-      if (gray2) gray2.delete();
-      if (blur2) blur2.delete();
+      if (gray) gray.delete();
+      if (blur) blur.delete();
       if (out) out.delete();
+
+      // חשוב: משאירים capturedMatRGBA כדי שאם תרצה לשמור שוב בלי לצלם – אבל פה זה לא נדרש.
+      // אם אתה רוצה לחסוך זיכרון בכל שמירה:
+      // capturedMatRGBA.delete(); capturedMatRGBA = null;
     }
   }
 
@@ -562,4 +731,3 @@
 </script>
 </body>
 </html>
-charles.s
