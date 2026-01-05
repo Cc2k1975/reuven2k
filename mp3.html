@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MP3 Downloader PRO</title>
+    <title>MP3 Downloader Ultra</title>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root { --primary: #ff4757; --secondary: #2f3542; --bg: #121212; --card: #1e1e1e; --text: #ffffff; }
@@ -24,14 +24,14 @@
     <div class="app-card">
         <div class="logo">🎵</div>
         <h1>MP3 הוריד</h1>
-        <p>גרסת תיקון סופית</p>
+        <p>גרסה סופית - עוקף חסימות</p>
 
         <input type="text" id="ytUrl" placeholder="הדבק כאן קישור..." autocomplete="off">
         
         <button class="download-btn" onclick="startDownload()">הורד עכשיו</button>
 
         <div id="status-box"></div>
-        <div id="debug-log">ממתין לפעולה...</div>
+        <div id="debug-log">מוכן להורדה...</div>
     </div>
 
     <script>
@@ -44,41 +44,45 @@
             logBox.scrollTop = logBox.scrollHeight;
         }
 
-        // פונקציה קריטית שהייתה חסרה: הפיכת קישור מקוצר למלא
-        function fixYoutubeUrl(url) {
-            if (url.includes('youtu.be/')) {
-                const id = url.split('/').pop().split('?')[0];
-                return `https://www.youtube.com/watch?v=${id}`;
-            }
-            return url;
+        function extractVideoId(url) {
+            const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[7].length == 11) ? match[7] : false;
         }
 
         function startDownload() {
             let rawUrl = document.getElementById('ytUrl').value;
             logBox.innerHTML = ""; 
-            addLog("--- מתחיל הורדה בטוחה ---");
+            addLog("--- מתחיל תהליך הורדה חסין ---");
 
-            if (!rawUrl || !rawUrl.includes('youtu')) {
-                addLog("שגיאה: קישור לא מזוהה", "#ff4757");
+            const videoId = extractVideoId(rawUrl);
+
+            if (!videoId) {
+                addLog("שגיאה: לא הצלחתי למצוא קוד סרטון בקישור הזה", "#ff4757");
+                alert("הקישור לא תקין, נסה להעתיק שוב מיוטיוב");
                 return;
             }
 
-            const cleanUrl = fixYoutubeUrl(rawUrl);
-            addLog(`כתובת מעובדת: ${cleanUrl}`);
-
+            addLog(`מזהה סרטון חולץ בהצלחה: ${videoId}`);
             statusBox.style.display = 'block';
-            statusBox.innerHTML = `מכין את הדף...`;
+            statusBox.innerHTML = `מעביר אותך לדף ההורדה...`;
 
-            // שימוש ב-y2mate (הכי אמין בהעברת פרמטרים)
-            const finalUrl = `https://www.y2mate.com/youtube/${cleanUrl.split('v=')[1]}`;
+            // שימוש בקישור ה-"pp" - זו הדרך הכי אמינה בעולם כרגע
+            // זה פותח את y2mate ישירות על הסרטון הנכון בלי שגיאות 404
+            const finalUrl = `https://www.youtubepp.com/watch?v=${videoId}`;
             
-            addLog("פותח אתר המרה אמין...");
+            addLog("פותח טאב הורדה בטוח...");
 
-            setTimeout(() => {
-                statusBox.innerHTML = "✅ הקישור מוכן! הורד בדף שנפתח";
-                addLog("בוצע!");
-                window.open(finalUrl, '_blank');
-            }, 1000);
+            // בטלפון חייבים לפתוח מיד כדי שהדפדפן לא יחסום את הפופ-אפ
+            const newWindow = window.open(finalUrl, '_blank');
+            
+            if (newWindow) {
+                statusBox.innerHTML = "✅ נפתח! בחר MP3 והורד.";
+                addLog("הצלחה!");
+            } else {
+                statusBox.innerHTML = "⚠️ הפופ-אפ נחסם! לחץ שוב.";
+                addLog("שגיאה: הדפדפן חסם את פתיחת החלון", "#ffa502");
+            }
         }
     </script>
 </body>
