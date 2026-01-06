@@ -627,7 +627,10 @@
       const res = document.getElementById('searchResults'); res.innerHTML = '';
       const filtered = db.filter(i => String(i.room) == String(val));
       if (!filtered.length) return res.innerHTML = 'אין נתונים';
-      res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="window.print()">📄 הדפסה</button><button class="btn-wa" onclick="sendWA(${val})">💬 וואטסאפ</button></div>`;
+
+      // ✅ תיקון: במקום window.print() שגרם לדף ריק, מדפיס דרך printableReport כמו בדוחות
+      res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="printRoomReport('${val}')">📄 הדפסה</button><button class="btn-wa" onclick="sendWA(${val})">💬 וואטסאפ</button></div>`;
+
       filtered.forEach(item => {
         res.innerHTML += `<div class="item-row ${item.status === 'done' ? 'done' : ''}" style="${item.status === 'done' ? 'background:#f0fdf4; opacity:0.6;' : ''}">
           <span><b>${item.gap}</b> (${item.position})</span>
@@ -637,6 +640,44 @@
           </div>
         </div>`;
       });
+    }
+
+    // ✅ תיקון: הדפסה לחדר (כמו הלוגיקה בדוחות settings) כדי שלא יצא דף ריק
+    window.printRoomReport = function(roomNum) {
+      const items = db.filter(i => String(i.room) == String(roomNum));
+      if (!items.length) return alert("אין נתונים לחדר הזה");
+
+      document.getElementById('repTitle').innerText = `דוח פערים - חדר ${roomNum}`;
+      document.getElementById('repDate').innerText = nowHeDate();
+
+      let content = `<table class="report-table">
+        <tr>
+          <th>#</th>
+          <th>פער</th>
+          <th>עמדה</th>
+          <th>סטטוס</th>
+          <th>הערות</th>
+          <th>תאריך</th>
+        </tr>`;
+
+      items.forEach((it, idx) => {
+        const st = (it.status === 'done') ? 'בוצע' : 'פתוח';
+        const notes = (it.notes || '').toString();
+        const date = (it.date || '').toString();
+        content += `<tr>
+          <td>${idx + 1}</td>
+          <td><b>${it.gap || ''}</b></td>
+          <td>${it.position || ''}</td>
+          <td>${st}</td>
+          <td>${notes}</td>
+          <td>${date}</td>
+        </tr>`;
+      });
+
+      content += `</table>`;
+      document.getElementById('repContent').innerHTML = content;
+
+      window.print();
     }
 
     window.sendWA = function(roomNum) {
