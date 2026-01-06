@@ -53,6 +53,26 @@
 
     .report-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
     .btn-report-action { border: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 12px; color: white; cursor: pointer; }
+
+    /* ====== רק מה שביקשת: סידור לפי קבוצות + אייקון ====== */
+    .group-title {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid #e5e7eb;
+      background: #f8fafc;
+      border-radius: 10px;
+      font-weight: 900;
+      color: var(--primary);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    .group-title .g-ico { font-size: 14px; line-height: 1; }
+    .gap-btn-inner { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
+    .gap-ico { font-size: 13px; line-height: 1; opacity: 0.95; }
+    .gap-txt { line-height: 1.1; }
   </style>
 </head>
 <body>
@@ -189,8 +209,6 @@
     const statusBar = document.getElementById('status-bar');
 
     // ===== Firestore "מבנה אחסון" =====
-    // items collection: כל פער הוא מסמך (doc)
-    // meta/config doc: שומר gapList
     const ITEMS_COL = collection(FS, "items");
     const META_DOC = doc(FS, "meta", "config");
 
@@ -201,7 +219,6 @@
     async function fetchCloudData() {
       statusBar.innerText = "⏳ מתחבר לענן (Firebase)...";
       try {
-        // 1) הגדרות (gapList)
         const metaSnap = await getDoc(META_DOC);
         if (metaSnap.exists()) {
           const meta = metaSnap.data() || {};
@@ -209,11 +226,9 @@
             gapList = meta.gapList;
           }
         } else {
-          // אם אין – ניצור ברירת מחדל פעם ראשונה (לא משנה לוגיקה אצלך, רק יוצר אחסון)
           await setDoc(META_DOC, { gapList }, { merge: true });
         }
 
-        // 2) כל הפריטים
         const snap = await getDocs(ITEMS_COL);
         db = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
@@ -226,9 +241,113 @@
     }
 
     async function syncGapListToCloud() {
-      // שמירת 28 הלחצנים
       await setDoc(META_DOC, { gapList }, { merge: true });
       return true;
+    }
+
+    // ====== רק מה שביקשת: קבוצות בלוח בקרה + אייקונים ======
+    // פה אתה קובע מה נכנס מתחת לכל כותרת (בלי לשנות שמות/להוסיף פערים)
+    const GAP_GROUPS = [
+      { title: "חשמל / תקשורת", icon: "⚡", items: ["נקודת חשמל", "מפסק תאורה", "תאורה", "שקע", "טלפון", "אינטרנט", "רשת"] },
+      { title: "ריהוט",          icon: "🪑", items: ["חסר כיסא", "חסר שולחן", "שולחן שבור", "חסר ארון", "ארון שבור", "ארונית מגירות"] },
+      { title: "בינוי",          icon: "🧱", items: ["דלת", "סף דלת", "חלון שבור", "חלון לא נסגר", "תקרה", "ריצוף", "פאנל רצפה", "טיח", "צבע"] },
+      { title: "מיזוג",          icon: "❄️", items: ["מזגן", "נזילת מזגן"] },
+      { title: "בטיחות",         icon: "🛡️", items: ["אזעקה לא תקינה", "ספרינקלר", "גליא אש"] }
+    ];
+
+    function buildGroupedOrder(currentList) {
+      const used = new Set();
+      const blocks = [];
+
+      for (const g of GAP_GROUPS) {
+        const existing = g.items.filter(name => currentList.includes(name));
+        if (existing.length) {
+          existing.forEach(x => used.add(x));
+          blocks.push({ title: g.title, icon: g.icon, items: existing });
+        }
+      }
+
+      const leftovers = currentList.filter(x => !used.has(x));
+      if (leftovers.length) {
+        blocks.push({ title: "אחר", icon: "📌", items: leftovers });
+      }
+
+      return blocks;
+    }
+
+    function gapIconByName(name) {
+      // אייקון לכל פער (בלי לשנות את הטקסט של הפער)
+      const s = String(name || "");
+      if (/(חשמל|נקודת חשמל|מפסק|תאורה|שקע)/.test(s)) return "⚡";
+      if (/(רשת|אינטרנט|טלפון|תקשורת)/.test(s)) return "📶";
+      if (/(מזגן|מיזוג|נזילת)/.test(s)) return "❄️";
+      if (/(דלת|חלון|סף|תקרה|ריצוף|פאנל|טיח|צבע|חיפוי|איטום)/.test(s)) return "🧱";
+      if (/(כיסא|שולחן|ארון|מגירות|ריהוט)/.test(s)) return "🪑";
+      if (/(אזעקה|ספרינקלר|אש|גלאי)/.test(s)) return "🛡️";
+      return "📌";
+    }
+
+    function renderGapButtonsGrouped() {
+      const gCont = document.getElementById('gapContainer');
+      gCont.innerHTML = '';
+
+      const blocks = buildGroupedOrder(gapList);
+
+      blocks.forEach(block => {
+        const title = document.createElement('div');
+        title.className = 'group-title';
+        title.innerHTML = `<span class="g-ico">${block.icon}</span><span>${block.title}</span>`;
+        gCont.appendChild(title);
+
+        block.items.forEach(gap => {
+          const btn = document.createElement('button');
+          btn.dataset.gap = gap;
+          btn.innerHTML = `<span class="gap-btn-inner"><span class="gap-ico">${gapIconByName(gap)}</span><span class="gap-txt">${gap}</span></span>`;
+
+          // לשמור מצב "active" אם כבר נבחר
+          if (selectedGaps.includes(gap)) btn.classList.add('active');
+
+          btn.onclick = () => {
+            if (selectedGaps.includes(gap)) {
+              selectedGaps = selectedGaps.filter(g => g !== gap);
+              btn.classList.remove('active');
+            } else {
+              selectedGaps.push(gap);
+              btn.classList.add('active');
+            }
+          };
+
+          gCont.appendChild(btn);
+        });
+      });
+    }
+
+    function loadEditorGrouped() {
+      const grid = document.getElementById('gap-editor-grid');
+      grid.innerHTML = '';
+
+      const blocks = buildGroupedOrder(gapList);
+
+      blocks.forEach(block => {
+        const head = document.createElement('div');
+        head.className = 'group-title';
+        head.style.gridColumn = '1 / -1';
+        head.innerHTML = `<span class="g-ico">${block.icon}</span><span>${block.title}</span>`;
+        grid.appendChild(head);
+
+        block.items.forEach(name => {
+          const idx = gapList.indexOf(name);
+          const inp = document.createElement('input');
+          inp.value = name;
+
+          inp.onchange = (e) => {
+            // מעדכן את gapList בדיוק כמו שהיה אצלך (רק שומר שם חדש)
+            gapList[idx] = e.target.value;
+          };
+
+          grid.appendChild(inp);
+        });
+      });
     }
 
     // ===== UI init =====
@@ -245,20 +364,8 @@
         fCont.appendChild(btn);
       }
 
-      const gCont = document.getElementById('gapContainer'); gCont.innerHTML = '';
-      gapList.forEach(gap => {
-        const btn = document.createElement('button'); btn.innerText = gap;
-        btn.onclick = () => {
-          if (selectedGaps.includes(gap)) {
-            selectedGaps = selectedGaps.filter(g => g !== gap);
-            btn.classList.remove('active');
-          } else {
-            selectedGaps.push(gap);
-            btn.classList.add('active');
-          }
-        };
-        gCont.appendChild(btn);
-      });
+      // במקום רנדור "רגיל" -> רנדור לפי קבוצות (זה כל השינוי שביקשת)
+      renderGapButtonsGrouped();
 
       renderSummary();
     }
@@ -288,7 +395,6 @@
         const notes = document.getElementById('notesInput').value;
         const date = nowHeDate();
 
-        // כל gap שנבחר = מסמך חדש (כמו הלוגיקה שלך)
         for (const gap of selectedGaps) {
           await addDoc(ITEMS_COL, {
             status: 'active',
@@ -354,18 +460,13 @@
         document.getElementById('main-ui').style.display = 'none';
         document.getElementById('settings-panel').style.display = 'block';
         updateChart();
-        loadEditor();
+        loadEditor(); // נשאר אותו שם כדי לא לשנות לוגיקה
       }
     }
 
     function loadEditor() {
-      const grid = document.getElementById('gap-editor-grid'); grid.innerHTML = '';
-      gapList.forEach((gap, idx) => {
-        const inp = document.createElement('input');
-        inp.value = gap;
-        inp.onchange = (e) => { gapList[idx] = e.target.value; };
-        grid.appendChild(inp);
-      });
+      // במקום רשימה "שטוחה" -> רשימה לפי קבוצות (זה כל השינוי שביקשת)
+      loadEditorGrouped();
     }
 
     window.closeSettings = async function() {
