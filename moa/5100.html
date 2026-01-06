@@ -18,7 +18,7 @@
 
     button { padding: 10px 2px; border: 1px solid #d1d5db; background: #f9fafb; border-radius: 8px; cursor: pointer; font-size: 12px; }
     button.active { background: var(--accent); color: white; border-color: var(--accent); }
-    input, textarea { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 16px; box-sizing: border-box; outline: none; }
+    input, textarea, select { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 16px; box-sizing: border-box; outline: none; background: #fff; }
     textarea { height: 40px; resize: none; font-size: 14px; }
 
     #settings-trigger { position: absolute; top: 10px; left: 10px; font-size: 14px; cursor: pointer; opacity: 0.4; padding: 10px; }
@@ -54,7 +54,7 @@
     .report-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
     .btn-report-action { border: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 12px; color: white; cursor: pointer; }
 
-    /* ====== רק מה שביקשת: סידור לפי קבוצות + אייקון ====== */
+    /* ====== סידור לפי נושאים + אייקון (בלי ריקים בדף הראשי) ====== */
     .group-title {
       grid-column: 1 / -1;
       display: flex;
@@ -73,6 +73,12 @@
     .gap-btn-inner { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; }
     .gap-ico { font-size: 13px; line-height: 1; opacity: 0.95; }
     .gap-txt { line-height: 1.1; }
+
+    /* ====== עורך נושאים (10 לכל נושא) ====== */
+    .topic-card { border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 12px; padding: 10px; }
+    .topic-head { display: grid; grid-template-columns: 48px 1fr; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .topic-slots { display: grid; grid-template-columns: 1fr; gap: 6px; }
+    .mini-note { font-size: 11px; color: #64748b; margin-top: 8px; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -164,6 +170,12 @@
       <div id="gap-editor-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;"></div>
     </div>
 
+    <div style="margin-bottom:15px;">
+      <label>🧩 סידור לפי נושאים (10 לכל נושא):</label>
+      <div id="topic-editor" style="display:grid; grid-template-columns: 1fr; gap: 10px;"></div>
+      <div class="mini-note">הדף הראשי מציג רק מה שבחרת (אין “ריקים”). אם פער לא שובץ לשום נושא – הוא ייכנס אוטומטית ל“אחר”.</div>
+    </div>
+
     <button onclick="closeSettings()" style="width:100%; background:var(--primary); color:white; padding:15px; border:none; border-radius:10px; font-weight:bold;">שמור וצא</button>
   </div>
 
@@ -216,17 +228,59 @@
       return new Date().toLocaleDateString('he-IL');
     }
 
+    // ====== נושאים (כותרות + 10 סלוטים לכל נושא) ======
+    // נשמר ב-Firestore: meta.topics, meta.topicSlots
+    let topics = [
+      { id: "power", title: "חשמל / תקשורת", icon: "⚡" },
+      { id: "furniture", title: "ריהוט", icon: "🪑" },
+      { id: "build", title: "בינוי", icon: "🧱" },
+      { id: "hvac", title: "מיזוג", icon: "❄️" },
+      { id: "other", title: "אחר", icon: "📌" }
+    ];
+    // topicSlots: { [topicId]: Array(10).fill(null|indexNumber) } indexNumber = 0..27
+    let topicSlots = {};
+
+    function ensureDefaultTopicSlots() {
+      // אם לא קיים - נבנה ברירת מחדל: 28 הראשונים יתפזרו לפי סדר על 4 נושאים, השאר ייפול ל"אחר" אוטומטית בדף הראשי
+      const ids = topics.map(t => t.id);
+      topicSlots = {};
+      ids.forEach(id => topicSlots[id] = Array(10).fill(null));
+
+      // פיזור פשוט (לא משנה שמות/לוגיקה של gapList)
+      // 0-9 => power, 10-15 => build, 16-19 => hvac, 20-27 => other (בפועל גם אם לא שובץ, "אחר" ימלא לבד)
+      for (let i = 0; i < 28; i++) {
+        let target = "other";
+        if (i <= 9) target = "power";
+        else if (i <= 19) target = "build";
+        else if (i <= 20) target = "hvac";
+        else target = "other";
+
+        const slots = topicSlots[target];
+        const firstEmpty = slots.findIndex(x => x === null);
+        if (firstEmpty !== -1) slots[firstEmpty] = i;
+      }
+    }
+
     async function fetchCloudData() {
       statusBar.innerText = "⏳ מתחבר לענן (Firebase)...";
       try {
         const metaSnap = await getDoc(META_DOC);
         if (metaSnap.exists()) {
           const meta = metaSnap.data() || {};
-          if (Array.isArray(meta.gapList) && meta.gapList.length === 28) {
-            gapList = meta.gapList;
+          if (Array.isArray(meta.gapList) && meta.gapList.length === 28) gapList = meta.gapList;
+
+          if (Array.isArray(meta.topics) && meta.topics.length) topics = meta.topics;
+          if (meta.topicSlots && typeof meta.topicSlots === "object") topicSlots = meta.topicSlots;
+
+          // אם חסר משהו - ניצור ברירת מחדל עדינה
+          const haveAll = topics.every(t => topicSlots && Array.isArray(topicSlots[t.id]) && topicSlots[t.id].length === 10);
+          if (!haveAll) {
+            ensureDefaultTopicSlots();
+            await setDoc(META_DOC, { gapList, topics, topicSlots }, { merge: true });
           }
         } else {
-          await setDoc(META_DOC, { gapList }, { merge: true });
+          ensureDefaultTopicSlots();
+          await setDoc(META_DOC, { gapList, topics, topicSlots }, { merge: true });
         }
 
         const snap = await getDocs(ITEMS_COL);
@@ -244,41 +298,14 @@
       await setDoc(META_DOC, { gapList }, { merge: true });
       return true;
     }
-
-    // ====== רק מה שביקשת: קבוצות בלוח בקרה + אייקונים ======
-    // פה אתה קובע מה נכנס מתחת לכל כותרת (בלי לשנות שמות/להוסיף פערים)
-    const GAP_GROUPS = [
-      { title: "חשמל / תקשורת", icon: "⚡", items: ["נקודת חשמל", "מפסק תאורה", "תאורה", "שקע", "טלפון", "אינטרנט", "רשת"] },
-      { title: "ריהוט",          icon: "🪑", items: ["חסר כיסא", "חסר שולחן", "שולחן שבור", "חסר ארון", "ארון שבור", "ארונית מגירות"] },
-      { title: "בינוי",          icon: "🧱", items: ["דלת", "סף דלת", "חלון שבור", "חלון לא נסגר", "תקרה", "ריצוף", "פאנל רצפה", "טיח", "צבע"] },
-      { title: "מיזוג",          icon: "❄️", items: ["מזגן", "נזילת מזגן"] },
-      { title: "בטיחות",         icon: "🛡️", items: ["אזעקה לא תקינה", "ספרינקלר", "גליא אש"] }
-    ];
-
-    function buildGroupedOrder(currentList) {
-      const used = new Set();
-      const blocks = [];
-
-      for (const g of GAP_GROUPS) {
-        const existing = g.items.filter(name => currentList.includes(name));
-        if (existing.length) {
-          existing.forEach(x => used.add(x));
-          blocks.push({ title: g.title, icon: g.icon, items: existing });
-        }
-      }
-
-      const leftovers = currentList.filter(x => !used.has(x));
-      if (leftovers.length) {
-        blocks.push({ title: "אחר", icon: "📌", items: leftovers });
-      }
-
-      return blocks;
+    async function syncTopicsToCloud() {
+      await setDoc(META_DOC, { topics, topicSlots }, { merge: true });
+      return true;
     }
 
     function gapIconByName(name) {
-      // אייקון לכל פער (בלי לשנות את הטקסט של הפער)
       const s = String(name || "");
-      if (/(חשמל|נקודת חשמל|מפסק|תאורה|שקע)/.test(s)) return "⚡";
+      if (/(חשמל|נקודת חשמל|מפסק|תאורה|שקע|לוח)/.test(s)) return "⚡";
       if (/(רשת|אינטרנט|טלפון|תקשורת)/.test(s)) return "📶";
       if (/(מזגן|מיזוג|נזילת)/.test(s)) return "❄️";
       if (/(דלת|חלון|סף|תקרה|ריצוף|פאנל|טיח|צבע|חיפוי|איטום)/.test(s)) return "🧱";
@@ -287,24 +314,48 @@
       return "📌";
     }
 
-    function renderGapButtonsGrouped() {
+    function buildMainGroupsFromSlots() {
+      // מחזיר מערך קבוצות לדף הראשי: רק מה שנבחר (ללא ריקים), + "אחר" מקבל כל מה שלא שובץ
+      const used = new Set();
+
+      const result = topics.map(t => {
+        const slots = Array.isArray(topicSlots[t.id]) ? topicSlots[t.id] : Array(10).fill(null);
+        const idxs = slots.filter(v => Number.isInteger(v) && v >= 0 && v < 28);
+        const unique = [];
+        idxs.forEach(i => { if (!used.has(i)) { used.add(i); unique.push(i); } });
+        return { id: t.id, title: t.title, icon: t.icon, idxs: unique };
+      });
+
+      // כל מה שלא שובץ -> נכנס ל"אחר"
+      const unassigned = [];
+      for (let i = 0; i < 28; i++) if (!used.has(i)) unassigned.push(i);
+
+      const other = result.find(g => g.id === "other");
+      if (other) other.idxs = other.idxs.concat(unassigned);
+      else if (unassigned.length) result.push({ id: "other", title: "אחר", icon: "📌", idxs: unassigned });
+
+      // מסיר קבוצות ריקות לגמרי כדי לא להציג כותרת מיותרת
+      return result.filter(g => g.idxs.length > 0);
+    }
+
+    function renderGapButtonsGroupedMain() {
       const gCont = document.getElementById('gapContainer');
       gCont.innerHTML = '';
 
-      const blocks = buildGroupedOrder(gapList);
+      const groups = buildMainGroupsFromSlots();
 
-      blocks.forEach(block => {
+      groups.forEach(gr => {
         const title = document.createElement('div');
         title.className = 'group-title';
-        title.innerHTML = `<span class="g-ico">${block.icon}</span><span>${block.title}</span>`;
+        title.innerHTML = `<span class="g-ico">${gr.icon || "📌"}</span><span>${gr.title || ""}</span>`;
         gCont.appendChild(title);
 
-        block.items.forEach(gap => {
+        gr.idxs.forEach(idx => {
+          const gap = gapList[idx];
+
           const btn = document.createElement('button');
           btn.dataset.gap = gap;
           btn.innerHTML = `<span class="gap-btn-inner"><span class="gap-ico">${gapIconByName(gap)}</span><span class="gap-txt">${gap}</span></span>`;
-
-          // לשמור מצב "active" אם כבר נבחר
           if (selectedGaps.includes(gap)) btn.classList.add('active');
 
           btn.onclick = () => {
@@ -322,35 +373,6 @@
       });
     }
 
-    function loadEditorGrouped() {
-      const grid = document.getElementById('gap-editor-grid');
-      grid.innerHTML = '';
-
-      const blocks = buildGroupedOrder(gapList);
-
-      blocks.forEach(block => {
-        const head = document.createElement('div');
-        head.className = 'group-title';
-        head.style.gridColumn = '1 / -1';
-        head.innerHTML = `<span class="g-ico">${block.icon}</span><span>${block.title}</span>`;
-        grid.appendChild(head);
-
-        block.items.forEach(name => {
-          const idx = gapList.indexOf(name);
-          const inp = document.createElement('input');
-          inp.value = name;
-
-          inp.onchange = (e) => {
-            // מעדכן את gapList בדיוק כמו שהיה אצלך (רק שומר שם חדש)
-            gapList[idx] = e.target.value;
-          };
-
-          grid.appendChild(inp);
-        });
-      });
-    }
-
-    // ===== UI init =====
     function initUI() {
       const fCont = document.getElementById('floorContainer'); fCont.innerHTML = '';
       for (let i = 1; i <= 7; i++) {
@@ -364,9 +386,7 @@
         fCont.appendChild(btn);
       }
 
-      // במקום רנדור "רגיל" -> רנדור לפי קבוצות (זה כל השינוי שביקשת)
-      renderGapButtonsGrouped();
-
+      renderGapButtonsGroupedMain();
       renderSummary();
     }
 
@@ -460,19 +480,116 @@
         document.getElementById('main-ui').style.display = 'none';
         document.getElementById('settings-panel').style.display = 'block';
         updateChart();
-        loadEditor(); // נשאר אותו שם כדי לא לשנות לוגיקה
+        loadEditor();
+        loadTopicEditor();
       }
     }
 
     function loadEditor() {
-      // במקום רשימה "שטוחה" -> רשימה לפי קבוצות (זה כל השינוי שביקשת)
-      loadEditorGrouped();
+      const grid = document.getElementById('gap-editor-grid'); grid.innerHTML = '';
+      gapList.forEach((gap, idx) => {
+        const inp = document.createElement('input');
+        inp.value = gap;
+        inp.onchange = (e) => { gapList[idx] = e.target.value; };
+        grid.appendChild(inp);
+      });
+    }
+
+    function loadTopicEditor() {
+      const cont = document.getElementById('topic-editor');
+      cont.innerHTML = '';
+
+      // ודא שיש 10 סלוטים לכל נושא
+      topics.forEach(t => {
+        if (!Array.isArray(topicSlots[t.id]) || topicSlots[t.id].length !== 10) topicSlots[t.id] = Array(10).fill(null);
+      });
+
+      topics.forEach(t => {
+        const card = document.createElement('div');
+        card.className = 'topic-card';
+
+        // כותרת+אייקון לעריכה
+        const head = document.createElement('div');
+        head.className = 'topic-head';
+
+        const ico = document.createElement('input');
+        ico.value = t.icon || "";
+        ico.placeholder = "אייקון";
+        ico.style.textAlign = 'center';
+        ico.onchange = (e) => { t.icon = e.target.value; };
+
+        const title = document.createElement('input');
+        title.value = t.title || "";
+        title.placeholder = "כותרת נושא...";
+        title.onchange = (e) => { t.title = e.target.value; };
+
+        head.appendChild(ico);
+        head.appendChild(title);
+
+        // 10 סלוטים: כל סלוט = SELECT לפער (או ריק)
+        const slotsWrap = document.createElement('div');
+        slotsWrap.className = 'topic-slots';
+
+        for (let i = 0; i < 10; i++) {
+          const sel = document.createElement('select');
+
+          const optEmpty = document.createElement('option');
+          optEmpty.value = "";
+          optEmpty.textContent = `— ריק (${i+1}) —`;
+          sel.appendChild(optEmpty);
+
+          for (let idx = 0; idx < 28; idx++) {
+            const opt = document.createElement('option');
+            opt.value = String(idx);
+            opt.textContent = gapList[idx];
+            sel.appendChild(opt);
+          }
+
+          const cur = topicSlots[t.id][i];
+          sel.value = Number.isInteger(cur) ? String(cur) : "";
+
+          sel.onchange = (e) => {
+            const v = e.target.value;
+            topicSlots[t.id][i] = (v === "" ? null : parseInt(v, 10));
+          };
+
+          slotsWrap.appendChild(sel);
+        }
+
+        card.appendChild(head);
+        card.appendChild(slotsWrap);
+        cont.appendChild(card);
+      });
+    }
+
+    function sanitizeTopicSlots() {
+      // 1) שומר 10 סלוטים לכל נושא
+      topics.forEach(t => {
+        if (!Array.isArray(topicSlots[t.id]) || topicSlots[t.id].length !== 10) topicSlots[t.id] = Array(10).fill(null);
+        topicSlots[t.id] = topicSlots[t.id].map(v => (Number.isInteger(v) && v >= 0 && v < 28) ? v : null);
+      });
+
+      // 2) מנקה כפילויות: אם אותו אינדקס מופיע פעמיים -> רק הראשון נשאר, השאר נהיה null
+      const seen = new Set();
+      topics.forEach(t => {
+        topicSlots[t.id] = topicSlots[t.id].map(v => {
+          if (v === null) return null;
+          if (seen.has(v)) return null;
+          seen.add(v);
+          return v;
+        });
+      });
     }
 
     window.closeSettings = async function() {
       statusBar.innerText = "⏳ מעדכן הגדרות...";
+
       try {
+        sanitizeTopicSlots();
+
         await syncGapListToCloud();
+        await syncTopicsToCloud();
+
         location.reload();
       } catch (e) {
         console.error(e);
