@@ -35,12 +35,15 @@
     .status-bar { font-size: 11px; color: #64748b; margin-bottom: 8px; font-weight: bold; text-align: center; }
 
     @media print {
-      /* ✅ תיקון יחיד: לא מסתירים יותר h1 כדי שהכותרת של הדוח תודפס */
-      .no-print, #settings-panel, #settings-trigger, .section, button, .btn-save, .status-bar { display: none !important; }
+      .no-print, #settings-panel, #settings-trigger, .section, button, h1, .btn-save, .status-bar { display: none !important; }
       .print-only { display: block !important; width: 100%; }
       body { background: white !important; padding: 0 !important; }
       .report-table { width: 100% !important; border-collapse: collapse !important; border: 1px solid black !important; }
       .report-table th, .report-table td { border: 1px solid black !important; padding: 8px !important; text-align: right !important; }
+
+      #printableReport h1 { display: block !important; }
+      #printableReport p { display: block !important; }
+      #printableReport .rep-roomline { display: block !important; }
     }
 
     .print-only { display: none; }
@@ -111,7 +114,7 @@
     </div>
 
     <div class="section">
-      <label id="gapHeaderLabel">פערים (28 לחצנים)</label>
+      <label id="gapHeaderLabel">פערים (38 לחצנים)</label>
       <div class="grid-4" id="gapContainer"></div>
     </div>
 
@@ -167,7 +170,7 @@
     </div>
 
     <div style="margin-bottom:15px;">
-      <label>✏️ עריכת 28 לחצנים:</label>
+      <label>✏️ עריכת 38 לחצנים:</label>
       <div id="gap-editor-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;"></div>
     </div>
 
@@ -212,12 +215,23 @@
     const FS = getFirestore(app);
 
     let db = [];
-    let gapList = ["חשמל", "רשת", "תקשורת", "תאורה", "גלאי", "שקע", "מפסק", "לוח חשמל", "מיזוג", "ספרינקלר", "טיח", "צבע", "ריצוף", "חיפוי", "תקרה", "דלת", "מנעול", "חלון", "איטום", "ניקיון", "פער 21", "פער 22", "פער 23", "פער 24", "פער 25", "פער 26", "פער 27", "פער 28"];
+    let gapList = [
+      "חשמל", "רשת", "תקשורת", "תאורה", "גלאי", "שקע", "מפסק", "לוח חשמל", "מיזוג", "ספרינקלר",
+      "טיח", "צבע", "ריצוף", "חיפוי", "תקרה", "דלת", "מנעול", "חלון", "איטום", "ניקיון",
+      "פער 21", "פער 22", "פער 23", "פער 24", "פער 25", "פער 26", "פער 27", "פער 28",
+      "פער 29", "פער 30", "פער 31", "פער 32", "פער 33", "פער 34", "פער 35", "פער 36", "פער 37", "פער 38"
+    ];
     let selectedFloor = null, selectedPos = null, selectedGaps = [];
 
-    const colors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#6366f1", "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#71717a", "#451a03", "#171717", "#fbbf24", "#6d28d9", "#34495e", "#546e7a", "#ff7043", "#8d6e63", "#78909c", "#d4e157", "#26a69a", "#ab47bc", "#26c6da"];
+    const colors = [
+      "#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#6366f1",
+      "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#71717a", "#451a03", "#171717", "#fbbf24", "#6d28d9", "#34495e",
+      "#546e7a", "#ff7043", "#8d6e63", "#78909c", "#d4e157", "#26a69a", "#ab47bc", "#26c6da",
+      "#1d4ed8", "#059669", "#b45309", "#7c3aed", "#db2777", "#0891b2", "#ea580c", "#0f766e", "#4f46e5", "#a21caf"
+    ];
 
     const statusBar = document.getElementById('status-bar');
+
     const ITEMS_COL = collection(FS, "items");
     const META_DOC = doc(FS, "meta", "config");
 
@@ -239,7 +253,9 @@
       topicSlots = {};
       ids.forEach(id => topicSlots[id] = Array(10).fill(null));
 
-      for (let i = 0; i < 28; i++) {
+      // פיזור בסיסי (לא משנה לוגיקה/שמות):
+      // 0-9 => power, 10-19 => build, 20-29 => other, השאר ייפול ל"אחר" אוטומטית בדף הראשי אם לא שובץ
+      for (let i = 0; i < 38; i++) {
         let target = "other";
         if (i <= 9) target = "power";
         else if (i <= 19) target = "build";
@@ -258,7 +274,7 @@
         const metaSnap = await getDoc(META_DOC);
         if (metaSnap.exists()) {
           const meta = metaSnap.data() || {};
-          if (Array.isArray(meta.gapList) && meta.gapList.length === 28) gapList = meta.gapList;
+          if (Array.isArray(meta.gapList) && meta.gapList.length === 38) gapList = meta.gapList;
 
           if (Array.isArray(meta.topics) && meta.topics.length) topics = meta.topics;
           if (meta.topicSlots && typeof meta.topicSlots === "object") topicSlots = meta.topicSlots;
@@ -309,14 +325,14 @@
 
       const result = topics.map(t => {
         const slots = Array.isArray(topicSlots[t.id]) ? topicSlots[t.id] : Array(10).fill(null);
-        const idxs = slots.filter(v => Number.isInteger(v) && v >= 0 && v < 28);
+        const idxs = slots.filter(v => Number.isInteger(v) && v >= 0 && v < 38);
         const unique = [];
         idxs.forEach(i => { if (!used.has(i)) { used.add(i); unique.push(i); } });
         return { id: t.id, title: t.title, icon: t.icon, idxs: unique };
       });
 
       const unassigned = [];
-      for (let i = 0; i < 28; i++) if (!used.has(i)) unassigned.push(i);
+      for (let i = 0; i < 38; i++) if (!used.has(i)) unassigned.push(i);
 
       const other = result.find(g => g.id === "other");
       if (other) other.idxs = other.idxs.concat(unassigned);
@@ -519,7 +535,7 @@
           optEmpty.textContent = `— ריק (${i+1}) —`;
           sel.appendChild(optEmpty);
 
-          for (let idx = 0; idx < 28; idx++) {
+          for (let idx = 0; idx < 38; idx++) {
             const opt = document.createElement('option');
             opt.value = String(idx);
             opt.textContent = gapList[idx];
@@ -546,7 +562,7 @@
     function sanitizeTopicSlots() {
       topics.forEach(t => {
         if (!Array.isArray(topicSlots[t.id]) || topicSlots[t.id].length !== 10) topicSlots[t.id] = Array(10).fill(null);
-        topicSlots[t.id] = topicSlots[t.id].map(v => (Number.isInteger(v) && v >= 0 && v < 28) ? v : null);
+        topicSlots[t.id] = topicSlots[t.id].map(v => (Number.isInteger(v) && v >= 0 && v < 38) ? v : null);
       });
 
       const seen = new Set();
@@ -607,7 +623,6 @@
       if (!filtered.length) return res.innerHTML = 'אין נתונים';
 
       res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="printRoomReport('${val}')">📄 הדפסה</button><button class="btn-wa" onclick="sendWA(${val})">💬 וואטסאפ</button></div>`;
-
       filtered.forEach(item => {
         res.innerHTML += `<div class="item-row ${item.status === 'done' ? 'done' : ''}" style="${item.status === 'done' ? 'background:#f0fdf4; opacity:0.6;' : ''}">
           <span><b>${item.gap}</b> (${item.position})</span>
@@ -626,7 +641,9 @@
       document.getElementById('repTitle').innerText = `דוח פערים - חדר ${roomNum}`;
       document.getElementById('repDate').innerText = nowHeDate();
 
-      let content = `<table class="report-table">
+      let content = `<div class="rep-roomline" style="font-weight:900; margin: 6px 0 10px;">חדר: ${roomNum}</div>`;
+
+      content += `<table class="report-table">
         <tr>
           <th>#</th>
           <th>פער</th>
