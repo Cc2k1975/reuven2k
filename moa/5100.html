@@ -198,7 +198,6 @@
       getDocs, addDoc, updateDoc, deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-    // ===== Firebase config (כמו שנתת) =====
     const firebaseConfig = {
       apiKey: "AIzaSyDe7vJA75cYtMxWQJSEPDf-iAVo3zFzozI",
       authDomain: "project-8467519916200199486.firebaseapp.com",
@@ -211,12 +210,9 @@
     const app = initializeApp(firebaseConfig);
     const FS = getFirestore(app);
 
-    // ✅ שינוי יחיד פונקציונלי: 15 סלוטים לנושא (בלי לשבור את מה שכבר שמרת)
     const SLOT_COUNT = 15;
 
-    // ====== נתונים (כמו בקוד שלך) ======
     let db = [];
-    // שומר/טוען מהענן. כאן רק ברירת מחדל (אם אין meta.gapList)
     let gapList = [
       "חשמל", "רשת", "תקשורת", "תאורה", "גלאי", "שקע", "מפסק", "לוח חשמל", "מיזוג", "ספרינקלר",
       "טיח", "צבע", "ריצוף", "חיפוי", "תקרה", "דלת", "מנעול", "חלון", "איטום", "ניקיון",
@@ -230,7 +226,6 @@
 
     const statusBar = document.getElementById('status-bar');
 
-    // ===== Firestore "מבנה אחסון" =====
     const ITEMS_COL = collection(FS, "items");
     const META_DOC = doc(FS, "meta", "config");
 
@@ -238,7 +233,6 @@
       return new Date().toLocaleDateString('he-IL');
     }
 
-    // ====== נושאים (כותרות + סלוטים לכל נושא) ======
     let topics = [
       { id: "power", title: "חשמל / תקשורת", icon: "⚡" },
       { id: "furniture", title: "ריהוט", icon: "🪑" },
@@ -248,17 +242,22 @@
     ];
     let topicSlots = {};
 
+    // ✅ תיקון קריטי: ממיר "12" ל-12 (בלי לגעת במה ששמור אצלך)
+    function toIndexOrNull(v) {
+      if (Number.isInteger(v)) return v;
+      if (typeof v === "string" && v.trim() !== "" && /^[0-9]+$/.test(v.trim())) return parseInt(v.trim(), 10);
+      return null;
+    }
+
     function normalizeTopicSlotsShape() {
-      // חשוב: לא מוחק מה שיש לך! רק מוודא שמי שהיה 10 יוגדל ל-15 (שומר את ה-10 הראשונים)
       topics.forEach(t => {
         if (!Array.isArray(topicSlots[t.id])) topicSlots[t.id] = [];
-        // ניקוי ערכים לא חוקיים
-        topicSlots[t.id] = topicSlots[t.id].map(v => (Number.isInteger(v) && v >= 0 && v < gapList.length) ? v : null);
-        // הארכה ל-SLOT_COUNT
+        topicSlots[t.id] = topicSlots[t.id].map(v => toIndexOrNull(v));
+        topicSlots[t.id] = topicSlots[t.id].map(v => (v !== null && v >= 0 && v < gapList.length) ? v : null);
+
         if (topicSlots[t.id].length < SLOT_COUNT) {
           while (topicSlots[t.id].length < SLOT_COUNT) topicSlots[t.id].push(null);
         } else if (topicSlots[t.id].length > SLOT_COUNT) {
-          // במקרה שמישהו כבר עשה יותר - לא נוגעים, אבל לצורך UI נחתוך להצגה
           topicSlots[t.id] = topicSlots[t.id].slice(0, SLOT_COUNT);
         }
       });
@@ -269,14 +268,12 @@
       topicSlots = {};
       ids.forEach(id => topicSlots[id] = Array(SLOT_COUNT).fill(null));
 
-      // פיזור עדין לפי סדר (לא משנה שמות/לוגיקה של gapList)
       let cursor = 0;
       for (const t of topics) {
         for (let s = 0; s < SLOT_COUNT; s++) {
           if (cursor >= gapList.length) break;
           topicSlots[t.id][s] = cursor;
           cursor++;
-          if (cursor >= gapList.length) break;
         }
         if (cursor >= gapList.length) break;
       }
@@ -286,25 +283,18 @@
       statusBar.innerText = "⏳ מתחבר לענן (Firebase)...";
       try {
         const metaSnap = await getDoc(META_DOC);
+
         if (metaSnap.exists()) {
           const meta = metaSnap.data() || {};
 
           if (Array.isArray(meta.gapList) && meta.gapList.length) gapList = meta.gapList;
-
           if (Array.isArray(meta.topics) && meta.topics.length) topics = meta.topics;
           if (meta.topicSlots && typeof meta.topicSlots === "object") topicSlots = meta.topicSlots;
 
-          // ✅ זה החלק ששומר לך הכל ולא נותן "לדרוס" — רק מרחיב ל-15
           normalizeTopicSlotsShape();
 
-          // אם חסר משהו ממש בסיסי - נשלים בעדינות
-          const haveAll = topics.every(t => Array.isArray(topicSlots[t.id]) && topicSlots[t.id].length === SLOT_COUNT);
-          if (!haveAll) {
-            normalizeTopicSlotsShape();
-          }
-
+          // ✅ merge בלבד – לא דורס
           await setDoc(META_DOC, { gapList, topics, topicSlots }, { merge: true });
-
         } else {
           ensureDefaultTopicSlots();
           await setDoc(META_DOC, { gapList, topics, topicSlots }, { merge: true });
@@ -346,7 +336,12 @@
 
       const result = topics.map(t => {
         const slots = Array.isArray(topicSlots[t.id]) ? topicSlots[t.id] : Array(SLOT_COUNT).fill(null);
-        const idxs = slots.filter(v => Number.isInteger(v) && v >= 0 && v < gapList.length);
+
+        // ✅ גם פה תיקון: אם איכשהו הגיע "12" – נהפוך אותו ל-12
+        const idxs = slots
+          .map(v => toIndexOrNull(v))
+          .filter(v => v !== null && v >= 0 && v < gapList.length);
+
         const unique = [];
         idxs.forEach(i => { if (!used.has(i)) { used.add(i); unique.push(i); } });
         return { id: t.id, title: t.title, icon: t.icon, idxs: unique };
@@ -428,7 +423,6 @@
       selectedPos = val;
     }
 
-    // ===== SAVE =====
     window.saveData = async function() {
       const room = document.getElementById('roomInput').value;
       if (!selectedFloor || !room || !selectedPos || selectedGaps.length === 0) return alert("מלא נתונים!");
@@ -458,7 +452,6 @@
       }
     }
 
-    // ===== REPORT =====
     window.generateReport = function(type) {
       const active = db.filter(i => i.status === 'active');
       if (!active.length) return alert("אין נתונים פתוחים");
@@ -498,7 +491,6 @@
       window.open(`https://wa.me/?text=${msg}`, '_blank');
     }
 
-    // ===== SETTINGS =====
     window.checkPass = function() {
       if (prompt("סיסמה:") === "4451") {
         document.getElementById('main-ui').style.display = 'none';
@@ -523,7 +515,6 @@
       const cont = document.getElementById('topic-editor');
       cont.innerHTML = '';
 
-      // ✅ חשוב: לא מוחק לך כלום — רק מרחיב ל-15
       normalizeTopicSlotsShape();
 
       topics.forEach(t => {
@@ -565,8 +556,8 @@
             sel.appendChild(opt);
           }
 
-          const cur = topicSlots[t.id][i];
-          sel.value = Number.isInteger(cur) ? String(cur) : "";
+          const cur = toIndexOrNull(topicSlots[t.id][i]);
+          sel.value = (cur !== null) ? String(cur) : "";
 
           sel.onchange = (e) => {
             const v = e.target.value;
@@ -585,12 +576,12 @@
     function sanitizeTopicSlots() {
       normalizeTopicSlotsShape();
 
-      // מנקה כפילויות: אם אותו אינדקס מופיע פעמיים -> רק הראשון נשאר, השאר נהיה null
       const seen = new Set();
       topics.forEach(t => {
         topicSlots[t.id] = topicSlots[t.id].map(v => {
+          v = toIndexOrNull(v);
           if (v === null) return null;
-          if (seen.has(v)) return null;
+        if (seen.has(v)) return null;
           seen.add(v);
           return v;
         });
@@ -637,7 +628,6 @@
     }
     window.updateChart = updateChart;
 
-    // ===== SEARCH / ACTIONS =====
     window.searchByRoom = function() {
       const val = document.getElementById('searchRoomInput').value;
       const res = document.getElementById('searchResults'); res.innerHTML = '';
