@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>5100 - Cloud System</title>
+    <title>5100 - Cloud Fix</title>
     <style>
         :root { --primary: #1e3a8a; --accent: #2563eb; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937; --wa: #16a34a; }
         body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
@@ -20,23 +20,20 @@
         input, textarea { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 16px; box-sizing: border-box; outline: none; }
         textarea { height: 40px; resize: none; font-size: 14px; }
         .btn-save { width: 100%; max-width: 480px; padding: 15px; background: #059669; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 12px; margin-bottom: 20px; cursor: pointer; }
+        .status-bar { font-size: 11px; color: #64748b; margin-bottom: 8px; font-weight: bold; }
         #settings-panel { display: none; width: 100%; max-width: 500px; background: #fff; padding: 15px; border-radius: 12px; border: 2px solid var(--primary); margin-top: 10px; box-sizing: border-box; }
-        .status-bar { font-size: 10px; color: #64748b; margin-bottom: 5px; }
         .item-row { background: white; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; font-size: 13px; }
         .summary-row { padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer; font-size: 13px; }
-        .pdf-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .btn-red { background: #dc2626; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 14px; }
-        .btn-wa { background: var(--wa); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 14px; }
         @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
         .print-only { display: none; }
-        .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .report-table th, .report-table td { border: 1px solid #000; padding: 8px; text-align: right; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; border: 1px solid black; }
+        .report-table th, .report-table td { border: 1px solid black; padding: 8px; text-align: right; }
     </style>
 </head>
 <body>
 
     <div id="settings-trigger" class="no-print" onclick="checkPass()">⚙️</div>
-    <div id="status-bar" class="status-bar no-print">סנכרון ענן: מתחבר...</div>
+    <div id="status-bar" class="status-bar no-print">מנסה להתחבר לענן...</div>
 
     <div id="main-ui" class="no-print">
         <h1>5100</h1>
@@ -90,13 +87,6 @@
 
     <div id="settings-panel" class="no-print">
         <h2 style="text-align:center;">ניהול (4451)</h2>
-        <div style="background: #f8fafc; padding: 10px; border-radius: 10px; margin-bottom: 15px;">
-            <label>📋 הפקת דוח ריכוז נקי:</label>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <button onclick="generateReport('category')" style="background:#4f46e5; color:white; padding:10px; border-radius:5px;">דוח תקלות</button>
-                <button onclick="generateReport('room')" style="background:#4f46e5; color:white; padding:10px; border-radius:5px;">דוח חדרים</button>
-            </div>
-        </div>
         <div style="margin-bottom:15px;">
             <label>✏️ עריכת 28 לחצנים:</label>
             <div id="gap-editor-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;"></div>
@@ -111,11 +101,12 @@
     </div>
 
     <script>
+        // --- פרטי ה-GITHUB שלך ---
         const GH_CONFIG = {
             user: 'Cc2k1975',
             repo: 'reuven2k',
             path: 'data/5100.json',
-            token: 'ghp_YCleFgQRw0TwtJQ9E1if08XEtEgIOI4LibIh' 
+            token: 'כאן_להדביק_את_הטוקן_החדש' // <--- תחליף בטוקן החדש שייצרת
         };
 
         let db = [];
@@ -124,6 +115,11 @@
         let ghFileSha = null;
 
         async function initApp() {
+            const status = document.getElementById('status-bar');
+            if (GH_CONFIG.token.includes('כאן')) {
+                status.innerText = "❌ שגיאה: לא הכנסת טוקן בקוד!";
+                return;
+            }
             await fetchCloudData();
             renderUI();
         }
@@ -137,12 +133,19 @@
                 if (response.ok) {
                     const data = await response.json();
                     ghFileSha = data.sha;
-                    const content = JSON.parse(decodeURIComponent(escape(atob(data.content))));
-                    db = content.db || [];
-                    gapList = content.gapList || gapList;
-                    document.getElementById('status-bar').innerText = "✅ מחובר לענן: נתונים מסונכרנים";
+                    const contentRaw = decodeURIComponent(escape(atob(data.content)));
+                    if (contentRaw.trim() === "") {
+                        db = [];
+                    } else {
+                        const content = JSON.parse(contentRaw);
+                        db = content.db || [];
+                        gapList = content.gapList || gapList;
+                    }
+                    document.getElementById('status-bar').innerText = "✅ מחובר לענן ומסונכרן";
+                } else {
+                    document.getElementById('status-bar').innerText = "❌ שגיאה בטעינה: " + response.status;
                 }
-            } catch (e) { document.getElementById('status-bar').innerText = "❌ שגיאה בחיבור לענן"; }
+            } catch (e) { document.getElementById('status-bar').innerText = "❌ שגיאת התחברות ל-GitHub"; }
         }
 
         async function syncToCloud() {
@@ -153,19 +156,22 @@
                 content: btoa(unescape(encodeURIComponent(contentString))),
                 sha: ghFileSha
             };
-            document.getElementById('status-bar').innerText = "⏳ שומר לענן...";
+            
             const response = await fetch(url, {
                 method: 'PUT',
                 headers: { 'Authorization': `token ${GH_CONFIG.token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+
             if (response.ok) {
                 const resData = await response.json();
                 ghFileSha = resData.content.sha;
-                document.getElementById('status-bar').innerText = "✅ נשמר בענן";
                 return true;
+            } else {
+                const errData = await response.json();
+                console.error("GitHub Error:", errData);
+                return false;
             }
-            return false;
         }
 
         function renderUI() {
@@ -188,24 +194,26 @@
         }
 
         async function saveData() {
+            const status = document.getElementById('status-bar');
             const room = document.getElementById('roomInput').value;
             if(!selectedFloor || !room || !selectedPos || selectedGaps.length === 0) return alert("מלא נתונים");
+            
             selectedGaps.forEach(gap => {
                 db.push({ id: Date.now() + Math.random(), status: 'active', date: new Date().toLocaleDateString('he-IL'), room: room, position: selectedPos, gap: gap, notes: document.getElementById('notesInput').value });
             });
-            const success = await syncToCloud();
-            if(success) location.reload();
-            else alert("שגיאת שמירה בענן");
-        }
 
-        function checkPass() {
-            if(prompt("סיסמה:") === "4451") {
-                document.getElementById('main-ui').style.display = 'none';
-                document.getElementById('settings-panel').style.display = 'block';
-                loadEditor();
+            status.innerText = "⏳ שומר לענן...";
+            const success = await syncToCloud();
+            if(success) {
+                status.innerText = "✅ נשמר בהצלחה!";
+                setTimeout(() => location.reload(), 800);
+            } else {
+                alert("שגיאת שמירה! וודא שהקובץ בגיטהאב לא ריק ושיש לך טוקן תקין.");
+                status.innerText = "❌ שגיאת שמירה";
             }
         }
 
+        function checkPass() { if(prompt("סיסמה:") === "4451") { document.getElementById('main-ui').style.display = 'none'; document.getElementById('settings-panel').style.display = 'block'; loadEditor(); } }
         function loadEditor() {
             const grid = document.getElementById('gap-editor-grid'); grid.innerHTML = '';
             gapList.forEach((gap, idx) => {
@@ -214,18 +222,14 @@
                 grid.appendChild(inp);
             });
         }
-
-        async function closeSettings() {
-            await syncToCloud();
-            location.reload();
-        }
+        async function closeSettings() { await syncToCloud(); location.reload(); }
 
         function searchByRoom() {
             const val = document.getElementById('searchRoomInput').value;
             const res = document.getElementById('searchResults'); res.innerHTML = '';
             const filtered = db.filter(i => i.room == val);
             if(!filtered.length) return res.innerHTML = 'אין נתונים';
-            res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="window.print()">📄 הדפסה</button><button class="btn-wa" onclick="sendWA(${val})">💬 וואטסאפ</button></div>`;
+            res.innerHTML = `<div class="pdf-actions"><button onclick="window.print()" style="background:#dc2626; color:white; padding:10px; border-radius:8px; border:none; width:100%;">📄 הדפסה</button></div>`;
             filtered.forEach(item => {
                 res.innerHTML += `<div class="item-row"><span><b>${item.gap}</b> (${item.position})</span><div><button onclick="markDone(${item.id})">✔️</button><button onclick="deleteItem(${item.id})">🗑️</button></div></div>`;
             });
@@ -248,34 +252,6 @@
             Object.keys(groups).sort((a,b)=>a-b).forEach(r => {
                 cont.innerHTML += `<div class="summary-row" onclick="document.getElementById('searchRoomInput').value = ${r}; searchByRoom();"><strong>חדר ${r}</strong>: ${Array.from(groups[r]).join(', ')}</div>`;
             });
-        }
-
-        function generateReport(type) {
-            const active = db.filter(i => i.status === 'active');
-            document.getElementById('repDate').innerText = new Date().toLocaleDateString('he-IL');
-            let content = '';
-            if(type === 'category') {
-                document.getElementById('repTitle').innerText = "ריכוז לפי פערים";
-                const grouped = {};
-                active.forEach(i => { if(!grouped[i.gap]) grouped[i.gap] = []; grouped[i.gap].push(i.room + ` (${i.position})`); });
-                content = `<table class="report-table"><tr><th>סוג פער</th><th>חדרים</th></tr>`;
-                Object.keys(grouped).sort().forEach(g => content += `<tr><td><b>${g}</b></td><td>${grouped[g].join(', ')}</td></tr>`);
-            } else {
-                document.getElementById('repTitle').innerText = "ריכוז לפי חדרים";
-                const grouped = {};
-                active.forEach(i => { if(!grouped[i.room]) grouped[i.room] = []; grouped[i.room].push(i.gap + ` (${i.position})`); });
-                content = `<table class="report-table"><tr><th>חדר</th><th>פערים</th></tr>`;
-                Object.keys(grouped).sort((a,b)=>a-b).forEach(r => content += `<tr><td><b>חדר ${r}</b></td><td>${grouped[r].join(', ')}</td></tr>`);
-            }
-            document.getElementById('repContent').innerHTML = content + "</table>";
-            window.print();
-        }
-
-        function sendWA(roomNum) {
-            const items = db.filter(i => i.room == roomNum && i.status === 'active');
-            let msg = `*דוח פערים - חדר ${roomNum}*%0A%0A`;
-            items.forEach((it, idx) => msg += `${idx+1}. ${it.gap} (${it.position})%0A`);
-            window.open(`https://wa.me/?text=${msg}`, '_blank');
         }
 
         function updateRoomSuggestions() {
