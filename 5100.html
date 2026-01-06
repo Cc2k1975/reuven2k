@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>5100 - Cloud Sync System</title>
+    <title>5100 - Cloud System</title>
     <style>
-        :root { --primary: #1e3a8a; --accent: #2563eb; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937; --wa: #16a34a; --loading: #94a3b8; }
+        :root { --primary: #1e3a8a; --accent: #2563eb; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937; --wa: #16a34a; }
         body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
-        #settings-trigger { position: absolute; top: 10px; left: 10px; font-size: 14px; cursor: pointer; opacity: 0.4; padding: 10px; z-index: 100; }
+        #settings-trigger { position: absolute; top: 10px; left: 10px; font-size: 14px; cursor: pointer; opacity: 0.3; padding: 10px; z-index: 100; }
         .section { width: 100%; max-width: 480px; background: var(--card); padding: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; box-sizing: border-box; }
         h1 { color: var(--primary); margin: 5px 0; text-align: center; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--primary); }
@@ -21,21 +21,22 @@
         textarea { height: 40px; resize: none; font-size: 14px; }
         .btn-save { width: 100%; max-width: 480px; padding: 15px; background: #059669; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 12px; margin-bottom: 20px; cursor: pointer; }
         #settings-panel { display: none; width: 100%; max-width: 500px; background: #fff; padding: 15px; border-radius: 12px; border: 2px solid var(--primary); margin-top: 10px; box-sizing: border-box; }
-        .settings-section { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
-        .report-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
-        .btn-report-action { border: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 12px; color: white; cursor: pointer; }
-        #status-bar { font-size: 10px; color: var(--loading); margin-bottom: 5px; }
+        .status-bar { font-size: 10px; color: #64748b; margin-bottom: 5px; }
+        .item-row { background: white; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; font-size: 13px; }
+        .summary-row { padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer; font-size: 13px; }
+        .pdf-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn-red { background: #dc2626; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 14px; }
+        .btn-wa { background: var(--wa); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 14px; }
         @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
         .print-only { display: none; }
         .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .report-table th, .report-table td { border: 1px solid #000; padding: 8px; text-align: right; }
-        .item-row { background: white; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
     </style>
 </head>
 <body>
 
     <div id="settings-trigger" class="no-print" onclick="checkPass()">⚙️</div>
-    <div id="status-bar" class="no-print">מחובר לענן: טוען נתונים...</div>
+    <div id="status-bar" class="status-bar no-print">סנכרון ענן: מתחבר...</div>
 
     <div id="main-ui" class="no-print">
         <h1>5100</h1>
@@ -61,13 +62,13 @@
         </div>
 
         <div class="section">
-            <label>פערים (28)</label>
+            <label>פערים (28 לחצנים)</label>
             <div class="grid-4" id="gapContainer"></div>
         </div>
 
         <div class="section">
             <label>הערות</label>
-            <textarea id="notesInput" placeholder="הערה..."></textarea>
+            <textarea id="notesInput" placeholder="הערה קצרה..."></textarea>
         </div>
 
         <button id="saveBtn" class="btn-save" onclick="saveData()">שמור לענן ☁️</button>
@@ -82,112 +83,89 @@
         </div>
 
         <div class="section">
-            <label>פערים פתוחים (מסונכרן)</label>
+            <label>פערים פתוחים (בניין שלם)</label>
             <div id="mainSummary"></div>
         </div>
     </div>
 
     <div id="settings-panel" class="no-print">
-        <h2 style="text-align:center;">הגדרות ענן GitHub</h2>
-        
-        <div class="settings-section" style="background: #fff4e5; padding: 10px; border-radius: 10px;">
-            <label>🔑 פרטי חיבור ל-GitHub:</label>
-            <input type="text" id="ghUser" placeholder="שם משתמש (User)" style="margin-bottom:5px;">
-            <input type="text" id="ghRepo" placeholder="שם הפרויקט (Repo)" style="margin-bottom:5px;">
-            <input type="password" id="ghToken" placeholder="GitHub Token (PAT)" style="margin-bottom:5px;">
-            <p style="font-size:10px; color:#c2410c;">* הטוקן נשמר רק במכשיר שלך מטעמי אבטחה.</p>
-        </div>
-
-        <div class="settings-section">
-            <label>📊 דוחות ריכוז:</label>
-            <div class="report-group">
-                <button class="btn-report-action" style="background:#4f46e5;" onclick="generateReport('category')">דוח תקלות</button>
-                <button class="btn-report-action" style="background:#16a34a;" onclick="shareSummaryWA('category')">וואטסאפ תקלות</button>
+        <h2 style="text-align:center;">ניהול (4451)</h2>
+        <div style="background: #f8fafc; padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+            <label>📋 הפקת דוח ריכוז נקי:</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <button onclick="generateReport('category')" style="background:#4f46e5; color:white; padding:10px; border-radius:5px;">דוח תקלות</button>
+                <button onclick="generateReport('room')" style="background:#4f46e5; color:white; padding:10px; border-radius:5px;">דוח חדרים</button>
             </div>
         </div>
-
-        <div class="settings-section">
+        <div style="margin-bottom:15px;">
             <label>✏️ עריכת 28 לחצנים:</label>
             <div id="gap-editor-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;"></div>
         </div>
-
-        <button onclick="closeSettings()" style="width:100%; background:var(--primary); color:white; padding:15px; border:none; border-radius:10px; font-weight:bold;">שמור נתוני חיבור</button>
+        <button onclick="closeSettings()" style="width:100%; background:var(--primary); color:white; padding:15px; border:none; border-radius:10px; font-weight:bold;">שמור וצא</button>
     </div>
 
     <div id="printableReport" class="print-only" style="direction: rtl; padding: 20px;">
-        <h1 id="repTitle">דוח פערים</h1>
+        <h1 id="repTitle">דוח פערים 5100</h1>
         <p>תאריך: <span id="repDate"></span></p>
         <div id="repContent"></div>
     </div>
 
     <script>
+        const GH_CONFIG = {
+            user: 'Cc2k1975',
+            repo: 'reuven2k',
+            path: 'data/5100.json',
+            token: 'ghp_YCleFgQRw0TwtJQ9E1if08XEtEgIOI4LibIh' 
+        };
+
         let db = [];
         let gapList = ["חשמל", "רשת", "תקשורת", "תאורה", "גלאי", "שקע", "מפסק", "לוח חשמל", "מיזוג", "ספרינקלר", "טיח", "צבע", "ריצוף", "חיפוי", "תקרה", "דלת", "מנעול", "חלון", "איטום", "ניקיון", "פער 21", "פער 22", "פער 23", "פער 24", "פער 25", "פער 26", "פער 27", "פער 28"];
         let selectedFloor = null, selectedPos = null, selectedGaps = [];
         let ghFileSha = null;
 
-        // טעינת הגדרות GitHub מה-LocalStorage של המכשיר
-        const getGH = () => ({
-            user: localStorage.getItem('ghUser') || '',
-            repo: localStorage.getItem('ghRepo') || '',
-            token: localStorage.getItem('ghToken') || '',
-            path: 'data/5100.json'
-        });
-
         async function initApp() {
-            const config = getGH();
-            if (config.user && config.token) {
-                await fetchCloudData();
-            } else {
-                document.getElementById('status-bar').innerText = "⚠️ נא להגדיר חיבור GitHub בהגדרות";
-            }
+            await fetchCloudData();
             renderUI();
         }
 
         async function fetchCloudData() {
-            const { user, repo, token, path } = getGH();
-            const url = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
-            
+            const url = `https://api.github.com/repos/${GH_CONFIG.user}/${GH_CONFIG.repo}/contents/${GH_CONFIG.path}`;
             try {
                 const response = await fetch(url, {
-                    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+                    headers: { 'Authorization': `token ${GH_CONFIG.token}`, 'Accept': 'application/vnd.github.v3+json' }
                 });
                 if (response.ok) {
                     const data = await response.json();
                     ghFileSha = data.sha;
-                    const content = JSON.parse(atob(data.content));
+                    const content = JSON.parse(decodeURIComponent(escape(atob(data.content))));
                     db = content.db || [];
                     gapList = content.gapList || gapList;
-                    document.getElementById('status-bar').innerText = "✅ נתונים מסונכרנים עם הענן";
+                    document.getElementById('status-bar').innerText = "✅ מחובר לענן: נתונים מסונכרנים";
                 }
             } catch (e) { document.getElementById('status-bar').innerText = "❌ שגיאה בחיבור לענן"; }
         }
 
         async function syncToCloud() {
-            const { user, repo, token, path } = getGH();
-            const url = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
+            const url = `https://api.github.com/repos/${GH_CONFIG.user}/${GH_CONFIG.repo}/contents/${GH_CONFIG.path}`;
+            const contentString = JSON.stringify({ db, gapList });
             const body = {
-                message: "Update construction gaps",
-                content: btoa(unescape(encodeURIComponent(JSON.stringify({ db, gapList })))),
+                message: "Update 5100 data",
+                content: btoa(unescape(encodeURIComponent(contentString))),
                 sha: ghFileSha
             };
-
             document.getElementById('status-bar').innerText = "⏳ שומר לענן...";
             const response = await fetch(url, {
                 method: 'PUT',
-                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': `token ${GH_CONFIG.token}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
-
             if (response.ok) {
                 const resData = await response.json();
                 ghFileSha = resData.content.sha;
-                document.getElementById('status-bar').innerText = "✅ נשמר בהצלחה";
+                document.getElementById('status-bar').innerText = "✅ נשמר בענן";
                 return true;
-            } else {
-                alert("שגיאת שמירה! ייתכן שהטוקן לא תקין או שהקובץ עודכן ע\"י מישהו אחר. נא לרענן.");
-                return false;
             }
+            return false;
         }
 
         function renderUI() {
@@ -211,24 +189,19 @@
 
         async function saveData() {
             const room = document.getElementById('roomInput').value;
-            if(!selectedFloor || !room || !selectedPos || selectedGaps.length === 0) return alert("חסר מידע");
-            
+            if(!selectedFloor || !room || !selectedPos || selectedGaps.length === 0) return alert("מלא נתונים");
             selectedGaps.forEach(gap => {
                 db.push({ id: Date.now() + Math.random(), status: 'active', date: new Date().toLocaleDateString('he-IL'), room: room, position: selectedPos, gap: gap, notes: document.getElementById('notesInput').value });
             });
-
             const success = await syncToCloud();
             if(success) location.reload();
+            else alert("שגיאת שמירה בענן");
         }
 
         function checkPass() {
             if(prompt("סיסמה:") === "4451") {
                 document.getElementById('main-ui').style.display = 'none';
                 document.getElementById('settings-panel').style.display = 'block';
-                const config = getGH();
-                document.getElementById('ghUser').value = config.user;
-                document.getElementById('ghRepo').value = config.repo;
-                document.getElementById('ghToken').value = config.token;
                 loadEditor();
             }
         }
@@ -243,22 +216,18 @@
         }
 
         async function closeSettings() {
-            localStorage.setItem('ghUser', document.getElementById('ghUser').value);
-            localStorage.setItem('ghRepo', document.getElementById('ghRepo').value);
-            localStorage.setItem('ghToken', document.getElementById('ghToken').value);
             await syncToCloud();
             location.reload();
         }
 
-        // פונקציות דוח וחיפוש (זהות לגרסה הקודמת)
         function searchByRoom() {
             const val = document.getElementById('searchRoomInput').value;
             const res = document.getElementById('searchResults'); res.innerHTML = '';
             const filtered = db.filter(i => i.room == val);
             if(!filtered.length) return res.innerHTML = 'אין נתונים';
-            res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="window.print()">📄 הדפסה</button></div>`;
+            res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="window.print()">📄 הדפסה</button><button class="btn-wa" onclick="sendWA(${val})">💬 וואטסאפ</button></div>`;
             filtered.forEach(item => {
-                res.innerHTML += `<div class="item-row ${item.status === 'done' ? 'done' : ''}"><span><b>${item.gap}</b> (${item.position})</span><div><button onclick="markDone(${item.id})">✔️</button><button onclick="deleteItem(${item.id})">🗑️</button></div></div>`;
+                res.innerHTML += `<div class="item-row"><span><b>${item.gap}</b> (${item.position})</span><div><button onclick="markDone(${item.id})">✔️</button><button onclick="deleteItem(${item.id})">🗑️</button></div></div>`;
             });
         }
 
@@ -279,6 +248,34 @@
             Object.keys(groups).sort((a,b)=>a-b).forEach(r => {
                 cont.innerHTML += `<div class="summary-row" onclick="document.getElementById('searchRoomInput').value = ${r}; searchByRoom();"><strong>חדר ${r}</strong>: ${Array.from(groups[r]).join(', ')}</div>`;
             });
+        }
+
+        function generateReport(type) {
+            const active = db.filter(i => i.status === 'active');
+            document.getElementById('repDate').innerText = new Date().toLocaleDateString('he-IL');
+            let content = '';
+            if(type === 'category') {
+                document.getElementById('repTitle').innerText = "ריכוז לפי פערים";
+                const grouped = {};
+                active.forEach(i => { if(!grouped[i.gap]) grouped[i.gap] = []; grouped[i.gap].push(i.room + ` (${i.position})`); });
+                content = `<table class="report-table"><tr><th>סוג פער</th><th>חדרים</th></tr>`;
+                Object.keys(grouped).sort().forEach(g => content += `<tr><td><b>${g}</b></td><td>${grouped[g].join(', ')}</td></tr>`);
+            } else {
+                document.getElementById('repTitle').innerText = "ריכוז לפי חדרים";
+                const grouped = {};
+                active.forEach(i => { if(!grouped[i.room]) grouped[i.room] = []; grouped[i.room].push(i.gap + ` (${i.position})`); });
+                content = `<table class="report-table"><tr><th>חדר</th><th>פערים</th></tr>`;
+                Object.keys(grouped).sort((a,b)=>a-b).forEach(r => content += `<tr><td><b>חדר ${r}</b></td><td>${grouped[r].join(', ')}</td></tr>`);
+            }
+            document.getElementById('repContent').innerHTML = content + "</table>";
+            window.print();
+        }
+
+        function sendWA(roomNum) {
+            const items = db.filter(i => i.room == roomNum && i.status === 'active');
+            let msg = `*דוח פערים - חדר ${roomNum}*%0A%0A`;
+            items.forEach((it, idx) => msg += `${idx+1}. ${it.gap} (${it.position})%0A`);
+            window.open(`https://wa.me/?text=${msg}`, '_blank');
         }
 
         function updateRoomSuggestions() {
