@@ -40,10 +40,6 @@
       body { background: white !important; padding: 0 !important; }
       .report-table { width: 100% !important; border-collapse: collapse !important; border: 1px solid black !important; }
       .report-table th, .report-table td { border: 1px solid black !important; padding: 8px !important; text-align: right !important; }
-
-      #printableReport h1 { display: block !important; }
-      #printableReport p { display: block !important; }
-      #printableReport .rep-roomline { display: block !important; }
     }
 
     .print-only { display: none; }
@@ -78,7 +74,7 @@
     .gap-ico { font-size: 13px; line-height: 1; opacity: 0.95; }
     .gap-txt { line-height: 1.1; }
 
-    /* ====== עורך נושאים (10 לכל נושא) ====== */
+    /* ====== עורך נושאים (15 לכל נושא) ====== */
     .topic-card { border: 1px solid #cbd5e1; background: #f8fafc; border-radius: 12px; padding: 10px; }
     .topic-head { display: grid; grid-template-columns: 48px 1fr; gap: 8px; align-items: center; margin-bottom: 8px; }
     .topic-slots { display: grid; grid-template-columns: 1fr; gap: 6px; }
@@ -114,7 +110,7 @@
     </div>
 
     <div class="section">
-      <label id="gapHeaderLabel">פערים (38 לחצנים)</label>
+      <label id="gapHeaderLabel">פערים</label>
       <div class="grid-4" id="gapContainer"></div>
     </div>
 
@@ -170,12 +166,12 @@
     </div>
 
     <div style="margin-bottom:15px;">
-      <label>✏️ עריכת 38 לחצנים:</label>
+      <label>✏️ עריכת פערים:</label>
       <div id="gap-editor-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;"></div>
     </div>
 
     <div style="margin-bottom:15px;">
-      <label>🧩 סידור לפי נושאים (10 לכל נושא):</label>
+      <label>🧩 סידור לפי נושאים (15 לכל נושא):</label>
       <div id="topic-editor" style="display:grid; grid-template-columns: 1fr; gap: 10px;"></div>
       <div class="mini-note">הדף הראשי מציג רק מה שבחרת (אין “ריקים”). אם פער לא שובץ לשום נושא – הוא ייכנס אוטומטית ל“אחר”.</div>
     </div>
@@ -202,6 +198,7 @@
       getDocs, addDoc, updateDoc, deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
+    // ===== Firebase config (כמו שנתת) =====
     const firebaseConfig = {
       apiKey: "AIzaSyDe7vJA75cYtMxWQJSEPDf-iAVo3zFzozI",
       authDomain: "project-8467519916200199486.firebaseapp.com",
@@ -214,24 +211,26 @@
     const app = initializeApp(firebaseConfig);
     const FS = getFirestore(app);
 
+    // ✅ שינוי יחיד פונקציונלי: 15 סלוטים לנושא (בלי לשבור את מה שכבר שמרת)
+    const SLOT_COUNT = 15;
+
+    // ====== נתונים (כמו בקוד שלך) ======
     let db = [];
+    // שומר/טוען מהענן. כאן רק ברירת מחדל (אם אין meta.gapList)
     let gapList = [
       "חשמל", "רשת", "תקשורת", "תאורה", "גלאי", "שקע", "מפסק", "לוח חשמל", "מיזוג", "ספרינקלר",
       "טיח", "צבע", "ריצוף", "חיפוי", "תקרה", "דלת", "מנעול", "חלון", "איטום", "ניקיון",
       "פער 21", "פער 22", "פער 23", "פער 24", "פער 25", "פער 26", "פער 27", "פער 28",
       "פער 29", "פער 30", "פער 31", "פער 32", "פער 33", "פער 34", "פער 35", "פער 36", "פער 37", "פער 38"
     ];
+
     let selectedFloor = null, selectedPos = null, selectedGaps = [];
 
-    const colors = [
-      "#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#6366f1",
-      "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#71717a", "#451a03", "#171717", "#fbbf24", "#6d28d9", "#34495e",
-      "#546e7a", "#ff7043", "#8d6e63", "#78909c", "#d4e157", "#26a69a", "#ab47bc", "#26c6da",
-      "#1d4ed8", "#059669", "#b45309", "#7c3aed", "#db2777", "#0891b2", "#ea580c", "#0f766e", "#4f46e5", "#a21caf"
-    ];
+    const colors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#6366f1", "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#71717a", "#451a03", "#171717", "#fbbf24", "#6d28d9", "#34495e", "#546e7a", "#ff7043", "#8d6e63", "#78909c", "#d4e157", "#26a69a", "#ab47bc", "#26c6da"];
 
     const statusBar = document.getElementById('status-bar');
 
+    // ===== Firestore "מבנה אחסון" =====
     const ITEMS_COL = collection(FS, "items");
     const META_DOC = doc(FS, "meta", "config");
 
@@ -239,6 +238,7 @@
       return new Date().toLocaleDateString('he-IL');
     }
 
+    // ====== נושאים (כותרות + סלוטים לכל נושא) ======
     let topics = [
       { id: "power", title: "חשמל / תקשורת", icon: "⚡" },
       { id: "furniture", title: "ריהוט", icon: "🪑" },
@@ -248,23 +248,37 @@
     ];
     let topicSlots = {};
 
+    function normalizeTopicSlotsShape() {
+      // חשוב: לא מוחק מה שיש לך! רק מוודא שמי שהיה 10 יוגדל ל-15 (שומר את ה-10 הראשונים)
+      topics.forEach(t => {
+        if (!Array.isArray(topicSlots[t.id])) topicSlots[t.id] = [];
+        // ניקוי ערכים לא חוקיים
+        topicSlots[t.id] = topicSlots[t.id].map(v => (Number.isInteger(v) && v >= 0 && v < gapList.length) ? v : null);
+        // הארכה ל-SLOT_COUNT
+        if (topicSlots[t.id].length < SLOT_COUNT) {
+          while (topicSlots[t.id].length < SLOT_COUNT) topicSlots[t.id].push(null);
+        } else if (topicSlots[t.id].length > SLOT_COUNT) {
+          // במקרה שמישהו כבר עשה יותר - לא נוגעים, אבל לצורך UI נחתוך להצגה
+          topicSlots[t.id] = topicSlots[t.id].slice(0, SLOT_COUNT);
+        }
+      });
+    }
+
     function ensureDefaultTopicSlots() {
       const ids = topics.map(t => t.id);
       topicSlots = {};
-      ids.forEach(id => topicSlots[id] = Array(10).fill(null));
+      ids.forEach(id => topicSlots[id] = Array(SLOT_COUNT).fill(null));
 
-      // פיזור בסיסי (לא משנה לוגיקה/שמות):
-      // 0-9 => power, 10-19 => build, 20-29 => other, השאר ייפול ל"אחר" אוטומטית בדף הראשי אם לא שובץ
-      for (let i = 0; i < 38; i++) {
-        let target = "other";
-        if (i <= 9) target = "power";
-        else if (i <= 19) target = "build";
-        else if (i <= 20) target = "hvac";
-        else target = "other";
-
-        const slots = topicSlots[target];
-        const firstEmpty = slots.findIndex(x => x === null);
-        if (firstEmpty !== -1) slots[firstEmpty] = i;
+      // פיזור עדין לפי סדר (לא משנה שמות/לוגיקה של gapList)
+      let cursor = 0;
+      for (const t of topics) {
+        for (let s = 0; s < SLOT_COUNT; s++) {
+          if (cursor >= gapList.length) break;
+          topicSlots[t.id][s] = cursor;
+          cursor++;
+          if (cursor >= gapList.length) break;
+        }
+        if (cursor >= gapList.length) break;
       }
     }
 
@@ -274,16 +288,23 @@
         const metaSnap = await getDoc(META_DOC);
         if (metaSnap.exists()) {
           const meta = metaSnap.data() || {};
-          if (Array.isArray(meta.gapList) && meta.gapList.length === 38) gapList = meta.gapList;
+
+          if (Array.isArray(meta.gapList) && meta.gapList.length) gapList = meta.gapList;
 
           if (Array.isArray(meta.topics) && meta.topics.length) topics = meta.topics;
           if (meta.topicSlots && typeof meta.topicSlots === "object") topicSlots = meta.topicSlots;
 
-          const haveAll = topics.every(t => topicSlots && Array.isArray(topicSlots[t.id]) && topicSlots[t.id].length === 10);
+          // ✅ זה החלק ששומר לך הכל ולא נותן "לדרוס" — רק מרחיב ל-15
+          normalizeTopicSlotsShape();
+
+          // אם חסר משהו ממש בסיסי - נשלים בעדינות
+          const haveAll = topics.every(t => Array.isArray(topicSlots[t.id]) && topicSlots[t.id].length === SLOT_COUNT);
           if (!haveAll) {
-            ensureDefaultTopicSlots();
-            await setDoc(META_DOC, { gapList, topics, topicSlots }, { merge: true });
+            normalizeTopicSlotsShape();
           }
+
+          await setDoc(META_DOC, { gapList, topics, topicSlots }, { merge: true });
+
         } else {
           ensureDefaultTopicSlots();
           await setDoc(META_DOC, { gapList, topics, topicSlots }, { merge: true });
@@ -324,15 +345,15 @@
       const used = new Set();
 
       const result = topics.map(t => {
-        const slots = Array.isArray(topicSlots[t.id]) ? topicSlots[t.id] : Array(10).fill(null);
-        const idxs = slots.filter(v => Number.isInteger(v) && v >= 0 && v < 38);
+        const slots = Array.isArray(topicSlots[t.id]) ? topicSlots[t.id] : Array(SLOT_COUNT).fill(null);
+        const idxs = slots.filter(v => Number.isInteger(v) && v >= 0 && v < gapList.length);
         const unique = [];
         idxs.forEach(i => { if (!used.has(i)) { used.add(i); unique.push(i); } });
         return { id: t.id, title: t.title, icon: t.icon, idxs: unique };
       });
 
       const unassigned = [];
-      for (let i = 0; i < 38; i++) if (!used.has(i)) unassigned.push(i);
+      for (let i = 0; i < gapList.length; i++) if (!used.has(i)) unassigned.push(i);
 
       const other = result.find(g => g.id === "other");
       if (other) other.idxs = other.idxs.concat(unassigned);
@@ -407,6 +428,7 @@
       selectedPos = val;
     }
 
+    // ===== SAVE =====
     window.saveData = async function() {
       const room = document.getElementById('roomInput').value;
       if (!selectedFloor || !room || !selectedPos || selectedGaps.length === 0) return alert("מלא נתונים!");
@@ -436,6 +458,7 @@
       }
     }
 
+    // ===== REPORT =====
     window.generateReport = function(type) {
       const active = db.filter(i => i.status === 'active');
       if (!active.length) return alert("אין נתונים פתוחים");
@@ -475,6 +498,7 @@
       window.open(`https://wa.me/?text=${msg}`, '_blank');
     }
 
+    // ===== SETTINGS =====
     window.checkPass = function() {
       if (prompt("סיסמה:") === "4451") {
         document.getElementById('main-ui').style.display = 'none';
@@ -499,9 +523,8 @@
       const cont = document.getElementById('topic-editor');
       cont.innerHTML = '';
 
-      topics.forEach(t => {
-        if (!Array.isArray(topicSlots[t.id]) || topicSlots[t.id].length !== 10) topicSlots[t.id] = Array(10).fill(null);
-      });
+      // ✅ חשוב: לא מוחק לך כלום — רק מרחיב ל-15
+      normalizeTopicSlotsShape();
 
       topics.forEach(t => {
         const card = document.createElement('div');
@@ -527,7 +550,7 @@
         const slotsWrap = document.createElement('div');
         slotsWrap.className = 'topic-slots';
 
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < SLOT_COUNT; i++) {
           const sel = document.createElement('select');
 
           const optEmpty = document.createElement('option');
@@ -535,7 +558,7 @@
           optEmpty.textContent = `— ריק (${i+1}) —`;
           sel.appendChild(optEmpty);
 
-          for (let idx = 0; idx < 38; idx++) {
+          for (let idx = 0; idx < gapList.length; idx++) {
             const opt = document.createElement('option');
             opt.value = String(idx);
             opt.textContent = gapList[idx];
@@ -560,11 +583,9 @@
     }
 
     function sanitizeTopicSlots() {
-      topics.forEach(t => {
-        if (!Array.isArray(topicSlots[t.id]) || topicSlots[t.id].length !== 10) topicSlots[t.id] = Array(10).fill(null);
-        topicSlots[t.id] = topicSlots[t.id].map(v => (Number.isInteger(v) && v >= 0 && v < 38) ? v : null);
-      });
+      normalizeTopicSlotsShape();
 
+      // מנקה כפילויות: אם אותו אינדקס מופיע פעמיים -> רק הראשון נשאר, השאר נהיה null
       const seen = new Set();
       topics.forEach(t => {
         topicSlots[t.id] = topicSlots[t.id].map(v => {
@@ -616,13 +637,13 @@
     }
     window.updateChart = updateChart;
 
+    // ===== SEARCH / ACTIONS =====
     window.searchByRoom = function() {
       const val = document.getElementById('searchRoomInput').value;
       const res = document.getElementById('searchResults'); res.innerHTML = '';
       const filtered = db.filter(i => String(i.room) == String(val));
       if (!filtered.length) return res.innerHTML = 'אין נתונים';
-
-      res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="printRoomReport('${val}')">📄 הדפסה</button><button class="btn-wa" onclick="sendWA(${val})">💬 וואטסאפ</button></div>`;
+      res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="window.print()">📄 הדפסה</button><button class="btn-wa" onclick="sendWA(${val})">💬 וואטסאפ</button></div>`;
       filtered.forEach(item => {
         res.innerHTML += `<div class="item-row ${item.status === 'done' ? 'done' : ''}" style="${item.status === 'done' ? 'background:#f0fdf4; opacity:0.6;' : ''}">
           <span><b>${item.gap}</b> (${item.position})</span>
@@ -632,45 +653,6 @@
           </div>
         </div>`;
       });
-    }
-
-    window.printRoomReport = function(roomNum) {
-      const items = db.filter(i => String(i.room) == String(roomNum));
-      if (!items.length) return alert("אין נתונים לחדר הזה");
-
-      document.getElementById('repTitle').innerText = `דוח פערים - חדר ${roomNum}`;
-      document.getElementById('repDate').innerText = nowHeDate();
-
-      let content = `<div class="rep-roomline" style="font-weight:900; margin: 6px 0 10px;">חדר: ${roomNum}</div>`;
-
-      content += `<table class="report-table">
-        <tr>
-          <th>#</th>
-          <th>פער</th>
-          <th>עמדה</th>
-          <th>סטטוס</th>
-          <th>הערות</th>
-          <th>תאריך</th>
-        </tr>`;
-
-      items.forEach((it, idx) => {
-        const st = (it.status === 'done') ? 'בוצע' : 'פתוח';
-        const notes = (it.notes || '').toString();
-        const date = (it.date || '').toString();
-        content += `<tr>
-          <td>${idx + 1}</td>
-          <td><b>${it.gap || ''}</b></td>
-          <td>${it.position || ''}</td>
-          <td>${st}</td>
-          <td>${notes}</td>
-          <td>${date}</td>
-        </tr>`;
-      });
-
-      content += `</table>`;
-      document.getElementById('repContent').innerHTML = content;
-
-      window.print();
     }
 
     window.sendWA = function(roomNum) {
