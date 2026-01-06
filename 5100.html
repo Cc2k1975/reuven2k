@@ -26,4 +26,477 @@
         
         .btn-save { width: 100%; max-width: 480px; padding: 15px; background: #059669; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 12px; margin-bottom: 20px; cursor: pointer; }
         .item-row { background: white; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
-        .summary-row { padding
+        .summary-row { padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer; font-size: 13px; }
+        
+        .pdf-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn-red { background: #dc2626; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; }
+        .btn-wa { background: var(--wa); color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; }
+
+        .status-bar { font-size: 11px; color: #64748b; margin-bottom: 8px; font-weight: bold; text-align: center; }
+
+        @media print {
+            .no-print, #settings-panel, #settings-trigger, .section, button, h1, .btn-save, .status-bar { display: none !important; }
+            .print-only { display: block !important; width: 100%; }
+            body { background: white !important; padding: 0 !important; }
+            .report-table { width: 100% !important; border-collapse: collapse !important; border: 1px solid black !important; }
+            .report-table th, .report-table td { border: 1px solid black !important; padding: 8px !important; text-align: right !important; }
+        }
+
+        .print-only { display: none; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }
+        .report-table th, .report-table td { border: 1px solid #000; padding: 8px; text-align: right; }
+
+        .chart-container { display: flex; flex-direction: column; align-items: center; margin-top: 10px; }
+        .legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; justify-content: center; }
+        .legend-item { display: flex; align-items: center; font-size: 11px; padding: 3px 6px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
+        .legend-color { width: 8px; height: 8px; border-radius: 50%; margin-left: 5px; }
+
+        .report-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
+        .btn-report-action { border: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 12px; color: white; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="settings-trigger" class="no-print" onclick="checkPass()">⚙️</div>
+    <div id="status-bar" class="status-bar no-print">מתחבר לענן...</div>
+
+    <div id="main-ui" class="no-print">
+        <h1>5100</h1>
+
+        <div class="section">
+            <label>קומה</label>
+            <div class="grid-7" id="floorContainer"></div>
+        </div>
+
+        <div class="section">
+            <label>מספר חדר</label>
+            <input type="number" id="roomInput" list="roomSuggestions" placeholder="חדר...">
+            <datalist id="roomSuggestions"></datalist>
+        </div>
+
+        <div class="section">
+            <label>עמדה</label>
+            <div class="grid-3" id="posContainer">
+                <button onclick="setPos(this, 'ימין')">ימין</button>
+                <button onclick="setPos(this, 'שמאל')">שמאל</button>
+                <button onclick="setPos(this, 'דלת')">דלת</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <label id="gapHeaderLabel">פערים (28 לחצנים)</label>
+            <div class="grid-4" id="gapContainer"></div>
+        </div>
+
+        <div class="section">
+            <label>הערות</label>
+            <textarea id="notesInput" placeholder="הערה קצרה..."></textarea>
+        </div>
+
+        <button id="saveBtn" class="btn-save" onclick="saveData()">שמור לענן ☁️</button>
+
+        <div class="section" style="background: #eff6ff;" id="editArea">
+            <label>חפש חדר</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <input type="number" id="searchRoomInput" placeholder="חדר...">
+                <button onclick="searchByRoom()" style="background: var(--accent); color: white; border:none; padding: 0 15px; border-radius: 8px;">הצג</button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <div class="section">
+            <label>פערים פתוחים בבניין</label>
+            <div id="mainSummary"></div>
+        </div>
+    </div>
+
+    <div id="settings-panel" class="no-print">
+        <h2 style="text-align:center; margin-top:0;">ניהול ודוחות</h2>
+        
+        <div style="background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #cbd5e1; margin-bottom: 15px;">
+            <label>📊 דוחות ריכוז בניין:</label>
+            <div style="margin-top:10px;">
+                <span style="font-size:12px; font-weight:bold;">דוח לפי פערים (קבלנים):</span>
+                <div class="report-group">
+                    <button class="btn-report-action" style="background:#4f46e5;" onclick="generateReport('category')">הדפסה/PDF</button>
+                    <button class="btn-report-action" style="background:#16a34a;" onclick="shareSummaryWA('category')">שלח בוואטסאפ</button>
+                </div>
+            </div>
+            <div style="margin-top:15px;">
+                <span style="font-size:12px; font-weight:bold;">דוח לפי חדרים (קומות):</span>
+                <div class="report-group">
+                    <button class="btn-report-action" style="background:#4f46e5;" onclick="generateReport('room')">הדפסה/PDF</button>
+                    <button class="btn-report-action" style="background:#16a34a;" onclick="shareSummaryWA('room')">שלח בוואטסאפ</button>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label>📊 פילוח פערים (גרף):</label>
+            <div class="chart-container"><div id="pie-chart-svg-container"></div><div id="legend" class="legend"></div></div>
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label>✏️ עריכת 28 לחצנים:</label>
+            <div id="gap-editor-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;"></div>
+        </div>
+
+        <button onclick="closeSettings()" style="width:100%; background:var(--primary); color:white; padding:15px; border:none; border-radius:10px; font-weight:bold;">שמור וצא</button>
+    </div>
+
+    <div id="printableReport" class="print-only" style="direction: rtl; padding: 20px;">
+        <div style="border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 20px;">
+            <h1 id="repTitle" style="margin:0; font-size: 24px;">דוח פערים 5100</h1>
+            <p>תאריך: <span id="repDate"></span></p>
+        </div>
+        <div id="repContent"></div>
+        <div style="margin-top:50px; display:flex; justify-content:space-around;">
+            <div>_________________<br>חתימת מפקח</div>
+            <div>_________________<br>חתימת מנהל עבודה</div>
+        </div>
+    </div>
+
+    <script>
+        // --- קונפיגורציית ענן שקופה ---
+        const GH_CONFIG = {
+            user: 'Cc2k1975',
+            repo: 'reuven2k',
+            path: 'data/5100.json',
+            token: 'ghp_YCleFgQRw0TwtJQ9E1if08XEtEgIOI4LibIh'
+        };
+
+        let db = [];
+        let gapList = ["חשמל", "רשת", "תקשורת", "תאורה", "גלאי", "שקע", "מפסק", "לוח חשמל", "מיזוג", "ספרינקלר", "טיח", "צבע", "ריצוף", "חיפוי", "תקרה", "דלת", "מנעול", "חלון", "איטום", "ניקיון", "פער 21", "פער 22", "פער 23", "פער 24", "פער 25", "פער 26", "פער 27", "פער 28"];
+        let selectedFloor = null, selectedPos = null, selectedGaps = [];
+        let ghFileSha = null;
+
+        const colors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#6366f1", "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#71717a", "#451a03", "#171717", "#fbbf24", "#6d28d9", "#34495e", "#546e7a", "#ff7043", "#8d6e63", "#78909c", "#d4e157", "#26a69a", "#ab47bc", "#26c6da"];
+
+        // ===== UTF-8 Base64 helpers (בלי escape/unescape) =====
+        function toBase64Utf8(str) {
+            const bytes = new TextEncoder().encode(str);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary);
+        }
+        function fromBase64Utf8(b64) {
+            const binary = atob(b64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return new TextDecoder().decode(bytes);
+        }
+
+        // ===== GitHub API helpers =====
+        function ghHeaders() {
+            // Bearer עובד מצוין ל-Fine-grained וגם לרוב ל-Classic.
+            return {
+                'Authorization': `Bearer ${GH_CONFIG.token}`,
+                'Accept': 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            };
+        }
+
+        async function ghGetJson(url) {
+            const res = await fetch(url, { headers: ghHeaders() });
+            let data = null;
+            try { data = await res.json(); } catch (e) {}
+            return { res, data };
+        }
+
+        async function initApp() {
+            await fetchCloudData();
+            initUI();
+        }
+
+        async function fetchCloudData() {
+            const url = `https://api.github.com/repos/${GH_CONFIG.user}/${GH_CONFIG.repo}/contents/${GH_CONFIG.path}`;
+            const statusBar = document.getElementById('status-bar');
+
+            try {
+                const { res, data } = await ghGetJson(url);
+
+                if (res.ok) {
+                    ghFileSha = data.sha;
+
+                    const contentRaw = fromBase64Utf8(data.content || '');
+                    const content = contentRaw ? JSON.parse(contentRaw) : {};
+
+                    db = content.db || [];
+                    gapList = (content.gapList && content.gapList.length === 28) ? content.gapList : gapList;
+
+                    statusBar.innerText = "✅ מחובר לענן ומסונכרן";
+                    return;
+                }
+
+                // 404 = קובץ לא קיים עדיין -> נתייחס כ"ענן חדש" ונאפשר יצירה בשמירה הראשונה
+                if (res.status === 404) {
+                    ghFileSha = null;
+                    db = [];
+                    statusBar.innerText = "⚠️ קובץ ענן לא קיים עדיין (יווצר בשמירה הראשונה)";
+                    return;
+                }
+
+                const msg = (data && (data.message || data.error)) ? (data.message || data.error) : "שגיאה לא ידועה";
+                statusBar.innerText = `❌ שגיאת טעינה (${res.status}): ${msg}`;
+
+            } catch (e) {
+                document.getElementById('status-bar').innerText = "❌ שגיאת התחברות לענן";
+            }
+        }
+
+        async function refreshSha() {
+            const url = `https://api.github.com/repos/${GH_CONFIG.user}/${GH_CONFIG.repo}/contents/${GH_CONFIG.path}`;
+            const { res, data } = await ghGetJson(url);
+            if (res.ok) return data.sha;
+            if (res.status === 404) return null;
+            throw new Error(`לא הצלחתי למשוך SHA מחדש (${res.status})`);
+        }
+
+        async function syncToCloud() {
+            const url = `https://api.github.com/repos/${GH_CONFIG.user}/${GH_CONFIG.repo}/contents/${GH_CONFIG.path}`;
+            const statusBar = document.getElementById('status-bar');
+
+            const contentString = JSON.stringify({ db, gapList });
+            const body = {
+                message: "Update 5100 data",
+                content: toBase64Utf8(contentString)
+            };
+
+            // אם הקובץ קיים - חייבים sha. אם הוא חדש - אסור sha.
+            if (ghFileSha) body.sha = ghFileSha;
+
+            try {
+                const res = await fetch(url, {
+                    method: 'PUT',
+                    headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                let resData = null;
+                try { resData = await res.json(); } catch (e) {}
+
+                if (res.ok) {
+                    ghFileSha = resData && resData.content ? resData.content.sha : ghFileSha;
+                    return { ok: true };
+                }
+
+                // טיפול חכם בהתנגשות SHA (409) – מישהו שמר/השתנה sha
+                if (res.status === 409) {
+                    statusBar.innerText = "⚠️ התנגשות גרסה (409) — מסנכרן מחדש ושומר...";
+                    ghFileSha = await refreshSha();
+                    const retryBody = { ...body };
+                    if (ghFileSha) retryBody.sha = ghFileSha; else delete retryBody.sha;
+
+                    const retryRes = await fetch(url, {
+                        method: 'PUT',
+                        headers: { ...ghHeaders(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify(retryBody)
+                    });
+
+                    let retryData = null;
+                    try { retryData = await retryRes.json(); } catch (e) {}
+
+                    if (retryRes.ok) {
+                        ghFileSha = retryData && retryData.content ? retryData.content.sha : ghFileSha;
+                        return { ok: true };
+                    }
+
+                    const retryMsg = (retryData && retryData.message) ? retryData.message : "שגיאה לא ידועה";
+                    return { ok: false, error: `שמירה נכשלה (${retryRes.status}): ${retryMsg}` };
+                }
+
+                const msg = (resData && resData.message) ? resData.message : "שגיאה לא ידועה";
+                return { ok: false, error: `שמירה נכשלה (${res.status}): ${msg}` };
+
+            } catch (e) {
+                return { ok: false, error: "שגיאת רשת/חיבור בעת שמירה" };
+            }
+        }
+
+        function initUI() {
+            const fCont = document.getElementById('floorContainer'); fCont.innerHTML = '';
+            for (let i = 1; i <= 7; i++) {
+                const btn = document.createElement('button'); btn.innerText = i;
+                btn.onclick = () => { document.querySelectorAll('#floorContainer button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); selectedFloor = i; updateRoomSuggestions(); };
+                fCont.appendChild(btn);
+            }
+            const gCont = document.getElementById('gapContainer'); gCont.innerHTML = '';
+            gapList.forEach(gap => {
+                const btn = document.createElement('button'); btn.innerText = gap;
+                btn.onclick = () => {
+                    if(selectedGaps.includes(gap)) { selectedGaps = selectedGaps.filter(g => g !== gap); btn.classList.remove('active'); }
+                    else { selectedGaps.push(gap); btn.classList.add('active'); }
+                };
+                gCont.appendChild(btn);
+            });
+            renderSummary();
+        }
+
+        function updateRoomSuggestions() {
+            const list = document.getElementById('roomSuggestions'); list.innerHTML = '';
+            if(!selectedFloor) return;
+            for(let i = selectedFloor * 100 + 1; i <= selectedFloor * 100 + 99; i++) {
+                const opt = document.createElement('option'); opt.value = i; list.appendChild(opt);
+            }
+        }
+
+        function setPos(btn, val) { 
+            document.querySelectorAll('#posContainer button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active'); selectedPos = val; 
+        }
+
+        async function saveData() {
+            const room = document.getElementById('roomInput').value;
+            if(!selectedFloor || !room || !selectedPos || selectedGaps.length === 0) return alert("מלא נתונים!");
+
+            selectedGaps.forEach(gap => { 
+                db.push({ 
+                    id: Date.now() + Math.random(), 
+                    status: 'active', 
+                    date: new Date().toLocaleDateString('he-IL'), 
+                    room: room, 
+                    position: selectedPos, 
+                    gap: gap, 
+                    notes: document.getElementById('notesInput').value 
+                }); 
+            });
+
+            document.getElementById('status-bar').innerText = "⏳ שומר לענן...";
+            const result = await syncToCloud();
+
+            if(result.ok) location.reload();
+            else {
+                document.getElementById('status-bar').innerText = "❌ שגיאת שמירה בענן";
+                alert(result.error || "שגיאת שמירה בענן");
+            }
+        }
+
+        function generateReport(type) {
+            const active = db.filter(i => i.status === 'active');
+            if(!active.length) return alert("אין נתונים פתוחים");
+            document.getElementById('repDate').innerText = new Date().toLocaleDateString('he-IL');
+            let content = '';
+            if(type === 'category') {
+                document.getElementById('repTitle').innerText = "דוח ריכוז לפי פערים (קבלנים)";
+                const grouped = {};
+                active.forEach(i => { if(!grouped[i.gap]) grouped[i.gap] = []; grouped[i.gap].push(i.room + ` (${i.position})`); });
+                content = `<table class="report-table"><tr><th>סוג פער</th><th>חדרים</th></tr>`;
+                Object.keys(grouped).sort().forEach(g => content += `<tr><td><b>${g}</b></td><td>${grouped[g].join(', ')}</td></tr>`);
+            } else {
+                document.getElementById('repTitle').innerText = "דוח ריכוז לפי חדרים (קומות)";
+                const grouped = {};
+                active.forEach(i => { if(!grouped[i.room]) grouped[i.room] = []; grouped[i.room].push(i.gap + ` (${i.position})`); });
+                content = `<table class="report-table"><tr><th>חדר</th><th>פערים</th></tr>`;
+                Object.keys(grouped).sort((a,b)=>a-b).forEach(r => content += `<tr><td><b>חדר ${r}</b></td><td>${grouped[r].join(', ')}</td></tr>`);
+            }
+            document.getElementById('repContent').innerHTML = content + "</table>";
+            window.print();
+        }
+
+        function shareSummaryWA(type) {
+            const active = db.filter(i => i.status === 'active');
+            if(!active.length) return alert("אין נתונים");
+            let msg = `*דוח ריכוז 5100 - ${new Date().toLocaleDateString('he-IL')}*%0A%0A`;
+            if(type === 'category') {
+                const grouped = {}; active.forEach(i => { if(!grouped[i.gap]) grouped[i.gap] = []; grouped[i.gap].push(`חדר ${i.room} (${i.position})`); });
+                Object.keys(grouped).sort().forEach(g => msg += `*${g}:*%0A${grouped[g].join(', ')}%0A%0A`);
+            } else {
+                const grouped = {}; active.forEach(i => { if(!grouped[i.room]) grouped[i.room] = []; grouped[i.room].push(`${i.gap} (${i.position})`); });
+                Object.keys(grouped).sort((a,b)=>a-b).forEach(r => msg += `*חדר ${r}:*%0A${grouped[r].join(', ')}%0A%0A`);
+            }
+            window.open(`https://wa.me/?text=${msg}`, '_blank');
+        }
+
+        function checkPass() { 
+            if(prompt("סיסמה:") === "4451") { 
+                document.getElementById('main-ui').style.display = 'none'; 
+                document.getElementById('settings-panel').style.display = 'block'; 
+                updateChart(); 
+                loadEditor(); 
+            } 
+        }
+
+        function loadEditor() {
+            const grid = document.getElementById('gap-editor-grid'); grid.innerHTML = '';
+            gapList.forEach((gap, idx) => {
+                const inp = document.createElement('input'); 
+                inp.value = gap; 
+                inp.onchange = (e) => { gapList[idx] = e.target.value; };
+                grid.appendChild(inp);
+            });
+        }
+
+        async function closeSettings() { 
+            document.getElementById('status-bar').innerText = "⏳ מעדכן הגדרות..."; 
+            const result = await syncToCloud();
+            if(result.ok) location.reload();
+            else alert(result.error || "שגיאת שמירה בענן");
+        }
+
+        function updateChart() {
+            const active = db.filter(i => i.status === 'active');
+            if(!active.length) { document.getElementById('pie-chart-svg-container').innerHTML = "אין נתונים"; return; }
+            const stats = {}; active.forEach(i => stats[i.gap] = (stats[i.gap] || 0) + 1);
+            const sorted = Object.entries(stats).sort((a,b) => b[1] - a[1]);
+            const total = active.length;
+            let currentAngle = 0, svg = '';
+            const leg = document.getElementById('legend'); leg.innerHTML = '';
+            sorted.forEach(([n, c], idx) => {
+                const angle = (c / total) * 360; const color = colors[idx % colors.length];
+                const x1 = 100 + 100 * Math.cos(Math.PI * currentAngle / 180); const y1 = 100 + 100 * Math.sin(Math.PI * currentAngle / 180);
+                currentAngle += angle;
+                const x2 = 100 + 100 * Math.cos(Math.PI * currentAngle / 180); const y2 = 100 + 100 * Math.sin(Math.PI * currentAngle / 180);
+                svg += `<path d="M100,100 L${x1},${y1} A100,100 0 ${angle > 180 ? 1 : 0},1 ${x2},${y2} Z" fill="${color}" style="stroke:#fff;"></path>`;
+                leg.innerHTML += `<div class="legend-item"><div style="width:8px; height:8px; border-radius:50%; background:${color}; margin-left:5px;"></div>${n} (${c})</div>`;
+            });
+            document.getElementById('pie-chart-svg-container').innerHTML = `<svg width="150" height="150" viewBox="0 0 200 200" style="transform: rotate(-90deg);">${svg}</svg>`;
+        }
+
+        function searchByRoom() {
+            const val = document.getElementById('searchRoomInput').value;
+            const res = document.getElementById('searchResults'); res.innerHTML = '';
+            const filtered = db.filter(i => i.room == val);
+            if(!filtered.length) return res.innerHTML = 'אין נתונים';
+            res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="window.print()">📄 הדפסה</button><button class="btn-wa" onclick="sendWA(${val})">💬 וואטסאפ</button></div>`;
+            filtered.forEach(item => {
+                res.innerHTML += `<div class="item-row ${item.status === 'done' ? 'done' : ''}" style="${item.status === 'done' ? 'background:#f0fdf4; opacity:0.6;' : ''}"><span><b>${item.gap}</b> (${item.position})</span><div><button onclick="markDone('${item.id}')">✔️</button><button onclick="deleteItem('${item.id}')">🗑️</button></div></div>`;
+            });
+        }
+
+        function sendWA(roomNum) {
+            const items = db.filter(i => i.room == roomNum && i.status === 'active');
+            let msg = `*דוח פערים - חדר ${roomNum}*%0A%0A`;
+            items.forEach((it, idx) => msg += `${idx+1}. ${it.gap} (${it.position})%0A`);
+            window.open(`https://wa.me/?text=${msg}`, '_blank');
+        }
+
+        async function markDone(id) { 
+            const i = db.find(x => String(x.id) === String(id)); 
+            if(i) i.status = 'done'; 
+            const r = await syncToCloud();
+            if(!r.ok) return alert(r.error || "שגיאת שמירה בענן");
+            searchByRoom(); renderSummary(); 
+        }
+
+        async function deleteItem(id) { 
+            if(confirm("מחק?")) { 
+                db = db.filter(x => String(x.id) !== String(id)); 
+                const r = await syncToCloud();
+                if(!r.ok) return alert(r.error || "שגיאת שמירה בענן");
+                searchByRoom(); renderSummary(); 
+            } 
+        }
+        
+        function renderSummary() {
+            const cont = document.getElementById('mainSummary'); cont.innerHTML = '';
+            const active = db.filter(i => i.status === 'active');
+            const groups = {}; active.forEach(i => { if(!groups[i.room]) groups[i.room] = new Set(); groups[i.room].add(i.gap); });
+            Object.keys(groups).sort((a,b)=>a-b).forEach(r => {
+                cont.innerHTML += `<div class="summary-row" onclick="document.getElementById('searchRoomInput').value = ${r}; searchByRoom();"><strong>חדר ${r}</strong>: ${Array.from(groups[r]).join(', ')}</div>`;
+            });
+        }
+
+        initApp();
+    </script>
+</body>
+</html>
