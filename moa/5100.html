@@ -35,7 +35,8 @@
     .status-bar { font-size: 11px; color: #64748b; margin-bottom: 8px; font-weight: bold; text-align: center; }
 
     @media print {
-      .no-print, #settings-panel, #settings-trigger, .section, button, h1, .btn-save, .status-bar { display: none !important; }
+      /* ✅ תיקון יחיד: לא מסתירים יותר h1 כדי שהכותרת של הדוח תודפס */
+      .no-print, #settings-panel, #settings-trigger, .section, button, .btn-save, .status-bar { display: none !important; }
       .print-only { display: block !important; width: 100%; }
       body { background: white !important; padding: 0 !important; }
       .report-table { width: 100% !important; border-collapse: collapse !important; border: 1px solid black !important; }
@@ -198,7 +199,6 @@
       getDocs, addDoc, updateDoc, deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-    // ===== Firebase config (כמו שנתת) =====
     const firebaseConfig = {
       apiKey: "AIzaSyDe7vJA75cYtMxWQJSEPDf-iAVo3zFzozI",
       authDomain: "project-8467519916200199486.firebaseapp.com",
@@ -211,7 +211,6 @@
     const app = initializeApp(firebaseConfig);
     const FS = getFirestore(app);
 
-    // ====== נתונים (כמו בקוד שלך) ======
     let db = [];
     let gapList = ["חשמל", "רשת", "תקשורת", "תאורה", "גלאי", "שקע", "מפסק", "לוח חשמל", "מיזוג", "ספרינקלר", "טיח", "צבע", "ריצוף", "חיפוי", "תקרה", "דלת", "מנעול", "חלון", "איטום", "ניקיון", "פער 21", "פער 22", "פער 23", "פער 24", "פער 25", "פער 26", "פער 27", "פער 28"];
     let selectedFloor = null, selectedPos = null, selectedGaps = [];
@@ -219,8 +218,6 @@
     const colors = ["#ef4444", "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#6366f1", "#d946ef", "#84cc16", "#0ea5e9", "#f43f5e", "#71717a", "#451a03", "#171717", "#fbbf24", "#6d28d9", "#34495e", "#546e7a", "#ff7043", "#8d6e63", "#78909c", "#d4e157", "#26a69a", "#ab47bc", "#26c6da"];
 
     const statusBar = document.getElementById('status-bar');
-
-    // ===== Firestore "מבנה אחסון" =====
     const ITEMS_COL = collection(FS, "items");
     const META_DOC = doc(FS, "meta", "config");
 
@@ -228,8 +225,6 @@
       return new Date().toLocaleDateString('he-IL');
     }
 
-    // ====== נושאים (כותרות + 10 סלוטים לכל נושא) ======
-    // נשמר ב-Firestore: meta.topics, meta.topicSlots
     let topics = [
       { id: "power", title: "חשמל / תקשורת", icon: "⚡" },
       { id: "furniture", title: "ריהוט", icon: "🪑" },
@@ -237,17 +232,13 @@
       { id: "hvac", title: "מיזוג", icon: "❄️" },
       { id: "other", title: "אחר", icon: "📌" }
     ];
-    // topicSlots: { [topicId]: Array(10).fill(null|indexNumber) } indexNumber = 0..27
     let topicSlots = {};
 
     function ensureDefaultTopicSlots() {
-      // אם לא קיים - נבנה ברירת מחדל: 28 הראשונים יתפזרו לפי סדר על 4 נושאים, השאר ייפול ל"אחר" אוטומטית בדף הראשי
       const ids = topics.map(t => t.id);
       topicSlots = {};
       ids.forEach(id => topicSlots[id] = Array(10).fill(null));
 
-      // פיזור פשוט (לא משנה שמות/לוגיקה של gapList)
-      // 0-9 => power, 10-15 => build, 16-19 => hvac, 20-27 => other (בפועל גם אם לא שובץ, "אחר" ימלא לבד)
       for (let i = 0; i < 28; i++) {
         let target = "other";
         if (i <= 9) target = "power";
@@ -272,7 +263,6 @@
           if (Array.isArray(meta.topics) && meta.topics.length) topics = meta.topics;
           if (meta.topicSlots && typeof meta.topicSlots === "object") topicSlots = meta.topicSlots;
 
-          // אם חסר משהו - ניצור ברירת מחדל עדינה
           const haveAll = topics.every(t => topicSlots && Array.isArray(topicSlots[t.id]) && topicSlots[t.id].length === 10);
           if (!haveAll) {
             ensureDefaultTopicSlots();
@@ -315,7 +305,6 @@
     }
 
     function buildMainGroupsFromSlots() {
-      // מחזיר מערך קבוצות לדף הראשי: רק מה שנבחר (ללא ריקים), + "אחר" מקבל כל מה שלא שובץ
       const used = new Set();
 
       const result = topics.map(t => {
@@ -326,7 +315,6 @@
         return { id: t.id, title: t.title, icon: t.icon, idxs: unique };
       });
 
-      // כל מה שלא שובץ -> נכנס ל"אחר"
       const unassigned = [];
       for (let i = 0; i < 28; i++) if (!used.has(i)) unassigned.push(i);
 
@@ -334,7 +322,6 @@
       if (other) other.idxs = other.idxs.concat(unassigned);
       else if (unassigned.length) result.push({ id: "other", title: "אחר", icon: "📌", idxs: unassigned });
 
-      // מסיר קבוצות ריקות לגמרי כדי לא להציג כותרת מיותרת
       return result.filter(g => g.idxs.length > 0);
     }
 
@@ -404,7 +391,6 @@
       selectedPos = val;
     }
 
-    // ===== SAVE =====
     window.saveData = async function() {
       const room = document.getElementById('roomInput').value;
       if (!selectedFloor || !room || !selectedPos || selectedGaps.length === 0) return alert("מלא נתונים!");
@@ -434,7 +420,6 @@
       }
     }
 
-    // ===== REPORT =====
     window.generateReport = function(type) {
       const active = db.filter(i => i.status === 'active');
       if (!active.length) return alert("אין נתונים פתוחים");
@@ -474,7 +459,6 @@
       window.open(`https://wa.me/?text=${msg}`, '_blank');
     }
 
-    // ===== SETTINGS =====
     window.checkPass = function() {
       if (prompt("סיסמה:") === "4451") {
         document.getElementById('main-ui').style.display = 'none';
@@ -499,7 +483,6 @@
       const cont = document.getElementById('topic-editor');
       cont.innerHTML = '';
 
-      // ודא שיש 10 סלוטים לכל נושא
       topics.forEach(t => {
         if (!Array.isArray(topicSlots[t.id]) || topicSlots[t.id].length !== 10) topicSlots[t.id] = Array(10).fill(null);
       });
@@ -508,7 +491,6 @@
         const card = document.createElement('div');
         card.className = 'topic-card';
 
-        // כותרת+אייקון לעריכה
         const head = document.createElement('div');
         head.className = 'topic-head';
 
@@ -526,7 +508,6 @@
         head.appendChild(ico);
         head.appendChild(title);
 
-        // 10 סלוטים: כל סלוט = SELECT לפער (או ריק)
         const slotsWrap = document.createElement('div');
         slotsWrap.className = 'topic-slots';
 
@@ -563,13 +544,11 @@
     }
 
     function sanitizeTopicSlots() {
-      // 1) שומר 10 סלוטים לכל נושא
       topics.forEach(t => {
         if (!Array.isArray(topicSlots[t.id]) || topicSlots[t.id].length !== 10) topicSlots[t.id] = Array(10).fill(null);
         topicSlots[t.id] = topicSlots[t.id].map(v => (Number.isInteger(v) && v >= 0 && v < 28) ? v : null);
       });
 
-      // 2) מנקה כפילויות: אם אותו אינדקס מופיע פעמיים -> רק הראשון נשאר, השאר נהיה null
       const seen = new Set();
       topics.forEach(t => {
         topicSlots[t.id] = topicSlots[t.id].map(v => {
@@ -621,14 +600,12 @@
     }
     window.updateChart = updateChart;
 
-    // ===== SEARCH / ACTIONS =====
     window.searchByRoom = function() {
       const val = document.getElementById('searchRoomInput').value;
       const res = document.getElementById('searchResults'); res.innerHTML = '';
       const filtered = db.filter(i => String(i.room) == String(val));
       if (!filtered.length) return res.innerHTML = 'אין נתונים';
 
-      // ✅ תיקון: במקום window.print() שגרם לדף ריק, מדפיס דרך printableReport כמו בדוחות
       res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="printRoomReport('${val}')">📄 הדפסה</button><button class="btn-wa" onclick="sendWA(${val})">💬 וואטסאפ</button></div>`;
 
       filtered.forEach(item => {
@@ -642,7 +619,6 @@
       });
     }
 
-    // ✅ תיקון: הדפסה לחדר (כמו הלוגיקה בדוחות settings) כדי שלא יצא דף ריק
     window.printRoomReport = function(roomNum) {
       const items = db.filter(i => String(i.room) == String(roomNum));
       if (!items.length) return alert("אין נתונים לחדר הזה");
