@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>5100 - Cloud Sync System</title>
+    <style>
+        :root { --primary: #1e3a8a; --accent: #2563eb; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937; --wa: #16a34a; --loading: #94a3b8; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        #settings-trigger { position: absolute; top: 10px; left: 10px; font-size: 14px; cursor: pointer; opacity: 0.4; padding: 10px; z-index: 100; }
+        .section { width: 100%; max-width: 480px; background: var(--card); padding: 12px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 12px; box-sizing: border-box; }
+        h1 { color: var(--primary); margin: 5px 0; text-align: center; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 13px; color: var(--primary); }
+        .grid-7, .grid-3, .grid-4 { display: grid; gap: 4px; }
+        .grid-7 { grid-template-columns: repeat(7, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        button { padding: 10px 2px; border: 1px solid #d1d5db; background: #f9fafb; border-radius: 8px; cursor: pointer; font-size: 12px; }
+        button.active { background: var(--accent); color: white; border-color: var(--accent); }
+        input, textarea { width: 100%; padding: 10px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 16px; box-sizing: border-box; outline: none; }
+        textarea { height: 40px; resize: none; font-size: 14px; }
+        .btn-save { width: 100%; max-width: 480px; padding: 15px; background: #059669; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 12px; margin-bottom: 20px; cursor: pointer; }
+        #settings-panel { display: none; width: 100%; max-width: 500px; background: #fff; padding: 15px; border-radius: 12px; border: 2px solid var(--primary); margin-top: 10px; box-sizing: border-box; }
+        .settings-section { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .report-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 5px; }
+        .btn-report-action { border: none; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 12px; color: white; cursor: pointer; }
+        #status-bar { font-size: 10px; color: var(--loading); margin-bottom: 5px; }
+        @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
+        .print-only { display: none; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .report-table th, .report-table td { border: 1px solid #000; padding: 8px; text-align: right; }
+        .item-row { background: white; padding: 10px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
+    </style>
+</head>
+<body>
+
+    <div id="settings-trigger" class="no-print" onclick="checkPass()">⚙️</div>
+    <div id="status-bar" class="no-print">מחובר לענן: טוען נתונים...</div>
+
+    <div id="main-ui" class="no-print">
+        <h1>5100</h1>
+
+        <div class="section">
+            <label>קומה</label>
+            <div class="grid-7" id="floorContainer"></div>
+        </div>
+
+        <div class="section">
+            <label>מספר חדר</label>
+            <input type="number" id="roomInput" list="roomSuggestions" placeholder="חדר...">
+            <datalist id="roomSuggestions"></datalist>
+        </div>
+
+        <div class="section">
+            <label>עמדה</label>
+            <div class="grid-3" id="posContainer">
+                <button onclick="setPos(this, 'ימין')">ימין</button>
+                <button onclick="setPos(this, 'שמאל')">שמאל</button>
+                <button onclick="setPos(this, 'דלת')">דלת</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <label>פערים (28)</label>
+            <div class="grid-4" id="gapContainer"></div>
+        </div>
+
+        <div class="section">
+            <label>הערות</label>
+            <textarea id="notesInput" placeholder="הערה..."></textarea>
+        </div>
+
+        <button id="saveBtn" class="btn-save" onclick="saveData()">שמור לענן ☁️</button>
+
+        <div class="section" style="background: #eff6ff;" id="editArea">
+            <label>חפש חדר</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <input type="number" id="searchRoomInput" placeholder="חדר...">
+                <button onclick="searchByRoom()" style="background: var(--accent); color: white; border:none; padding: 0 15px; border-radius: 8px;">הצג</button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <div class="section">
+            <label>פערים פתוחים (מסונכרן)</label>
+            <div id="mainSummary"></div>
+        </div>
+    </div>
+
+    <div id="settings-panel" class="no-print">
+        <h2 style="text-align:center;">הגדרות ענן GitHub</h2>
+        
+        <div class="settings-section" style="background: #fff4e5; padding: 10px; border-radius: 10px;">
+            <label>🔑 פרטי חיבור ל-GitHub:</label>
+            <input type="text" id="ghUser" placeholder="שם משתמש (User)" style="margin-bottom:5px;">
+            <input type="text" id="ghRepo" placeholder="שם הפרויקט (Repo)" style="margin-bottom:5px;">
+            <input type="password" id="ghToken" placeholder="GitHub Token (PAT)" style="margin-bottom:5px;">
+            <p style="font-size:10px; color:#c2410c;">* הטוקן נשמר רק במכשיר שלך מטעמי אבטחה.</p>
+        </div>
+
+        <div class="settings-section">
+            <label>📊 דוחות ריכוז:</label>
+            <div class="report-group">
+                <button class="btn-report-action" style="background:#4f46e5;" onclick="generateReport('category')">דוח תקלות</button>
+                <button class="btn-report-action" style="background:#16a34a;" onclick="shareSummaryWA('category')">וואטסאפ תקלות</button>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <label>✏️ עריכת 28 לחצנים:</label>
+            <div id="gap-editor-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;"></div>
+        </div>
+
+        <button onclick="closeSettings()" style="width:100%; background:var(--primary); color:white; padding:15px; border:none; border-radius:10px; font-weight:bold;">שמור נתוני חיבור</button>
+    </div>
+
+    <div id="printableReport" class="print-only" style="direction: rtl; padding: 20px;">
+        <h1 id="repTitle">דוח פערים</h1>
+        <p>תאריך: <span id="repDate"></span></p>
+        <div id="repContent"></div>
+    </div>
+
+    <script>
+        let db = [];
+        let gapList = ["חשמל", "רשת", "תקשורת", "תאורה", "גלאי", "שקע", "מפסק", "לוח חשמל", "מיזוג", "ספרינקלר", "טיח", "צבע", "ריצוף", "חיפוי", "תקרה", "דלת", "מנעול", "חלון", "איטום", "ניקיון", "פער 21", "פער 22", "פער 23", "פער 24", "פער 25", "פער 26", "פער 27", "פער 28"];
+        let selectedFloor = null, selectedPos = null, selectedGaps = [];
+        let ghFileSha = null;
+
+        // טעינת הגדרות GitHub מה-LocalStorage של המכשיר
+        const getGH = () => ({
+            user: localStorage.getItem('ghUser') || '',
+            repo: localStorage.getItem('ghRepo') || '',
+            token: localStorage.getItem('ghToken') || '',
+            path: 'data/5100.json'
+        });
+
+        async function initApp() {
+            const config = getGH();
+            if (config.user && config.token) {
+                await fetchCloudData();
+            } else {
+                document.getElementById('status-bar').innerText = "⚠️ נא להגדיר חיבור GitHub בהגדרות";
+            }
+            renderUI();
+        }
+
+        async function fetchCloudData() {
+            const { user, repo, token, path } = getGH();
+            const url = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
+            
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    ghFileSha = data.sha;
+                    const content = JSON.parse(atob(data.content));
+                    db = content.db || [];
+                    gapList = content.gapList || gapList;
+                    document.getElementById('status-bar').innerText = "✅ נתונים מסונכרנים עם הענן";
+                }
+            } catch (e) { document.getElementById('status-bar').innerText = "❌ שגיאה בחיבור לענן"; }
+        }
+
+        async function syncToCloud() {
+            const { user, repo, token, path } = getGH();
+            const url = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
+            const body = {
+                message: "Update construction gaps",
+                content: btoa(unescape(encodeURIComponent(JSON.stringify({ db, gapList })))),
+                sha: ghFileSha
+            };
+
+            document.getElementById('status-bar').innerText = "⏳ שומר לענן...";
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            if (response.ok) {
+                const resData = await response.json();
+                ghFileSha = resData.content.sha;
+                document.getElementById('status-bar').innerText = "✅ נשמר בהצלחה";
+                return true;
+            } else {
+                alert("שגיאת שמירה! ייתכן שהטוקן לא תקין או שהקובץ עודכן ע\"י מישהו אחר. נא לרענן.");
+                return false;
+            }
+        }
+
+        function renderUI() {
+            const fCont = document.getElementById('floorContainer'); fCont.innerHTML = '';
+            for (let i = 1; i <= 7; i++) {
+                const btn = document.createElement('button'); btn.innerText = i;
+                btn.onclick = () => { document.querySelectorAll('#floorContainer button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); selectedFloor = i; updateRoomSuggestions(); };
+                fCont.appendChild(btn);
+            }
+            const gCont = document.getElementById('gapContainer'); gCont.innerHTML = '';
+            gapList.forEach(gap => {
+                const btn = document.createElement('button'); btn.innerText = gap;
+                btn.onclick = () => {
+                    if(selectedGaps.includes(gap)) { selectedGaps = selectedGaps.filter(g => g !== gap); btn.classList.remove('active'); }
+                    else { selectedGaps.push(gap); btn.classList.add('active'); }
+                };
+                gCont.appendChild(btn);
+            });
+            renderSummary();
+        }
+
+        async function saveData() {
+            const room = document.getElementById('roomInput').value;
+            if(!selectedFloor || !room || !selectedPos || selectedGaps.length === 0) return alert("חסר מידע");
+            
+            selectedGaps.forEach(gap => {
+                db.push({ id: Date.now() + Math.random(), status: 'active', date: new Date().toLocaleDateString('he-IL'), room: room, position: selectedPos, gap: gap, notes: document.getElementById('notesInput').value });
+            });
+
+            const success = await syncToCloud();
+            if(success) location.reload();
+        }
+
+        function checkPass() {
+            if(prompt("סיסמה:") === "4451") {
+                document.getElementById('main-ui').style.display = 'none';
+                document.getElementById('settings-panel').style.display = 'block';
+                const config = getGH();
+                document.getElementById('ghUser').value = config.user;
+                document.getElementById('ghRepo').value = config.repo;
+                document.getElementById('ghToken').value = config.token;
+                loadEditor();
+            }
+        }
+
+        function loadEditor() {
+            const grid = document.getElementById('gap-editor-grid'); grid.innerHTML = '';
+            gapList.forEach((gap, idx) => {
+                const inp = document.createElement('input'); inp.value = gap;
+                inp.onchange = (e) => { gapList[idx] = e.target.value; };
+                grid.appendChild(inp);
+            });
+        }
+
+        async function closeSettings() {
+            localStorage.setItem('ghUser', document.getElementById('ghUser').value);
+            localStorage.setItem('ghRepo', document.getElementById('ghRepo').value);
+            localStorage.setItem('ghToken', document.getElementById('ghToken').value);
+            await syncToCloud();
+            location.reload();
+        }
+
+        // פונקציות דוח וחיפוש (זהות לגרסה הקודמת)
+        function searchByRoom() {
+            const val = document.getElementById('searchRoomInput').value;
+            const res = document.getElementById('searchResults'); res.innerHTML = '';
+            const filtered = db.filter(i => i.room == val);
+            if(!filtered.length) return res.innerHTML = 'אין נתונים';
+            res.innerHTML = `<div class="pdf-actions"><button class="btn-red" onclick="window.print()">📄 הדפסה</button></div>`;
+            filtered.forEach(item => {
+                res.innerHTML += `<div class="item-row ${item.status === 'done' ? 'done' : ''}"><span><b>${item.gap}</b> (${item.position})</span><div><button onclick="markDone(${item.id})">✔️</button><button onclick="deleteItem(${item.id})">🗑️</button></div></div>`;
+            });
+        }
+
+        async function markDone(id) {
+            const i = db.find(x => x.id === id); if(i) i.status = 'done';
+            await syncToCloud();
+            searchByRoom(); renderSummary();
+        }
+
+        async function deleteItem(id) {
+            if(confirm("מחק?")) { db = db.filter(x => x.id !== id); await syncToCloud(); searchByRoom(); renderSummary(); }
+        }
+
+        function renderSummary() {
+            const cont = document.getElementById('mainSummary'); cont.innerHTML = '';
+            const active = db.filter(i => i.status === 'active');
+            const groups = {}; active.forEach(i => { if(!groups[i.room]) groups[i.room] = new Set(); groups[i.room].add(i.gap); });
+            Object.keys(groups).sort((a,b)=>a-b).forEach(r => {
+                cont.innerHTML += `<div class="summary-row" onclick="document.getElementById('searchRoomInput').value = ${r}; searchByRoom();"><strong>חדר ${r}</strong>: ${Array.from(groups[r]).join(', ')}</div>`;
+            });
+        }
+
+        function updateRoomSuggestions() {
+            const list = document.getElementById('roomSuggestions'); list.innerHTML = '';
+            if(!selectedFloor) return;
+            for(let i = selectedFloor * 100 + 1; i <= selectedFloor * 100 + 99; i++) {
+                const opt = document.createElement('option'); opt.value = i; list.appendChild(opt);
+            }
+        }
+        function setPos(btn, val) { document.querySelectorAll('#posContainer button').forEach(b => b.classList.remove('active')); btn.classList.add('active'); selectedPos = val; }
+
+        initApp();
+    </script>
+</body>
+</html>
