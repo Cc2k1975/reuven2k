@@ -55,7 +55,7 @@
   }
 
   function normalize(d){
-    d=d.replace(/\D/g,"");
+    d=(d||"").replace(/\D/g,"");
     if(d.length===10) return d;
     if(d.length===9) return "0"+d;
     if(d.startsWith("972")){
@@ -81,18 +81,18 @@
   }
 
   function tryOpenWhatsAppDirect(phoneIntl, msg){
-    // ניסיון לפתוח ישירות את האפליקציה (ברוב המקרים זה ייכנס ישר למסך שליחה)
     const deep = `whatsapp://send?phone=${phoneIntl}&text=${encodeURIComponent(msg)}`;
     const web  = `https://wa.me/${phoneIntl}?text=${encodeURIComponent(msg)}`;
 
-    // ניסיון deep-link
+    // ניסיון לפתוח אפליקציה
     location.href = deep;
 
-    // נפילה ל-web אם deep לא נתפס
+    // fallback רק אם לא עברנו באמת לאפליקציה
     setTimeout(() => {
-      // אם כבר עברנו אפליקציה - הטיימר לא מפריע בפועל
-      location.href = web;
-    }, 650);
+      if (document.visibilityState === "visible") {
+        location.href = web;
+      }
+    }, 350);
   }
 
   function openWA(phone10,lat,lon){
@@ -111,38 +111,59 @@
   }
 
   btn.onclick = () => {
-    if(!SpeechRecognition) return;
+    if(!SpeechRecognition){
+      alert("הדפדפן לא תומך בזיהוי דיבור במכשיר הזה. נסה Chrome.");
+      return;
+    }
+    if(!navigator.geolocation){
+      alert("אין תמיכה ב-GPS בדפדפן הזה.");
+      return;
+    }
 
     btn.textContent = "נא להקריא את המספר טלפון";
     btn.disabled = true;
 
     const locPromise = getLocationSnapshot();
     let loc = null;
-    locPromise.then(l => loc = l);
+    locPromise.then(l => loc = l).catch(()=>{});
 
     const rec = new SpeechRecognition();
     rec.lang = "he-IL";
     rec.continuous = true;
     rec.interimResults = true;
 
-    let collected = "";
     let locked = false;
+    let transcriptAll = "";
 
     rec.onresult = async e => {
       if(locked) return;
-      let t = "";
+
+      // מצטבר טקסט (לא ספרות!) כדי לא להכפיל digits בגלל interim
+      let chunk = "";
       for(let i=e.resultIndex;i<e.results.length;i++){
-        t += " " + e.results[i][0].transcript;
+        chunk += " " + (e.results[i][0].transcript || "");
       }
-      collected += extractDigits(t);
-      const phone = normalize(collected);
+      transcriptAll += chunk;
+
+      const digits = extractDigits(transcriptAll);
+      const phone = normalize(digits);
+
       if(phone){
         locked = true;
-        rec.stop();
+
+        try { rec.stop(); } catch(_) {}
+
         try{
           const L = loc || await locPromise;
-          openWA(phone, L.lat, L.lon);
-        }catch{}
+          if (L && typeof L.lat === "number" && typeof L.lon === "number") {
+            openWA(phone, L.lat, L.lon);
+          } else {
+            throw new Error("no location");
+          }
+        }catch{
+          alert("לא הצלחתי לקבל מיקום. אשר הרשאת מיקום ונסה שוב.");
+        }
+
         btn.disabled = false;
         btn.textContent = "שלח מיקום";
       }
@@ -152,6 +173,7 @@
       btn.disabled = false;
       btn.textContent = "שלח מיקום";
     };
+
     rec.onend = () => {
       if(!locked){
         btn.disabled = false;
@@ -159,7 +181,10 @@
       }
     };
 
-    rec.start();
+    try { rec.start(); } catch(_) {
+      btn.disabled = false;
+      btn.textContent = "שלח מיקום";
+    }
   };
 })();
 </script>
