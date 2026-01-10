@@ -51,15 +51,17 @@
   <button class="btn-paste" style="background:#eee;color:#333;margin-top:10px;" onclick="location.reload()">נקה הכל</button>
 </div>
 
-<!-- לינק “אמיתי” שנלחץ עליו (חלק מהפתרון הכי יציב) -->
 <a id="waLink" href="#" style="display:none;"></a>
 
 <script>
   let recognition = null;
-  let lockedNumber = "";
-  let finalMsg = "";
+
+  let lockedNumber = "";     // נשאר גם אם התחלת הקלטה חדשה (כדי שהדבקה לא תימחק)
   let finalTranscript = "";
+  let finalMsg = "";
   let isListening = false;
+  let activePointerId = null;
+  let restartGuard = false;
 
   function safeInitRecognition(){
     if (recognition) return true;
@@ -72,16 +74,20 @@
 
     recognition = new Speech();
     recognition.lang = "he-IL";
-    recognition.continuous = true;
+
+    // באנדרואיד continuous לא תמיד יציב. עדיף false + restart ב-onend בזמן לחיצה
+    recognition.continuous = false;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
       document.getElementById("status").innerText = "מקשיב... שחרר לשליחה";
     };
 
     recognition.onerror = (e) => {
-      isListening = false;
+      // NotAllowed / aborted / network נפוצים — לא מפוצצים הכל
       document.getElementById("status").innerText = "שגיאה בזיהוי דיבור: " + (e.error || "");
+      // אם עדיין בלחיצה — ננסה להמשיך ב-onend
     };
 
     recognition.onresult = (event) => {
@@ -102,6 +108,18 @@
       processText(latestText);
     };
 
+    recognition.onend = () => {
+      // אם המשתמש עדיין לוחץ, הזיהוי לפעמים נסגר לבד — נפתח מחדש בצורה בטוחה
+      if (isListening){
+        if (restartGuard) return;
+        restartGuard = true;
+        setTimeout(() => {
+          restartGuard = false;
+          try { recognition.start(); } catch(e) {}
+        }, 80);
+      }
+    };
+
     return true;
   }
 
@@ -110,7 +128,7 @@
     for (const m of matches){
       const d = m.replace(/\D/g,'');
       if (d.length === 10 && d.startsWith('05')) return d;
-      if (d.length === 9) return d;
+      if (d.length === 9 && d.startsWith('0')) return d;
     }
     const all = text.replace(/\D/g,'');
     const mm = all.match(/05\d{8}/);
@@ -121,22 +139,27 @@
     const phoneElem = document.getElementById("phoneField");
     const msgElem = document.getElementById("msgField");
 
+    // ננעל מספר רק אם אין כבר מספר נעול
     if (!lockedNumber){
       const found = extractIsraeliPhone(text);
       if (found){
         lockedNumber = found;
         phoneElem.innerText = lockedNumber;
       }
+    } else {
+      phoneElem.innerText = lockedNumber;
     }
 
     let msg = text;
 
     if (lockedNumber){
+      // מסיר את המספר מהטקסט גם אם נאמר עם רווחים/מקפים
       const loose = new RegExp(lockedNumber.split('').join('\\D*'), 'g');
       msg = msg.replace(loose, " ");
     }
 
-    msg = msg.replace(/\d/g, " ");
+    // מסיר ספרות (כדי שלא “יתערבבו” ספרות של מספרים בהודעה)
+    msg = msg.replace(/\d+/g, " ");
     msg = msg.replace(/\s+/g, " ").trim();
 
     msgElem.innerText = msg || "---";
@@ -146,29 +169,28 @@
   function startListening(){
     if (!safeInitRecognition()) return;
 
-    lockedNumber = "";
-    finalMsg = "";
+    // לא מאפס lockedNumber כדי שהדבקה תישאר
     finalTranscript = "";
+    finalMsg = "";
     isListening = true;
 
-    document.getElementById("phoneField").innerText = "---";
+    // מאפס רק הודעה
     document.getElementById("msgField").innerText = "---";
     document.getElementById("status").innerText = "מקשיב... שחרר לשליחה";
 
     try { recognition.start(); } catch(e) {}
   }
 
-  // ✅ פתיחה מיידית בתוך המחווה (בלי setTimeout) + abort
   function stopAndSendImmediately(){
     if (!recognition || !isListening) return;
 
     isListening = false;
 
-    // abort נסגר מיידית ולא תוקע את הניווט
-    try { recognition.abort(); } catch(e) {}
+    // stop מאפשר לתוצאות האחרונות “להיסגר” בלי למחוק
+    try { recognition.stop(); } catch(e) {}
 
     const num = (lockedNumber || "").replace(/\D/g,'');
-    if (!(num.length === 10 && num.startsWith('05')) && num.length < 9){
+    if (!(num.length === 10 && num.startsWith('05')) && !(num.length === 9 && num.startsWith('0'))){
       document.getElementById("status").innerText = "לא זוהה מספר נייד תקין";
       return;
     }
@@ -176,32 +198,47 @@
     const cleanNum = num.startsWith('0') ? ('972' + num.substring(1)) : num;
     const text = encodeURIComponent(finalMsg || "");
 
-    // קודם ננסה whatsapp:// (אפליקציה)
     const schemeUrl = `whatsapp://send?phone=${cleanNum}&text=${text}`;
-    // ואז wa.me (דפדפן -> אפליקציה)
     const webUrl = `https://wa.me/${cleanNum}?text=${text}`;
 
     document.getElementById("status").innerText = "פותח וואטסאפ...";
 
-    // שיטה הכי יציבה: "לחיצה" על קישור אמיתי במסגרת המחווה
+    // ניסיון לפתוח אפליקציה
     const a = document.getElementById("waLink");
-
-    // ניסיון 1: whatsapp://
     a.href = schemeUrl;
     a.click();
 
-    // אם המכשיר לא מאפשר scheme, עדיין המשתמש יישאר בדף.
-    // לכן מיד אחרי (עדיין באותו אירוע) ננווט ל-wa.me
-    window.location.href = webUrl;
+    // נפילה לדפדפן -> אפליקציה
+    window.location.assign(webUrl);
   }
 
   const btn = document.getElementById("pttBtn");
 
-  btn.addEventListener("touchstart", (e)=>{ e.preventDefault(); startListening(); }, {passive:false});
-  btn.addEventListener("touchend", (e)=>{ e.preventDefault(); stopAndSendImmediately(); }, {passive:false});
+  // Pointer Events = מונע כפילויות touch/mouse
+  btn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (activePointerId !== null) return;
+    activePointerId = e.pointerId;
+    btn.setPointerCapture?.(e.pointerId);
+    startListening();
+  }, { passive:false });
 
-  btn.addEventListener("mousedown", (e)=>{ e.preventDefault(); startListening(); });
-  btn.addEventListener("mouseup", (e)=>{ e.preventDefault(); stopAndSendImmediately(); });
+  btn.addEventListener("pointerup", (e) => {
+    e.preventDefault();
+    if (activePointerId !== e.pointerId) return;
+    activePointerId = null;
+    stopAndSendImmediately();
+  }, { passive:false });
+
+  btn.addEventListener("pointercancel", (e) => {
+    e.preventDefault();
+    if (activePointerId !== e.pointerId) return;
+    activePointerId = null;
+    // ביטול בלי שליחה
+    isListening = false;
+    try { recognition.stop(); } catch(err) {}
+    document.getElementById("status").innerText = "בוטל";
+  }, { passive:false });
 
   async function pasteFromClipboard(){
     try{
