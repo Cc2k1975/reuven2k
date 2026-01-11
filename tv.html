@@ -2,108 +2,75 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>לוח שידורים חיים - 4 ערוצים</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>לוח שידורים - 4 ערוצים במקביל</title>
 
   <style>
     :root {
-      --bg-color: #0a0a0a;
-      --cell-bg: #1a1a1a;
-      --accent-color: #ff3e3e;
-      --gap: 8px;
+      --bg-color: #000;
+      --gap: 4px;
     }
 
     html, body {
       height: 100%;
       margin: 0;
       background: var(--bg-color);
-      font-family: system-ui, -apple-system, sans-serif;
-      color: white;
-      overflow: hidden;
+      overflow: hidden; /* מונע גלילה מיותרת */
+      font-family: sans-serif;
     }
 
     .grid {
       display: grid;
-      height: 100vh;
-      padding: var(--gap);
-      gap: var(--gap);
+      /* שמירה על 2 עמודות ו-2 שורות בכל מכשיר */
       grid-template-columns: repeat(2, 1fr);
       grid-template-rows: repeat(2, 1fr);
+      height: 100vh;
+      width: 100vw;
+      gap: var(--gap);
+      padding: var(--gap);
       box-sizing: border-box;
-      transition: all 0.3s ease-in-out;
-    }
-
-    /* התאמה לניידים */
-    @media (max-width: 768px) {
-      .grid {
-        grid-template-columns: 1fr;
-        grid-template-rows: repeat(4, 1fr);
-      }
     }
 
     .cell {
       position: relative;
-      background: var(--cell-bg);
-      border-radius: 12px;
+      background: #111;
+      border-radius: 4px;
       overflow: hidden;
-      border: 2px solid transparent;
-      transition: transform 0.2s, border-color 0.2s;
-    }
-
-    .cell:hover {
-      border-color: #444;
+      border: 1px solid #333;
     }
 
     .badge {
       position: absolute;
-      top: 12px;
-      right: 12px;
+      top: 5px;
+      right: 5px;
       z-index: 10;
-      padding: 4px 12px;
-      border-radius: 20px;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(4px);
-      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      font-size: 10px;
       pointer-events: none;
-      border: 1px solid rgba(255,255,255,0.1);
     }
 
     iframe {
       width: 100%;
       height: 100%;
       border: 0;
+      /* מונע מהאתר שבתוך ה-iframe לשלוט על הגלילה של הדף הראשי */
+      pointer-events: auto; 
     }
 
-    /* מצב זום */
-    .cell.zoom {
-      position: fixed;
-      inset: var(--gap);
-      z-index: 9999;
-      border-radius: 8px;
-      border-color: var(--accent-color);
-    }
-
-    .grid.hide-others .cell:not(.zoom) {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .close-hint {
-      display: none;
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--accent-color);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 30px;
-      font-size: 14px;
-      z-index: 10000;
-    }
-
-    .zoom .close-hint {
-      display: block;
+    /* תיקון ספציפי למובייל - מבטיח שכל ה-4 יכנסו למסך אחד */
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+        height: 100dvh; /* גובה דינמי למובייל */
+      }
+      .badge {
+        font-size: 9px;
+        padding: 1px 5px;
+      }
     }
   </style>
 </head>
@@ -111,48 +78,25 @@
 
   <div class="grid">
     <div class="cell">
-      <div class="badge">כאן 11</div>
-      <iframe src="https://www.kan.org.il/live/" allowfullscreen></iframe>
-      <div class="close-hint">לחיצה כפולה ליציאה</div>
+      <div class="badge">ערוץ 1</div>
+      <iframe src="https://www.kan.org.il/live/" allow="autoplay; fullscreen"></iframe>
     </div>
 
     <div class="cell">
-      <div class="badge">קשת 12</div>
-      <iframe src="https://www.mako.co.il/mako-vod-live-tv/VOD-6540b8dcb64fd31006.htm"></iframe>
-      <div class="close-hint">לחיצה כפולה ליציאה</div>
-    </div>
-
-    <div class="cell">
-      <div class="badge">רשת 13</div>
+      <div class="badge">ערוץ 2</div>
       <iframe src="https://13tv.co.il/live/"></iframe>
-      <div class="close-hint">לחיצה כפולה ליציאה</div>
     </div>
 
     <div class="cell">
-      <div class="badge">i24NEWS</div>
+      <div class="badge">ערוץ 3</div>
       <iframe src="https://video.i24news.tv/live/brightcove/he"></iframe>
-      <div class="close-hint">לחיצה כפולה ליציאה</div>
+    </div>
+
+    <div class="cell">
+      <div class="badge">הלינק שחילצת</div>
+      <iframe src="http://45.8.92.73/live/play/TOKEN/CHANNEL"></iframe>
     </div>
   </div>
 
-  <script>
-    const grid = document.querySelector('.grid');
-    const cells = document.querySelectorAll('.cell');
-
-    cells.forEach(cell => {
-      cell.addEventListener('dblclick', () => {
-        const isZoomed = cell.classList.contains('zoom');
-
-        cells.forEach(c => c.classList.remove('zoom'));
-        
-        if (!isZoomed) {
-          cell.classList.add('zoom');
-          grid.classList.add('hide-others');
-        } else {
-          grid.classList.remove('hide-others');
-        }
-      });
-    });
-  </script>
 </body>
 </html>
