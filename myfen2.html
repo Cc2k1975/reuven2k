@@ -93,7 +93,7 @@ const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 const WAZE_URL = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
 
-const engToHeb = {'q':'/','w':'\'','e':'ק','r':'ר','t':'א','y':'ט','u':'ו','i':'ן','o':'ם','p':'פ','a':'ש','s':'ד','d':'ג','f':'כ','g':'ע','h':'י','j':'ח','k':'ל','l':'ך',';':'ף','\'':'"','z':'ז','x':'ס','c':'ב','v':'ה','b':'נ','n':'מ','m':'צ',',':'ת','.':'ץ','/':'.'};
+const engToHeb = {'q':'/','w':'\'','e':'ק','r':'ר','t':'א','y':'ט','u':'ו','i':'ן','o':'ם','p':'פ','a':'ש','s':'ד','d':'ג','f':'כ','ע':'g','h':'י','j':'ח','k':'ל','l':'ך',';':'ף','\'':'"','z':'ז','x':'ס','c':'ב','v':'ה','b':'נ','n':'מ','m':'צ',',':'ת','.':'ץ','/':'.'};
 
 const chatBox = document.getElementById("chatBox");
 const controlGroup = document.getElementById("controlGroup");
@@ -102,23 +102,26 @@ const inputZone = document.getElementById("inputZone");
 
 let currentStep = 0, userData = {}, selectedDayLabel = "";
 
-// פונקציית הקראה משופרת - חיפוש קול נשי
+// פונקציית הקראה עם תיקון פונטי למילה "פן"
 function speak(text) {
-  if ('speechSynthesis' in window) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    
-    // חיפוש קול בעברית שהוא נקבה
-    const femaleVoice = voices.find(v => v.lang.includes('he') && (v.name.includes('Female') || v.name.includes('Carmit') || v.name.includes('Google')));
-    
-    if (femaleVoice) utterance.voice = femaleVoice;
-    utterance.lang = 'he-IL';
-    utterance.rate = 1.0;
-    window.speechSynthesis.speak(utterance);
-  }
+  if (!('speechSynthesis' in window)) return;
+  
+  // תיקון פונטי רק לדיבור - הוספת ניקוד סגול למילה פן כדי שתישמע Fen
+  let phoneticText = text.replace(/פן/g, "פֶן"); 
+  
+  const utterance = new SpeechSynthesisUtterance(phoneticText);
+  const voices = window.speechSynthesis.getVoices();
+  
+  // חיפוש קול נשי בעברית
+  const femaleVoice = voices.find(v => v.lang.includes('he') && 
+    (v.name.includes('Female') || v.name.includes('Carmit') || v.name.includes('Google')));
+  
+  if (femaleVoice) utterance.voice = femaleVoice;
+  utterance.lang = 'he-IL';
+  utterance.rate = 1.0;
+  window.speechSynthesis.speak(utterance);
 }
 
-// טעינת קולות מראש (דרוש לחלק מהדפדפנים)
 window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
 const getFormattedDate = (daysToAdd) => {
@@ -128,7 +131,7 @@ const getFormattedDate = (daysToAdd) => {
 
 const steps = [
   { 
-    msg: "היי , שנזמין תור לפן?\nתבחרי למטה מתי הכי נוח לך", 
+    msg: "היי, שנזמין תור לפן?\nתבחרי למטה מתי הכי נוח לך", 
     field: "date", type: "chat-buttons", options: ["היום", "מחר", "מחרתיים"] 
   },
   { 
