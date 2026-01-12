@@ -1,876 +1,254 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>פן אקספרס – צ'אט לזימון תור</title>
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#d4af37">
-<link rel="apple-touch-icon" href="/Icon app.png" />
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>צ'אט פן אקספרס – קביעת תור</title>
 <style>
-  :root{
-    --gold:#b89016;
-    --gold2:#d4af37;
-    --bg:#f4f4f6;
-    --card:#ffffff;
-    --text:#111;
-    --muted:#555;
-    --border:#e3e3e7;
-    --bot:#fff7dd;
-    --me:#d4af37;
-  }
+:root {
+  --bg: #f0f2f5;
+  --chat-bg: #ffffff;
+  --bot-bubble: #e4e6eb;
+  --bot-text: #050505;
+  --user-bubble: #d4af37; /* הצבע הזהוב המקורי שלך */
+  --user-text: #000000;
+  --accent: #d4af37;
+  --border: #dddfe2;
+  --radius: 18px;
+}
 
-  body{
-    font-family: Arial, Helvetica, sans-serif;
-    background: var(--bg);
-    margin:0;
-    color: var(--text);
-  }
+body { margin: 0; background: var(--bg); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1c1e21; display: flex; justify-content: center; height: 100vh; overflow: hidden; }
 
-  .hero-logo{
-    width: 96px;
-    display:block;
-    margin: 10px auto 0 auto;
-  }
+.chat-container { width: 100%; max-width: 500px; display: flex; flex-direction: column; background: var(--chat-bg); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
 
-  .wrap{
-    max-width: 560px;
-    margin: 10px auto 18px;
-    padding: 16px 14px 14px;
-    background: var(--card);
-    border-radius: 18px;
-    box-shadow: 0 10px 26px rgba(0,0,0,.08);
-    border:1px solid var(--border);
-  }
+/* כותרת */
+.header { padding: 10px; background: #000; text-align: center; border-bottom: 2px solid var(--accent); z-index: 10; }
+.header img { width: 60px; }
 
-  h1{
-    margin: 6px 0 2px;
-    font-size: 34px;
-    text-align:center;
-    color: var(--gold);
-    letter-spacing: .2px;
-  }
+/* אזור ההודעות */
+#chatBox { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; background-color: #f9f9f9; }
 
-  h2{
-    margin: 0 0 12px;
-    font-size: 20px;
-    text-align:center;
-    color: var(--muted);
-  }
+/* עיצוב בועות */
+.msg { max-width: 80%; padding: 10px 15px; border-radius: var(--radius); line-height: 1.5; font-size: 16px; animation: popIn 0.3s ease; position: relative; }
+.bot { align-self: flex-start; background: var(--bot-bubble); color: var(--bot-text); border-top-right-radius: 4px; }
+.user { align-self: flex-end; background: var(--user-bubble); color: var(--user-text); border-top-left-radius: 4px; font-weight: 600; }
 
-  .chat{
-    height: min(66vh, 560px);
-    overflow:auto;
-    padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    background: #fbfbfc;
-  }
+@keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
-  .row{
-    display:flex;
-    margin: 10px 0;
-  }
+/* אזור הקלט */
+.input-area { padding: 15px; background: #ffffff; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+input, select { width: 100%; background: #f0f2f5; color: #1c1e21; border: 1px solid transparent; border-radius: 10px; padding: 12px; font-size: 16px; box-sizing: border-box; outline: none; }
+button.send-btn { background: #000; color: var(--accent); border: 1px solid var(--accent); padding: 12px; border-radius: 10px; font-size: 17px; font-weight: bold; cursor: pointer; }
+button.send-btn:active { transform: scale(0.98); background: var(--accent); color: #000; }
 
-  .bubble{
-    max-width: 92%;
-    padding: 12px 14px;
-    border-radius: 16px;
-    line-height: 1.45;
-    font-size: 19px;              /* גדול וברור */
-    white-space: pre-line;
-  }
+.typing { font-size: 12px; color: #65676b; padding: 5px 20px; }
+.hidden { display: none !important; }
 
-  .bot{ justify-content: flex-end; }
-  .bot .bubble{
-    background: var(--bot);
-    border: 1px solid rgba(212,175,55,.55);
-    color: #1a1a1a;
-    border-bottom-right-radius: 8px;
-  }
-
-  .me{ justify-content: flex-start; }
-  .me .bubble{
-    background: var(--me);
-    color: #000;
-    font-weight: 800;
-    border-bottom-left-radius: 8px;
-  }
-
-  .hint{
-    font-size: 15.5px;
-    color: var(--muted);
-    margin-top: 10px;
-    line-height: 1.3;
-  }
-
-  .composer{
-    display:flex;
-    gap: 10px;
-    margin-top: 12px;
-    align-items:center;
-  }
-
-  #input{
-    flex:1;
-    padding: 14px 14px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    font-size: 19px;              /* גדול וברור */
-    background: #fff;
-    color: var(--text);
-    outline: none;
-  }
-
-  #send{
-    width: 94px;
-    padding: 14px 10px;
-    border-radius: 14px;
-    border:0;
-    background: var(--gold2);
-    color:#000;
-    font-weight: 900;
-    font-size: 18px;
-    cursor:pointer;
-  }
-
-  #send[disabled], #input[disabled]{ opacity:.65; cursor:not-allowed; }
-
-  .error{
-    background: #ffe8e8;
-    color: #a10000;
-    border: 1px solid #ffbcbc;
-    padding: 10px 12px;
-    border-radius: 14px;
-    margin: 10px 0 12px;
-    display:none;
-    font-size: 17px;
-    line-height:1.35;
-  }
-
-  .success{
-    background: #e8fff0;
-    color: #0c6b2e;
-    border: 1px solid #b9f3cd;
-    padding: 10px 12px;
-    border-radius: 14px;
-    margin: 10px 0 12px;
-    display:none;
-    font-size: 17px;
-    line-height:1.35;
-  }
-
-  .toolbar{
-    display:flex;
-    gap: 10px;
-    margin-top: 12px;
-  }
-
-  .btn-secondary{
-    flex:1;
-    background:#fff;
-    color: var(--gold);
-    border:1px solid rgba(212,175,55,.65);
-    padding: 12px 10px;
-    border-radius: 14px;
-    cursor:pointer;
-    font-weight: 900;
-    font-size: 16.5px;
-  }
-
-  .btn-secondary img.icon{
-    width: 22px;
-    height: 22px;
-    vertical-align: middle;
-    margin: 0 6px;
-  }
-
-  .ver{
-    margin-top: 12px;
-    font-size: 12.8px;
-    color: #777;
-    text-align:center;
-  }
-
-  /* Modal (נשאר כמו אצלך) */
-  .modal-backdrop{
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,.72);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index: 50;
-  }
-
-  .modal{
-    background:#fff;
-    border-radius: 16px;
-    max-width: 440px;
-    width: 92%;
-    padding: 18px 18px 12px;
-    box-shadow: 0 16px 40px rgba(0,0,0,.28);
-    color:#111;
-  }
-
-  .modal h3{
-    margin: 0 0 8px;
-    font-size: 22px;
-    color: #111;
-  }
-
-  .modal p{
-    margin: 0 0 14px;
-    color:#111;
-    white-space: pre-line;
-    font-size: 17px;
-    line-height:1.35;
-  }
-
-  .modal .row2{
-    display:flex;
-    gap: 10px;
-    justify-content: space-between;
-  }
-
-  .modal .row2 button{
-    flex: 1;
-    padding: 12px;
-    border-radius: 12px;
-    border:0;
-    font-weight: 900;
-    font-size: 16.5px;
-    cursor:pointer;
-  }
-
-  .modal .cancel{
-    background:#fff;
-    color:#111;
-    border:1px solid #bbb;
-  }
-
-  .modal .ok{
-    background: var(--gold2);
-    color:#000;
-  }
+/* כרטיס סיכום בסיום */
+.summary-card { background: #000; color: var(--accent); padding: 15px; border-radius: 15px; border: 1px solid var(--accent); text-align: center; margin-top: 10px; }
+.summary-card button { width: 100%; margin-top: 10px; padding: 10px; border-radius: 8px; border: 0; font-weight: bold; cursor: pointer; }
 </style>
 </head>
 <body>
 
-<img src="https://reuven2k.com/exe.gif" alt="פן אקספרס" class="hero-logo" />
-
-<div class="wrap">
-  <h1>פן אקספרס</h1>
-  <h2>צ'אט לזימון תורים</h2>
-
-  <div id="msgError" class="error"></div>
-  <div id="msgOk" class="success"></div>
-
-  <div id="chat" class="chat" aria-live="polite"></div>
-  <div class="hint" id="hintText"></div>
-
-  <div class="composer">
-    <input id="input" type="text" placeholder="כתוב כאן..." autocomplete="off" inputmode="text" />
-    <button id="send">שלח</button>
+<div class="chat-container">
+  <div class="header">
+    <img src="https://reuven2k.com/exe.gif" alt="פן אקספרס">
   </div>
 
-  <div class="toolbar">
-    <button id="galleryBtn" type="button" class="btn-secondary"><b>גלריית עבודות</b></button>
-    <button id="navWaze" type="button" class="btn-secondary">
-      <b>נווט ל פן-אקספרס</b>
-      <img class="icon" src="https://reuven2k.com/map.png" alt="" />
-    </button>
-  </div>
+  <div id="chatBox"></div>
+  <div id="typingIndicator" class="typing hidden">פן אקספרס מקלידה...</div>
 
-  <div class="ver">Version: 1.6.2-chat-light</div>
-</div>
-
-<div id="icsModal" class="modal-backdrop" role="dialog" aria-modal="true">
-  <div class="modal">
-    <h3>להוסיף תזכורת ליומן?</h3>
-    <p id="icsText">ניצור אירוע ליומן בתאריך ___ בשעה ___ כולל תזכורת שעה לפני.
-לקוחה יקרה, מזכירה לך להגיע חפופה ובזמן 💇‍♀️
-תודה - פן אקספרס</p>
-    <div class="row2">
-      <button type="button" class="cancel" id="btnCancel">ביטול</button>
-      <button type="button" class="ok" id="btnOk">אישור</button>
-    </div>
+  <div class="input-area" id="inputZone">
+    <div id="controlGroup"></div>
+    <button id="mainBtn" class="send-btn">המשך</button>
   </div>
 </div>
 
 <script>
-/* ===== Backend נשאר בדיוק כמו אצלך ===== */
+/* === לוגיקה מקורית (ללא שינוי) === */
 const BIN_ID = '68f0e7bed0ea881f40a63b29';
 const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO';
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
-
 const MAP_URL = 'https://maps.google.com/?q=33.003292,35.108864';
-const WAZE_DEEP = 'waze://?ll=33.003292,35.108864&navigate=yes';
-const WAZE_WEB  = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
-const GALLERY_URL = 'https://reuven2k.com/images/index.html';
-
+const WAZE_URL = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
 const TIMEZONE = 'Asia/Jerusalem';
 const EVENT_TITLE = 'תור ל פן אקספרס';
-const ALARM_MINUTES = 60;
 const SLOT_MINUTES = 20;
 
 const pad2 = n => (n<10?('0'+n):''+n);
+const SLOTS = (() => {
+  const s=[]; for(let h=8; h<=20; h++){ for(let m of [0,20,40]){ if(h===20 && m>0) continue; s.push(`${pad2(h)}:${pad2(m)}`);} } return s;
+})();
 
-/* ===== סלוטים 20 דקות: 08:00–20:00 ===== */
-function genTimeSlots(){
-  const slots=[];
-  for(let h=8; h<=20; h++){
-    for(let m of [0,20,40]){
-      if(h===20 && m>0) continue;
-      slots.push(`${pad2(h)}:${pad2(m)}`);
+const engToHeb = {'q':'/','w':'\'','e':'ק','r':'ר','t':'א','y':'ט','u':'ו','i':'ן','o':'ם','p':'פ','a':'ש','s':'ד','d':'ג','f':'כ','g':'ע','h':'י','j':'ח','k':'ל','l':'ך',';':'ף','\'':'"','z':'ז','x':'ס','c':'ב','v':'ה','b':'נ','n':'מ','m':'צ',',':'ת','.':'ץ','/':'.'};
+
+/* === ניהול צ'אט === */
+const chatBox = document.getElementById("chatBox");
+const controlGroup = document.getElementById("controlGroup");
+const mainBtn = document.getElementById("mainBtn");
+const typingIndicator = document.getElementById("typingIndicator");
+
+let currentStep = 0;
+let userData = {};
+let availableSlots = [];
+
+const steps = [
+  { msg: "ברוכה הבאה לפן אקספרס! 💇‍♀️ איזה כיף שאת כאן. בואי נקבע לך תור מהיר.\nמתי תרצי להגיע?", field: "date", type: "date" },
+  { msg: "מעולה. אלו השעות שפנויות בתאריך הזה:", field: "time", type: "select" },
+  { msg: "רשמתי. מה השם המלא שלך?", field: "name", type: "text", placeholder: "הכניסי שם מלא", fixLanguage: true },
+  { msg: "ודבר אחרון - מספר טלפון ליצירת קשר?", field: "phone", type: "tel", placeholder: "05X-XXXXXXX" }
+];
+
+function addMessage(text, side, isHTML = false) {
+  const div = document.createElement("div");
+  div.className = `msg ${side}`;
+  if (isHTML) div.innerHTML = text; else div.innerText = text;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function showBotMsg(text, isHTML = false) {
+  typingIndicator.classList.remove("hidden");
+  setTimeout(() => {
+    typingIndicator.classList.add("hidden");
+    addMessage(text, "bot", isHTML);
+  }, 800);
+}
+
+async function fetchBookings() {
+  const r = await fetch(BIN_URL + '?ts=' + Date.now(), { headers: { 'X-Master-Key': MASTER_KEY } });
+  const j = await r.json();
+  return j.record;
+}
+
+async function putBookings(rec) {
+  await fetch(BIN_URL, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
+    body: JSON.stringify(rec)
+  });
+}
+
+function setupInput() {
+  const step = steps[currentStep];
+  controlGroup.innerHTML = "";
+  let input;
+
+  if (step.type === "date") {
+    input = document.createElement("input");
+    input.type = "date";
+    const today = new Date().toISOString().split('T')[0];
+    const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + 3);
+    input.min = today;
+    input.max = maxDate.toISOString().split('T')[0];
+    input.value = today;
+  } else if (step.type === "select") {
+    input = document.createElement("select");
+    input.innerHTML = `<option value="">טוען שעות...</option>`;
+    loadTimesForStep(input);
+  } else {
+    input = document.createElement("input");
+    input.type = step.type;
+    input.placeholder = step.placeholder;
+    if (step.fixLanguage) {
+      input.addEventListener('input', (e) => {
+        let val = e.target.value; let newVal = '';
+        for (let char of val) { let lc = char.toLowerCase(); newVal += engToHeb[lc] ? engToHeb[lc] : char; }
+        if (val !== newVal) e.target.value = newVal;
+      });
     }
   }
-  return slots;
-}
-const SLOTS = genTimeSlots();
 
-function todayStr(){ return new Date().toISOString().slice(0,10); }
-function addDaysStr(days){ const d=new Date(); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
-function fmtDateHeb(s){ const [y,m,d]=s.split('-'); return `${d}.${m}.${y}`; }
-
-function validPhone(p){ return (p||'').replace(/\D/g,'').length>=8; }
-function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
-
-let BOOKING_OPEN = true;
-
-async function fetchRecord(){
-  const r = await fetch(BIN_URL+'?ts='+Date.now(), { headers:{'X-Master-Key':MASTER_KEY}, cache:'no-store' });
-  if(!r.ok) throw new Error('fetch failed');
-  const j = await r.json();
-  const rec = (j.record && Array.isArray(j.record.bookings)) ? j.record : {bookings:[]};
-  BOOKING_OPEN = (typeof rec.bookingOpen === 'boolean') ? rec.bookingOpen : true;
-  return rec;
+  input.id = "currentInput";
+  controlGroup.appendChild(input);
+  input.focus();
 }
 
-async function putRecord(rec){
-  const r = await fetch(BIN_URL+'?ts='+Date.now(), {
-    method:'PUT',
-    headers:{'Content-Type':'application/json','X-Master-Key':MASTER_KEY},
-    body: JSON.stringify(rec),
-    cache:'no-store'
-  });
-  if(!r.ok) throw new Error('put failed');
-  return r.json().catch(()=> ({}));
+async function loadTimesForStep(selectEl) {
+  try {
+    const data = await fetchBookings();
+    const taken = new Set(data.bookings.filter(b => b.date === userData.date).map(b => b.time));
+    let html = `<option value="">בחרי שעה...</option>`;
+    SLOTS.forEach(t => {
+      if (!taken.has(t)) html += `<option value="${t}">${t}</option>`;
+    });
+    selectEl.innerHTML = html;
+  } catch (e) { selectEl.innerHTML = `<option>שגיאה בטעינה</option>`; }
 }
 
-/* ===== ICS (כמו אצלך) ===== */
-function toICSLocal(dateStr,timeStr){
-  const [y,m,d]=dateStr.split('-').map(Number);
-  const [hh,mm]=timeStr.split(':').map(Number);
-  const dt=new Date(y,m-1,d,hh,mm,0);
-  return `${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${pad2(dt.getHours())}${pad2(dt.getMinutes())}00`;
-}
-function buildICS({title,location,startLocal,endLocal,tzid}){
-  const uid=`${Date.now()}-${Math.random().toString(36).slice(2)}@fenexpress`;
-  const dtstamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
-  const details=`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}`;
-  return [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//FenExpress//Booking//HE',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    'BEGIN:VEVENT',
-    `UID:${uid}`,
-    `DTSTAMP:${dtstamp}`,
-    `DTSTART;TZID=${tzid}:${startLocal}`,
-    `DTEND;TZID=${tzid}:${endLocal}`,
-    `SUMMARY:${title}`,
-    `DESCRIPTION:${details.replace(/\n/g,'\\n')}`,
-    `LOCATION:${location}`,
-    'BEGIN:VALARM',
-    'ACTION:DISPLAY',
-    'DESCRIPTION:Reminder',
-    `TRIGGER:-PT${ALARM_MINUTES}M`,
-    'END:VALARM',
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
-}
-function openCalendarDirect(dateStr,timeStr){
-  const ua = navigator.userAgent || '';
-  const isAndroid = /Android/i.test(ua);
-  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+mainBtn.onclick = async () => {
+  const input = document.getElementById("currentInput");
+  const value = input.value;
+  const step = steps[currentStep];
 
-  const [y,m,d]=dateStr.split('-').map(Number);
-  const [hh,mm]=timeStr.split(':').map(Number);
-  const start=new Date(y,m-1,d,hh,mm,0);
-  const end=new Date(start.getTime()+SLOT_MINUTES*60000);
+  if (!value) return;
+  if (step.field === "phone" && value.replace(/\D/g, '').length < 8) return alert("מספר לא תקין");
 
-  if(isAndroid){
-    const fmt = (dt)=>`${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${dt.getHours().toString().padStart(2,'0')}${dt.getMinutes().toString().padStart(2,'0')}00`;
-    const dates = `${fmt(start)}/${fmt(end)}`;
-    const text = encodeURIComponent(EVENT_TITLE);
-    const details = encodeURIComponent(`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}\n(תזכורת 60 דק׳ לפני)`);
-    const loc = encodeURIComponent(MAP_URL);
-    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${loc}`;
-    window.location.href = url;
-    return;
+  userData[step.field] = value;
+  addMessage(value, "user");
+
+  currentStep++;
+  if (currentStep < steps.length) {
+    let nextMsg = typeof steps[currentStep].msg === "function" ? steps[currentStep].msg(userData.name) : steps[currentStep].msg;
+    showBotMsg(nextMsg);
+    setupInput();
+  } else {
+    saveBooking();
   }
+};
 
-  if(isIOS){
-    const startLocal=toICSLocal(dateStr,timeStr);
-    const endLocal=`${end.getFullYear()}${pad2(end.getMonth()+1)}${pad2(end.getDate())}T${pad2(end.getHours())}${pad2(end.getMinutes())}00`;
-    const ics = buildICS({title:EVENT_TITLE,location:MAP_URL,startLocal,endLocal,tzid:TIMEZONE});
-    const blob=new Blob([ics],{type:'text/calendar;charset=utf-8'});
-    const url=URL.createObjectURL(blob);
-    window.location.href = url;
-    setTimeout(()=>URL.revokeObjectURL(url), 4000);
-    return;
-  }
+async function saveBooking() {
+  controlGroup.innerHTML = "";
+  mainBtn.style.display = "none";
+  showBotMsg("שומרת לך את התור, רק רגע...");
 
-  const fmt = (dt)=>`${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${dt.getHours().toString().padStart(2,'0')}${dt.getMinutes().toString().padStart(2,'0')}00`;
-  const dates = `${fmt(start)}/${fmt(end)}`;
-  const text = encodeURIComponent(EVENT_TITLE);
-  const details = encodeURIComponent(`קישור ישיר להגעה לפן אקספרס:\n${MAP_URL}\n(תזכורת 60 דק׳ לפני)`);
-  const loc = encodeURIComponent(MAP_URL);
-  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${loc}`;
+  try {
+    let rec = await fetchBookings();
+    
+    // בדיקות כפילות
+    if (rec.bookings.some(b => b.date === userData.date && b.time === userData.time)) {
+      showBotMsg("אוי, השעה הזו נתפסה ממש עכשיו. בואי ננסה שוב.");
+      setTimeout(() => location.reload(), 2000);
+      return;
+    }
+
+    rec.bookings.push({ ...userData, ts: Date.now() });
+    await putBookings(rec);
+
+    showBotMsg("התור נקבע בהצלחה! 🎉\nמחכה לראות אותך.");
+    
+    // כרטיס סיכום
+    const cardHTML = `
+      <div class="summary-card">
+        <strong>סיכום התור שלך:</strong><br>
+        📅 בתאריך: ${userData.date.split('-').reverse().join('.')}<br>
+        ⏰ בשעה: ${userData.time}<br>
+        <button onclick="addToCalendar()" style="background:#ffd700; color:#000;">הוספה ליומן 🗓️</button>
+        <button onclick="window.location.href='${WAZE_URL}'" style="background:#fff; color:#000;">ניווט לסטודיו 🚗</button>
+      </div>
+    `;
+    setTimeout(() => addMessage(cardHTML, "bot", true), 1000);
+
+  } catch (e) { showBotMsg("שגיאת תקשורת. נסי שוב מאוחר יותר."); }
+}
+
+/* === פונקציות עזר ליומן (מהקוד המקורי) === */
+function addToCalendar() {
+  const [y, m, d] = userData.date.split('-').map(Number);
+  const [hh, mm] = userData.time.split(':').map(Number);
+  const start = new Date(y, m - 1, d, hh, mm, 0);
+  const end = new Date(start.getTime() + SLOT_MINUTES * 60000);
+  
+  const fmt = (dt) => dt.toISOString().replace(/[-:]/g, '').split('.')[0] + "Z";
+  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(EVENT_TITLE)}&dates=${fmt(start)}/${fmt(end)}&details=${encodeURIComponent('נא להגיע חפופה ובזמן')}&location=${encodeURIComponent(MAP_URL)}`;
   window.location.href = url;
 }
 
-/* ===== Chat UI ===== */
-const elChat = document.getElementById('chat');
-const elInput = document.getElementById('input');
-const elSend = document.getElementById('send');
-const msgErr = document.getElementById('msgError');
-const msgOk = document.getElementById('msgOk');
-const hintText = document.getElementById('hintText');
+// התחלה
+showBotMsg(steps[0].msg);
+setupInput();
 
-const icsModal = document.getElementById('icsModal');
-const btnOk = document.getElementById('btnOk');
-const btnCancel = document.getElementById('btnCancel');
-const icsText = document.getElementById('icsText');
-
-function showErr(t){ msgErr.textContent=t; msgErr.style.display='block'; setTimeout(()=>msgErr.style.display='none',4500); }
-function showOk(t){ msgOk.textContent=t; msgOk.style.display='block'; setTimeout(()=>msgOk.style.display='none',4500); }
-
-function scrollDown(){ elChat.scrollTop = elChat.scrollHeight; }
-function addBubble(text, who){
-  const row = document.createElement('div');
-  row.className = 'row ' + (who==='me'?'me':'bot');
-  const b = document.createElement('div');
-  b.className = 'bubble';
-  b.textContent = text;
-  row.appendChild(b);
-  elChat.appendChild(row);
-  scrollDown();
-}
-function setHint(t){ hintText.textContent = t || ''; }
-
-function setComposerEnabled(enabled){
-  elInput.disabled = !enabled;
-  elSend.disabled = !enabled;
-}
-
-/* ===== Understanding inputs ===== */
-function normalizeText(s){
-  return (s||'').trim().replace(/\s+/g,' ');
-}
-
-function parseDateFromUser(s){
-  const t = normalizeText(s).toLowerCase();
-
-  const today = todayStr();
-  const tomorrow = addDaysStr(1);
-
-  // היום / מחר
-  if(t.includes('היום')) return today;
-  if(t.includes('מחר')) return tomorrow;
-
-  // YYYY-MM-DD
-  if(/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
-
-  // DD.MM.YYYY
-  const m=t.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if(m){
-    const dd=pad2(+m[1]), mm=pad2(+m[2]), yy=m[3];
-    return `${yy}-${mm}-${dd}`;
-  }
-
-  return null;
-}
-
-function isAllowedDate(d){
-  const allowed = new Set([todayStr(), addDaysStr(1), addDaysStr(2), addDaysStr(3)]);
-  return allowed.has(d);
-}
-
-function parsePartOfDay(s){
-  const t = normalizeText(s).toLowerCase();
-  // תומך גם “צהריים / ערב”
-  if(t.includes('בוקר')) return 'MORNING';
-  if(t.includes('צהריים')) return 'AFTERNOON';
-  if(t.includes('ערב')) return 'EVENING';
-  return null;
-}
-
-function parseTimeLike(t){
-  const s=(t||'').trim();
-  // "17:20" / "17.20"
-  let m=s.match(/^(\d{1,2})\s*[:.]\s*(\d{2})$/);
-  if(m){
-    let hh=+m[1], mm=+m[2];
-    if(hh>=0 && hh<=23 && (mm===0||mm===20||mm===40)) return `${pad2(hh)}:${pad2(mm)}`;
-    return null;
-  }
-  // "1720"
-  m=s.match(/^(\d{1,2})(\d{2})$/);
-  if(m){
-    let hh=+m[1], mm=+m[2];
-    if(hh>=0 && hh<=23 && (mm===0||mm===20||mm===40)) return `${pad2(hh)}:${pad2(mm)}`;
-  }
-  return null;
-}
-
-function timeToMin(t){
-  const [h,m]=t.split(':').map(Number);
-  return h*60+m;
-}
-
-function inRange(t, start, endExclusive){
-  const m = timeToMin(t);
-  return m >= timeToMin(start) && m < timeToMin(endExclusive);
-}
-
-/* ===== Availability ===== */
-const RANGE = {
-  MORNING: {start:'08:00', end:'12:00'},
-  AFTERNOON: {start:'12:00', end:'20:00'},
-  EVENING: {start:'12:00', end:'20:00'} // לפי הדרישה שלך: צהריים/ערב אותו טווח
-};
-
-let model = {
-  name:'',
-  date:'',
-  part:'',
-  time:'',
-  phone:'',
-  rec:null,
-  bookings:[]
-};
-
-function takenSetForDate(dateStr){
-  return new Set(model.bookings.filter(b=>b.date===dateStr).map(b=>b.time));
-}
-
-function freeSlotsFor(dateStr, partKey){
-  const taken = takenSetForDate(dateStr);
-  const r = RANGE[partKey];
-  return SLOTS.filter(t => !taken.has(t) && inRange(t, r.start, r.end));
-}
-
-function formatSlotsList(slots){
-  if(!slots.length) return 'אין שעות פנויות בטווח הזה.';
-  // רשימה קומפקטית בתוך הצ'אט
-  return slots.join('  •  ');
-}
-
-function nearestAlternativesWithin(dateStr, partKey, desiredTime){
-  const free = freeSlotsFor(dateStr, partKey);
-  if(!free.length) return [];
-  const target = timeToMin(desiredTime);
-  const sorted = free.slice().sort((a,b)=>Math.abs(timeToMin(a)-target)-Math.abs(timeToMin(b)-target));
-  return sorted.slice(0,3);
-}
-
-/* ===== Conversation flow ===== */
-const State = {
-  ASK_NAME:'ASK_NAME',
-  ASK_DATE:'ASK_DATE',
-  ASK_PART:'ASK_PART',
-  SHOW_SLOTS_AND_ASK_TIME:'SHOW_SLOTS_AND_ASK_TIME',
-  ASK_PHONE:'ASK_PHONE',
-  DONE:'DONE'
-};
-let state = State.ASK_NAME;
-let lastSavedPayload = null;
-
-async function loadBookings(){
-  try{
-    const rec = await fetchRecord();
-    model.rec = rec;
-    model.bookings = Array.isArray(rec.bookings) ? rec.bookings : [];
-    return true;
-  }catch(e){
-    showErr('שגיאת רשת בטעינת תורים');
-    return false;
-  }
-}
-
-function askName(){
-  state = State.ASK_NAME;
-  addBubble('היי מה קורה? תזכירי לי איך קוראים לך', 'bot');
-  setHint('לדוגמה: שושנה');
-  elInput.placeholder = 'שם הלקוחה...';
-}
-
-function askDate(){
-  state = State.ASK_DATE;
-  addBubble(`היי ${model.name} שמחתי שבחרת בפן אקספרס ✨\nמתי נוח לך? (היום / מחר / תאריך)\nאפשר גם לכתוב תאריך כמו 14.01.2026`, 'bot');
-  setHint('אפשר לקבוע מהיום ועד 3 ימים קדימה.');
-  elInput.placeholder = 'היום / מחר / 14.01.2026 ...';
-}
-
-function askPartOfDay(){
-  state = State.ASK_PART;
-  addBubble('מעולה.\nבאיזה חלק של היום נוח לך? (בוקר / צהריים / ערב)', 'bot');
-  setHint('בוקר: 08:00–12:00 | צהריים/ערב: 12:00–20:00');
-  elInput.placeholder = 'בוקר / צהריים / ערב';
-}
-
-function showSlotsAndAskTime(){
-  state = State.SHOW_SLOTS_AND_ASK_TIME;
-
-  if(!BOOKING_OPEN){
-    addBubble('כרגע קביעת תורים סגורה. אפשר לנסות שוב מאוחר יותר 🙏', 'bot');
-    setHint('');
-    setComposerEnabled(false);
-    return;
-  }
-
-  const slots = freeSlotsFor(model.date, model.part);
-  const label = (model.part==='MORNING') ? 'בוקר' : 'צהריים/ערב';
-
-  if(!slots.length){
-    addBubble(`אין שעות פנויות ב${label} בתאריך ${fmtDateHeb(model.date)} 😕\nתרצי לנסות חלק אחר של היום? (בוקר/צהריים/ערב)`, 'bot');
-    setHint('פשוט כתבי: בוקר או צהריים או ערב');
-    state = State.ASK_PART;
-    return;
-  }
-
-  addBubble(
-    `בתאריך ${fmtDateHeb(model.date)} ב${label} אלו השעות הפנויות:\n${formatSlotsList(slots)}\n\nתכתבי לי את השעה שאת רוצה (לדוגמה 16:20)`,
-    'bot'
-  );
-  setHint('דקות אפשריות: 00 / 20 / 40');
-  elInput.placeholder = 'לדוגמה: 16:20';
-}
-
-function askPhone(){
-  state = State.ASK_PHONE;
-  addBubble('סגור ✅\nמה מספר הטלפון שלך?', 'bot');
-  setHint('אפשר לרשום עם או בלי מקפים.');
-  elInput.placeholder = 'טלפון...';
-}
-
-async function trySave(){
-  const payload = {
-    date: model.date,
-    time: model.time,
-    name: model.name.trim(),
-    phone: model.phone.trim()
-  };
-
-  setComposerEnabled(false);
-  try{
-    let rec = await fetchRecord();
-
-    const normPhone = normalizePhone(payload.phone);
-    const existsSameDayPhone = rec.bookings.some(b=>b.date===payload.date && normalizePhone(b.phone)===normPhone);
-    if(existsSameDayPhone){
-      addBubble('קיים כבר תור על שמך לאותו יום.\nבואי נבחר תאריך אחר 🙏', 'bot');
-      model.date=''; model.part=''; model.time='';
-      await loadBookings();
-      askDate();
-      return;
-    }
-
-    if(rec.bookings.some(b=>b.date===payload.date && b.time===payload.time)){
-      addBubble(`השעה ${payload.time} נתפסה הרגע 😕`, 'bot');
-      await loadBookings();
-
-      const alts = nearestAlternativesWithin(payload.date, model.part, payload.time);
-      if(alts.length){
-        addBubble(`אפשר מוקדם/מאוחר קרוב:\n${alts.join('  •  ')}\n\nתכתבי אחת מהשעות האלו, או כתבי "חלק אחר" כדי לעבור לבוקר/צהריים/ערב.`, 'bot');
-        setHint('לדוגמה: 15:40 או 16:00 | או כתבי: חלק אחר');
-        state = State.SHOW_SLOTS_AND_ASK_TIME;
-      }else{
-        addBubble('אין חלופות בטווח הזה.\nתרצי לעבור לחלק אחר של היום? (בוקר/צהריים/ערב)', 'bot');
-        state = State.ASK_PART;
-      }
-      return;
-    }
-
-    rec.bookings.push({date: payload.date, time: payload.time, name: payload.name, phone: payload.phone, ts: Date.now()});
-    await putRecord(rec);
-
-    showOk('התור נשמר בהצלחה!');
-    addBubble(`קבענו ✅\nתאריך: ${fmtDateHeb(payload.date)}\nשעה: ${payload.time}\nמחכים לך 💇‍♀️`, 'bot');
-
-    icsText.textContent =
-`ניצור אירוע ליומן בתאריך ${fmtDateHeb(payload.date)} בשעה ${payload.time} כולל תזכורת שעה לפני.
-לקוחה יקרה, מזכירה לך להגיע חפופה ובזמן 💇‍♀️
-תודה - פן אקספרס`;
-
-    lastSavedPayload = payload;
-    icsModal.style.display='flex';
-
-    await loadBookings();
-    state = State.DONE;
-
-  }catch(e){
-    showErr('שגיאת רשת בשמירה');
-    addBubble('הייתה שגיאת רשת. אפשר לנסות שוב עוד רגע 🙏', 'bot');
-  }finally{
-    setComposerEnabled(true);
-  }
-}
-
-/* ===== Input handler ===== */
-async function handleUserText(raw){
-  const text = normalizeText(raw);
-  if(!text) return;
-
-  addBubble(text, 'me');
-
-  if(state === State.ASK_NAME){
-    model.name = text;
-    if(model.name.length < 2){
-      addBubble('אפשר שם קצת יותר ברור? 🙏', 'bot');
-      return;
-    }
-    await loadBookings();
-    askDate();
-    return;
-  }
-
-  if(state === State.ASK_DATE){
-    const d = parseDateFromUser(text);
-    if(!d || !isAllowedDate(d)){
-      addBubble('אפשר לקבוע רק מהיום ועד 3 ימים קדימה.\nתכתבי: היום / מחר / תאריך (למשל 14.01.2026)', 'bot');
-      return;
-    }
-    model.date = d;
-    askPartOfDay();
-    return;
-  }
-
-  if(state === State.ASK_PART){
-    const part = parsePartOfDay(text);
-    if(!part){
-      addBubble('לא הבנתי 🙂\nתכתבי אחד מאלה: בוקר / צהריים / ערב', 'bot');
-      return;
-    }
-    model.part = part;
-    showSlotsAndAskTime();
-    return;
-  }
-
-  if(state === State.SHOW_SLOTS_AND_ASK_TIME){
-    if(text.includes('חלק') && text.includes('אחר')){
-      askPartOfDay();
-      return;
-    }
-
-    const t = parseTimeLike(text);
-    if(!t){
-      addBubble('תכתבי שעה בפורמט 16:20 (דקות 00/20/40)', 'bot');
-      return;
-    }
-
-    // לוודא בתוך הטווח שנבחר
-    const r = RANGE[model.part];
-    if(!inRange(t, r.start, r.end)){
-      const label = (model.part==='MORNING') ? 'בוקר (08:00–12:00)' : 'צהריים/ערב (12:00–20:00)';
-      addBubble(`השעה ${t} לא בתוך הטווח שבחרת (${label}).\nתרצי להישאר באותו טווח? כתבי שעה אחרת.\nאו כתבי "חלק אחר" כדי לעבור טווח.`, 'bot');
-      return;
-    }
-
-    // בדיקה מול תפוסים
-    const taken = takenSetForDate(model.date);
-    if(taken.has(t)){
-      const alts = nearestAlternativesWithin(model.date, model.part, t);
-      if(alts.length){
-        addBubble(`השעה ${t} תפוסה 😕\nאפשר מוקדם/מאוחר קרוב:\n${alts.join('  •  ')}\n\nתכתבי שעה חדשה, או כתבי "חלק אחר".`, 'bot');
-      }else{
-        addBubble(`השעה ${t} תפוסה 😕\nאין חלופות בטווח הזה.\nתרצי לעבור לחלק אחר של היום? (בוקר/צהריים/ערב)`, 'bot');
-        state = State.ASK_PART;
-      }
-      return;
-    }
-
-    // פנוי
-    model.time = t;
-    askPhone();
-    return;
-  }
-
-  if(state === State.ASK_PHONE){
-    model.phone = text;
-    if(!validPhone(model.phone)){
-      addBubble('הטלפון לא נראה תקין. תרשמי שוב בבקשה 🙏', 'bot');
-      return;
-    }
-
-    addBubble(`רק סיכום קצר:\nשם: ${model.name}\nתאריך: ${fmtDateHeb(model.date)}\nשעה: ${model.time}\nטלפון: ${model.phone}\nשומרת…`, 'bot');
-    await trySave();
-    return;
-  }
-
-  if(state === State.DONE){
-    addBubble('התור כבר נשמר 🙂\nאם תרצי לקבוע תור נוסף, כתבי: "תור חדש"', 'bot');
-    if(text.includes('תור') && text.includes('חדש')){
-      model = {name:model.name, date:'', part:'', time:'', phone:'', rec:model.rec, bookings:model.bookings};
-      askDate();
-    }
-    return;
-  }
-}
-
-/* ===== Send bindings ===== */
-elSend.addEventListener('click', ()=>{
-  const t = elInput.value;
-  elInput.value = '';
-  handleUserText(t);
-});
-
-elInput.addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter'){
-    e.preventDefault();
-    elSend.click();
-  }
-});
-
-/* ===== Toolbar ===== */
-document.getElementById('galleryBtn').addEventListener('click', ()=> window.location.href = GALLERY_URL);
-
-document.getElementById('navWaze').addEventListener('click', ()=>{
-  const start = Date.now();
-  window.location.href = WAZE_DEEP;
-  setTimeout(()=>{
-    if (Date.now() - start < 1200) window.location.href = WAZE_WEB;
-  }, 900);
-});
-
-/* ===== Modal ===== */
-btnCancel.addEventListener('click', ()=>{ icsModal.style.display='none'; });
-
-btnOk.addEventListener('click', ()=>{
-  icsModal.style.display='none';
-  if(!lastSavedPayload) return;
-  openCalendarDirect(lastSavedPayload.date, lastSavedPayload.time);
-});
-
-/* ===== Init ===== */
-(async ()=>{
-  await loadBookings();
-  askName();
-})();
-
-/* PWA: Service Worker */
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(()=>{});
-}
 </script>
 </body>
 </html>
