@@ -17,16 +17,14 @@
   --radius: 20px;
 }
 
-/* פתרון בעיית הגובה במובייל */
 body { 
   margin: 0; 
   background: var(--bg); 
   font-family: 'Segoe UI', Tahoma, sans-serif; 
-  color: #1c1e21; 
   display: flex; 
   justify-content: center; 
-  height: 100vh; /* Fallback */
-  height: 100dvh; /* גובה דינמי אמיתי */
+  height: 100vh; 
+  height: 100dvh; 
   overflow: hidden; 
 }
 
@@ -40,10 +38,9 @@ body {
   height: 100%;
 }
 
-/* כותרת */
 .header { 
   padding: 12px; 
-  padding-top: calc(10px + env(safe-area-inset-top)); /* התאמה לאייפון (Notch) */
+  padding-top: calc(10px + env(safe-area-inset-top)); 
   background: #000; 
   text-align: center; 
   border-bottom: 2px solid var(--accent); 
@@ -51,7 +48,6 @@ body {
 }
 .header img { width: 70px; }
 
-/* אזור ההודעות */
 #chatBox { 
   flex: 1; 
   padding: 20px; 
@@ -68,18 +64,15 @@ body {
   padding: 14px 18px; 
   border-radius: var(--radius); 
   line-height: 1.6; 
-  font-size: 20px; /* הגדלת גופן כפי שביקשת */
+  font-size: 20px; 
   animation: popIn 0.3s ease; 
   word-wrap: break-word; 
 }
 .bot { align-self: flex-start; background: var(--bot-bubble); color: var(--bot-text); border-top-right-radius: 4px; }
 .user { align-self: flex-end; background: var(--user-bubble); color: var(--user-text); border-top-left-radius: 4px; font-weight: 600; }
 
-.highlight { font-weight: bold; font-size: 1.1em; }
-
 @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
-/* כפתורים בתוך הצ'אט */
 .chat-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
 .chat-btn { 
   background: #fff; 
@@ -92,10 +85,8 @@ body {
   cursor: pointer; 
 }
 
-/* אזור הקלט - תיקון החסימה */
 .input-area { 
   padding: 15px;
-  /* מוודא שהכפתור תמיד מעל ה-Home Bar של הנייד */
   padding-bottom: calc(20px + env(safe-area-inset-bottom)); 
   background: #ffffff; 
   border-top: 1px solid var(--border); 
@@ -165,13 +156,37 @@ const inputZone = document.getElementById("inputZone");
 
 let currentStep = 0;
 let userData = {};
+let selectedDayLabel = "";
+
+const getFormattedDate = (daysToAdd) => {
+  const d = new Date();
+  d.setDate(d.getDate() + daysToAdd);
+  return d.toISOString().split('T')[0];
+};
 
 const steps = [
-  { msg: "ברוכה הבאה לפן אקספרס! 💇‍♀️ מתי תרצי להגיע? תבחרי למטה", field: "date", type: "date" },
-  { msg: "מעולה, איזה שעה בא לך להתפנק בפן? בוקר, צהריים או ערב?", field: "period", type: "chat-buttons", options: ["בוקר (8:00-12:00)", "צהריים (12:00-17:00)", "ערב (17:00-20:00)"] },
-  { msg: "אלו השעות הפנויות שמצאתי עבורך:", field: "time", type: "chat-buttons-dynamic" },
-  { msg: "רשמתי לי, תזכירי לי את השם שלך בבקשה", field: "name", type: "text", placeholder: "השם המלא שלך", fixLanguage: true },
-  { msg: "ודבר אחרון, את המספר טלפון נייד שלך אם יהיה לי איזה עדכון", field: "phone", type: "tel", placeholder: "מספר הנייד שלך" }
+  { 
+    msg: "היי רוצה שנזמין יחד תור לפן ? אז יאללה תבחרי מתי מתי בא לך", 
+    field: "date", type: "chat-buttons", 
+    options: ["היום", "מחר", "מחרתיים"] 
+  },
+  { 
+    msg: "מעולה, איזה שעה בא לך להתפנק בפן? בוקר, צהריים או ערב?", 
+    field: "period", type: "chat-buttons", 
+    options: ["בוקר (8:00-12:00)", "צהריים (12:00-17:00)", "ערב (17:00-20:00)"] 
+  },
+  { 
+    msg: "אלו השעות הפנויות שמצאתי עבורך:", 
+    field: "time", type: "chat-buttons-dynamic" 
+  },
+  { 
+    msg: "רשמתי לי, תזכירי לי את השם שלך בבקשה", 
+    field: "name", type: "text", placeholder: "השם המלא שלך", fixLanguage: true 
+  },
+  { 
+    msg: "ודבר אחרון, את המספר טלפון נייד שלך אם יהיה לי איזה עדכון", 
+    field: "phone", type: "tel", placeholder: "מספר הנייד שלך" 
+  }
 ];
 
 function addMessage(text, side, isHTML = false) {
@@ -211,7 +226,7 @@ function setupInput() {
   let input = document.createElement("input");
   input.type = step.type;
   input.placeholder = step.placeholder || "";
-  if (step.type === "date") { input.value = new Date().toISOString().split('T')[0]; input.min = input.value; }
+  
   if (step.fixLanguage) {
     input.addEventListener('input', (e) => {
       let v = e.target.value, nv = '';
@@ -219,6 +234,8 @@ function setupInput() {
       if (v !== nv) e.target.value = nv;
     });
   }
+
+  input.addEventListener('keypress', (e) => { if (e.key === 'Enter') mainBtn.click(); });
   input.id = "currentInput";
   controlGroup.appendChild(input);
   input.focus();
@@ -260,9 +277,25 @@ async function renderTimeButtons() {
 }
 
 function handleInput(val) {
-  addMessage(val, "user");
-  userData[steps[currentStep].field] = val;
+  const step = steps[currentStep];
+  let displayVal = val;
+
+  if (step.field === "date") {
+    selectedDayLabel = val;
+    if (val === "היום") userData.date = getFormattedDate(0);
+    else if (val === "מחר") userData.date = getFormattedDate(1);
+    else userData.date = getFormattedDate(2);
+  } else if (step.field === "phone") {
+    if (!/^05\d{8}$/.test(val)) {
+      showBotMsg("כנראה אתה קצת מבולבל היום 😊 המספר שהזנת לא תקין");
+      return;
+    }
+  }
+
+  addMessage(displayVal, "user");
+  userData[step.field] = val;
   currentStep++;
+
   if (currentStep < steps.length) {
     const next = steps[currentStep];
     showBotMsg(typeof next.msg === "function" ? next.msg(userData.name) : next.msg);
@@ -271,7 +304,7 @@ function handleInput(val) {
 }
 
 mainBtn.onclick = () => {
-  const val = document.getElementById("currentInput").value;
+  const val = document.getElementById("currentInput").value.trim();
   if (!val) return;
   handleInput(val);
 };
@@ -286,15 +319,19 @@ async function save() {
       method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
       body: JSON.stringify({ bookings })
     });
-    showBotMsg("התור נקבע בהצלחה! 🎉 רוצה להוסיף תזכורת ליומן?");
+
+    const dayText = selectedDayLabel === "היום" ? "היום" : (selectedDayLabel === "מחר" ? "מחר" : "מחרתיים");
+    showBotMsg(`קבעתי לנו , מתראות ${dayText} ב ${userData.time}\nנא לא לאחר ולהגיע חפופה 🙏`);
+    
     setTimeout(() => {
+      showBotMsg("רוצה להוסיף תזכורת ליומן?");
       renderChatButtons(["כן, בטח!", "לא תודה"], (choice) => {
         if (choice === "כן, בטח!") {
           addCalendarEvent();
           showBotMsg("צירפתי לך לתזכורת קישור להגיע אלי ב-WAZE. נתראה! 😊");
         } else { showBotMsg("אין בעיה, נתראה בקרוב! 👋"); }
       });
-    }, 1200);
+    }, 1500);
   } catch (e) { showBotMsg("שגיאת תקשורת. נסי שוב מאוחר יותר."); }
 }
 
