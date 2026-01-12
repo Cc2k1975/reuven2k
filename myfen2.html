@@ -89,7 +89,7 @@ function speak(text) {
     .replace(/עבורך/g, "עֲבוּרֵךְ")
     .replace(/שלך/g, "שֶׁלָּךְ")
     .replace(/רוצה/g, "רוֹצָה")
-    .replace(/לאחר/g, "לְ-אַחֵר") 
+    .replace(/לאחר/g, "לְ-אַחֵר")
     .replace(/וואטסאפ|לוואטסאפ|ווצאפ/g, "WhatsApp");
   
   const utterance = new SpeechSynthesisUtterance(phoneticText);
@@ -97,7 +97,7 @@ function speak(text) {
   const femaleVoice = voices.find(v => v.lang.includes('he') && (v.name.includes('Female') || v.name.includes('Carmit') || v.name.includes('Google')));
   if (femaleVoice) utterance.voice = femaleVoice;
   utterance.lang = 'he-IL'; 
-  utterance.rate = 1.5; // מהירות גבוהה לבקשתך
+  utterance.rate = 1.4; // מקובע ל-1.4 לבקשתך
   window.speechSynthesis.speak(utterance);
 }
 
@@ -193,14 +193,13 @@ function handleInput(val) {
   if (step.field === "date") {
     selectedDayLabel = val;
     userData.date = getFormattedDate(val === "היום" ? 0 : (val === "מחר" ? 1 : 2));
-    speak("יופי קבענו " + val); 
+    speak("יופי קבענו " + val); // ללא ל'
   } else if (step.field === "time") {
     userData.time = val;
-    speak("יופי קבענו " + timeToHebrew(val));
+    speak("יופי קבענו " + timeToHebrew(val)); // ללא ל'
   } else if (step.field === "phone") {
     if (!/^05\d{8}$/.test(val)) { showBotMsg("כנראה שאת קצת מבולבלת 😊 המספר שהזנת לא תקין", () => setupInput()); return; }
   }
-
   addMessage(val, "user"); userData[step.field] = val; currentStep++;
   if (currentStep < steps.length) {
     const next = steps[currentStep];
@@ -238,6 +237,7 @@ async function save() {
   });
 }
 
+// פונקציית משלוח לוואטסאפ עם קיצור לינק TinyURL כפי שסיפקת
 async function sendSummaryToWhatsApp() {
   const phone = userData.phone; const cleanPhone = "972" + phone.substring(1);
   const [y, m, d] = userData.date.split('-').map(Number);
@@ -251,7 +251,7 @@ async function sendSummaryToWhatsApp() {
 
   let shortUrl = calendarUrl;
   try {
-      // שימוש ב-TinyURL לקיצור מיידי ומהיר
+      // שימוש ב-TinyURL בדיוק כפי שהיה בקוד שלך
       const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(calendarUrl)}`);
       if(res.ok) shortUrl = await res.text();
   } catch(e) { console.log("Shortener error"); }
