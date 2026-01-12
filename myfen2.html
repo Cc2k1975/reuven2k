@@ -23,7 +23,6 @@ body {
   font-family: 'Segoe UI', Tahoma, sans-serif; 
   display: flex; 
   justify-content: center; 
-  height: 100vh; 
   height: 100dvh; 
   overflow: hidden; 
 }
@@ -65,7 +64,7 @@ body {
   border-radius: var(--radius); 
   line-height: 1.6; 
   font-size: 20px; 
-  animation: popIn 0.3s ease; 
+  animation: popIn 0.3s ease forwards; 
   word-wrap: break-word; 
 }
 .bot { align-self: flex-start; background: var(--bot-bubble); color: var(--bot-text); border-top-right-radius: 4px; }
@@ -73,7 +72,9 @@ body {
 
 @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
-.chat-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.chat-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; margin-bottom: 10px; animation: fadeIn 0.3s ease forwards; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
 .chat-btn { 
   background: #fff; 
   border: 2px solid var(--accent); 
@@ -119,7 +120,7 @@ button.main-send-btn {
   cursor: pointer; 
 }
 
-.typing { font-size: 14px; color: #65676b; padding: 5px 20px; }
+.typing { font-size: 14px; color: #65676b; padding: 5px 20px; font-style: italic; }
 .hidden { display: none !important; }
 </style>
 </head>
@@ -153,6 +154,7 @@ const chatBox = document.getElementById("chatBox");
 const controlGroup = document.getElementById("controlGroup");
 const mainBtn = document.getElementById("mainBtn");
 const inputZone = document.getElementById("inputZone");
+const typingIndicator = document.getElementById("typingIndicator");
 
 let currentStep = 0;
 let userData = {};
@@ -181,28 +183,36 @@ const steps = [
   },
   { 
     msg: "רשמתי לי, תזכירי לי את השם שלך בבקשה", 
-    field: "name", type: "text", placeholder: "השם המלא שלך", fixLanguage: true 
+    field: "name", type: "text", placeholder: "מה השם המלא שלך", fixLanguage: true 
   },
   { 
     msg: "ודבר אחרון, את המספר טלפון נייד שלך אם יהיה לי איזה עדכון", 
-    field: "phone", type: "tel", placeholder: "מספר הנייד שלך" 
+    field: "phone", type: "tel", placeholder: "מה הטלפון הנייד שלך" 
   }
 ];
 
-function addMessage(text, side, isHTML = false) {
+function addMessage(text, side) {
   const div = document.createElement("div");
   div.className = `msg ${side}`;
-  if (isHTML) div.innerHTML = text; else div.innerText = text;
+  div.innerText = text;
   chatBox.appendChild(div);
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-function showBotMsg(text, isHTML = false, delay = 800) {
-  document.getElementById("typingIndicator").classList.remove("hidden");
+// פונקציית הודעת בוט שמבטיחה שהקלט יופיע רק אחרי השאלה
+function showBotMsg(text, callback) {
+  typingIndicator.classList.remove("hidden");
+  chatBox.scrollTop = chatBox.scrollHeight;
+  
   setTimeout(() => {
-    document.getElementById("typingIndicator").classList.add("hidden");
-    addMessage(text, "bot", isHTML);
-  }, delay);
+    typingIndicator.classList.add("hidden");
+    const div = document.createElement("div");
+    div.className = `msg bot`;
+    div.innerText = text;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    if(callback) callback();
+  }, 1000);
 }
 
 async function fetchRecords() {
@@ -215,10 +225,9 @@ function setupInput() {
   const step = steps[currentStep];
   controlGroup.innerHTML = "";
   
+  // אם זה כפתורים, הם ייווצרו בתוך הצאט ע"י פונקציות ייעודיות שנקראות מה-callback של showBotMsg
   if (step.type === "chat-buttons" || step.type === "chat-buttons-dynamic") {
     inputZone.classList.add("hidden");
-    if (step.type === "chat-buttons") renderChatButtons(step.options, (val) => handleInput(val));
-    else renderTimeButtons();
     return;
   }
 
@@ -271,15 +280,19 @@ async function renderTimeButtons() {
   }
   const available = slots.filter(s => !taken.has(s));
   if (available.length === 0) {
-    showBotMsg("אוי, כל השעות בטווח הזה תפוסות. נסי טווח אחר?");
-    currentStep = 1; setTimeout(setupInput, 1500);
-  } else { renderChatButtons(available, (val) => handleInput(val)); }
+    showBotMsg("אוי, כל השעות בטווח הזה תפוסות. נסי טווח אחר?", () => {
+        currentStep = 1; 
+        setupInput();
+        renderChatButtons(steps[1].options, (val) => handleInput(val));
+    });
+  } else { 
+    renderChatButtons(available, (val) => handleInput(val)); 
+  }
 }
 
 function handleInput(val) {
   const step = steps[currentStep];
-  let displayVal = val;
-
+  
   if (step.field === "date") {
     selectedDayLabel = val;
     if (val === "היום") userData.date = getFormattedDate(0);
@@ -287,20 +300,30 @@ function handleInput(val) {
     else userData.date = getFormattedDate(2);
   } else if (step.field === "phone") {
     if (!/^05\d{8}$/.test(val)) {
-      showBotMsg("כנראה אתה קצת מבולבל היום 😊 המספר שהזנת לא תקין");
+      showBotMsg("כנראה אתה קצת מבולבל היום 😊 המספר שהזנת לא תקין", () => setupInput());
       return;
     }
   }
 
-  addMessage(displayVal, "user");
+  addMessage(val, "user");
   userData[step.field] = val;
   currentStep++;
 
   if (currentStep < steps.length) {
     const next = steps[currentStep];
-    showBotMsg(typeof next.msg === "function" ? next.msg(userData.name) : next.msg);
-    setTimeout(setupInput, 1000);
-  } else { save(); }
+    const nextMsg = typeof next.msg === "function" ? next.msg(userData.name) : next.msg;
+    
+    showBotMsg(nextMsg, () => {
+        setupInput();
+        if (next.type === "chat-buttons") {
+            renderChatButtons(next.options, (v) => handleInput(v));
+        } else if (next.type === "chat-buttons-dynamic") {
+            renderTimeButtons();
+        }
+    });
+  } else { 
+    save(); 
+  }
 }
 
 mainBtn.onclick = () => {
@@ -311,28 +334,30 @@ mainBtn.onclick = () => {
 
 async function save() {
   inputZone.classList.add("hidden");
-  showBotMsg("שומרת לך את התור, כבר מסיימת...");
-  try {
-    const bookings = await fetchRecords();
-    bookings.push({ ...userData, ts: Date.now() });
-    await fetch(BIN_URL, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-      body: JSON.stringify({ bookings })
-    });
+  showBotMsg("שומרת לך את התור, כבר מסיימת...", async () => {
+      try {
+        const bookings = await fetchRecords();
+        bookings.push({ ...userData, ts: Date.now() });
+        await fetch(BIN_URL, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
+          body: JSON.stringify({ bookings })
+        });
 
-    const dayText = selectedDayLabel === "היום" ? "היום" : (selectedDayLabel === "מחר" ? "מחר" : "מחרתיים");
-    showBotMsg(`קבעתי לנו , מתראות ${dayText} ב ${userData.time}\nנא לא לאחר ולהגיע חפופה 🙏`);
-    
-    setTimeout(() => {
-      showBotMsg("רוצה להוסיף תזכורת ליומן?");
-      renderChatButtons(["כן, בטח!", "לא תודה"], (choice) => {
-        if (choice === "כן, בטח!") {
-          addCalendarEvent();
-          showBotMsg("צירפתי לך לתזכורת קישור להגיע אלי ב-WAZE. נתראה! 😊");
-        } else { showBotMsg("אין בעיה, נתראה בקרוב! 👋"); }
-      });
-    }, 1500);
-  } catch (e) { showBotMsg("שגיאת תקשורת. נסי שוב מאוחר יותר."); }
+        const dayText = selectedDayLabel;
+        showBotMsg(`קבעתי לנו , מתראות ${dayText} ב ${userData.time}\nנא לא לאחר ולהגיע חפופה 🙏`, () => {
+            showBotMsg("רוצה להוסיף תזכורת ליומן?", () => {
+                renderChatButtons(["כן, בטח!", "לא תודה"], (choice) => {
+                    if (choice === "כן, בטח!") {
+                        addCalendarEvent();
+                        showBotMsg("צירפתי לך לתזכורת קישור להגיע אלי ב-WAZE. נתראה! 😊");
+                    } else {
+                        showBotMsg("אין בעיה, נתראה בקרוב! 👋");
+                    }
+                });
+            });
+        });
+      } catch (e) { showBotMsg("שגיאת תקשורת. נסי שוב מאוחר יותר."); }
+  });
 }
 
 function addCalendarEvent() {
@@ -346,8 +371,12 @@ function addCalendarEvent() {
   window.open(url, '_blank');
 }
 
-showBotMsg(steps[0].msg);
-setupInput();
+// הפעלה ראשונית: קודם הודעה, אז כפתורים
+showBotMsg(steps[0].msg, () => {
+    setupInput();
+    renderChatButtons(steps[0].options, (val) => handleInput(val));
+});
+
 </script>
 </body>
 </html>
