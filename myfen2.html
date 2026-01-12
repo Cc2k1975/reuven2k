@@ -12,16 +12,14 @@
 body { margin: 0; background: var(--bg); font-family: 'Segoe UI', Tahoma, sans-serif; display: flex; justify-content: center; height: 100dvh; overflow: hidden; }
 .chat-container { width: 100%; max-width: 500px; display: flex; flex-direction: column; background: var(--chat-bg); box-shadow: 0 2px 10px rgba(0,0,0,0.1); height: 100%; }
 
-/* מסך פתיחה לפתרון בעיית הקול */
 #startOverlay {
   position: fixed; inset: 0; background: #000; z-index: 100;
   display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--accent);
 }
 #startOverlay img { width: 150px; margin-bottom: 30px; }
-#startOverlay h1 { font-size: 28px; margin-bottom: 20px; text-align: center; }
 .start-btn { 
   background: var(--accent); color: #000; border: 0; padding: 15px 40px; 
-  border-radius: 50px; font-size: 22px; font-weight: bold; cursor: pointer; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+  border-radius: 50px; font-size: 22px; font-weight: bold; cursor: pointer;
 }
 
 .header { padding: 12px; padding-top: calc(10px + env(safe-area-inset-top)); background: #000; text-align: center; border-bottom: 2px solid var(--accent); z-index: 10; }
@@ -33,7 +31,7 @@ body { margin: 0; background: var(--bg); font-family: 'Segoe UI', Tahoma, sans-s
 @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .chat-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; margin-bottom: 10px; }
 .chat-btn { background: #fff; border: 2px solid var(--accent); color: #000; padding: 12px 20px; border-radius: 12px; font-size: 19px; font-weight: bold; cursor: pointer; }
-.input-area { padding: 15px; padding-bottom: calc(40px + env(safe-area-inset-bottom)); background: #ffffff; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+.input-area { padding: 15px; padding-bottom: calc(60px + env(safe-area-inset-bottom)); background: #ffffff; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
 input { width: 100%; background: #f0f2f5; color: #1c1e21; border: 2px solid transparent; border-radius: 12px; padding: 16px; font-size: 20px; box-sizing: border-box; outline: none; }
 button.main-send-btn { background: #000; color: var(--accent); border: 2px solid var(--accent); padding: 16px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; }
 .typing { font-size: 14px; color: #65676b; padding: 5px 20px; font-style: italic; }
@@ -63,7 +61,6 @@ const BIN_ID = '68f0e7bed0ea881f40a63b29';
 const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO';
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 const WAZE_URL = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
-const EVENT_TITLE = 'תור ל פן אקספרס 💇‍♀️';
 
 const engToHeb = {'q':'/','w':'\'','e':'ק','r':'ר','t':'א','y':'ט','u':'ו','i':'ן','o':'ם','p':'פ','a':'ש','s':'ד','d':'ג','f':'כ','g':'ע','h':'י','j':'ח','k':'ל','l':'ך',';':'ף','\'':'"','z':'ז','x':'ס','c':'ב','v':'ה','b':'נ','n':'מ','m':'צ',',':'ת','.':'ץ','/':'.'};
 
@@ -77,7 +74,14 @@ let currentStep = 0, userData = {}, selectedDayLabel = "";
 function speak(text) {
   if (!('speechSynthesis' in window)) return;
   let cleanText = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
-  let phoneticText = cleanText.replace(/פן/g, "פֶן").replace(/לך/g, "לָךְ").replace(/עבורך/g, "עֲבוּרֵךְ").replace(/שלך/g, "שֶׁלָּךְ").replace(/רוצה/g, "רוֹצָה");
+  
+  // תיקון פונטי משופר
+  let phoneticText = cleanText
+    .replace(/פן/g, "פֶן")
+    .replace(/לך/g, "לָךְ")
+    .replace(/עבורך/g, "עֲבוּרֵךְ")
+    .replace(/שלך/g, "שֶׁלָּךְ")
+    .replace(/רוצה/g, "רוֹצָה");
   
   const utterance = new SpeechSynthesisUtterance(phoneticText);
   const voices = window.speechSynthesis.getVoices();
@@ -181,9 +185,11 @@ function handleInput(val) {
     userData.date = getFormattedDate(val === "היום" ? 0 : (val === "מחר" ? 1 : 2));
     speak("יופי קבענו ל" + val);
   } else if (step.field === "time") {
-    const hour = parseInt(val.split(':')[0]);
-    let periodName = hour < 12 ? "בבוקר" : (hour < 17 ? "בצהריים" : "בערב");
-    speak("יופי קבענו ל " + hour + " " + periodName);
+    // פירוק השעה והדקות להקראה מלאה
+    const [h, m] = val.split(':').map(Number);
+    let minuteText = (m === 20) ? "ועשרים" : (m === 40 ? "וארבעים" : "");
+    let periodName = h < 12 ? "בבוקר" : (h < 17 ? "בצהריים" : "בערב");
+    speak(`יופי קבענו ל שמונה ${minuteText} ${periodName}`); 
   } else if (step.field === "phone") {
     if (!/^05\d{8}$/.test(val)) { showBotMsg("כנראה שאת קצת מבולבלת 😊 המספר שהזנת לא תקין", () => setupInput()); return; }
   }
@@ -231,7 +237,6 @@ function sendSummaryToWhatsApp() {
   window.location.href = `https://wa.me/${cleanPhone}?text=${message}`;
 }
 
-// פונקציית התחלה שמופעלת רק בלחיצה
 function initChat() {
   document.getElementById("startOverlay").style.display = "none";
   showBotMsg(steps[0].msg, () => {
