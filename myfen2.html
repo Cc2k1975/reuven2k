@@ -227,7 +227,7 @@ async function save() {
   });
 }
 
-// פונקציית קיצור לינקים ומשלוח לוואטסאפ
+// פונקציית משלוח לוואטסאפ עם קיצור לינק בטוח
 async function sendSummaryToWhatsApp() {
   const phone = userData.phone; const cleanPhone = "972" + phone.substring(1);
   const [y, m, d] = userData.date.split('-').map(Number);
@@ -237,14 +237,18 @@ async function sendSummaryToWhatsApp() {
   const pad = (n) => n.toString().padStart(2, '0');
   const fmt = (dt) => `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
   
-  const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("תור לפן אקספרס 💇‍♀️")}&dates=${fmt(startDt)}/${fmt(endDt)}&details=${encodeURIComponent("נא להגיע חפופה ובזמן!\\n\\nניווט ב-Waze:\\n" + WAZE_URL)}&location=${encodeURIComponent(WAZE_URL)}`;
+  // בניית לינק יומן נקי (ללא תווים שיכולים לשבור את הקיצור)
+  const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("תור לפן אקספרס 💇‍♀️")}&dates=${fmt(startDt)}/${fmt(endDt)}&location=${encodeURIComponent(WAZE_URL)}`;
 
   let shortUrl = calendarUrl;
   try {
-      // פנייה לשרת הקיצור
-      const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(calendarUrl)}`);
-      if(res.ok) shortUrl = await res.text();
-  } catch(e) { console.log("Shortener error, using long link"); }
+      // שימוש ב-is.gd שנוטה לעבוד טוב יותר עם גוגל קלנדר
+      const response = await fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(calendarUrl)}`);
+      if (response.ok) {
+          const text = await response.text();
+          if (text.startsWith("https://")) shortUrl = text;
+      }
+  } catch (e) { console.log("Shortener failed"); }
 
   const message = encodeURIComponent(`✨ *סיכום תור - פן אקספרס* ✨\n\nהיי ${userData.name},\nקבענו לנו תור למפגש של פינוק!\n\n📅 *מתי:* ${selectedDayLabel} (${userData.date.split('-').reverse().join('.')})\n⏰ *שעה:* ${userData.time}\n\n📍 *ניווט ב-Waze:* ${WAZE_URL}\n\n🗓️ *הוספה ליומן:* ${shortUrl}\n\nנא להגיע חפופה ובזמן. נתראה! 🙏`);
   window.location.href = `https://wa.me/${cleanPhone}?text=${message}`;
