@@ -71,19 +71,19 @@ const inputZone = document.getElementById("inputZone");
 
 let currentStep = 0, userData = {}, selectedDayLabel = "";
 
+// פונקציית הקראה עם תיקון פונטי ל-Fen וזיהוי שעות
 function speak(text) {
   if (!('speechSynthesis' in window)) return;
   
-  // ניקוי אימוג'ים - כולל 🙏 וכדומה
   let cleanText = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
   
-  // תיקון פונטי מחמיר ל-Fen ו-Lakh
+  // תיקון פונטי אגרסיבי למילה פן כדי שתשמע Fen
   let phoneticText = cleanText
-    .replace(/פן/g, "פֵן")           // שימוש בצירה ליצירת Fen ברור
-    .replace(/לך/g, "לָךְ")         
-    .replace(/עבורך/g, "עֲבוּרֵךְ")   
-    .replace(/שלך/g, "שֶׁלָּךְ")
-    .replace(/רוצה/g, "רוֹצָה");
+    .replace(/פן/g, "פֶנ") 
+    .replace(/לך/g, "לָךְ")
+    .replace(/עבורך/g, "עֲבוּרֵךְ")
+    .replace(/רוצה/g, "רוֹצָה")
+    .replace(/שלך/g, "שֶׁלָּךְ");
   
   const utterance = new SpeechSynthesisUtterance(phoneticText);
   const voices = window.speechSynthesis.getVoices();
@@ -92,8 +92,6 @@ function speak(text) {
   utterance.lang = 'he-IL'; utterance.rate = 0.95;
   window.speechSynthesis.speak(utterance);
 }
-
-window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
 const getFormattedDate = (daysToAdd) => {
   const d = new Date(); d.setDate(d.getDate() + daysToAdd);
@@ -180,6 +178,16 @@ async function renderTimeButtons() {
   } else { renderChatButtons(available, (val) => handleInput(val)); }
 }
 
+// פונקציית עזר להמרת שעה למילים (למשל 18:20 -> שש ועשרים)
+function timeToHebrew(timeStr) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const hourNames = ["שתים עשרה", "אחת", "שתים", "שלוש", "ארבע", "חמש", "שש", "שבע", "שמונה", "תשע", "עשר", "אחת עשרה", "שתים עשרה"];
+    let hourLabel = h > 12 ? hourNames[h - 12] : hourNames[h];
+    let minuteLabel = m === 20 ? "ועשרים" : (m === 40 ? "וארבעים" : "");
+    let period = h < 12 ? "בבוקר" : (h < 17 ? "בצהריים" : "בערב");
+    return `${hourLabel} ${minuteLabel} ${period}`;
+}
+
 function handleInput(val) {
   const step = steps[currentStep];
   if (step.field === "date") {
@@ -187,10 +195,8 @@ function handleInput(val) {
     userData.date = getFormattedDate(val === "היום" ? 0 : (val === "מחר" ? 1 : 2));
     speak("יופי קבענו ל" + val);
   } else if (step.field === "time") {
-    const [h, m] = val.split(':').map(Number);
-    let minuteText = (m === 20) ? "ועשרים" : (m === 40 ? "וארבעים" : "");
-    let periodName = h < 12 ? "בבוקר" : (h < 17 ? "בצהריים" : "בערב");
-    speak(`יופי קבענו ל ${h} ${minuteText} ${periodName}`); // תיקון: הקראת השעה המדויקת
+    userData.time = val;
+    speak("יופי קבענו ל " + timeToHebrew(val)); // הקראה טבעית: שש ועשרים בערב
   } else if (step.field === "phone") {
     if (!/^05\d{8}$/.test(val)) { showBotMsg("כנראה שאת קצת מבולבלת 😊 המספר שהזנת לא תקין", () => setupInput()); return; }
   }
