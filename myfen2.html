@@ -57,7 +57,7 @@ body {
 
 .input-area { 
   padding: 15px; 
-  padding-bottom: calc(60px + env(safe-area-inset-bottom)); 
+  padding-bottom: calc(40px + env(safe-area-inset-bottom)); 
   background: #ffffff; border-top: 1px solid var(--border); 
   display: flex; flex-direction: column; gap: 12px;
 }
@@ -255,11 +255,12 @@ async function save() {
           body: JSON.stringify({ bookings })
         });
         showBotMsg(`קבעתי לנו , מתראות ${selectedDayLabel} ב ${userData.time}\nנא לא לאחר ולהגיע חפופה 🙏`, () => {
-            showBotMsg("רוצה קישור לכתובת?", () => {
+            // הניסוח המעודכן שלך
+            showBotMsg("רוצה שאשלח לך סיכום של התור וקישור לכתובת לווצאפ שלך?", () => {
                 renderChatButtons(["כן", "לא"], (choice) => {
                     if (choice === "כן") {
-                        sendToWhatsApp();
-                        showBotMsg("שלחתי לך הודעה לווצאפ עם הקישור ל-WAZE. נתראה! 😊");
+                        sendSummaryToWhatsApp();
+                        showBotMsg("שלחתי לך הודעה לווצאפ עם כל הפרטים והניווט. נתראה! 😊");
                     } else { showBotMsg("אין בעיה, נתראה בקרוב! 👋"); }
                 });
             });
@@ -268,13 +269,21 @@ async function save() {
   });
 }
 
-function sendToWhatsApp() {
+function sendSummaryToWhatsApp() {
   const phone = userData.phone;
-  // המרת המספר לפורמט בינלאומי ללא ה-0 בהתחלה
   const cleanPhone = "972" + phone.substring(1);
-  const message = encodeURIComponent(`היי ${userData.name}, הנה הקישור לניווט לפן אקספרס להגיע אלי:\n${WAZE_URL}`);
   
-  // פתיחת הווצאפ עם המספר של הלקוחה עצמה
+  // הודעה מפורטת יותר שמתפקדת כתזכורת
+  const message = encodeURIComponent(
+    `✨ *סיכום תור - פן אקספרס* ✨\n\n` +
+    `היי ${userData.name},\n` +
+    `קבענו לנו תור למפגש של פינוק!\n\n` +
+    `📅 *מתי:* ${selectedDayLabel} (${userData.date.split('-').reverse().join('.')})\n` +
+    `⏰ *שעה:* ${userData.time}\n\n` +
+    `📍 *ניווט ב-Waze:* ${WAZE_URL}\n\n` +
+    `נא להגיע חפופה ובזמן. נתראה! 🙏`
+  );
+  
   window.location.href = `https://wa.me/${cleanPhone}?text=${message}`;
 }
 
