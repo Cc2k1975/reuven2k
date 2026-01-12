@@ -57,7 +57,6 @@ body {
 
 .input-area { 
   padding: 15px; 
-  /* מרווח בטיחות מוגדל כדי למנוע הסתרה ע"י המקלדת */
   padding-bottom: calc(60px + env(safe-area-inset-bottom)); 
   background: #ffffff; border-top: 1px solid var(--border); 
   display: flex; flex-direction: column; gap: 12px;
@@ -94,7 +93,6 @@ const BIN_ID = '68f0e7bed0ea881f40a63b29';
 const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO';
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 const WAZE_URL = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
-const EVENT_TITLE = 'תור ל פן אקספרס 💇‍♀️';
 
 const engToHeb = {'q':'/','w':'\'','e':'ק','r':'ר','t':'א','y':'ט','u':'ו','i':'ן','o':'ם','p':'פ','a':'ש','s':'ד','d':'ג','f':'כ','g':'ע','h':'י','j':'ח','k':'ל','l':'ך',';':'ף','\'':'"','z':'ז','x':'ס','c':'ב','v':'ה','b':'נ','n':'מ','m':'צ',',':'ת','.':'ץ','/':'.'};
 
@@ -173,14 +171,7 @@ function setupInput() {
       if (v !== nv) e.target.value = nv;
     });
   }
-  // גלילה אוטומטית למרכז המסך כשהמקלדת נפתחת
-  input.addEventListener('focus', () => {
-    setTimeout(() => {
-        window.scrollTo(0, 0);
-        document.body.scrollTop = 0;
-        input.scrollIntoView({behavior: "smooth", block: "center"});
-    }, 400);
-  });
+  input.addEventListener('focus', () => setTimeout(() => input.scrollIntoView({behavior: "smooth", block: "center"}), 400));
   input.addEventListener('keypress', (e) => { if (e.key === 'Enter') mainBtn.click(); });
   input.id = "currentInput";
   controlGroup.appendChild(input);
@@ -264,11 +255,11 @@ async function save() {
           body: JSON.stringify({ bookings })
         });
         showBotMsg(`קבעתי לנו , מתראות ${selectedDayLabel} ב ${userData.time}\nנא לא לאחר ולהגיע חפופה 🙏`, () => {
-            showBotMsg("רוצה להוסיף תזכורת ליומן?", () => {
-                renderChatButtons(["כן, בטח!", "לא תודה"], (choice) => {
-                    if (choice === "כן, בטח!") {
-                        addCalendarEvent();
-                        showBotMsg("צירפתי לך לתזכורת קישור להגיע אלי ב-WAZE. נתראה! 😊");
+            showBotMsg("רוצה קישור לכתובת?", () => {
+                renderChatButtons(["כן", "לא"], (choice) => {
+                    if (choice === "כן") {
+                        sendToWhatsApp();
+                        showBotMsg("שלחתי לך הודעה לווצאפ עם הקישור ל-WAZE. נתראה! 😊");
                     } else { showBotMsg("אין בעיה, נתראה בקרוב! 👋"); }
                 });
             });
@@ -277,29 +268,14 @@ async function save() {
   });
 }
 
-function addCalendarEvent() {
-  try {
-    const [y, m, d] = userData.date.split('-').map(Number);
-    const [hh, mm] = userData.time.split(':').map(Number);
-    const start = new Date(y, m - 1, d, hh, mm, 0);
-    const end = new Date(start.getTime() + 20 * 60000);
-
-    const pad = (n) => n.toString().padStart(2, '0');
-    // יצירת פורמט תאריך ידני לשעה המקומית (ללא המרת UTC)
-    const fmt = (dt) => `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
-    
-    const details = `לקוחה יקרה, מחכה לך! נא להגיע חפופה ובזמן.\n\nקישור לניווט בוויז:\n${WAZE_URL}`;
-    
-    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE` +
-                `&text=${encodeURIComponent(EVENT_TITLE)}` +
-                `&dates=${fmt(start)}/${fmt(end)}` +
-                `&details=${encodeURIComponent(details)}` +
-                `&location=${encodeURIComponent(WAZE_URL)}`;
-    
-    window.location.href = url;
-  } catch (e) {
-    alert("חלה שגיאה קטנה בחיבור ליומן. נסי שוב.");
-  }
+function sendToWhatsApp() {
+  const phone = userData.phone;
+  // המרת המספר לפורמט בינלאומי ללא ה-0 בהתחלה
+  const cleanPhone = "972" + phone.substring(1);
+  const message = encodeURIComponent(`היי ${userData.name}, הנה הקישור לניווט לפן אקספרס להגיע אלי:\n${WAZE_URL}`);
+  
+  // פתיחת הווצאפ עם המספר של הלקוחה עצמה
+  window.location.href = `https://wa.me/${cleanPhone}?text=${message}`;
 }
 
 showBotMsg(steps[0].msg, () => {
