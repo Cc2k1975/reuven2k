@@ -102,27 +102,31 @@ const inputZone = document.getElementById("inputZone");
 
 let currentStep = 0, userData = {}, selectedDayLabel = "";
 
-// פונקציית הקראה עם תיקונים פונטיים ללשון נקבה
+// פונקציית הקראה נקבית ללא אימוג'ים
 function speak(text) {
   if (!('speechSynthesis' in window)) return;
   
-  // מילון תיקונים פונטיים לבוט
-  let phoneticText = text
-    .replace(/פן/g, "פֶן")           // Fen במקום Fan
-    .replace(/לך/g, "לָךְ")         // Lakh במקום Lekha
-    .replace(/עבורך/g, "עֲבוּרֵךְ")   // Avurekh במקום Avurekha
-    .replace(/שלך/g, "שֶׁלָּךְ");      // Shelakh במקום Shelkha
+  // 1. הסרת אימוג'ים וסמלים מההקראה (כדי שלא יקריא "פרצוף מחייך" וכדומה)
+  let cleanText = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
+
+  // 2. מילון תיקונים פונטיים ללשון נקבה והגייה נכונה
+  let phoneticText = cleanText
+    .replace(/פן/g, "פֶן")           
+    .replace(/לך/g, "לָךְ")         
+    .replace(/עבורך/g, "עֲבוּרֵךְ")   
+    .replace(/שלך/g, "שֶׁלָּךְ")
+    .replace(/רוצה/g, "רוֹצָה");    // הפיכת "רוצה" לנקבה (Rotza)
   
   const utterance = new SpeechSynthesisUtterance(phoneticText);
   const voices = window.speechSynthesis.getVoices();
   
-  // עדיפות לקול נשי
+  // עדיפות לקול נשי בעברית
   const femaleVoice = voices.find(v => v.lang.includes('he') && 
     (v.name.includes('Female') || v.name.includes('Carmit') || v.name.includes('Google')));
   
   if (femaleVoice) utterance.voice = femaleVoice;
   utterance.lang = 'he-IL';
-  utterance.rate = 0.95; // טיפה יותר לאט כדי שישמע טבעי
+  utterance.rate = 0.95;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -135,7 +139,7 @@ const getFormattedDate = (daysToAdd) => {
 
 const steps = [
   { 
-    msg: "היי, שנזמין תור לפן?\nתבחרי למטה מתי הכי נוח לך", 
+    msg: "היי , שנזמין תור לפן?\nתבחרי למטה מתי הכי נוח לך", 
     field: "date", type: "chat-buttons", options: ["היום", "מחר", "מחרתיים"] 
   },
   { 
