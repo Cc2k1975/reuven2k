@@ -58,6 +58,7 @@ body {
   background-color: #f9f9f9; 
 }
 
+/* בועות הודעה - הבוט תמיד בבולד */
 .msg { 
   max-width: 85%; 
   padding: 14px 18px; 
@@ -67,8 +68,20 @@ body {
   animation: popIn 0.3s ease forwards; 
   word-wrap: break-word; 
 }
-.bot { align-self: flex-start; background: var(--bot-bubble); color: var(--bot-text); border-top-right-radius: 4px; }
-.user { align-self: flex-end; background: var(--user-bubble); color: var(--user-text); border-top-left-radius: 4px; font-weight: 600; }
+.bot { 
+  align-self: flex-start; 
+  background: var(--bot-bubble); 
+  color: var(--bot-text); 
+  border-top-right-radius: 4px; 
+  font-weight: bold; /* הדגשת כל הודעות הבוט */
+}
+.user { 
+  align-self: flex-end; 
+  background: var(--user-bubble); 
+  color: var(--user-text); 
+  border-top-left-radius: 4px; 
+  font-weight: 600; 
+}
 
 @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
@@ -148,7 +161,7 @@ const MAP_URL = 'https://www.google.com/maps/search/?api=1&query=33.003292,35.10
 const WAZE_URL = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
 const EVENT_TITLE = 'תור ל פן אקספרס 💇‍♀️';
 
-const engToHeb = {'q':'/','w':'\'','e':'ק','r':'ר','t':'א','y':'ט','u':'ו','i':'ן','o':'ם','p':'פ','a':'ש','s':'ד','d':'ג','f':'כ','g':'ע','h':'י','j':'ח','k':'ל','l':'ך',';':'ף','\'':'"','z':'ז','x':'ס','c':'ב','v':'ה','b':'נ','n':'מ','m':'צ',',':'ת','.':'ץ','/':'.'};
+const engToHeb = {'q':'/','w':'\'','e':'ק','r':'ר','t':'א','y':'ט','u':'ו','i':'ן','o':'ם','p':'פ','a':'ש','s':'ד','ג':'d','f':'כ','g':'ע','h':'י','j':'ח','k':'ל','l':'ך',';':'ף','\'':'"','z':'ז','x':'ס','c':'ב','v':'ה','b':'נ','n':'מ','m':'צ',',':'ת','.':'ץ','/':'.'};
 
 const chatBox = document.getElementById("chatBox");
 const controlGroup = document.getElementById("controlGroup");
@@ -166,9 +179,10 @@ const getFormattedDate = (daysToAdd) => {
   return d.toISOString().split('T')[0];
 };
 
+// עדכון הניסוחים לפי הבקשה שלך
 const steps = [
   { 
-    msg: "היי רוצה שנזמין יחד תור לפן ? אז יאללה תבחרי מתי מתי בא לך", 
+    msg: "היי , שנזמין תור לפן?", 
     field: "date", type: "chat-buttons", 
     options: ["היום", "מחר", "מחרתיים"] 
   },
@@ -178,7 +192,7 @@ const steps = [
     options: ["בוקר (8:00-12:00)", "צהריים (12:00-17:00)", "ערב (17:00-20:00)"] 
   },
   { 
-    msg: "אלו השעות הפנויות שמצאתי עבורך:", 
+    msg: "אז יאללה תבחרי לך את השעה הכי מתאימה לך כאן למטה", 
     field: "time", type: "chat-buttons-dynamic" 
   },
   { 
@@ -199,7 +213,6 @@ function addMessage(text, side) {
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// פונקציית הודעת בוט שמבטיחה שהקלט יופיע רק אחרי השאלה
 function showBotMsg(text, callback) {
   typingIndicator.classList.remove("hidden");
   chatBox.scrollTop = chatBox.scrollHeight;
@@ -225,7 +238,6 @@ function setupInput() {
   const step = steps[currentStep];
   controlGroup.innerHTML = "";
   
-  // אם זה כפתורים, הם ייווצרו בתוך הצאט ע"י פונקציות ייעודיות שנקראות מה-callback של showBotMsg
   if (step.type === "chat-buttons" || step.type === "chat-buttons-dynamic") {
     inputZone.classList.add("hidden");
     return;
@@ -371,7 +383,7 @@ function addCalendarEvent() {
   window.open(url, '_blank');
 }
 
-// הפעלה ראשונית: קודם הודעה, אז כפתורים
+// התחלה
 showBotMsg(steps[0].msg, () => {
     setupInput();
     renderChatButtons(steps[0].options, (val) => handleInput(val));
