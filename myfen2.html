@@ -57,7 +57,7 @@ body {
 
 .input-area { 
   padding: 15px; 
-  padding-bottom: calc(40px + env(safe-area-inset-bottom)); 
+  padding-bottom: calc(60px + env(safe-area-inset-bottom)); 
   background: #ffffff; border-top: 1px solid var(--border); 
   display: flex; flex-direction: column; gap: 12px;
 }
@@ -217,18 +217,24 @@ async function renderTimeButtons() {
 
 function handleInput(val) {
   const step = steps[currentStep];
+  
   if (step.field === "date") {
     selectedDayLabel = val;
+    // המרת הלחצן (היום/מחר/מחרתיים) לתאריך אמיתי לשמירה
     userData.date = getFormattedDate(val === "היום" ? 0 : (val === "מחר" ? 1 : 2));
   } else if (step.field === "phone") {
     if (!/^05\d{8}$/.test(val)) {
       showBotMsg("כנראה שאת קצת מבולבלת 😊 המספר שהזנת לא תקין", () => setupInput());
       return;
     }
+    userData[step.field] = val;
+  } else {
+    userData[step.field] = val;
   }
+
   addMessage(val, "user");
-  userData[step.field] = val;
   currentStep++;
+  
   if (currentStep < steps.length) {
     const next = steps[currentStep];
     showBotMsg(typeof next.msg === "function" ? next.msg(userData.name) : next.msg, () => {
@@ -255,7 +261,6 @@ async function save() {
           body: JSON.stringify({ bookings })
         });
         showBotMsg(`קבעתי לנו , מתראות ${selectedDayLabel} ב ${userData.time}\nנא לא לאחר ולהגיע חפופה 🙏`, () => {
-            // הניסוח המעודכן שלך
             showBotMsg("רוצה שאשלח לך סיכום של התור וקישור לכתובת לווצאפ שלך?", () => {
                 renderChatButtons(["כן", "לא"], (choice) => {
                     if (choice === "כן") {
@@ -272,8 +277,6 @@ async function save() {
 function sendSummaryToWhatsApp() {
   const phone = userData.phone;
   const cleanPhone = "972" + phone.substring(1);
-  
-  // הודעה מפורטת יותר שמתפקדת כתזכורת
   const message = encodeURIComponent(
     `✨ *סיכום תור - פן אקספרס* ✨\n\n` +
     `היי ${userData.name},\n` +
@@ -283,7 +286,6 @@ function sendSummaryToWhatsApp() {
     `📍 *ניווט ב-Waze:* ${WAZE_URL}\n\n` +
     `נא להגיע חפופה ובזמן. נתראה! 🙏`
   );
-  
   window.location.href = `https://wa.me/${cleanPhone}?text=${message}`;
 }
 
