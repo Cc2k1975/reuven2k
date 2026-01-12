@@ -57,7 +57,7 @@ body {
 
 .input-area { 
   padding: 15px; 
-  padding-bottom: calc(60px + env(safe-area-inset-bottom)); 
+  padding-bottom: calc(40px + env(safe-area-inset-bottom)); 
   background: #ffffff; border-top: 1px solid var(--border); 
   display: flex; flex-direction: column; gap: 12px;
 }
@@ -164,6 +164,15 @@ function setupInput() {
   let input = document.createElement("input");
   input.type = step.type;
   input.placeholder = step.placeholder || "";
+
+  // מילוי אוטומטי מהזיכרון של הטלפון
+  if (step.field === "name" && localStorage.getItem('fen_name')) {
+    input.value = localStorage.getItem('fen_name');
+  }
+  if (step.field === "phone" && localStorage.getItem('fen_phone')) {
+    input.value = localStorage.getItem('fen_phone');
+  }
+
   if (step.fixLanguage) {
     input.addEventListener('input', (e) => {
       let v = e.target.value, nv = '';
@@ -217,10 +226,8 @@ async function renderTimeButtons() {
 
 function handleInput(val) {
   const step = steps[currentStep];
-  
   if (step.field === "date") {
     selectedDayLabel = val;
-    // המרת הלחצן (היום/מחר/מחרתיים) לתאריך אמיתי לשמירה
     userData.date = getFormattedDate(val === "היום" ? 0 : (val === "מחר" ? 1 : 2));
   } else if (step.field === "phone") {
     if (!/^05\d{8}$/.test(val)) {
@@ -254,6 +261,10 @@ async function save() {
   inputZone.classList.add("hidden");
   showBotMsg("שומרת לך את התור, כבר מסיימת...", async () => {
       try {
+        // שמירת הפרטים בזיכרון המקומי של הטלפון לפעם הבאה
+        localStorage.setItem('fen_name', userData.name);
+        localStorage.setItem('fen_phone', userData.phone);
+
         const bookings = await fetchRecords();
         bookings.push({ ...userData, ts: Date.now() });
         await fetch(BIN_URL, {
