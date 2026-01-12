@@ -103,6 +103,16 @@ const inputZone = document.getElementById("inputZone");
 
 let currentStep = 0, userData = {}, selectedDayLabel = "";
 
+// פונקציה להקראה קולית
+function speak(text) {
+  if ('speechSynthesis' in window) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'he-IL'; // הגדרה לעברית
+    utterance.rate = 1.0; // מהירות רגילה
+    window.speechSynthesis.speak(utterance);
+  }
+}
+
 const getFormattedDate = (daysToAdd) => {
   const d = new Date(); d.setDate(d.getDate() + daysToAdd);
   return d.toISOString().split('T')[0];
@@ -145,6 +155,7 @@ function showBotMsg(text, callback) {
   setTimeout(() => {
     document.getElementById("typingIndicator").classList.add("hidden");
     addMessage(text, "bot");
+    speak(text); // הבוט מקריא את מה שכתב
     if(callback) callback();
   }, 1000);
 }
@@ -165,7 +176,6 @@ function setupInput() {
   input.type = step.type;
   input.placeholder = step.placeholder || "";
 
-  // מילוי אוטומטי מהזיכרון של הטלפון
   if (step.field === "name" && localStorage.getItem('fen_name')) {
     input.value = localStorage.getItem('fen_name');
   }
@@ -261,10 +271,8 @@ async function save() {
   inputZone.classList.add("hidden");
   showBotMsg("שומרת לך את התור, כבר מסיימת...", async () => {
       try {
-        // שמירת הפרטים בזיכרון המקומי של הטלפון לפעם הבאה
         localStorage.setItem('fen_name', userData.name);
         localStorage.setItem('fen_phone', userData.phone);
-
         const bookings = await fetchRecords();
         bookings.push({ ...userData, ts: Date.now() });
         await fetch(BIN_URL, {
@@ -300,6 +308,7 @@ function sendSummaryToWhatsApp() {
   window.location.href = `https://wa.me/${cleanPhone}?text=${message}`;
 }
 
+// הפעלה: הבוט מדבר כבר מהשאלה הראשונה
 showBotMsg(steps[0].msg, () => {
     setupInput();
     renderChatButtons(steps[0].options, (val) => handleInput(val));
