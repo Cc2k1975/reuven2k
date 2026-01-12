@@ -56,8 +56,7 @@ body {
 }
 
 .input-area { 
-  padding: 15px; 
-  padding-bottom: calc(40px + env(safe-area-inset-bottom)); 
+  padding: 15px; padding-bottom: calc(40px + env(safe-area-inset-bottom)); 
   background: #ffffff; border-top: 1px solid var(--border); 
   display: flex; flex-direction: column; gap: 12px;
 }
@@ -103,15 +102,24 @@ const inputZone = document.getElementById("inputZone");
 
 let currentStep = 0, userData = {}, selectedDayLabel = "";
 
-// פונקציה להקראה קולית
+// פונקציית הקראה משופרת - חיפוש קול נשי
 function speak(text) {
   if ('speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'he-IL'; // הגדרה לעברית
-    utterance.rate = 1.0; // מהירות רגילה
+    const voices = window.speechSynthesis.getVoices();
+    
+    // חיפוש קול בעברית שהוא נקבה
+    const femaleVoice = voices.find(v => v.lang.includes('he') && (v.name.includes('Female') || v.name.includes('Carmit') || v.name.includes('Google')));
+    
+    if (femaleVoice) utterance.voice = femaleVoice;
+    utterance.lang = 'he-IL';
+    utterance.rate = 1.0;
     window.speechSynthesis.speak(utterance);
   }
 }
+
+// טעינת קולות מראש (דרוש לחלק מהדפדפנים)
+window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
 
 const getFormattedDate = (daysToAdd) => {
   const d = new Date(); d.setDate(d.getDate() + daysToAdd);
@@ -155,7 +163,7 @@ function showBotMsg(text, callback) {
   setTimeout(() => {
     document.getElementById("typingIndicator").classList.add("hidden");
     addMessage(text, "bot");
-    speak(text); // הבוט מקריא את מה שכתב
+    speak(text);
     if(callback) callback();
   }, 1000);
 }
@@ -308,7 +316,6 @@ function sendSummaryToWhatsApp() {
   window.location.href = `https://wa.me/${cleanPhone}?text=${message}`;
 }
 
-// הפעלה: הבוט מדבר כבר מהשאלה הראשונה
 showBotMsg(steps[0].msg, () => {
     setupInput();
     renderChatButtons(steps[0].options, (val) => handleInput(val));
