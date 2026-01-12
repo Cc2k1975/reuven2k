@@ -31,7 +31,7 @@ body { margin: 0; background: var(--bg); font-family: 'Segoe UI', Tahoma, sans-s
 @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .chat-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; margin-bottom: 10px; }
 .chat-btn { background: #fff; border: 2px solid var(--accent); color: #000; padding: 12px 20px; border-radius: 12px; font-size: 19px; font-weight: bold; cursor: pointer; }
-.input-area { padding: 15px; padding-bottom: calc(60px + env(safe-area-inset-bottom)); background: #ffffff; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
+.input-area { padding: 15px; padding-bottom: calc(40px + env(safe-area-inset-bottom)); background: #ffffff; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px; }
 input { width: 100%; background: #f0f2f5; color: #1c1e21; border: 2px solid transparent; border-radius: 12px; padding: 16px; font-size: 20px; box-sizing: border-box; outline: none; }
 button.main-send-btn { background: #000; color: var(--accent); border: 2px solid var(--accent); padding: 16px; border-radius: 12px; font-size: 20px; font-weight: bold; cursor: pointer; }
 .typing { font-size: 14px; color: #65676b; padding: 5px 20px; font-style: italic; }
@@ -73,13 +73,15 @@ let currentStep = 0, userData = {}, selectedDayLabel = "";
 
 function speak(text) {
   if (!('speechSynthesis' in window)) return;
+  
+  // ניקוי אימוג'ים - כולל 🙏 וכדומה
   let cleanText = text.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '');
   
-  // תיקון פונטי משופר
+  // תיקון פונטי מחמיר ל-Fen ו-Lakh
   let phoneticText = cleanText
-    .replace(/פן/g, "פֶן")
-    .replace(/לך/g, "לָךְ")
-    .replace(/עבורך/g, "עֲבוּרֵךְ")
+    .replace(/פן/g, "פֵן")           // שימוש בצירה ליצירת Fen ברור
+    .replace(/לך/g, "לָךְ")         
+    .replace(/עבורך/g, "עֲבוּרֵךְ")   
     .replace(/שלך/g, "שֶׁלָּךְ")
     .replace(/רוצה/g, "רוֹצָה");
   
@@ -185,11 +187,10 @@ function handleInput(val) {
     userData.date = getFormattedDate(val === "היום" ? 0 : (val === "מחר" ? 1 : 2));
     speak("יופי קבענו ל" + val);
   } else if (step.field === "time") {
-    // פירוק השעה והדקות להקראה מלאה
     const [h, m] = val.split(':').map(Number);
     let minuteText = (m === 20) ? "ועשרים" : (m === 40 ? "וארבעים" : "");
     let periodName = h < 12 ? "בבוקר" : (h < 17 ? "בצהריים" : "בערב");
-    speak(`יופי קבענו ל שמונה ${minuteText} ${periodName}`); 
+    speak(`יופי קבענו ל ${h} ${minuteText} ${periodName}`); // תיקון: הקראת השעה המדויקת
   } else if (step.field === "phone") {
     if (!/^05\d{8}$/.test(val)) { showBotMsg("כנראה שאת קצת מבולבלת 😊 המספר שהזנת לא תקין", () => setupInput()); return; }
   }
