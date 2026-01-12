@@ -57,8 +57,8 @@ body {
 
 .input-area { 
   padding: 15px; 
-  /* הגדלת המרווח התחתון כדי למנוע הסתרה ע"י המקלדת או סרגלי מערכת */
-  padding-bottom: calc(40px + env(safe-area-inset-bottom)); 
+  /* מרווח בטיחות מוגדל כדי למנוע הסתרה ע"י המקלדת */
+  padding-bottom: calc(60px + env(safe-area-inset-bottom)); 
   background: #ffffff; border-top: 1px solid var(--border); 
   display: flex; flex-direction: column; gap: 12px;
 }
@@ -173,8 +173,14 @@ function setupInput() {
       if (v !== nv) e.target.value = nv;
     });
   }
-  // גרימת המסך לקפוץ למעלה כשהמקלדת נפתחת
-  input.addEventListener('focus', () => setTimeout(() => input.scrollIntoView({behavior: "smooth", block: "center"}), 300));
+  // גלילה אוטומטית למרכז המסך כשהמקלדת נפתחת
+  input.addEventListener('focus', () => {
+    setTimeout(() => {
+        window.scrollTo(0, 0);
+        document.body.scrollTop = 0;
+        input.scrollIntoView({behavior: "smooth", block: "center"});
+    }, 400);
+  });
   input.addEventListener('keypress', (e) => { if (e.key === 'Enter') mainBtn.click(); });
   input.id = "currentInput";
   controlGroup.appendChild(input);
@@ -272,19 +278,28 @@ async function save() {
 }
 
 function addCalendarEvent() {
-  const [y, m, d] = userData.date.split('-').map(Number);
-  const [hh, mm] = userData.time.split(':').map(Number);
-  const start = new Date(y, m - 1, d, hh, mm, 0);
-  const end = new Date(start.getTime() + 20 * 60000);
-  
-  // פורמט תקין ליומן גוגל (Local Time)
-  const fmt = (dt) => dt.toISOString().replace(/[-:]/g, '').split('.')[0];
-  const details = encodeURIComponent(`לקוחה יקרה, מחכה לך! נא להגיע חפופה ובזמן.\n\nקישור לניווט בוויז:\n${WAZE_URL}`);
-  
-  const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(EVENT_TITLE)}&dates=${fmt(start)}/${fmt(end)}&details=${details}&location=${encodeURIComponent(WAZE_URL)}`;
-  
-  // שימוש ב-location.href עובד הכי טוב בניידים למניעת חסימת פופאפים
-  window.location.href = url;
+  try {
+    const [y, m, d] = userData.date.split('-').map(Number);
+    const [hh, mm] = userData.time.split(':').map(Number);
+    const start = new Date(y, m - 1, d, hh, mm, 0);
+    const end = new Date(start.getTime() + 20 * 60000);
+
+    const pad = (n) => n.toString().padStart(2, '0');
+    // יצירת פורמט תאריך ידני לשעה המקומית (ללא המרת UTC)
+    const fmt = (dt) => `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+    
+    const details = `לקוחה יקרה, מחכה לך! נא להגיע חפופה ובזמן.\n\nקישור לניווט בוויז:\n${WAZE_URL}`;
+    
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+                `&text=${encodeURIComponent(EVENT_TITLE)}` +
+                `&dates=${fmt(start)}/${fmt(end)}` +
+                `&details=${encodeURIComponent(details)}` +
+                `&location=${encodeURIComponent(WAZE_URL)}`;
+    
+    window.location.href = url;
+  } catch (e) {
+    alert("חלה שגיאה קטנה בחיבור ליומן. נסי שוב.");
+  }
 }
 
 showBotMsg(steps[0].msg, () => {
