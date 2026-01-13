@@ -62,7 +62,7 @@ const MASTER_KEY = '$2a$10$4rynniEMuvwqg2nDb5KSEe/lAVYp8a7L3xWzp9GsO6n49OfXc3FCO
 const BIN_URL = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
 const WAZE_URL = 'https://waze.com/ul?ll=33.003292%2C35.108864&navigate=yes';
 
-const engToHeb = {'q':'/','w':'\'','e':'ק','r':'ר','t':'א','y':'ט','u':'ו','i':'ן','o':'ם','p':'פ','a':'ש','s':'ד','d','ג','f':'כ','g':'ע','h':'י','j':'ח','k':'ל','l':'ך',';':'ף','\'':'"','z':'ז','x':'ס','c':'ב','v':'ה','b':'נ','n':'מ','m':'צ',',':'ת','.':'ץ','/':'.'};
+const engToHeb = {'q':'/','w':'\'','e':'ק','r':'ר','t':'א','y':'ט','u':'ו','i':'ן','o':'ם','p':'פ','a':'ש','s':'ד','d':'ג','f':'כ','g':'ע','h':'י','j':'ח','k':'ל','l':'ך',';':'ף','\'':'"','z':'ז','x':'ס','c':'ב','v':'ה','b':'נ','n':'מ','m':'צ',',':'ת','.':'ץ','/':'.'};
 
 const chatBox = document.getElementById("chatBox");
 const controlGroup = document.getElementById("controlGroup");
@@ -89,7 +89,7 @@ function speak(text) {
     .replace(/עבורך/g, "עֲבוּרֵךְ")
     .replace(/שלך/g, "שֶׁלָּךְ")
     .replace(/רוצה/g, "רוֹצָה")
-    .replace(/לאחר/g, "לְ-אַחֵר") 
+    .replace(/לאחר/g, "לְ-אַחֵר") // הפרדה מכוונת להגייה נכונה
     .replace(/וואטסאפ|לוואטסאפ|ווצאפ/g, "WhatsApp");
   
   const utterance = new SpeechSynthesisUtterance(phoneticText);
@@ -97,7 +97,7 @@ function speak(text) {
   const femaleVoice = voices.find(v => v.lang.includes('he') && (v.name.includes('Female') || v.name.includes('Carmit') || v.name.includes('Google')));
   if (femaleVoice) utterance.voice = femaleVoice;
   utterance.lang = 'he-IL'; 
-  utterance.rate = 1.4; 
+  utterance.rate = 1.4; // מהירות גבוהה לבקשתך
   window.speechSynthesis.speak(utterance);
 }
 
@@ -193,10 +193,10 @@ function handleInput(val) {
   if (step.field === "date") {
     selectedDayLabel = val;
     userData.date = getFormattedDate(val === "היום" ? 0 : (val === "מחר" ? 1 : 2));
-    speak("יופי קבענו " + val); 
+    speak("יופי קבענו " + val); // בלי ל'
   } else if (step.field === "time") {
     userData.time = val;
-    speak("יופי קבענו " + timeToHebrew(val)); 
+    speak("יופי קבענו " + timeToHebrew(val)); // בלי ל'
   } else if (step.field === "phone") {
     if (!/^05\d{8}$/.test(val)) { showBotMsg("כנראה שאת קצת מבולבלת 😊 המספר שהזנת לא תקין", () => setupInput()); return; }
   }
@@ -226,10 +226,12 @@ async function save() {
         bookings.push({ ...userData, ts: Date.now() });
         await fetch(BIN_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY }, body: JSON.stringify({ bookings }) });
         
-        showBotMsg(`קבעתי לנו , מתראות ${selectedDayLabel} ב ${userData.time}\nנא להגיע בזמן ולא לְ-אַחֵר 🙏`, () => {
-            showBotMsg("רוצה שאשלח לך סיכום של התור וקישור לכתובת WhatsApp שלך?", () => {
+        // כאן משדרים לה הגייה טבעית של הזמן
+        let timeHeb = timeToHebrew(userData.time);
+        showBotMsg(`קבעתי לנו , מתראות ${selectedDayLabel} ב ${userData.time}\nנא להגיע בזמן ולא ל-אחֵר 🙏`, () => {
+            showBotMsg("רוצה שאשלח לך סיכום של התור וקישור לכתובת וואטסאפ שלך?", () => {
                 renderChatButtons(["כן", "לא"], (choice) => {
-                    if (choice === "כן") { sendSummaryToWhatsApp(); showBotMsg("שלחתי לך הודעה WhatsApp עם כל הפרטים. נתראה! 😊"); }
+                    if (choice === "כן") { sendSummaryToWhatsApp(); showBotMsg("שלחתי לך הודעה וואטסאפ עם כל הפרטים והניווט. נתראה! 😊"); }
                     else { showBotMsg("אין בעיה, נתראה בקרוב! 👋"); }
                 });
             });
@@ -238,28 +240,9 @@ async function save() {
   });
 }
 
-async function sendSummaryToWhatsApp() {
+function sendSummaryToWhatsApp() {
   const phone = userData.phone; const cleanPhone = "972" + phone.substring(1);
-  const [y, m, d] = userData.date.split('-').map(Number);
-  const [hh, mm] = userData.time.split(':').map(Number);
-  const startDt = new Date(y, m - 1, d, hh, mm, 0);
-  const endDt = new Date(startDt.getTime() + 30 * 60000);
-  const pad = (n) => n.toString().padStart(2, '0');
-  const fmt = (dt) => `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
-  
-  const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("תור לפן אקספרס 💇‍♀️")}&dates=${fmt(startDt)}/${fmt(endDt)}&location=${encodeURIComponent(WAZE_URL)}`;
-
-  let shortUrl = calendarUrl;
-  try {
-      // שימוש ב-v.gd המהיר והנקי ללא פרסומות
-      const response = await fetch(`https://v.gd/create.php?format=simple&url=${encodeURIComponent(calendarUrl)}`);
-      if (response.ok) {
-          const text = await response.text();
-          if (text.startsWith("https://")) shortUrl = text;
-      }
-  } catch (e) { console.log("Shortener failed"); }
-
-  const message = encodeURIComponent(`✨ *סיכום תור - פן אקספרס* ✨\n\nהיי ${userData.name},\nקבענו לנו תור למפגש של פינוק!\n\n📅 *מתי:* ${selectedDayLabel} (${userData.date.split('-').reverse().join('.')})\n⏰ *שעה:* ${userData.time}\n\n📍 *ניווט ב-Waze:* ${WAZE_URL}\n\n🗓️ *הוספה ליומן:* ${shortUrl}\n\nנא להגיע חפופה ובזמן. נתראה! 🙏`);
+  const message = encodeURIComponent(`✨ *סיכום תור - פן אקספרס* ✨\n\nהיי ${userData.name},\nקבענו לנו תור למפגש של פינוק!\n\n📅 *מתי:* ${selectedDayLabel} (${userData.date.split('-').reverse().join('.')})\n⏰ *שעה:* ${userData.time}\n\n📍 *ניווט ב-Waze:* ${WAZE_URL}\n\nנא להגיע חפופה ובזמן. נתראה! 🙏`);
   window.location.href = `https://wa.me/${cleanPhone}?text=${message}`;
 }
 
