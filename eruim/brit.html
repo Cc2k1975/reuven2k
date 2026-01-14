@@ -1,272 +1,153 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>מחולל ברית - גרסה סופית ומתוקנת</title>
-  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מחולל חינה - מדויק (ללא התאמת נייד)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700&family=Rubik:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
-  <style>
-    :root { --main-gold: #896b1a; --text-dark: #3a3a3a; }
+    <style>
+        :root { --text-color: #4A2E36; }
+        
+        body {
+            font-family: 'Rubik', sans-serif;
+            background-color: #222;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center;
+        }
 
-    html, body{
-      margin:0; padding:0;
-      width:100%; height:100%;
-      background:#222;
-      overflow:hidden;
-      font-family:'Rubik', sans-serif;
-    }
+        .controls {
+            background: #333; padding: 20px; border-radius: 10px; border: 1px solid #555;
+            display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;
+            color: white; z-index: 100;
+        }
+        
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 0.8rem; color: #ccc; }
+        input { padding: 8px; border-radius: 4px; border: none; font-family: 'Rubik'; width: 140px; }
+        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
 
-    body{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      color:#fff;
-    }
+        /* תצוגה "טבעית" ללא כיווץ */
+        .preview-area {
+            position: relative;
+            background: white;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            width: fit-content; /* מתאים את עצמו לגודל התמונה */
+            overflow: hidden;
+        }
 
-    /* --- פאנל שליטה --- */
-    .controls {
-      display: flex; flex-direction: column; gap: 10px;
-      background: #333; padding: 16px; border-radius: 10px; border: 1px solid #555;
-      width: calc(100% - 20px);
-      max-width: 560px;
-      margin: 10px;
-      z-index: 100;
-      box-sizing: border-box;
-    }
+        #bgImage {
+            display: block;
+            width: auto; /* גודל מקורי */
+            height: auto;
+            max-width: none; /* ביטול הגבלה לנייד */
+        }
 
-    .input-group { display:flex; flex-direction:column; gap:2px; }
-    label { font-size: 0.85rem; color: #ccc; }
+        .final-element {
+            position: absolute;
+            transform-origin: center center;
+            text-align: center;
+            color: var(--text-color);
+            white-space: nowrap;
+            filter: blur(0.4px);
+            transform: translate(-50%, -50%); /* מרכוז מוחלט */
+        }
 
-    input {
-      padding: 12px; border-radius: 8px; border:none;
-      font-family:'Rubik', sans-serif; font-size: 16px; width: 100%;
-      box-sizing: border-box;
-      outline:none;
-    }
+        /* גדלים מקוריים */
+        .header-txt { font-family: 'Frank Ruhl Libre', serif; font-size: 32px; font-weight: 700; line-height: 1; }
+        .names-txt { font-family: 'Frank Ruhl Libre', serif; font-size: 58px; font-weight: 700; line-height: 1; }
+        .intro-txt { font-size: 16px; line-height: 1.4; font-weight: 400; margin-top: 15px; }
+        .date-txt { font-family: 'Rubik', sans-serif; font-size: 36px; font-weight: 700; letter-spacing: 1px; margin-top: 10px; }
+        .loc-title-txt { font-size: 24px; font-weight: 700; }
+        .address-txt { font-size: 16px; font-weight: 400; }
+        .time-txt { font-family: 'Rubik', sans-serif; font-size: 20px; font-weight: 700; }
+        .parents-txt { font-size: 14px; font-weight: 400; line-height: 1.3; }
 
-    button{
-      background:#4CAF50; color:#fff; border:none;
-      padding: 12px; border-radius: 10px;
-      font-weight: 900; font-size: 1.1rem;
-      cursor:pointer;
-      margin-top: 5px;
-    }
-
-    a{ text-decoration:none; }
-
-    /* --- עוטף רספונסיבי --- */
-    #scalable-wrapper{
-      width:100%;
-      display:flex;
-      justify-content:center;
-      overflow:hidden;
-      position:relative;
-      flex: 1;
-      align-items:flex-start;
-      padding-bottom: 10px;
-      box-sizing:border-box;
-    }
-
-    /* --- קנבס קשיח --- */
-    #fixed-canvas{
-      position:relative;
-      width:600px;
-      flex-shrink:0;
-      background:#fff;
-      box-shadow:0 0 20px rgba(0,0,0,0.5);
-      transform-origin: top center;
-    }
-
-    #bgImage{
-      display:block;
-      width:100%;
-      height:auto;
-    }
-
-    /* --- אלמנטים ממוקמים --- */
-    .final-element{
-      position:absolute;
-      left: var(--x);
-      top: var(--y);
-      transform: translate(-50%, -50%) rotate(var(--rot, 0deg));
-      transform-origin: center center;
-      text-align:center;
-      white-space: nowrap;
-      pointer-events:none;
-    }
-
-    /* חשוב: הסקייל יושב רק בפנים כדי לא להזיז את העוגן */
-    .scale-wrap{
-      transform: scale(var(--s, 1));
-      transform-origin: center center;
-    }
-
-    /* --- טיפוגרפיה --- */
-    .header-quote { color: var(--main-gold); font-weight: 700; font-size: 24px; line-height: 1.1; }
-    .intro-text   { color: var(--text-dark); font-size: 16px; line-height: 1.3; }
-    .heb-date     { color: var(--text-dark); font-size: 16px; font-weight: 500; }
-    .greg-date    { color: var(--main-gold); font-weight: 900; font-size: 32px; letter-spacing: 1px; direction:ltr; }
-    .location-text{ color: var(--text-dark); font-size: 16px; line-height: 1.4; }
-    .footer-text  { color: var(--main-gold); font-weight: 700; font-size: 20px; line-height: 1.2; }
-  </style>
+    </style>
 </head>
-
 <body>
 
-  <div class="controls">
-    <div class="input-group">
-      <label>תאריך:</label>
-      <input type="date" id="dateInput">
+    <div class="controls">
+        <div class="input-group"><label>כותרת:</label><input type="text" value="טקס החינה של" oninput="updateText('headerText', this.value)"></div>
+        <div class="input-group"><label>שמות:</label><input type="text" value="שיר ואוראל" oninput="updateText('namesText', this.value)"></div>
+        <div class="input-group"><label>תאריך:</label><input type="date" id="dateInput"></div>
+        <div class="input-group"><label>שעה:</label><input type="time" value="19:30" oninput="updateText('timeText', this.value)"></div>
+        <div class="input-group"><label>אולם:</label><input type="text" value="אולמי אבניו" oninput="updateText('locTitleText', this.value)"></div>
+        <div class="input-group"><label>כתובת:</label><input type="text" value="התעשייה 12, שוהם" oninput="updateText('addressText', this.value)"></div>
+        <div class="input-group"><label>צד כלה:</label><input type="text" value="צד הכלה, גבאי" oninput="updateText('parentsBrideText', this.value.replace(',','<br>'))"></div>
+        <div class="input-group"><label>צד חתן:</label><input type="text" value="צד החתן, אוחיון" oninput="updateText('parentsGroomText', this.value.replace(',','<br>'))"></div>
+        <button onclick="saveImage()">📷 שמור</button>
     </div>
 
-    <div class="input-group">
-      <label>שם האולם/מקום:</label>
-      <input type="text" id="locInput" value='באולמי "יהלום", עין המפרץ' oninput="updateLocTime()">
+    <div class="preview-area" id="captureTarget">
+        <img id="bgImage" src="hina2.jpg" onerror="alert('חסרה תמונה hina2.jpg')" alt="רקע">
+        
+        <div class="final-element" style="left: 42.8%; top: 33.6%; transform: translate(-50%, -50%) rotate(-22.0deg) scale(1.00);">
+            <div class="header-txt" id="headerText">טקס החינה של</div>
+        </div>
+
+        <div class="final-element" style="left: 45.0%; top: 39.8%; transform: translate(-50%, -50%) rotate(-22.5deg) scale(1.00);">
+            <div class="names-txt" id="namesText">שיר ואוראל</div>
+        </div>
+
+        <div class="final-element" style="left: 48.4%; top: 46.7%; transform: translate(-50%, -50%) rotate(-22.5deg) scale(1.00);">
+            <div class="intro-txt">
+                שמחים להזמינכם לחגוג עימנו את<br>
+                טקס החינה שלנו שייערך אי"ה<br>
+                ביום <span id="dayName">רביעי</span>, <span id="hebDate">כ"ב בטבת תשפ"ד</span>
+            </div>
+        </div>
+
+        <div class="final-element" style="left: 50.9%; top: 54.6%; transform: translate(-50%, -50%) rotate(-22.5deg) scale(1.00);">
+            <div class="date-txt" id="dateText">03.01.2024</div>
+        </div>
+
+        <div class="final-element" style="left: 53.7%; top: 60.3%; transform: translate(-50%, -50%) rotate(-22.5deg) scale(1.00);">
+            <div class="loc-title-txt" id="locTitleText">אולמי אבניו</div>
+        </div>
+
+        <div class="final-element" style="left: 55.4%; top: 63.6%; transform: translate(-50%, -50%) rotate(-23.0deg) scale(1.00);">
+            <div class="address-txt" id="addressText">התעשייה 12, שוהם</div>
+        </div>
+
+        <div class="final-element" style="left: 57.2%; top: 67.1%; transform: translate(-50%, -50%) rotate(-22.5deg) scale(1.00);">
+            <div class="time-txt" id="timeText">19:30</div>
+        </div>
+
+        <div class="final-element" style="left: 72.0%; top: 65.9%; transform: translate(-50%, -50%) rotate(-23.0deg) scale(1.00);">
+            <div class="parents-txt" id="parentsBrideText">צד הכלה,<br>גבאי</div>
+        </div>
+
+        <div class="final-element" style="left: 43.1%; top: 77.2%; transform: translate(-50%, -50%) rotate(-22.5deg) scale(1.00);">
+            <div class="parents-txt" id="parentsGroomText">צד החתן,<br>אוחיון</div>
+        </div>
+
     </div>
 
-    <div class="input-group">
-      <label>שעה:</label>
-      <input type="text" id="timeInput" value="13:00" oninput="updateLocTime()">
-    </div>
-
-    <div class="input-group">
-      <label>חתימה (הורים/מארחים):</label>
-      <input type="text" id="hostsInput" value="נשמח לראותכם, צרלס ואודליה" oninput="updateText('footerText', this.value)">
-    </div>
-
-    <button onclick="saveImage()">📷 שמור תמונה</button>
-
-    <a href="index.html" style="text-align:center; color:#ccc; margin-top:10px; width:100%; display:block;">חזרה לתפריט ראשי</a>
-  </div>
-
-  <div id="scalable-wrapper">
-    <div id="fixed-canvas">
-      <img id="bgImage" src="blank_bg.jpg" onload="fitToScreen()" onerror="alert('חסר קובץ blank_bg.jpg')" alt="רקע">
-
-      <!-- HEADER -->
-      <div class="final-element" style="--x:50.8%; --y:47.5%; --rot:0deg; --s:0.85;">
-        <div class="scale-wrap">
-          <div class="header-quote">"בסימן טוב בא לנו בימינו<br>יבוא הגואל"</div>
-        </div>
-      </div>
-
-      <!-- INTRO -->
-      <div class="final-element" style="--x:50.8%; --y:52.6%; --rot:0deg; --s:0.90;">
-        <div class="scale-wrap">
-          <div class="intro-text">אנו שמחים להזמינכם לחגוג עימנו<br>את ברית המילה של בננו</div>
-        </div>
-      </div>
-
-      <!-- HEBDATE -->
-      <div class="final-element" style="--x:51.2%; --y:61.5%; --rot:0deg; --s:0.80;">
-        <div class="scale-wrap">
-          <div class="heb-date" id="hebDate">שתתקיים ביום חמישי, כו בטבת</div>
-        </div>
-      </div>
-
-      <!-- GREGDATE -->
-      <div class="final-element" style="--x:51.0%; --y:57.8%; --rot:0deg; --s:0.85;">
-        <div class="scale-wrap">
-          <div class="greg-date" id="gregDate">15.01.2026</div>
-        </div>
-      </div>
-
-      <!-- LOCATION -->
-      <div class="final-element" style="--x:50.8%; --y:68.9%; --rot:0deg; --s:1.05;">
-        <div class="scale-wrap">
-          <div class="location-text" id="locationText">באולמי "יהלום", עין המפרץ<br>בשעה 13:00</div>
-        </div>
-      </div>
-
-      <!-- FOOTER -->
-      <div class="final-element" style="--x:50.9%; --y:73.1%; --rot:0deg; --s:0.80;">
-        <div class="scale-wrap">
-          <div class="footer-text" id="footerText">נשמח לראותכם, צרלס ואודליה</div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <script>
-    // התאמה למובייל (Scale של כל הקנבס, לא של הטקסטים)
-    function fitToScreen(){
-      const wrapper = document.getElementById('scalable-wrapper');
-      const canvas  = document.getElementById('fixed-canvas');
-      const img     = document.getElementById('bgImage');
-
-      const originalWidth = 600;
-      const availableWidth = wrapper.clientWidth;
-      const scale = Math.min(availableWidth / originalWidth, 1);
-
-      canvas.style.transform = `scale(${scale})`;
-
-      // גובה העוטף = גובה תמונה לאחר סקייל
-      if (img.clientHeight > 0) {
-        wrapper.style.height = (img.clientHeight * scale) + "px";
-      } else {
-        setTimeout(fitToScreen, 80);
-      }
-    }
-    window.addEventListener('load', fitToScreen);
-    window.addEventListener('resize', fitToScreen);
-
-    function updateText(elementId, val){
-      document.getElementById(elementId).innerHTML = String(val).replace(/\n/g,'<br>');
-    }
-
-    function updateLocTime(){
-      const loc  = document.getElementById('locInput').value;
-      const time = document.getElementById('timeInput').value;
-      document.getElementById('locationText').innerHTML = loc + '<br>בשעה ' + time;
-    }
-
-    function toGematria(num){
-      const letters = ['', 'א','ב','ג','ד','ה','ו','ז','ח','ט','י','יא','יב','יג','יד','טו','טז','יז','יח','יט','כ','כא','כב','כג','כד','כה','כו','כז','כח','כט','ל','לא'];
-      return num > 30 ? num : letters[num];
-    }
-
-    document.getElementById('dateInput').addEventListener('change', function(){
-      if (!this.value) return;
-      const d = new Date(this.value);
-
-      const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { weekday:'long', month:'long', day:'numeric' }).formatToParts(d);
-      let weekday='', month='', dayNum=0;
-      parts.forEach(p=>{
-        if(p.type==='weekday') weekday=p.value;
-        if(p.type==='month') month=p.value;
-        if(p.type==='day') dayNum=parseInt(p.value,10);
-      });
-
-      // עברית
-      document.getElementById('hebDate').innerText = `שתתקיים ב${weekday}, ${toGematria(dayNum)} ב${month}`;
-
-      // לועזי
-      const gDate = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
-      document.getElementById('gregDate').innerText = gDate;
-    });
-
-    function saveImage(){
-      const canvas = document.getElementById('fixed-canvas');
-      const originalTransform = canvas.style.transform;
-
-      // שמירה באיכות גבוהה: ללא סקייל תצוגה
-      canvas.style.transform = 'scale(1)';
-
-      html2canvas(canvas, { useCORS:true, scale:2 }).then(result=>{
-        const link = document.createElement('a');
-        link.download = "brit_invite.jpg";
-        link.href = result.toDataURL("image/jpeg", 0.92);
-        link.click();
-      }).finally(()=>{
-        canvas.style.transform = originalTransform;
-      });
-    }
-
-    // init
-    document.getElementById('bgImage').addEventListener('load', ()=>{ setTimeout(fitToScreen, 0); setTimeout(fitToScreen, 120); });
-  </script>
+    <script>
+        function updateText(elementId, val) { document.getElementById(elementId).innerHTML = val; }
+        function toGematria(num) { const l=['','א','ב','ג','ד','ה','ו','ז','ח','ט','י','יא','יב','יג','יד','טו','טז','יז','יח','יט','כ','כא','כב','כג','כד','כה','כו','כז','כח','כט','ל','לא']; return num>30?num:l[num]; }
+        document.getElementById('dateInput').addEventListener('change', function() {
+            if (!this.value) return;
+            const d = new Date(this.value);
+            const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { weekday: 'long', month: 'long', day: 'numeric' }).formatToParts(d);
+            let weekday='', month='', dayNum=0;
+            parts.forEach(p => {
+                if(p.type==='weekday') weekday=p.value;
+                if(p.type==='month') month=p.value;
+                if(p.type==='day') dayNum=parseInt(p.value);
+            });
+            document.getElementById('dayName').innerText = weekday.replace('יום ', '');
+            document.getElementById('hebDate').innerText = `${toGematria(dayNum)} ב${month} תשפ"ד`;
+            const gDate = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+            document.getElementById('dateText').innerText = gDate;
+        });
+        function saveImage() {
+            html2canvas(document.getElementById('captureTarget'), { useCORS: true, scale: 2 }).then(canvas => {
+                const link = document.createElement('a'); link.download = "henna_final.jpg"; link.href = canvas.toDataURL("image/jpeg", 0.9); link.click();
+            });
+        }
+    </script>
 </body>
 </html>
