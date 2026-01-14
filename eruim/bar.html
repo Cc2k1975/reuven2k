@@ -44,7 +44,7 @@
       overflow:hidden;
       box-sizing:border-box;
       padding:8px;
-      position:relative; /* חשוב למרכוז */
+      position:relative; /* חשוב */
     }
 
     /* --- איזור התצוגה (הקומפוזיציה) --- */
@@ -61,10 +61,12 @@
       touch-action: manipulation;
     }
 
+    /* חשוב: תמיד למלא את הקומפוזיציה */
     #bgImage{
       display:block;
-      width:auto; height:auto;
-      max-width:none; max-height:none;
+      width:100%;
+      height:100%;
+      object-fit: contain; /* לא חותך ולא מעוות */
       pointer-events:none;
     }
 
@@ -313,14 +315,9 @@
     const overlay = document.getElementById('overlay');
     const gearBtn = document.getElementById('gearBtn');
 
-    function openMenu(){
-      controlsPanel.classList.add('open');
-      overlay.classList.add('open');
-    }
-    function closeMenu(){
-      controlsPanel.classList.remove('open');
-      overlay.classList.remove('open');
-    }
+    function openMenu(){ controlsPanel.classList.add('open'); overlay.classList.add('open'); }
+    function closeMenu(){ controlsPanel.classList.remove('open'); overlay.classList.remove('open'); }
+
     gearBtn.addEventListener('click', () => {
       if (controlsPanel.classList.contains('open')) closeMenu();
       else openMenu();
@@ -345,11 +342,10 @@
       const nh = img.naturalHeight || 0;
       if (!nw || !nh) return;
 
-      // מידות מקור
-      capture.style.width = nw + 'px';
+      // הקומפוזיציה תמיד בגודל המקורי
+      capture.style.width  = nw + 'px';
       capture.style.height = nh + 'px';
 
-      // שטח זמין
       const vv = window.visualViewport;
       const rect = stage.getBoundingClientRect();
       let availW = rect.width;
@@ -364,17 +360,14 @@
       const sCover   = Math.max(availW / nw, availH / nh);
       const scale = (VIEW_MODE === 'FILL') ? sCover : sContain;
 
-      // ★ מרכוז מוחלט + סקייל
       capture.style.transform = `translate(-50%, -50%) scale(${scale})`;
     }
 
-    // עדכון טקסט
     function updateText(elementId, val){
       const el = document.getElementById(elementId);
       if (el) el.innerText = val;
     }
 
-    // גימטריה ותאריכים
     function toGematria(num){
       const letters = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ', 'כא', 'כב', 'כג', 'כד', 'כה', 'כו', 'כז', 'כח', 'כט', 'ל', 'לא'];
       return num > 30 ? num : letters[num];
@@ -399,39 +392,77 @@
       document.getElementById('dateText').innerText = gDate;
     });
 
-    function saveImage(){
-      const captureElement = document.getElementById('captureTarget');
-      const prevTransform = captureElement.style.transform;
+    async function saveImage(){
+      const original = document.getElementById('captureTarget');
+      const img = document.getElementById('bgImage');
 
-      // צילום בגודל המקורי (לא מושפע מ-FIT/FILL)
-      captureElement.style.transform = 'none';
-      captureElement.style.left = '0';
-      captureElement.style.top = '0';
+      const nw = img.naturalWidth || 0;
+      const nh = img.naturalHeight || 0;
+      if (!nw || !nh) { alert('הרקע עדיין לא נטען לגמרי. נסה שוב בעוד שנייה.'); return; }
 
-      html2canvas(captureElement, { useCORS:true, scale:2, backgroundColor:null }).then(canvas => {
+      // Clone נסתר מחוץ למסך — בלי שום overflow שחונק
+      const clone = original.cloneNode(true);
+      clone.style.position = 'fixed';
+      clone.style.left = '-100000px';
+      clone.style.top = '0';
+      clone.style.transform = 'none';
+      clone.style.width = nw + 'px';
+      clone.style.height = nh + 'px';
+      clone.style.boxShadow = 'none';
+      clone.style.overflow = 'hidden';
+      clone.style.background = '#fff';
+
+      // למנוע התנגשויות id בזמן הקלון
+      clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+
+      // לוודא תמונה בקלון ממלאת 100%×100%
+      const cimg = clone.querySelector('img');
+      if (cimg) {
+        cimg.style.width = '100%';
+        cimg.style.height = '100%';
+        cimg.style.objectFit = 'contain';
+        cimg.style.display = 'block';
+      }
+
+      document.body.appendChild(clone);
+
+      // להמתין לתמונה בקלון (במובייל זה קריטי)
+      await new Promise(resolve => {
+        if (!cimg) return resolve();
+        if (cimg.complete && cimg.naturalWidth) return resolve();
+        cimg.onload = () => resolve();
+        cimg.onerror = () => resolve();
+      });
+
+      try {
+        const canvas = await html2canvas(clone, { useCORS:true, scale:2, backgroundColor:null });
         const link = document.createElement('a');
         link.download = "bar_mitzvah_final.jpg";
-        link.href = canvas.toDataURL("image/jpeg", 0.9);
+        link.href = canvas.toDataURL("image/jpeg", 0.92);
         link.click();
-      }).finally(() => {
-        // מחזירים למסך
-        captureElement.style.left = '50%';
-        captureElement.style.top = '50%';
-        captureElement.style.transform = prevTransform || 'translate(-50%, -50%) scale(1)';
-        fitToScreen();
-      });
+      } finally {
+        clone.remove();
+      }
     }
 
-    // init
+    // init אמין גם אם התמונה נטענה לפני שהוספנו listener
     const bg = document.getElementById('bgImage');
-    bg.addEventListener('load', fitToScreen);
+    function kickFit() { requestAnimationFrame(fitToScreen); }
+    bg.addEventListener('load', kickFit);
+    document.addEventListener('DOMContentLoaded', kickFit);
 
-    window.addEventListener('resize', () => requestAnimationFrame(fitToScreen));
-    window.addEventListener('orientationchange', () => { setTimeout(fitToScreen,150); setTimeout(fitToScreen,550); });
+    // אם נטען מה-cache
+    if (bg.complete && bg.naturalWidth) {
+      setTimeout(kickFit, 0);
+      setTimeout(kickFit, 120);
+    }
+
+    window.addEventListener('resize', kickFit);
+    window.addEventListener('orientationchange', () => { setTimeout(kickFit,150); setTimeout(kickFit,550); });
 
     if (window.visualViewport){
-      window.visualViewport.addEventListener('resize', () => requestAnimationFrame(fitToScreen));
-      window.visualViewport.addEventListener('scroll', () => requestAnimationFrame(fitToScreen));
+      window.visualViewport.addEventListener('resize', kickFit);
+      window.visualViewport.addEventListener('scroll', kickFit);
     }
   </script>
 </body>
