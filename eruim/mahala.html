@@ -3,290 +3,230 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>מחולל אישור מחלה - לאומית</title>
-
+  <title>כלי כיול מיקומים</title>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-
   <style>
-    :root{ --text:#000; }
-
-    html,body{height:100%;}
-    body{
-      margin:0;
-      padding:10px;
-      background:#222;
-      font-family:'Rubik', sans-serif;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      overflow-x:hidden;
-      -webkit-text-size-adjust:100%;
-      box-sizing:border-box;
+    body {
+      background: #333;
+      color: white;
+      font-family: 'Rubik', sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    .instructions {
+      background: #444;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      border: 1px solid #666;
     }
 
-    .controls{
-      width:100%;
-      max-width:520px;
-      background:#333;
-      border:1px solid #555;
-      border-radius:12px;
-      padding:14px;
-      box-sizing:border-box;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-      margin-bottom:14px;
-    }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; }
-    .field{
-      flex:1 1 160px;
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      min-width:160px;
-    }
-    label{ color:#ddd; font-size:0.85rem; font-weight:700; }
-    input{
-      width:100%;
-      box-sizing:border-box;
-      padding:12px;
-      border:none;
-      border-radius:10px;
-      outline:none;
-      font-size:16px;
-      background:#fff;
-      color:#000;
-      font-family:'Rubik', sans-serif;
-    }
-    button{
-      border:none;
-      border-radius:12px;
-      padding:12px;
-      background:#4CAF50;
-      color:#fff;
-      font-weight:800;
-      font-size:1.05rem;
-      cursor:pointer;
-    }
-    a.menu-link{
-      display:block;
-      text-align:center;
-      color:#cfcfcf;
-      text-decoration:none;
-      font-weight:700;
-      margin-top:6px;
+    #scalable-wrapper {
+      position: relative;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      overflow: hidden;
+      margin-bottom: 20px;
     }
 
-    #scalable-wrapper{
-      width:100%;
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
-      overflow:hidden;
-      position:relative;
-    }
-    #fixed-canvas{
-      position:relative;
-      width:600px;
-      flex-shrink:0;
-      background:#fff;
-      box-shadow:0 0 20px rgba(0,0,0,0.5);
-      transform-origin:top center;
-    }
-    #bgImage{
-      display:block;
-      width:100%;
-      height:auto;
-      user-select:none;
-      pointer-events:none;
+    #fixed-canvas {
+      position: relative;
+      width: 600px;
+      background: #fff;
+      transform-origin: top center;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
     }
 
-    .final{
-      position:absolute;
-      transform:translate(-50%, -50%);
-      transform-origin:center center;
-      color:var(--text);
-      white-space:nowrap;
-      text-align:center;
-      user-select:none;
-      pointer-events:none;
-      font-weight:500;
-      filter: blur(0.18px);
+    #bgImage {
+      width: 100%;
+      display: block;
+      pointer-events: none; /* כדי שהגרירה לא תיתקע על התמונה */
+      user-select: none;
     }
 
-    /* שינוי גדלי פונט להתאמה טובה יותר */
+    .draggable-item {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      color: #000;
+      font-weight: 500;
+      cursor: grab;
+      user-select: none;
+      background: rgba(255, 255, 0, 0.3); /* רקע צהוב שקוף לזיהוי */
+      padding: 2px 5px;
+      border: 1px dashed red; /* מסגרת אדומה לדיוק */
+      white-space: nowrap;
+      z-index: 100;
+      touch-action: none; /* מונע גלילה בזמן גרירה במובייל */
+    }
+
+    .draggable-item:active {
+      cursor: grabbing;
+      background: rgba(0, 255, 0, 0.5);
+      border-color: green;
+    }
+
+    /* עיצוב הפונטים כמו במקור */
     .t-name{ font-size:18px; }
     .t-id{ font-size:18px; direction:ltr; }
     .t-date{ font-size:17px; direction:ltr; }
     .t-days{ font-size:17px; direction:ltr; }
     .t-bottom-doctor{ font-size:13px; }
     .t-bottom-date{ font-size:15px; direction:ltr; }
+
+    #output-area {
+      width: 90%;
+      height: 150px;
+      margin-top: 10px;
+      background: #222;
+      color: #0f0;
+      font-family: monospace;
+      direction: ltr;
+      padding: 10px;
+      border: 1px solid #555;
+    }
+
+    button.get-coords {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 10px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
   </style>
 </head>
-
 <body>
 
-  <div class="controls">
-    <div class="row">
-      <div class="field">
-        <label>שם מלא:</label>
-        <input id="nameInput" type="text" value="שיין צרלס" oninput="syncAll()">
-      </div>
-      <div class="field">
-        <label>תעודת זהות:</label>
-        <input id="idInput" type="text" value="1-02737305/9" oninput="syncAll()">
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="field">
-        <label>מתאריך (תאריך התחלה):</label>
-        <input id="fromInput" type="date" onchange="syncAll()">
-      </div>
-      <div class="field">
-        <label>עד תאריך (תאריך סיום):</label>
-        <input id="toInput" type="date" onchange="syncAll()">
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="field">
-        <label>שם הרופא לתחתית (לא חובה):</label>
-        <input id="doctorInput" type="text" value='הופק במקור ע"י ד"ר ילדרמן אירינה מ.ר: 25306' oninput="syncAll()">
-      </div>
-    </div>
-
-    <button onclick="saveImage()">📷 שמור תמונה</button>
-    <a class="menu-link" href="index.html">חזרה לתפריט ראשי</a>
+  <div class="instructions">
+    <strong>מצב כיול:</strong><br>
+    1. גרור את האלמנטים (הטקסטים המוקפים באדום) למקום המדויק.<br>
+    2. בסיום לחץ על הכפתור הירוק למטה.<br>
+    3. העתק את הטקסט שמופיע ושלח לי אותו.
   </div>
 
   <div id="scalable-wrapper">
     <div id="fixed-canvas">
-      <img id="bgImage" src="mahala.jpg" onload="fitToScreen()" onerror="alert('חסרה תמונה mahala.jpg באותה תיקייה!')" alt="רקע">
+      <img id="bgImage" src="mahala.jpg" onload="fitToScreen()" onerror="alert('שים תמונה mahala.jpg!')">
 
-      <div class="final t-name" style="left: 72.0%; top: 35.5%;" id="nameText">שיין צרלס</div>
+      <div class="draggable-item t-name" id="nameText" style="left: 50%; top: 30%;">שיין צרלס</div>
+      <div class="draggable-item t-id" id="idText" style="left: 50%; top: 35%;">1-02737305/9</div>
+      
+      <div class="draggable-item t-date" id="fromText" style="left: 60%; top: 40%;">26/01/26</div>
+      <div class="draggable-item t-date" id="toText" style="left: 45%; top: 40%;">28/01/26</div>
+      <div class="draggable-item t-days" id="daysText" style="left: 30%; top: 40%;">3</div>
 
-      <div class="final t-id" style="left: 32.0%; top: 35.5%;" id="idText">1-02737305/9</div>
-
-      <div class="final t-date" style="left: 60.5%; top: 39.0%;" id="fromText"></div>
-
-      <div class="final t-date" style="left: 46.5%; top: 39.0%;" id="toText"></div>
-
-      <div class="final t-days" style="left: 29.3%; top: 39.0%;" id="daysText"></div>
-
-      <div class="final t-bottom-doctor" style="left: 35.5%; top: 76.0%;" id="doctorText">
-        הופק במקור ע"י ד"ר ילדרמן אירינה מ.ר: 25306
-      </div>
-
-      <div class="final t-bottom-date" style="left: 76.5%; top: 76.0%;" id="bottomDateText"></div>
+      <div class="draggable-item t-bottom-doctor" id="doctorText" style="left: 50%; top: 70%;">הופק במקור ע"י ד"ר ילדרמן אירינה...</div>
+      <div class="draggable-item t-bottom-date" id="bottomDateText" style="left: 80%; top: 70%;">26/01/26</div>
 
     </div>
   </div>
 
+  <button class="get-coords" onclick="generateReport()">✅ הצג נתוני מיקום להעתקה</button>
+  <textarea id="output-area" placeholder="הנתונים יופיעו כאן..."></textarea>
+
   <script>
+    // --- Scale Logic ---
     function fitToScreen(){
       const wrapper = document.getElementById('scalable-wrapper');
       const canvas  = document.getElementById('fixed-canvas');
-
       const originalWidth = 600;
       const availableWidth = wrapper.clientWidth || wrapper.offsetWidth;
       const scale = Math.min(availableWidth / originalWidth, 1);
-
       canvas.style.transform = `scale(${scale})`;
-
-      requestAnimationFrame(() => {
-        if (canvas.clientHeight > 0) {
-          wrapper.style.height = (canvas.clientHeight * scale) + "px";
-        } else {
-          wrapper.style.height = "auto";
-          setTimeout(fitToScreen, 80);
-        }
-      });
+      
+      if(canvas.clientHeight > 0) {
+        wrapper.style.height = (canvas.clientHeight * scale) + "px";
+      }
     }
-    window.addEventListener('load', fitToScreen);
     window.addEventListener('resize', fitToScreen);
+    window.addEventListener('load', fitToScreen);
 
-    function fmtDDMMYY(d){
-      const dd = String(d.getDate()).padStart(2,'0');
-      const mm = String(d.getMonth()+1).padStart(2,'0');
-      const yy = String(d.getFullYear()).slice(-2);
-      return `${dd}/${mm}/${yy}`;
+    // --- Drag Logic ---
+    const draggables = document.querySelectorAll('.draggable-item');
+    const container = document.getElementById('fixed-canvas');
+
+    draggables.forEach(elm => {
+      let isDragging = false;
+      
+      // Touch events
+      elm.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        e.preventDefault(); // Prevent scrolling
+      }, {passive: false});
+
+      elm.addEventListener('touchmove', (e) => {
+        if(!isDragging) return;
+        const touch = e.touches[0];
+        moveElement(elm, touch.clientX, touch.clientY);
+      }, {passive: false});
+
+      elm.addEventListener('touchend', () => isDragging = false);
+
+      // Mouse events
+      elm.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        e.preventDefault();
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if(!isDragging) return;
+        moveElement(elm, e.clientX, e.clientY);
+      });
+
+      window.addEventListener('mouseup', () => isDragging = false);
+    });
+
+    function moveElement(elm, clientX, clientY) {
+      // Get container bounding rect
+      const rect = container.getBoundingClientRect();
+      
+      // Calculate position relative to container (accounting for scale)
+      // Since scale transforms the visual, we need to map clientX back to unscaled coordinate space?
+      // Actually, easier: (clientX - rect.left) gives pixels from left edge of SCALED container.
+      // Divide by rect.width to get percentage. This is robust regardless of scale.
+      
+      let xPercent = ((clientX - rect.left) / rect.width) * 100;
+      let yPercent = ((clientY - rect.top) / rect.height) * 100;
+
+      // Bound check (optional, keep inside 0-100)
+      // xPercent = Math.max(0, Math.min(100, xPercent));
+      // yPercent = Math.max(0, Math.min(100, yPercent));
+
+      elm.style.left = xPercent.toFixed(2) + '%';
+      elm.style.top = yPercent.toFixed(2) + '%';
     }
 
-    function calcDaysInclusive(fromDate, toDate){
-      const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
-      const end   = new Date(toDate.getFullYear(),   toDate.getMonth(),   toDate.getDate());
-      const diff = Math.round((end - start) / 86400000);
-      return diff >= 0 ? (diff + 1) : 0;
-    }
+    function generateReport() {
+      let report = "אנא העתק את השורות האלו:\n--------------------------\n";
+      
+      const items = [
+        {id: 'nameText', name: 'שם מלא'},
+        {id: 'idText', name: 'תעודת זהות'},
+        {id: 'fromText', name: 'מתאריך'},
+        {id: 'toText', name: 'עד תאריך'},
+        {id: 'daysText', name: 'ימים'},
+        {id: 'doctorText', name: 'רופא תחתון'},
+        {id: 'bottomDateText', name: 'תאריך תחתון'}
+      ];
 
-    function syncAll(){
-      const nameVal = (document.getElementById('nameInput').value || '').trim();
-      const idVal   = (document.getElementById('idInput').value || '').trim();
-      const docVal  = (document.getElementById('doctorInput').value || '').trim();
+      items.forEach(item => {
+        const el = document.getElementById(item.id);
+        report += `${item.id}: left: ${el.style.left}, top: ${el.style.top}\n`;
+      });
 
-      document.getElementById('nameText').textContent = nameVal || '';
-      document.getElementById('idText').textContent   = idVal || '';
-      document.getElementById('doctorText').textContent = docVal || '';
-
-      const fromRaw = document.getElementById('fromInput').value;
-      const toRaw   = document.getElementById('toInput').value;
-
-      // אתחול תאריכים
-      let fromD = null;
-      let toD = null;
-
-      if (fromRaw) {
-        fromD = new Date(fromRaw);
-        document.getElementById('fromText').textContent = fmtDDMMYY(fromD);
-        // התאריך התחתון זהה לתאריך ההתחלה
-        document.getElementById('bottomDateText').textContent = fmtDDMMYY(fromD);
-      } else {
-        document.getElementById('fromText').textContent = '';
-        document.getElementById('bottomDateText').textContent = '';
-      }
-
-      if (toRaw) {
-        toD = new Date(toRaw);
-        document.getElementById('toText').textContent = fmtDDMMYY(toD);
-      } else {
-        document.getElementById('toText').textContent = '';
-      }
-
-      // חישוב ימים רק אם שני התאריכים קיימים
-      if (fromD && toD) {
-        const days = calcDaysInclusive(fromD, toD);
-        document.getElementById('daysText').textContent = (days > 0) ? String(days) : '';
-      } else {
-        document.getElementById('daysText').textContent = '';
-      }
-    }
-
-    // הפעלה ראשונית
-    syncAll();
-
-    function saveImage(){
-      const canvas = document.getElementById('fixed-canvas');
-      const originalTransform = canvas.style.transform;
-
-      // ביטול זמני של ה-scale לצורך הצילום
-      canvas.style.transform = 'scale(1)';
-
-      html2canvas(canvas, { useCORS:true, scale:2, backgroundColor:null })
-        .then(c => {
-          const link = document.createElement('a');
-          link.download = "mahala_filled.jpg";
-          link.href = c.toDataURL("image/jpeg", 0.92);
-          link.click();
-        })
-        .finally(() => {
-          // החזרת ה-scale למצב הרגיל
-          canvas.style.transform = originalTransform;
-          fitToScreen();
-        });
+      const area = document.getElementById('output-area');
+      area.value = report;
+      area.select(); // Auto select for easier copying
     }
   </script>
-
 </body>
 </html>
