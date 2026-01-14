@@ -2,46 +2,44 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>אישור מחלה - מחולל</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>מחולל אישור מחלה - לאומית</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
   <style>
     :root{
-      --text:#111;
+      --text:#000;
     }
 
-    html, body { height:100%; }
+    html,body{height:100%;}
     body{
-      font-family:'Rubik', sans-serif;
-      background:#222;
       margin:0;
       padding:10px;
-      min-height:100vh;
+      background:#222;
+      font-family:'Rubik', sans-serif;
       display:flex;
       flex-direction:column;
       align-items:center;
       overflow-x:hidden;
       -webkit-text-size-adjust:100%;
       box-sizing:border-box;
-      color:#fff;
     }
 
-    /* פאנל שליטה */
+    /* --- פאנל שליטה --- */
     .controls{
-      background:#333;
-      padding:14px;
-      border-radius:12px;
-      border:1px solid #555;
       width:100%;
-      max-width:560px;
+      max-width:520px;
+      background:#333;
+      border:1px solid #555;
+      border-radius:12px;
+      padding:14px;
+      box-sizing:border-box;
       display:flex;
       flex-direction:column;
       gap:10px;
       margin-bottom:14px;
-      box-sizing:border-box;
     }
     .row{
       display:flex;
@@ -49,47 +47,49 @@
       flex-wrap:wrap;
     }
     .field{
-      flex:1 1 170px;
+      flex:1 1 160px;
       display:flex;
       flex-direction:column;
       gap:6px;
-      min-width:170px;
+      min-width:160px;
     }
     label{
-      font-size:0.85rem;
       color:#ddd;
-      font-weight:800;
+      font-size:0.85rem;
+      font-weight:700;
     }
-    input[type="text"], input[type="date"]{
-      padding:12px;
-      border-radius:10px;
-      border:none;
-      font-family:'Rubik', sans-serif;
+    input{
       width:100%;
-      font-size:16px;
       box-sizing:border-box;
+      padding:12px;
+      border:none;
+      border-radius:10px;
       outline:none;
+      font-size:16px; /* מונע זום */
       background:#fff;
       color:#000;
+      font-family:'Rubik', sans-serif;
     }
     button{
+      border:none;
+      border-radius:12px;
+      padding:12px;
       background:#4CAF50;
       color:#fff;
-      border:none;
-      padding:12px;
-      border-radius:12px;
-      font-weight:900;
+      font-weight:800;
       font-size:1.05rem;
       cursor:pointer;
-      margin-top:2px;
     }
-    .hint{
-      color:#bbb;
-      font-size:0.85rem;
-      line-height:1.35;
+    a.menu-link{
+      display:block;
+      text-align:center;
+      color:#cfcfcf;
+      text-decoration:none;
+      font-weight:700;
+      margin-top:6px;
     }
 
-    /* עוטף רספונסיבי */
+    /* --- עוטף רספונסיבי --- */
     #scalable-wrapper{
       width:100%;
       display:flex;
@@ -98,17 +98,14 @@
       overflow:hidden;
       position:relative;
     }
-
-    /* קנבס קשיח */
     #fixed-canvas{
       position:relative;
-      width:600px;
+      width:600px;      /* קנבס קשיח כמו שאר הקבצים שלך */
       flex-shrink:0;
       background:#fff;
       box-shadow:0 0 20px rgba(0,0,0,0.5);
       transform-origin:top center;
     }
-
     #bgImage{
       display:block;
       width:100%;
@@ -117,46 +114,34 @@
       pointer-events:none;
     }
 
-    /* שכבת טקסט */
-    .abs{
+    /* --- טקסטים על הטופס --- */
+    .final{
       position:absolute;
       transform:translate(-50%, -50%);
       transform-origin:center center;
       color:var(--text);
       white-space:nowrap;
+      text-align:center;
       user-select:none;
       pointer-events:none;
-      text-align:center;
-      /* קריספ */
-      -webkit-font-smoothing:antialiased;
-      text-rendering:geometricPrecision;
+
+      /* חשוב: בלי בולד */
+      font-weight:500;
+
+      /* טשטוש עדין מאוד כמו “סריקה” */
+      filter: blur(0.18px);
     }
 
-    /* טיפוגרפיה (כמו מסמך) */
-    .txt-normal{ font-size:16px; font-weight:600; }
-    .txt-strong{ font-size:18px; font-weight:800; }
-    .txt-small{ font-size:14px; font-weight:600; }
-    .txt-id{ font-size:18px; font-weight:900; letter-spacing:0.2px; direction:ltr; }
+    /* גדלי פונט מותאמים לטופס (לא ענקיים) */
+    .t-name{ font-size:20px; }
+    .t-id{ font-size:20px; direction:ltr; }
+    .t-date{ font-size:18px; direction:ltr; }
+    .t-days{ font-size:18px; direction:ltr; }
+    .t-bottom-doctor{ font-size:14px; }
+    .t-bottom-date{ font-size:16px; direction:ltr; }
 
-    /* =========================
-       POSITIONS (אחוזים)
-       פה אתה משנה אם צריך
-       ========================= */
-
-    /* שם מלא + ת"ז (בתוך השורה של "שם מלא / תעודת זהות") */
-    .pos-name { left:70.8%; top:33.7%; }
-    .pos-id   { left:35.0%; top:33.7%; }
-
-    /* שורת היעדרות: מתאריך / עד תאריך / סה"כ ימים */
-    .pos-from { left:49.2%; top:39.9%; }
-    .pos-to   { left:61.2%; top:39.9%; }
-    .pos-days { left:36.4%; top:39.9%; }
-
-    /* תאריך בתחתית (במסגרת הימנית למטה) */
-    .pos-bottom-date { left:71.6%; top:79.6%; }
-
-    /* ========================= */
-
+    /* כדי שלא תהיה “קפיצה” בגובה */
+    .hidden{opacity:0;}
   </style>
 </head>
 
@@ -166,76 +151,70 @@
     <div class="row">
       <div class="field">
         <label>שם מלא:</label>
-        <input type="text" id="fullNameInput" value="שיין צרלס" oninput="syncAll()" />
+        <input id="nameInput" type="text" value="שיין צרלס" oninput="syncAll()">
       </div>
       <div class="field">
         <label>תעודת זהות:</label>
-        <input type="text" id="idInput" value="1-02737305/9" oninput="syncAll()" />
+        <input id="idInput" type="text" value="1-02737305/9" oninput="syncAll()">
       </div>
     </div>
 
     <div class="row">
       <div class="field">
-        <label>מתאריך (תחילת מחלה):</label>
-        <input type="date" id="fromDate" onchange="syncAll()" />
+        <label>מתאריך:</label>
+        <input id="fromInput" type="date" onchange="syncAll()">
       </div>
       <div class="field">
-        <label>עד תאריך (סיום מחלה):</label>
-        <input type="date" id="toDate" onchange="syncAll()" />
+        <label>עד תאריך:</label>
+        <input id="toInput" type="date" onchange="syncAll()">
       </div>
     </div>
 
-    <div class="hint">
-      מספר הימים מחושב אוטומטית (כולל יום התחלה ויום סיום).<br>
-      התאריך למטה ייקבע אוטומטית לתאריך תחילת המחלה.
+    <div class="row">
+      <div class="field">
+        <label>שם הרופא לתחתית (לא חובה):</label>
+        <input id="doctorInput" type="text" value='הופק במקור ע"י ד"ר ילדרמן אירינה מ.ר: 25306' oninput="syncAll()">
+      </div>
     </div>
 
-    <button onclick="saveImage()">📷 שמור כקובץ JPG</button>
+    <button onclick="saveImage()">📷 שמור תמונה</button>
+    <a class="menu-link" href="index.html">חזרה לתפריט ראשי</a>
   </div>
 
   <div id="scalable-wrapper">
     <div id="fixed-canvas">
       <img id="bgImage" src="mahala.jpg" onload="fitToScreen()" onerror="alert('חסרה תמונה mahala.jpg באותה תיקייה!')" alt="רקע">
 
-      <!-- שם מלא -->
-      <div class="abs pos-name">
-        <div class="txt-strong" id="outName">שיין צרלס</div>
-      </div>
+      <!-- שם מלא (בתא הימני בטבלה) -->
+      <div class="final t-name" style="left: 72.0%; top: 36.3%;" id="nameText">שיין צרלס</div>
 
-      <!-- ת"ז -->
-      <div class="abs pos-id">
-        <div class="txt-id" id="outId">1-02737305/9</div>
-      </div>
+      <!-- תעודת זהות (בתא השמאלי בטבלה) -->
+      <div class="final t-id" style="left: 32.0%; top: 36.3%;" id="idText">1-02737305/9</div>
 
       <!-- מתאריך -->
-      <div class="abs pos-from">
-        <div class="txt-normal" id="outFrom">26/08/25</div>
-      </div>
+      <div class="final t-date" style="left: 60.5%; top: 40.55%;" id="fromText">26/08/25</div>
 
       <!-- עד תאריך -->
-      <div class="abs pos-to">
-        <div class="txt-normal" id="outTo">28/08/25</div>
-      </div>
+      <div class="final t-date" style="left: 46.5%; top: 40.55%;" id="toText">28/08/25</div>
 
       <!-- סה"כ ימים -->
-      <div class="abs pos-days">
-        <div class="txt-strong" id="outDays">3</div>
+      <div class="final t-days" style="left: 29.3%; top: 40.55%;" id="daysText">3</div>
+
+      <!-- שורת תחתית שמאל (רופא/מרפאה) -->
+      <div class="final t-bottom-doctor" style="left: 35.5%; top: 77.15%;" id="doctorText">
+        הופק במקור ע"י ד"ר ילדרמן אירינה מ.ר: 25306
       </div>
 
-      <!-- תאריך תחתון (זהה לתחילת מחלה) -->
-      <div class="abs pos-bottom-date">
-        <div class="txt-normal" id="outBottomDate">25/08/25</div>
-      </div>
+      <!-- תאריך תחתון (ימני) = מתאריך -->
+      <div class="final t-bottom-date" style="left: 76.5%; top: 77.15%;" id="bottomDateText">26/08/25</div>
 
     </div>
   </div>
 
   <script>
-    // --- התאמה לנייד (Scale) ---
     function fitToScreen(){
       const wrapper = document.getElementById('scalable-wrapper');
       const canvas  = document.getElementById('fixed-canvas');
-      const img     = document.getElementById('bgImage');
 
       const originalWidth = 600;
       const availableWidth = wrapper.clientWidth || wrapper.offsetWidth;
@@ -255,77 +234,63 @@
     window.addEventListener('load', fitToScreen);
     window.addEventListener('resize', fitToScreen);
 
-    // --- עזרי תאריך ---
-    function pad2(n){ return String(n).padStart(2,'0'); }
-
-    // dd/mm/yy
-    function formatDDMMYY(d){
-      const dd = pad2(d.getDate());
-      const mm = pad2(d.getMonth()+1);
+    function fmtDDMMYY(d){
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
       const yy = String(d.getFullYear()).slice(-2);
       return `${dd}/${mm}/${yy}`;
     }
 
-    // חישוב ימים כולל (inclusive)
-    function diffDaysInclusive(d1, d2){
-      const a = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
-      const b = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
-      const ms = b - a;
-      const days = Math.floor(ms / 86400000) + 1;
-      return days;
+    function calcDaysInclusive(fromDate, toDate){
+      const start = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+      const end   = new Date(toDate.getFullYear(),   toDate.getMonth(),   toDate.getDate());
+      const diff = Math.round((end - start) / 86400000);
+      return diff >= 0 ? (diff + 1) : 0;
     }
 
     function syncAll(){
-      const fullName = document.getElementById('fullNameInput').value.trim();
-      const idNum    = document.getElementById('idInput').value.trim();
-      const fromVal  = document.getElementById('fromDate').value;
-      const toVal    = document.getElementById('toDate').value;
+      const nameVal = (document.getElementById('nameInput').value || '').trim();
+      const idVal   = (document.getElementById('idInput').value || '').trim();
+      const docVal  = (document.getElementById('doctorInput').value || '').trim();
 
-      document.getElementById('outName').innerText = fullName || '';
-      document.getElementById('outId').innerText = idNum || '';
+      document.getElementById('nameText').textContent = nameVal || '';
+      document.getElementById('idText').textContent   = idVal || '';
+      document.getElementById('doctorText').textContent = docVal || '';
 
-      if(fromVal){
-        const fromD = new Date(fromVal);
-        const fromTxt = formatDDMMYY(fromD);
-        document.getElementById('outFrom').innerText = fromTxt;
+      const fromRaw = document.getElementById('fromInput').value;
+      const toRaw   = document.getElementById('toInput').value;
 
-        // למטה = תחילת מחלה
-        document.getElementById('outBottomDate').innerText = fromTxt;
+      if (fromRaw) {
+        const fromD = new Date(fromRaw);
+        document.getElementById('fromText').textContent = fmtDDMMYY(fromD);
+
+        // תאריך תחתון = מתאריך (כמו שביקשת)
+        document.getElementById('bottomDateText').textContent = fmtDDMMYY(fromD);
       } else {
-        document.getElementById('outFrom').innerText = '';
-        document.getElementById('outBottomDate').innerText = '';
+        document.getElementById('fromText').textContent = '';
+        document.getElementById('bottomDateText').textContent = '';
       }
 
-      if(toVal){
-        const toD = new Date(toVal);
-        document.getElementById('outTo').innerText = formatDDMMYY(toD);
+      if (toRaw) {
+        const toD = new Date(toRaw);
+        document.getElementById('toText').textContent = fmtDDMMYY(toD);
       } else {
-        document.getElementById('outTo').innerText = '';
+        document.getElementById('toText').textContent = '';
       }
 
-      // ימים (רק אם יש שני תאריכים)
-      if(fromVal && toVal){
-        const fromD = new Date(fromVal);
-        const toD = new Date(toVal);
-
-        // אם המשתמש בחר הפוך – נתקן אוטומטית
-        if(toD < fromD){
-          document.getElementById('outDays').innerText = '';
-          return;
-        }
-
-        const days = diffDaysInclusive(fromD, toD);
-        document.getElementById('outDays').innerText = String(days);
+      // חישוב ימים אוטומטי
+      if (fromRaw && toRaw) {
+        const fromD = new Date(fromRaw);
+        const toD = new Date(toRaw);
+        const days = calcDaysInclusive(fromD, toD);
+        document.getElementById('daysText').textContent = String(days);
       } else {
-        document.getElementById('outDays').innerText = '';
+        document.getElementById('daysText').textContent = '';
       }
     }
 
-    // אתחול דיפולטים לדוגמה (כמו בתמונה)
-    (function init(){
-      // ברירת מחדל: אם אין בחירה, לא מכריח – רק ממלא פלט דוגמה
-      syncAll();
-    })();
+    // מצב התחלתי – כדי שלא יישארו דוגמאות לא נכונות
+    syncAll();
 
     function saveImage(){
       const canvas = document.getElementById('fixed-canvas');
@@ -333,19 +298,17 @@
 
       canvas.style.transform = 'scale(1)';
 
-      html2canvas(canvas, {
-        useCORS: true,
-        scale: 2,
-        backgroundColor: null
-      }).then(c => {
-        const link = document.createElement('a');
-        link.download = "mahala_filled.jpg";
-        link.href = c.toDataURL("image/jpeg", 0.92);
-        link.click();
-      }).finally(() => {
-        canvas.style.transform = originalTransform;
-        fitToScreen();
-      });
+      html2canvas(canvas, { useCORS:true, scale:2, backgroundColor:null })
+        .then(c => {
+          const link = document.createElement('a');
+          link.download = "mahala_filled.jpg";
+          link.href = c.toDataURL("image/jpeg", 0.92);
+          link.click();
+        })
+        .finally(() => {
+          canvas.style.transform = originalTransform;
+          fitToScreen();
+        });
     }
   </script>
 
