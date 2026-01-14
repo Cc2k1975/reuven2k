@@ -46,15 +46,21 @@
       overflow: hidden;
       box-sizing: border-box;
       padding: 8px;
+      position: relative; /* חשוב למרכוז האבסולוטי */
     }
 
     .preview-area {
-      position: relative;
+      position: absolute;  /* המרכוז נעשה ע"י left/top 50% */
+      left: 50%;
+      top: 50%;
+
       background: #fff;
       box-shadow: 0 0 40px rgba(0,0,0,0.55);
       overflow: hidden;
+
       transform-origin: center center;
       will-change: transform;
+
       user-select: none;
       touch-action: manipulation;
     }
@@ -127,7 +133,7 @@
       pointer-events: auto;
     }
 
-    /* ===== תפריט “כרטיס” באמצע המסך במובייל ===== */
+    /* ===== תפריט “כרטיס” באמצע המסך ===== */
     .controls {
       position: fixed;
       z-index: 2500;
@@ -155,11 +161,8 @@
       pointer-events: auto;
       transform: translate(-50%, -50%) scale(1);
     }
-
-    /* חשוב: גלילה חלקה בפנים */
     .controls { -webkit-overflow-scrolling: touch; }
 
-    /* במקום שתי עמודות — עמודה אחת נקייה */
     .controls-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -200,10 +203,7 @@
       font-size: 1.05rem;
       width: 100%;
     }
-
     .btn-mode { background:#2d6cdf; }
-
-    /* במחשב – אפשר להציג תפריט למעלה כמו פעם (אם תרצה), כרגע נשאר אותו מודל כרטיס גם במחשב */
   </style>
 </head>
 
@@ -273,17 +273,13 @@
       </div>
     </div>
 
-    <!-- כפתור פתיחה -->
     <button class="btn-gear" id="gearBtn" type="button" aria-label="פתח/סגור שליטה">⚙️</button>
-
-    <!-- שכבת כהה -->
     <div class="overlay" id="overlay"></div>
 
-    <!-- תפריט מרכזי -->
     <div class="controls" id="controlsPanel" role="dialog" aria-modal="true" aria-label="עריכת פרטים">
       <div class="controls-grid">
 
-        <button class="btn-mode" type="button" id="modeBtn">מצבs: FIT</button>
+        <button class="btn-mode" type="button" id="modeBtn">מצב: FIT</button>
 
         <div class="row2">
           <div class="input-group">
@@ -340,7 +336,7 @@
       lastTouchEnd = now;
     }, { passive:false });
 
-    // פתיחה/סגירה תפריט מרכזי
+    // פתיחה/סגירה תפריט
     const controlsPanel = document.getElementById('controlsPanel');
     const overlay = document.getElementById('overlay');
     const gearBtn = document.getElementById('gearBtn');
@@ -359,7 +355,7 @@
     });
     overlay.addEventListener('click', closeMenu);
 
-    // מצב תצוגה: FIT / FILL
+    // מצב תצוגה FIT / FILL
     let VIEW_MODE = 'FIT';
     const modeBtn = document.getElementById('modeBtn');
     modeBtn.addEventListener('click', () => {
@@ -377,9 +373,11 @@
       const nh = img.naturalHeight || 0;
       if (!nw || !nh) return;
 
+      // מידות קומפוזיציה = מידות מקור
       capture.style.width = nw + 'px';
       capture.style.height = nh + 'px';
 
+      // שטח זמין למסך
       const vv = window.visualViewport;
       const rect = stage.getBoundingClientRect();
       let availW = rect.width;
@@ -394,7 +392,8 @@
       const sCover   = Math.max(availW / nw, availH / nh);
       const scale = (VIEW_MODE === 'FILL') ? sCover : sContain;
 
-      capture.style.transform = `scale(${scale})`;
+      // מרכוז מוחלט + סקייל
+      capture.style.transform = `translate(-50%, -50%) scale(${scale})`;
     }
 
     function escapeHtml(str) {
@@ -448,7 +447,10 @@
       const captureElement = document.getElementById('captureTarget');
       const prevTransform = captureElement.style.transform;
 
-      captureElement.style.transform = 'scale(1)';
+      // צילום בגודל המקורי (בלי scale/translate למסך)
+      captureElement.style.transform = 'none';
+      captureElement.style.left = '0';
+      captureElement.style.top = '0';
 
       html2canvas(captureElement, { useCORS: true, scale: 2, backgroundColor: null }).then(canvas => {
         const link = document.createElement('a');
@@ -456,7 +458,10 @@
         link.href = canvas.toDataURL("image/jpeg", 0.9);
         link.click();
       }).finally(() => {
-        captureElement.style.transform = prevTransform;
+        // מחזירים מצב תצוגה למסך
+        captureElement.style.left = '50%';
+        captureElement.style.top = '50%';
+        captureElement.style.transform = prevTransform || 'translate(-50%, -50%) scale(1)';
         fitToScreen();
       });
     }
