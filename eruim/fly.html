@@ -2,8 +2,8 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מחולל כרטיס טיסה - אוטומטי</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מחולל טיסה - מותאם לנייד</title>
     <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
@@ -15,62 +15,81 @@
         body {
             font-family: 'Roboto', sans-serif;
             background-color: #222;
+            margin: 0; padding: 10px;
+            min-height: 100vh;
             display: flex; flex-direction: column; align-items: center;
-            margin: 0; padding: 20px; color: white;
+            overflow-x: hidden;
         }
 
         /* --- פאנל שליטה --- */
         .controls {
-            display: flex; gap: 20px; margin-bottom: 20px; align-items: flex-end; z-index: 100;
-            background: #333; padding: 20px; border-radius: 10px; border: 1px solid #555;
-            flex-wrap: wrap; justify-content: center;
+            background: #333; padding: 15px; border-radius: 10px; border: 1px solid #555;
+            width: 100%; max-width: 500px;
+            display: flex; flex-direction: column; gap: 10px;
+            margin-bottom: 20px;
+            z-index: 100;
         }
         
         .ctrl-col { display: flex; flex-direction: column; gap: 5px; }
-        label { font-size: 0.9rem; color: #ccc; font-weight: bold; }
+        label { font-size: 0.85rem; color: #ccc; font-weight: bold; }
+        
         input[type="date"] { 
-            padding: 10px; border-radius: 6px; border:none; font-family: 'Roboto'; width: 160px; font-size: 1rem;
+            padding: 12px; border-radius: 4px; border: none; 
+            font-family: 'Roboto'; width: 100%; font-size: 16px; /* 16px מונע זום באייפון */
         }
 
-        button { background: #4CAF50; color: white; border: none; padding: 10px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; height: 40px;}
-        button:hover { background: #45a049; }
+        button { 
+            background: #4CAF50; color: white; border: none; padding: 12px; 
+            border-radius: 6px; font-weight: bold; font-size: 1.1rem; 
+            cursor: pointer; margin-top: 5px;
+        }
 
-        /* --- איזור התצוגה --- */
-        .preview-area {
-            position: relative;
-            background: white;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-            width: fit-content;
+        /* --- עוטף רספונסיבי --- */
+        #scalable-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
             overflow: hidden;
-            user-select: none;
-            border: 2px solid #333;
+            position: relative;
+        }
+
+        /* --- הקנבס הקשיח (רוחב קבוע) --- */
+        #fixed-canvas {
+            position: relative;
+            width: 600px;  /* רוחב קבוע כדי לשמור על פרופורציות */
+            flex-shrink: 0;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            transform-origin: top center; /* כיווץ מלמעלה */
         }
 
         #bgImage {
-            display: block; max-height: 85vh; width: auto; pointer-events: none;
+            display: block;
+            width: 100%; /* תופס את כל ה-600px */
+            height: auto;
         }
 
-        /* --- אלמנטים --- */
+        /* --- אלמנטים (מיקומים מדויקים באחוזים) --- */
         .final-element {
             position: absolute;
             transform-origin: center center;
             text-align: left; /* אנגלית */
             color: var(--text-color);
             white-space: nowrap;
-            /* הוספתי טשטוש עדין שייראה מודפס */
+            /* טשטוש עדין */
             filter: blur(0.3px);
             transform: translate(-50%, -50%);
             
-            /* ביטול בולד - משקל רגיל */
+            /* ללא בולד */
             font-family: 'Arimo', sans-serif;
             font-weight: 500; 
             text-transform: uppercase;
         }
 
-        /* גדלים ספציפיים (מותאמים ללא בולד) */
+        /* גדלים קבועים (לא משתנים כי הקנבס כולו מתכווץ) */
         .top-header { font-size: 16px; color: #000; letter-spacing: 0.5px; }
         .big-date { font-size: 15px; color: #000; }
-        .small-date { font-size: 13px; color: #000; text-transform: none; } /* לא הכל באותיות גדולות בקטן */
+        .small-date { font-size: 13px; color: #000; text-transform: none; }
 
     </style>
 </head>
@@ -87,53 +106,83 @@
             <input type="date" id="retDateInput" onchange="updateFlightDates()">
         </div>
 
-        <div class="ctrl-col">
-            <button onclick="saveImage()">📷 שמור כרטיס</button>
-        </div>
+        <button onclick="saveImage()">📷 שמור כרטיס</button>
+        <a href="index.html" style="text-align:center; color:#ccc; margin-top:10px; width:100%; display:block;">חזרה לתפריט ראשי</a>
     </div>
 
-    <div class="preview-area" id="captureTarget">
-        <img id="bgImage" src="fly2.png" onerror="alert('חסרה תמונה fly2.png')" alt="רקע">
-        
-        <div class="final-element" style="left: 20.2%; top: 3.1%; transform: translate(-50%, -50%) scale(0.75);">
-            <div class="top-header" id="topHeaderText">07 JUN 2023 ► 23 JUN 2023</div>
-        </div>
+    <div id="scalable-wrapper">
+        <div id="fixed-canvas">
+            <img id="bgImage" src="fly2.png" onload="fitToScreen()" onerror="alert('חסרה תמונה fly2.png')" alt="רקע">
+            
+            <div class="final-element" style="left: 20.2%; top: 3.1%; transform: translate(-50%, -50%) scale(0.75);">
+                <div class="top-header" id="topHeaderText">07 JUN 2023 ► 23 JUN 2023</div>
+            </div>
 
-        <div class="final-element" style="left: 35.2%; top: 21.5%; transform: translate(-50%, -50%) scale(0.95);">
-            <div class="big-date" id="depBig1Text">WEDNESDAY 07 JUN</div>
-        </div>
+            <div class="final-element" style="left: 35.2%; top: 21.5%; transform: translate(-50%, -50%) scale(0.95);">
+                <div class="big-date" id="depBig1Text">WEDNESDAY 07 JUN</div>
+            </div>
 
-        <div class="final-element" style="left: 70.8%; top: 21.5%; transform: translate(-50%, -50%) scale(0.95);">
-            <div class="big-date" id="arrBig1Text">THURSDAY 08 JUN</div>
-        </div>
+            <div class="final-element" style="left: 70.8%; top: 21.5%; transform: translate(-50%, -50%) scale(0.95);">
+                <div class="big-date" id="arrBig1Text">THURSDAY 08 JUN</div>
+            </div>
 
-        <div class="final-element" style="left: 40.8%; top: 37.0%; transform: translate(-50%, -50%) scale(1.00);">
-            <div class="small-date" id="depSmall1Text">(Wed, Jun 7)</div>
-        </div>
+            <div class="final-element" style="left: 40.8%; top: 37.0%; transform: translate(-50%, -50%) scale(1.00);">
+                <div class="small-date" id="depSmall1Text">(Wed, Jun 7)</div>
+            </div>
 
-        <div class="final-element" style="left: 61.3%; top: 37.0%; transform: translate(-50%, -50%) scale(1.00);">
-            <div class="small-date" id="arrSmall1Text">(Thu, Jun 8)</div>
-        </div>
+            <div class="final-element" style="left: 61.3%; top: 37.0%; transform: translate(-50%, -50%) scale(1.00);">
+                <div class="small-date" id="arrSmall1Text">(Thu, Jun 8)</div>
+            </div>
 
-        <div class="final-element" style="left: 34.0%; top: 61.5%; transform: translate(-50%, -50%) scale(0.95);">
-            <div class="big-date" id="depBig2Text">THURSDAY 22 JUN</div>
-        </div>
+            <div class="final-element" style="left: 34.0%; top: 61.5%; transform: translate(-50%, -50%) scale(0.95);">
+                <div class="big-date" id="depBig2Text">THURSDAY 22 JUN</div>
+            </div>
 
-        <div class="final-element" style="left: 66.5%; top: 61.6%; transform: translate(-50%, -50%) scale(0.95);">
-            <div class="big-date" id="arrBig2Text">FRIDAY 23 JUN</div>
-        </div>
+            <div class="final-element" style="left: 66.5%; top: 61.6%; transform: translate(-50%, -50%) scale(0.95);">
+                <div class="big-date" id="arrBig2Text">FRIDAY 23 JUN</div>
+            </div>
 
-        <div class="final-element" style="left: 40.5%; top: 77.0%; transform: translate(-50%, -50%) scale(1.00);">
-            <div class="small-date" id="depSmall2Text">(Thu, Jun 22)</div>
-        </div>
+            <div class="final-element" style="left: 40.5%; top: 77.0%; transform: translate(-50%, -50%) scale(1.00);">
+                <div class="small-date" id="depSmall2Text">(Thu, Jun 22)</div>
+            </div>
 
-        <div class="final-element" style="left: 61.2%; top: 77.0%; transform: translate(-50%, -50%) scale(1.00);">
-            <div class="small-date" id="arrSmall2Text">(Fri, Jun 23)</div>
-        </div>
+            <div class="final-element" style="left: 61.2%; top: 77.0%; transform: translate(-50%, -50%) scale(1.00);">
+                <div class="small-date" id="arrSmall2Text">(Fri, Jun 23)</div>
+            </div>
 
+        </div>
     </div>
 
     <script>
+        // --- מנגנון התאמה לנייד ---
+        function fitToScreen() {
+            const wrapper = document.getElementById('scalable-wrapper');
+            const canvas = document.getElementById('fixed-canvas');
+            const img = document.getElementById('bgImage');
+            
+            // המחשב חושב שהרוחב הוא 600
+            const originalWidth = 600;
+            // רוחב המסך בפועל
+            const availableWidth = wrapper.offsetWidth;
+            
+            // חישוב יחס
+            const scale = Math.min(availableWidth / originalWidth, 1);
+            
+            // החלת כיווץ
+            canvas.style.transform = `scale(${scale})`;
+            
+            // התאמת גובה העוטף
+            if(img.clientHeight > 0) {
+                wrapper.style.height = (img.clientHeight * scale) + "px";
+            } else {
+                setTimeout(fitToScreen, 100);
+            }
+        }
+
+        window.addEventListener('load', fitToScreen);
+        window.addEventListener('resize', fitToScreen);
+
+        // --- לוגיקת תאריכים ---
         const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
         const monthNamesSmall = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
@@ -182,11 +231,20 @@
         }
 
         function saveImage() {
-            html2canvas(document.getElementById('captureTarget'), { useCORS: true, scale: 2, backgroundColor: null }).then(canvas => {
+            const canvas = document.getElementById('fixed-canvas');
+            const originalTransform = canvas.style.transform;
+            
+            // ביטול כיווץ זמני לצורך שמירה איכותית
+            canvas.style.transform = 'scale(1)';
+            
+            html2canvas(canvas, { useCORS: true, scale: 2 }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = "flight_ticket.jpg";
                 link.href = canvas.toDataURL("image/jpeg", 0.9);
                 link.click();
+                
+                // החזרת מצב מותאם
+                canvas.style.transform = originalTransform;
             });
         }
     </script>
