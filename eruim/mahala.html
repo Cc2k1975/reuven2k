@@ -115,12 +115,13 @@
       filter: blur(0.18px);
     }
 
-    .t-name{ font-size:20px; }
-    .t-id{ font-size:20px; direction:ltr; }
-    .t-date{ font-size:18px; direction:ltr; }
-    .t-days{ font-size:18px; direction:ltr; }
-    .t-bottom-doctor{ font-size:14px; }
-    .t-bottom-date{ font-size:16px; direction:ltr; }
+    /* שינוי גדלי פונט להתאמה טובה יותר */
+    .t-name{ font-size:18px; }
+    .t-id{ font-size:18px; direction:ltr; }
+    .t-date{ font-size:17px; direction:ltr; }
+    .t-days{ font-size:17px; direction:ltr; }
+    .t-bottom-doctor{ font-size:13px; }
+    .t-bottom-date{ font-size:15px; direction:ltr; }
   </style>
 </head>
 
@@ -140,11 +141,11 @@
 
     <div class="row">
       <div class="field">
-        <label>מתאריך:</label>
+        <label>מתאריך (תאריך התחלה):</label>
         <input id="fromInput" type="date" onchange="syncAll()">
       </div>
       <div class="field">
-        <label>עד תאריך:</label>
+        <label>עד תאריך (תאריך סיום):</label>
         <input id="toInput" type="date" onchange="syncAll()">
       </div>
     </div>
@@ -164,28 +165,21 @@
     <div id="fixed-canvas">
       <img id="bgImage" src="mahala.jpg" onload="fitToScreen()" onerror="alert('חסרה תמונה mahala.jpg באותה תיקייה!')" alt="רקע">
 
-      <!-- שם מלא -->
-      <div class="final t-name" style="left: 72.0%; top: 36.3%;" id="nameText">שיין צרלס</div>
+      <div class="final t-name" style="left: 72.0%; top: 35.5%;" id="nameText">שיין צרלס</div>
 
-      <!-- תעודת זהות -->
-      <div class="final t-id" style="left: 32.0%; top: 36.3%;" id="idText">1-02737305/9</div>
+      <div class="final t-id" style="left: 32.0%; top: 35.5%;" id="idText">1-02737305/9</div>
 
-      <!-- מתאריך (הורד למטה) -->
-      <div class="final t-date" style="left: 60.5%; top: 42.0%;" id="fromText">26/08/25</div>
+      <div class="final t-date" style="left: 60.5%; top: 39.0%;" id="fromText"></div>
 
-      <!-- עד תאריך (הורד למטה) -->
-      <div class="final t-date" style="left: 46.5%; top: 42.0%;" id="toText">28/08/25</div>
+      <div class="final t-date" style="left: 46.5%; top: 39.0%;" id="toText"></div>
 
-      <!-- סה"כ ימים (הורד למטה) -->
-      <div class="final t-days" style="left: 29.3%; top: 42.0%;" id="daysText">3</div>
+      <div class="final t-days" style="left: 29.3%; top: 39.0%;" id="daysText"></div>
 
-      <!-- תחתית שמאל -->
-      <div class="final t-bottom-doctor" style="left: 35.5%; top: 77.15%;" id="doctorText">
+      <div class="final t-bottom-doctor" style="left: 35.5%; top: 76.0%;" id="doctorText">
         הופק במקור ע"י ד"ר ילדרמן אירינה מ.ר: 25306
       </div>
 
-      <!-- תאריך תחתון = מתאריך -->
-      <div class="final t-bottom-date" style="left: 76.5%; top: 77.15%;" id="bottomDateText">26/08/25</div>
+      <div class="final t-bottom-date" style="left: 76.5%; top: 76.0%;" id="bottomDateText"></div>
 
     </div>
   </div>
@@ -239,9 +233,14 @@
       const fromRaw = document.getElementById('fromInput').value;
       const toRaw   = document.getElementById('toInput').value;
 
+      // אתחול תאריכים
+      let fromD = null;
+      let toD = null;
+
       if (fromRaw) {
-        const fromD = new Date(fromRaw);
+        fromD = new Date(fromRaw);
         document.getElementById('fromText').textContent = fmtDDMMYY(fromD);
+        // התאריך התחתון זהה לתאריך ההתחלה
         document.getElementById('bottomDateText').textContent = fmtDDMMYY(fromD);
       } else {
         document.getElementById('fromText').textContent = '';
@@ -249,28 +248,29 @@
       }
 
       if (toRaw) {
-        const toD = new Date(toRaw);
+        toD = new Date(toRaw);
         document.getElementById('toText').textContent = fmtDDMMYY(toD);
       } else {
         document.getElementById('toText').textContent = '';
       }
 
-      if (fromRaw && toRaw) {
-        const fromD = new Date(fromRaw);
-        const toD = new Date(toRaw);
+      // חישוב ימים רק אם שני התאריכים קיימים
+      if (fromD && toD) {
         const days = calcDaysInclusive(fromD, toD);
-        document.getElementById('daysText').textContent = String(days);
+        document.getElementById('daysText').textContent = (days > 0) ? String(days) : '';
       } else {
         document.getElementById('daysText').textContent = '';
       }
     }
 
+    // הפעלה ראשונית
     syncAll();
 
     function saveImage(){
       const canvas = document.getElementById('fixed-canvas');
       const originalTransform = canvas.style.transform;
 
+      // ביטול זמני של ה-scale לצורך הצילום
       canvas.style.transform = 'scale(1)';
 
       html2canvas(canvas, { useCORS:true, scale:2, backgroundColor:null })
@@ -281,6 +281,7 @@
           link.click();
         })
         .finally(() => {
+          // החזרת ה-scale למצב הרגיל
           canvas.style.transform = originalTransform;
           fitToScreen();
         });
