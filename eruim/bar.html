@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מחולל בר מצווה - סופי</title>
+    <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Rubik:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+
+    <style>
+        :root { 
+            --text-brown: #8B5E3C;
+        }
+
+        body {
+            font-family: 'Rubik', sans-serif;
+            background-color: #222;
+            display: flex; flex-direction: column; align-items: center;
+            margin: 0; padding: 20px; color: white;
+        }
+
+        /* --- פאנל שליטה נקי --- */
+        .controls {
+            display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-end; z-index: 100;
+            background: #333; padding: 20px; border-radius: 10px; border: 1px solid #555;
+            flex-wrap: wrap; justify-content: center;
+        }
+        
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 0.85rem; color: #ccc; }
+        input[type="text"], input[type="date"], input[type="time"] { 
+            padding: 8px; border-radius: 4px; border:none; font-family: 'Rubik'; width: 150px;
+        }
+
+        button { background: #4CAF50; color: white; border: none; padding: 10px 30px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; height: 40px;}
+        button:hover { background: #45a049; }
+
+        /* --- איזור התצוגה --- */
+        .preview-area {
+            position: relative;
+            background: white;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            width: fit-content;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #bgImage {
+            display: block; max-height: 85vh; width: auto; pointer-events: none;
+        }
+
+        /* --- אלמנטים מקובעים --- */
+        .final-element {
+            position: absolute;
+            transform-origin: center center;
+            text-align: center;
+            color: var(--text-brown);
+            white-space: nowrap;
+            /* טשטוש קבוע ועדין */
+            filter: blur(0.4px);
+            /* מרכוז האלמנט ביחס לנקודת הציון שלו */
+            transform: translate(-50%, -50%);
+        }
+
+        /* --- עיצוב הטקסטים (מקורי) --- */
+        .bsd-txt { font-size: 14px; font-weight: 400; font-family: 'Rubik'; }
+        .header-txt { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 5px; font-family: 'Rubik'; }
+        .name-txt { font-family: 'Rubik', sans-serif; font-size: 55px; font-weight: 700; line-height: 1; }
+        .intro-txt { font-size: 15px; line-height: 1.3; font-weight: 400; margin-top: 10px; }
+        .date-txt { font-family: 'Frank Ruhl Libre', serif; font-size: 40px; font-weight: 700; letter-spacing: 1px; margin-top: 5px; }
+        .loc-title-txt { font-size: 26px; font-weight: 700; }
+        .address-txt { font-size: 16px; font-weight: 500; }
+        .time-txt { font-family: 'Frank Ruhl Libre', serif; font-size: 22px; font-weight: 700; }
+        .family-txt { font-size: 18px; font-weight: 500; }
+
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>כותרת:</label>
+            <input type="text" value="בר המצווה של" oninput="updateText('headerText', this.value)">
+            <label>שם הילד:</label>
+            <input type="text" value="הראל שקד" oninput="updateText('nameText', this.value)">
+        </div>
+        
+        <div class="input-group">
+            <label>תאריך:</label>
+            <input type="date" id="dateInput">
+            <label>שעה:</label>
+            <input type="time" value="19:30" oninput="updateText('timeText', this.value)">
+        </div>
+
+        <div class="input-group">
+            <label>שם האולם:</label>
+            <input type="text" value="אולמי האחוזה" oninput="updateText('locTitleText', this.value)">
+            <label>כתובת:</label>
+            <input type="text" value="התעשייה 14, הרצליה" oninput="updateText('addressText', this.value)">
+        </div>
+
+        <div class="input-group">
+            <label>חתימה:</label>
+            <input type="text" value="משפחת שקד" oninput="updateText('familyText', this.value)">
+        </div>
+
+        <button onclick="saveImage()">📷 שמור</button>
+    </div>
+
+    <div class="preview-area" id="captureTarget">
+        <img id="bgImage" src="bar2.jpg" onerror="alert('חסרה תמונה bar2.jpg')" alt="רקע">
+        
+        <div class="final-element" style="left: 41.0%; top: 24.3%; transform: translate(-50%, -50%) rotate(-10.0deg);">
+            <div class="bsd-txt">בס"ד</div>
+        </div>
+
+        <div class="final-element" style="left: 28.3%; top: 31.4%; transform: translate(-50%, -50%) rotate(-9.5deg);">
+            <div class="header-txt" id="headerText">בר המצווה של</div>
+        </div>
+
+        <div class="final-element" style="left: 29.5%; top: 36.3%; transform: translate(-50%, -50%) rotate(-10.0deg);">
+            <div class="name-txt" id="nameText">הראל שקד</div>
+        </div>
+
+        <div class="final-element" style="left: 30.6%; top: 43.6%; transform: translate(-50%, -50%) rotate(-11.0deg);">
+            <div class="intro-txt">
+                אנו שמחים להזמינכם לחגוג עימנו<br>
+                את שמחת בר המצווה של בננו היקר<br>
+                שייערך אי"ה ביום <span id="dayName">רביעי</span>, <span id="hebDate">ב' בשבט תשפ"ד</span>
+            </div>
+        </div>
+
+        <div class="final-element" style="left: 32.1%; top: 52.3%; transform: translate(-50%, -50%) rotate(-11.5deg);">
+            <div class="date-txt" id="dateText">06.02.2024</div>
+        </div>
+
+        <div class="final-element" style="left: 32.6%; top: 58.6%; transform: translate(-50%, -50%) rotate(-12.0deg);">
+            <div class="loc-title-txt" id="locTitleText">אולמי האחוזה</div>
+        </div>
+
+        <div class="final-element" style="left: 34.3%; top: 62.6%; transform: translate(-50%, -50%) rotate(-11.5deg);">
+            <div class="address-txt" id="addressText">התעשייה 14, הרצליה</div>
+        </div>
+
+        <div class="final-element" style="left: 35.5%; top: 66.9%; transform: translate(-50%, -50%) rotate(-10.5deg);">
+            <div class="time-txt" id="timeText">19:30</div>
+        </div>
+
+        <div class="final-element" style="left: 38.2%; top: 78.0%; transform: translate(-50%, -50%) rotate(-11.5deg);">
+            <div class="family-txt" id="familyText">משפחת שקד</div>
+        </div>
+
+    </div>
+
+    <script>
+        // עדכון טקסט פשוט
+        function updateText(elementId, val) {
+            document.getElementById(elementId).innerText = val;
+        }
+
+        // גימטריה ותאריכים
+        function toGematria(num) {
+            const letters = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ', 'כא', 'כב', 'כג', 'כד', 'כה', 'כו', 'כז', 'כח', 'כט', 'ל', 'לא'];
+            return num > 30 ? num : letters[num];
+        }
+
+        document.getElementById('dateInput').addEventListener('change', function() {
+            if (!this.value) return;
+            const d = new Date(this.value);
+            
+            const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { weekday: 'long', month: 'long', day: 'numeric' }).formatToParts(d);
+            let weekday='', month='', dayNum=0;
+            parts.forEach(p => {
+                if(p.type==='weekday') weekday=p.value;
+                if(p.type==='month') month=p.value;
+                if(p.type==='day') dayNum=parseInt(p.value);
+            });
+            
+            document.getElementById('dayName').innerText = weekday.replace('יום ', '');
+            // שנת תשפ"ד היא hardcoded כאן, אפשר לשנות אם צריך
+            document.getElementById('hebDate').innerText = `${toGematria(dayNum)} ב${month} תשפ"ד`;
+            
+            const gDate = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+            document.getElementById('dateText').innerText = gDate;
+        });
+
+        function saveImage() {
+            const captureElement = document.getElementById('captureTarget');
+            html2canvas(captureElement, { useCORS: true, scale: 2, backgroundColor: null }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = "bar_mitzvah_final.jpg";
+                link.href = canvas.toDataURL("image/jpeg", 0.9);
+                link.click();
+            });
+        }
+    </script>
+</body>
+</html>
