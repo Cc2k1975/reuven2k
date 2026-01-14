@@ -1,406 +1,152 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מחולל חתונה</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Rubik:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
-  <title>מחולל חתונה - גרסה סופית (Final)</title>
+    <style>
+        :root { --text-color: #1a1a1a; --gold-color: #c5a059; }
+        * { box-sizing: border-box; }
 
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Rubik:wght@300;400;500;700;900&display=swap" rel="stylesheet">
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+        body {
+            font-family: 'Rubik', sans-serif; background-color: #222;
+            display: flex; flex-direction: column; align-items: center;
+            margin: 0; padding: 10px; color: white; min-height: 100vh;
+            overflow-x: hidden;
+        }
 
-  <style>
-    :root { --text-color: #1a1a1a; --gold-color: #c5a059; }
+        .controls {
+            display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;
+            background: #333; padding: 20px; border-radius: 10px; border: 1px solid #555;
+            width: 100%; max-width: 500px;
+        }
+        .row { display: flex; gap: 10px; }
+        .row > div { flex: 1; }
+        .input-group { display: flex; flex-direction: column; gap: 2px; width: 100%; }
+        label { font-size: 0.8rem; color: #ccc; }
+        input { padding: 10px; border-radius: 4px; border: none; font-family: 'Rubik'; font-size: 16px; width: 100%; }
+        button { background: #4CAF50; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; width: 100%; margin-top: 10px; }
 
-    /* מסך מלא + ללא גלילה */
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: #222;
-      font-family: 'Rubik', sans-serif;
-      touch-action: none;             /* מסייע לחסימת מחוות זום במכשירים מסוימים */
-      -webkit-user-select: none;
-      user-select: none;
-    }
+        .preview-wrapper { width: 100%; display: flex; justify-content: center; overflow:hidden;}
+        /* רוחב קבוע להזמנה - חשוב לפרופורציה */
+        .preview-area {
+            position: relative; background: white; width: 600px; height:auto; transform-origin: top center; flex-shrink: 0;
+        }
+        #bgImage { display: block; width: 100%; height: auto; }
 
-    /* Safe area (notch) */
-    body {
-      padding-top: env(safe-area-inset-top);
-      padding-right: env(safe-area-inset-right);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      color: white;
-    }
+        .final-element {
+            position: absolute; transform-origin: center center; text-align: center;
+            color: var(--text-color); white-space: nowrap; filter: blur(0.4px);
+            transform: translate(-50%, -50%);
+        }
 
-    /* --- פאנל שליטה --- */
-    .controls {
-      display: flex;
-      gap: 12px;
-      align-items: flex-end;
-      z-index: 1000;
-      background: #333;
-      border: 1px solid #555;
-      border-radius: 12px;
-      flex-wrap: wrap;
-      justify-content: center;
-      box-sizing: border-box;
-      color: #fff;
+        .bsd-txt { font-size: 14px; font-weight: 500; }
+        .names-txt { font-family: 'Playfair Display', serif; font-size: 40px; display: flex; gap: 30px; direction: ltr; align-items: center; }
+        .intro-txt { font-size: 14px; line-height: 1.3; }
+        .greg-txt { font-size: 32px; font-weight: 900; letter-spacing: 2px; }
+        .left-date-txt { font-family: 'Rubik'; font-weight: 900; font-size: 16px; letter-spacing: 1px; }
+        .loc-txt { font-weight: 700; font-size: 16px; }
+        .address-txt { font-weight: 500; font-size: 14px; }
+        .times-txt { display: flex; gap: 60px; }
+        .time-box { display: flex; flex-direction: column; align-items: center; }
+        .parents-txt { display: flex; gap: 150px; font-size: 12px; text-align: center; line-height: 1.3; }
+        .initial-txt { font-family: 'Playfair Display', serif; font-size: 80px; font-weight: 400; line-height: 1; }
+        .icon { font-size: 24px; margin-bottom: 2px; }
+        .flower-icon { color: var(--gold-color); font-size: 24px; }
 
-      /* במחשב */
-      width: min(980px, calc(100vw - 24px));
-      padding: 14px;
-      margin: 12px 0;
-    }
-
-    .input-group { display: flex; flex-direction: column; gap: 5px; }
-    label { font-size: 0.85rem; color: #ccc; }
-
-    input[type="text"], input[type="date"], input[type="time"] {
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      font-family: 'Rubik', sans-serif;
-      width: 150px;
-      font-size: 0.95rem;
-      outline: none;
-    }
-
-    button {
-      background: #4CAF50;
-      color: white;
-      border: none;
-      padding: 12px 28px;
-      border-radius: 10px;
-      font-weight: 800;
-      cursor: pointer;
-      transition: 0.2s;
-      height: 42px;
-      font-size: 1rem;
-      white-space: nowrap;
-    }
-    button:hover { background: #45a049; }
-
-    /* --- אזור התצוגה / קנבס סקייל --- */
-    .stage {
-      width: 100vw;
-      flex: 1;                 /* לוקח את כל השטח שנותר */
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      box-sizing: border-box;
-      padding: 8px;
-    }
-
-    .preview-area {
-      position: relative;
-      background: white;
-      box-shadow: 0 0 50px rgba(0,0,0,0.5);
-      overflow: hidden;
-      user-select: none;
-      transform-origin: center center; /* חשוב לסקייל */
-      will-change: transform;
-    }
-
-    /* התמונה “המקורית” — נשמור עליה במידות טבעיות כדי שהאחוזים של left/top יישמרו נכון */
-    #bgImage {
-      display: block;
-      width: auto;
-      height: auto;
-      max-width: none;
-      max-height: none;
-      pointer-events: none;
-    }
-
-    /* --- אלמנטים מקובעים --- */
-    .final-element {
-      position: absolute;
-      transform-origin: center center;
-      text-align: center;
-      color: var(--text-color);
-      white-space: nowrap;
-      filter: blur(0.4px);
-      transform: translate(-50%, -50%);
-    }
-
-    /* --- עיצוב טקסט --- */
-    .bsd-txt { font-size: 14px; font-weight: 500; }
-    .names-txt { font-family: 'Playfair Display', serif; font-size: 40px; display: flex; gap: 30px; direction: ltr; align-items: center; }
-    .intro-txt { font-size: 14px; line-height: 1.3; }
-    .greg-txt { font-size: 32px; font-weight: 900; letter-spacing: 2px; }
-    .left-date-txt { font-family: 'Rubik'; font-weight: 900; font-size: 16px; letter-spacing: 1px; }
-    .loc-title-txt { font-weight: 700; font-size: 16px; }
-    .address-txt { font-weight: 500; font-size: 14px; }
-
-    .time-box { display: flex; flex-direction: column; align-items: center; }
-    .icon { font-size: 24px; margin-bottom: 2px; }
-    .flower-icon { color: var(--gold-color); font-size: 24px; }
-
-    .parents-txt { font-size: 12px; text-align: center; line-height: 1.3; }
-
-    .initial-txt { font-family: 'Playfair Display', serif; font-size: 80px; font-weight: 400; line-height: 1; }
-
-    /* --- התאמות מובייל: פאנל בתחתית כדי להשאיר מקום לתצוגה --- */
-    @media (max-width: 700px) {
-      body { padding: 0; }
-      .controls {
-        order: 2;
-        width: calc(100vw - 16px);
-        margin: 8px 0 10px;
-        padding: 10px;
-        gap: 10px;
-        border-radius: 14px;
-      }
-      input[type="text"], input[type="date"], input[type="time"] { width: 140px; }
-      button { width: 100%; }
-      .stage {
-        order: 1;
-        padding: 6px;
-      }
-    }
-  </style>
+    </style>
 </head>
-
 <body>
 
-  <div class="stage">
-    <div class="preview-area" id="captureTarget" aria-label="Wedding Invite Preview">
-      <img id="bgImage" src="wed2.jpg" alt="רקע" onerror="alert('חסרה תמונה wed2.jpg')">
-
-      <div class="final-element" style="left: 88.0%; top: 34.0%; transform: translate(-50%, -50%) rotate(4.5deg) scale(1.00);">
-        <div class="bsd-txt">בס"ד</div>
-      </div>
-
-      <div class="final-element" style="left: 72.2%; top: 45.6%; transform: translate(-50%, -50%) rotate(5.0deg) scale(0.80);">
-        <div class="names-txt" id="namesText"><span>Dor</span><span class="flower-icon">❀</span><span>Shani</span></div>
-      </div>
-
-      <div class="final-element" style="left: 72.0%; top: 52.0%; transform: translate(-50%, -50%) rotate(5.0deg) scale(1.00);">
-        <div class="intro-txt">
-          אנו נרגשים להזמינכם לחגוג איתנו את חתונתנו<br>
-          שתערך ביום <span id="dayName">חמישי</span>, <span id="hebDate">כ' באדר התשצ"א</span>
+    <div class="controls">
+        <div class="row">
+            <div class="input-group"><label>חתן (אנגלית):</label><input type="text" id="groomInput" value="Dor" oninput="updateNames()"></div>
+            <div class="input-group"><label>כלה (אנגלית):</label><input type="text" id="brideInput" value="Shani" oninput="updateNames()"></div>
         </div>
-      </div>
-
-      <div class="final-element" style="left: 73.0%; top: 59.0%; transform: translate(-50%, -50%) rotate(5.0deg) scale(1.00);">
-        <div class="greg-txt" id="gregDate">07.03.2030</div>
-      </div>
-
-      <div class="final-element" style="left: 72.0%; top: 64.0%; transform: translate(-50%, -50%) rotate(5.0deg) scale(1.00);">
-        <div class="loc-title-txt" id="locTitleText">אולמי "נואר"</div>
-      </div>
-
-      <div class="final-element" style="left: 72.0%; top: 66.0%; transform: translate(-50%, -50%) rotate(5.0deg) scale(1.00);">
-        <div class="address-txt" id="addressText">השדרה 14, תל אביב</div>
-      </div>
-
-      <div class="final-element" style="left: 72.0%; top: 73.0%; transform: translate(-50%, -50%) rotate(5.0deg) scale(1.00);">
-        <div style="display:flex; gap:60px;">
-          <div class="time-box"><div class="icon">💍</div><b id="timeChupa">20:30</b><small>חופה וקידושין</small></div>
-          <div class="time-box"><div class="icon">🥂</div><b id="timeReception">19:30</b><small>קבלת פנים</small></div>
+        <div class="input-group"><label>תאריך:</label><input type="date" id="dateInput"></div>
+        <div class="row">
+            <div class="input-group"><label>קב"פ:</label><input type="text" value="19:30" oninput="updateText('timeReception', this.value)"></div>
+            <div class="input-group"><label>חופה:</label><input type="text" value="20:30" oninput="updateText('timeChupa', this.value)"></div>
         </div>
-      </div>
-
-      <div class="final-element" style="left: 58.3%; top: 82.4%; transform: translate(-50%, -50%) rotate(5.0deg) scale(1.00);">
-        <div class="parents-txt">
-          <b>הורי החתן</b><br><span id="parentsGroomName">לבנה ויוסי ראובני</span>
+        <div class="input-group"><label>אולם וכתובת:</label><input type="text" value='אולמי "נואר"' oninput="updateText('locTitleText', this.value)" style="margin-bottom:5px;"><input type="text" value="השדרה 14, תל אביב" oninput="updateText('addressText', this.value)"></div>
+        <div class="row">
+            <div class="input-group"><label>הורי חתן:</label><input type="text" value="לבנה ויוסי ראובני" oninput="updateText('parentsGroomName', this.value)"></div>
+            <div class="input-group"><label>הורי כלה:</label><input type="text" value="זיוה וגיל יוסף" oninput="updateText('parentsBrideName', this.value)"></div>
         </div>
-      </div>
+        <button onclick="saveImage()">שמור תמונה</button>
+        <a href="index.html" style="text-align:center; color:#ccc; margin-top:10px; font-size:0.9rem; display:block;">חזרה לתפריט ראשי</a>
+    </div>
 
-      <div class="final-element" style="left: 83.5%; top: 84.7%; transform: translate(-50%, -50%) rotate(5.0deg) scale(1.00);">
-        <div class="parents-txt">
-          <b>הורי הכלה</b><br><span id="parentsBrideName">זיוה וגיל יוסף</span>
+    <div class="preview-wrapper" id="previewWrapper">
+        <div class="preview-area" id="captureTarget">
+            <img id="bgImage" src="wed2.jpg" onload="fitToScreen()" onerror="alert('חסרה תמונה wed2.jpg')" alt="רקע">
+            
+            <div class="final-element" style="left: 88.0%; top: 34.0%; transform: translate(-50%, -50%) rotate(4.5deg);"><div class="bsd-txt">בס"ד</div></div>
+            <div class="final-element" style="left: 72.2%; top: 45.6%; transform: translate(-50%, -50%) rotate(5.0deg) scale(0.80);"><div class="names-txt" id="namesText"><span>Dor</span><span class="flower-icon">❀</span><span>Shani</span></div></div>
+            <div class="final-element" style="left: 72.0%; top: 52.0%; transform: translate(-50%, -50%) rotate(5.0deg);"><div class="intro-txt">אנו נרגשים להזמינכם לחגוג איתנו את חתונתנו<br>שתערך ביום <span id="dayName">חמישי</span>, <span id="hebDate">כ' באדר התשצ"א</span></div></div>
+            <div class="final-element" style="left: 73.0%; top: 59.0%; transform: translate(-50%, -50%) rotate(5.0deg);"><div class="greg-txt" id="gregDate">07.03.2030</div></div>
+            <div class="final-element" style="left: 72.0%; top: 64.0%; transform: translate(-50%, -50%) rotate(5.0deg);"><div class="loc-txt" id="locTitleText">אולמי "נואר"</div></div>
+            <div class="final-element" style="left: 72.0%; top: 66.0%; transform: translate(-50%, -50%) rotate(5.0deg);"><div class="address-txt" id="addressText">השדרה 14, תל אביב</div></div>
+            <div class="final-element" style="left: 72.0%; top: 73.0%; transform: translate(-50%, -50%) rotate(5.0deg);">
+                <div class="times-txt">
+                    <div class="time-box"><div class="icon">💍</div><b id="timeChupa">20:30</b><small>חופה וקידושין</small></div>
+                    <div class="time-box"><div class="icon">🥂</div><b id="timeReception">19:30</b><small>קבלת פנים</small></div>
+                </div>
+            </div>
+            <div class="final-element" style="left: 58.3%; top: 82.4%; transform: translate(-50%, -50%) rotate(5.0deg);"><div class="parents-txt"><b>הורי החתן</b><br><span id="parentsGroomName">לבנה ויוסי ראובני</span></div></div>
+            <div class="final-element" style="left: 83.5%; top: 84.7%; transform: translate(-50%, -50%) rotate(5.0deg);"><div class="parents-txt"><b>הורי הכלה</b><br><span id="parentsBrideName">זיוה וגיל יוסף</span></div></div>
+            <div class="final-element" style="left: 31.2%; top: 29.3%; transform: translate(-50%, -50%) rotate(-5.0deg);"><div class="initial-txt" id="groomInitialText">D</div></div>
+            <div class="final-element" style="left: 33.3%; top: 54.1%; transform: translate(-50%, -50%) rotate(-5.0deg);"><div class="initial-txt" id="brideInitialText">S</div></div>
+            <div class="final-element" style="left: 33.9%; top: 65.4%; transform: translate(-50%, -50%) rotate(-5.0deg);"><div class="left-date-txt" id="leftDateText">07.03.2030</div></div>
         </div>
-      </div>
-
-      <div class="final-element" style="left: 31.2%; top: 29.3%; transform: translate(-50%, -50%) rotate(-5.0deg) scale(1.00);">
-        <div class="initial-txt" id="groomInitialText">D</div>
-      </div>
-
-      <div class="final-element" style="left: 33.3%; top: 54.1%; transform: translate(-50%, -50%) rotate(-5.0deg) scale(1.00);">
-        <div class="initial-txt" id="brideInitialText">S</div>
-      </div>
-
-      <div class="final-element" style="left: 33.9%; top: 65.4%; transform: translate(-50%, -50%) rotate(-5.0deg) scale(1.00);">
-        <div class="left-date-txt" id="leftDateText">07.03.2030</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="controls">
-    <div class="input-group">
-      <label>שם החתן (אנגלית):</label>
-      <input type="text" id="groomInput" value="Dor" oninput="updateNames()">
     </div>
 
-    <div class="input-group">
-      <label>שם הכלה (אנגלית):</label>
-      <input type="text" id="brideInput" value="Shani" oninput="updateNames()">
-    </div>
+    <script>
+        function fitToScreen() {
+            const wrapper = document.getElementById('previewWrapper');
+            const target = document.getElementById('captureTarget');
+            const img = document.getElementById('bgImage');
+            
+            const originalWidth = 600; 
+            const availableWidth = wrapper.clientWidth;
+            const scale = Math.min(availableWidth / originalWidth, 1);
+            
+            target.style.transform = `scale(${scale})`;
+            if (img.height > 0) wrapper.style.height = (img.height * scale) + 'px';
+            else setTimeout(fitToScreen, 100);
+        }
+        window.addEventListener('load', fitToScreen);
+        window.addEventListener('resize', fitToScreen);
 
-    <div class="input-group">
-      <label>תאריך:</label>
-      <input type="date" id="dateInput">
-    </div>
-
-    <div class="input-group">
-      <label>שעות (קב"פ / חופה):</label>
-      <div style="display:flex; gap:6px;">
-        <input type="text" value="19:30" placeholder="קב''פ" style="width:70px;" oninput="updateText('timeReception', this.value)">
-        <input type="text" value="20:30" placeholder="חופה" style="width:70px;" oninput="updateText('timeChupa', this.value)">
-      </div>
-    </div>
-
-    <div class="input-group">
-      <label>אולם וכתובת:</label>
-      <input type="text" value='אולמי "נואר"' oninput="updateText('locTitleText', this.value)">
-      <input type="text" value="השדרה 14, תל אביב" oninput="updateText('addressText', this.value)">
-    </div>
-
-    <div class="input-group">
-      <label>הורים (חתן / כלה):</label>
-      <input type="text" value="לבנה ויוסי ראובני" placeholder="הורי החתן" oninput="updateText('parentsGroomName', this.value)">
-      <input type="text" value="זיוה וגיל יוסף" placeholder="הורי הכלה" oninput="updateText('parentsBrideName', this.value)">
-    </div>
-
-    <button onclick="saveImage()">📷 שמור</button>
-  </div>
-
-  <script>
-    // חסימת pinch-to-zoom + double-tap zoom
-    document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
-    document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
-    document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
-
-    let lastTouchEnd = 0;
-    document.addEventListener('touchend', function (e) {
-      const now = Date.now();
-      if (now - lastTouchEnd <= 300) e.preventDefault();
-      lastTouchEnd = now;
-    }, { passive: false });
-
-    // ===== מנגנון FIT אמיתי: התמונה נשארת במידה מקורית, וכל הבלוק scaled למסך =====
-    function fitToScreen() {
-      const capture = document.getElementById('captureTarget');
-      const img = document.getElementById('bgImage');
-
-      // חייבים מידות טבעיות של התמונה
-      const naturalW = img.naturalWidth || 0;
-      const naturalH = img.naturalHeight || 0;
-      if (!naturalW || !naturalH) return;
-
-      // קובעים ל-preview-area גודל “מקורי”
-      capture.style.width = naturalW + 'px';
-      capture.style.height = naturalH + 'px';
-
-      // איזור זמין בתוך stage (בלי לשבור layout)
-      const stage = document.querySelector('.stage');
-      const stageRect = stage.getBoundingClientRect();
-
-      // מרווח פנימי קטן
-      const pad = 8;
-      const availW = Math.max(10, stageRect.width - pad * 2);
-      const availH = Math.max(10, stageRect.height - pad * 2);
-
-      // scale כדי להכניס את כל התמונה למסך בלי גלילה
-      const scale = Math.min(availW / naturalW, availH / naturalH);
-
-      capture.style.transform = `scale(${scale})`;
-    }
-
-    // עדכון שמות ואותיות
-    function updateNames() {
-      const groom = document.getElementById('groomInput').value;
-      const bride = document.getElementById('brideInput').value;
-
-      document.getElementById('namesText').innerHTML =
-        `<span>${escapeHtml(groom)}</span><span class="flower-icon">❀</span><span>${escapeHtml(bride)}</span>`;
-
-      if (groom.length > 0) document.getElementById('groomInitialText').innerText = groom.charAt(0).toUpperCase();
-      if (bride.length > 0) document.getElementById('brideInitialText').innerText = bride.charAt(0).toUpperCase();
-    }
-
-    function updateText(elementId, val) {
-      const el = document.getElementById(elementId);
-      if (el) el.innerText = val;
-    }
-
-    function toGematria(num) {
-      const letters = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט', 'י', 'יא', 'יב', 'יג', 'יד', 'טו', 'טז', 'יז', 'יח', 'יט', 'כ', 'כא', 'כב', 'כג', 'כד', 'כה', 'כו', 'כז', 'כח', 'כט', 'ל', 'לא'];
-      return num > 30 ? num : letters[num];
-    }
-
-    document.getElementById('dateInput').addEventListener('change', function () {
-      if (!this.value) return;
-      const d = new Date(this.value);
-
-      const parts = new Intl.DateTimeFormat('he-IL-u-ca-hebrew', { weekday: 'long', month: 'long', day: 'numeric' }).formatToParts(d);
-      let weekday = '', month = '', dayNum = 0;
-
-      parts.forEach(p => {
-        if (p.type === 'weekday') weekday = p.value;
-        if (p.type === 'month') month = p.value;
-        if (p.type === 'day') dayNum = parseInt(p.value, 10);
-      });
-
-      document.getElementById('dayName').innerText = weekday.replace('יום ', '');
-      document.getElementById('hebDate').innerText = `${toGematria(dayNum)} ב${month} תשפ"ד`;
-
-      const gDate = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
-      document.getElementById('gregDate').innerText = gDate;
-      document.getElementById('leftDateText').innerText = gDate;
-    });
-
-    function saveImage() {
-      const captureElement = document.getElementById('captureTarget');
-
-      // חשוב: כשיש scale ב-CSS, html2canvas חייב לקבל את ה-transform “אחרי” — ולכן אנו מייצרים צילום לפי המידה המקורית
-      const prevTransform = captureElement.style.transform;
-      captureElement.style.transform = 'scale(1)';
-
-      html2canvas(captureElement, { useCORS: true, scale: 2, backgroundColor: null }).then(canvas => {
-        const link = document.createElement('a');
-        link.download = "wedding_invite_final.jpg";
-        link.href = canvas.toDataURL("image/jpeg", 0.9);
-        link.click();
-      }).finally(() => {
-        captureElement.style.transform = prevTransform;
-      });
-    }
-
-    function escapeHtml(str) {
-      return String(str).replace(/[&<>"']/g, m => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[m]));
-    }
-
-    // התאמה ראשונה לאחר טעינת תמונה + שינויי מסך/סיבוב
-    const bg = document.getElementById('bgImage');
-    bg.addEventListener('load', () => {
-      fitToScreen();
-    });
-
-    window.addEventListener('resize', () => {
-      fitToScreen();
-    });
-
-    // iOS לפעמים משנה גובה בגלל סרגלים — נבצע עוד התאמה קצרה
-    window.addEventListener('orientationchange', () => {
-      setTimeout(fitToScreen, 200);
-      setTimeout(fitToScreen, 600);
-    });
-
-    // init
-    updateNames();
-  </script>
+        function updateNames() {
+            const groom = document.getElementById('groomInput').value;
+            const bride = document.getElementById('brideInput').value;
+            document.getElementById('namesText').innerHTML = `<span>${groom}</span><span class="flower-icon">❀</span><span>${bride}</span>`;
+            if(groom.length > 0) document.getElementById('groomInitialText').innerText = groom.charAt(0).toUpperCase();
+            if(bride.length > 0) document.getElementById('brideInitialText').innerText = bride.charAt(0).toUpperCase();
+        }
+        function updateText(id, val) { document.getElementById(id).innerText = val; }
+        function toGematria(num) { const l=['','א','ב','ג','ד','ה','ו','ז','ח','ט','י','יא','יב','יג','יד','טו','טז','יז','יח','יט','כ','כא','כב','כג','כד','כה','כו','כז','כח','כט','ל','לא']; return num>30?num:l[num]; }
+        document.getElementById('dateInput').addEventListener('change', function() {
+            if(!this.value)return; const d=new Date(this.value);
+            const p=new Intl.DateTimeFormat('he-IL-u-ca-hebrew',{weekday:'long',month:'long',day:'numeric'}).formatToParts(d);
+            let w='',m='',dn=0; p.forEach(x=>{if(x.type==='weekday')w=x.value;if(x.type==='month')m=x.value;if(x.type==='day')dn=parseInt(x.value)});
+            document.getElementById('dayName').innerText=w.replace('יום ',''); document.getElementById('hebDate').innerText=`${toGematria(dn)} ב${m} תשפ"ד`;
+            const g=`${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+            document.getElementById('gregDate').innerText=g; document.getElementById('leftDateText').innerText=g;
+        });
+        function saveImage() {
+            const el = document.getElementById('captureTarget');
+            const originalTransform = el.style.transform;
+            el.style.transform = 'scale(1)'; 
+            html2canvas(el, {useCORS:true, scale:2}).then(canvas=>{
+                const link = document.createElement('a'); link.download = "wedding.jpg"; link.href = canvas.toDataURL("image/jpeg", 0.9); link.click();
+                el.style.transform = originalTransform;
+            });
+        }
+    </script>
 </body>
 </html>
