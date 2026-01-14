@@ -3,229 +3,234 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>כלי כיול מיקומים</title>
-  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>כלי כיול - גלילה מלאה</title>
   <style>
     body {
-      background: #333;
-      color: white;
-      font-family: 'Rubik', sans-serif;
-      text-align: center;
       margin: 0;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    
-    .instructions {
-      background: #444;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      border: 1px solid #666;
+      padding: 0;
+      background-color: #333;
+      font-family: sans-serif;
+      text-align: center;
+      /* מאפשר גלילה לגובה */
+      overflow-y: auto; 
     }
 
-    #scalable-wrapper {
+    .header-instruction {
+      background: #222;
+      color: #fff;
+      padding: 15px;
       position: relative;
+      z-index: 10;
+      border-bottom: 2px solid #555;
+    }
+
+    /* המעטפת שמתאימה את עצמה לרוחב המסך */
+    #scalable-wrapper {
       width: 100%;
-      display: flex;
-      justify-content: center;
-      overflow: hidden;
-      margin-bottom: 20px;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden; 
+      /* הגובה ייקבע דינמית על ידי ה-Javascript */
     }
 
     #fixed-canvas {
-      position: relative;
-      width: 600px;
-      background: #fff;
-      transform-origin: top center;
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      width: 600px; /* הרוחב המקורי של התמונה */
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: top left;
+      background: white;
     }
 
     #bgImage {
       width: 100%;
       display: block;
-      pointer-events: none; /* כדי שהגרירה לא תיתקע על התמונה */
-      user-select: none;
+      pointer-events: none; /* כדי לא להפריע לגרירה */
     }
 
+    /* עיצוב האלמנטים הנגררים */
     .draggable-item {
       position: absolute;
       transform: translate(-50%, -50%);
-      color: #000;
-      font-weight: 500;
+      font-weight: bold;
       cursor: grab;
-      user-select: none;
-      background: rgba(255, 255, 0, 0.3); /* רקע צהוב שקוף לזיהוי */
-      padding: 2px 5px;
-      border: 1px dashed red; /* מסגרת אדומה לדיוק */
+      background: rgba(255, 235, 59, 0.6); /* צהוב שקוף */
+      border: 1px solid red;
+      padding: 4px 8px;
       white-space: nowrap;
       z-index: 100;
-      touch-action: none; /* מונע גלילה בזמן גרירה במובייל */
+      direction: rtl;
+      font-size: 18px; 
+      color: black;
+      /* חשוב למובייל - מונע גלילה בזמן שגוררים את האלמנט */
+      touch-action: none; 
     }
 
     .draggable-item:active {
-      cursor: grabbing;
-      background: rgba(0, 255, 0, 0.5);
+      background: rgba(0, 255, 0, 0.6);
       border-color: green;
+      cursor: grabbing;
     }
 
-    /* עיצוב הפונטים כמו במקור */
-    .t-name{ font-size:18px; }
-    .t-id{ font-size:18px; direction:ltr; }
-    .t-date{ font-size:17px; direction:ltr; }
-    .t-days{ font-size:17px; direction:ltr; }
-    .t-bottom-doctor{ font-size:13px; }
-    .t-bottom-date{ font-size:15px; direction:ltr; }
-
-    #output-area {
-      width: 90%;
-      height: 150px;
-      margin-top: 10px;
+    /* אזור התוצאה למטה */
+    .footer-area {
       background: #222;
-      color: #0f0;
-      font-family: monospace;
-      direction: ltr;
-      padding: 10px;
-      border: 1px solid #555;
+      padding: 20px;
+      color: white;
+      min-height: 200px;
+      border-top: 2px solid #555;
     }
 
-    button.get-coords {
+    button {
       background: #4CAF50;
       color: white;
       border: none;
       padding: 15px 30px;
-      font-size: 18px;
-      font-weight: bold;
-      border-radius: 10px;
-      margin-top: 10px;
+      font-size: 20px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 300px;
       cursor: pointer;
+      margin-bottom: 15px;
+    }
+
+    textarea {
+      width: 90%;
+      height: 150px;
+      direction: ltr;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 10px;
     }
   </style>
 </head>
 <body>
 
-  <div class="instructions">
-    <strong>מצב כיול:</strong><br>
-    1. גרור את האלמנטים (הטקסטים המוקפים באדום) למקום המדויק.<br>
-    2. בסיום לחץ על הכפתור הירוק למטה.<br>
-    3. העתק את הטקסט שמופיע ושלח לי אותו.
+  <div class="header-instruction">
+    <h3>מצב כיול</h3>
+    <p>גרור את הריבועים למקום המדויק על הדף.<br>ניתן לגלול את הדף למטה כדי להגיע לתחתית.</p>
   </div>
 
   <div id="scalable-wrapper">
     <div id="fixed-canvas">
-      <img id="bgImage" src="mahala.jpg" onload="fitToScreen()" onerror="alert('שים תמונה mahala.jpg!')">
+      <img id="bgImage" src="mahala.jpg" onload="initCanvas()" onerror="alert('חסרה תמונה mahala.jpg')">
 
-      <div class="draggable-item t-name" id="nameText" style="left: 50%; top: 30%;">שיין צרלס</div>
-      <div class="draggable-item t-id" id="idText" style="left: 50%; top: 35%;">1-02737305/9</div>
+      <div class="draggable-item" id="nameText" style="left: 50%; top: 10%;">שם מלא</div>
+      <div class="draggable-item" id="idText" style="left: 50%; top: 15%;">תעודת זהות</div>
       
-      <div class="draggable-item t-date" id="fromText" style="left: 60%; top: 40%;">26/01/26</div>
-      <div class="draggable-item t-date" id="toText" style="left: 45%; top: 40%;">28/01/26</div>
-      <div class="draggable-item t-days" id="daysText" style="left: 30%; top: 40%;">3</div>
+      <div class="draggable-item" id="fromText" style="left: 60%; top: 20%;">מתאריך</div>
+      <div class="draggable-item" id="toText" style="left: 45%; top: 20%;">עד תאריך</div>
+      <div class="draggable-item" id="daysText" style="left: 30%; top: 20%;">ימים</div>
 
-      <div class="draggable-item t-bottom-doctor" id="doctorText" style="left: 50%; top: 70%;">הופק במקור ע"י ד"ר ילדרמן אירינה...</div>
-      <div class="draggable-item t-bottom-date" id="bottomDateText" style="left: 80%; top: 70%;">26/01/26</div>
-
+      <div class="draggable-item" id="doctorText" style="left: 50%; top: 25%;">רופא תחתון</div>
+      <div class="draggable-item" id="bottomDateText" style="left: 80%; top: 25%;">תאריך תחתון</div>
     </div>
   </div>
 
-  <button class="get-coords" onclick="generateReport()">✅ הצג נתוני מיקום להעתקה</button>
-  <textarea id="output-area" placeholder="הנתונים יופיעו כאן..."></textarea>
+  <div class="footer-area">
+    <button onclick="getPositions()">✅ הצג נתונים להעתקה</button>
+    <br>
+    <textarea id="output" placeholder="הנתונים יופיעו כאן..."></textarea>
+  </div>
 
   <script>
-    // --- Scale Logic ---
-    function fitToScreen(){
-      const wrapper = document.getElementById('scalable-wrapper');
-      const canvas  = document.getElementById('fixed-canvas');
-      const originalWidth = 600;
-      const availableWidth = wrapper.clientWidth || wrapper.offsetWidth;
-      const scale = Math.min(availableWidth / originalWidth, 1);
+    const wrapper = document.getElementById('scalable-wrapper');
+    const canvas = document.getElementById('fixed-canvas');
+    const bgImage = document.getElementById('bgImage');
+    const ORIGINAL_WIDTH = 600;
+
+    function initCanvas() {
+      // חישוב התאמה לרוחב המסך
+      const screenWidth = window.innerWidth;
+      const scale = screenWidth / ORIGINAL_WIDTH;
+      
+      // הגדרת ה-Scale
       canvas.style.transform = `scale(${scale})`;
       
-      if(canvas.clientHeight > 0) {
-        wrapper.style.height = (canvas.clientHeight * scale) + "px";
-      }
+      // חישוב הגובה הפיזי שהתמונה תופסת כדי שהדף ייפתח לגלילה
+      // אנחנו מחכים רגע שהתמונה תיטען כדי לדעת את הגובה שלה
+      setTimeout(() => {
+        const imgHeight = bgImage.clientHeight; // גובה מקורי
+        const scaledHeight = imgHeight * scale; // גובה אחרי הקטנה
+        wrapper.style.height = scaledHeight + "px";
+      }, 100);
     }
-    window.addEventListener('resize', fitToScreen);
-    window.addEventListener('load', fitToScreen);
 
-    // --- Drag Logic ---
+    window.addEventListener('resize', initCanvas);
+    window.addEventListener('load', initCanvas);
+
+    // --- לוגיקה של גרירה ---
     const draggables = document.querySelectorAll('.draggable-item');
-    const container = document.getElementById('fixed-canvas');
 
     draggables.forEach(elm => {
       let isDragging = false;
-      
-      // Touch events
+
+      // תמיכה במגע (טלפון)
       elm.addEventListener('touchstart', (e) => {
         isDragging = true;
-        e.preventDefault(); // Prevent scrolling
+        // לא עושים preventDefault כאן באופן גורף כדי לאפשר גלילה
+        // אבל ברגע שמתחילים לזוז, נבטל גלילה
       }, {passive: false});
 
       elm.addEventListener('touchmove', (e) => {
-        if(!isDragging) return;
+        if (!isDragging) return;
+        e.preventDefault(); // מונע את גלילת המסך כשגוררים את האלמנט
         const touch = e.touches[0];
         moveElement(elm, touch.clientX, touch.clientY);
       }, {passive: false});
 
-      elm.addEventListener('touchend', () => isDragging = false);
+      elm.addEventListener('touchend', () => { isDragging = false; });
 
-      // Mouse events
-      elm.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        e.preventDefault();
-      });
-
+      // תמיכה בעכבר (מחשב)
+      elm.addEventListener('mousedown', () => isDragging = true);
+      window.addEventListener('mouseup', () => isDragging = false);
       window.addEventListener('mousemove', (e) => {
-        if(!isDragging) return;
+        if (!isDragging) return;
         moveElement(elm, e.clientX, e.clientY);
       });
-
-      window.addEventListener('mouseup', () => isDragging = false);
     });
 
     function moveElement(elm, clientX, clientY) {
-      // Get container bounding rect
-      const rect = container.getBoundingClientRect();
+      // אנחנו צריכים לחשב את המיקום ביחס ל-Canvas המקורי (בלי ה-Scale)
+      // הנוסחה: (מיקום העכבר - מיקום הקנבס) / סקייל
       
-      // Calculate position relative to container (accounting for scale)
-      // Since scale transforms the visual, we need to map clientX back to unscaled coordinate space?
-      // Actually, easier: (clientX - rect.left) gives pixels from left edge of SCALED container.
-      // Divide by rect.width to get percentage. This is robust regardless of scale.
+      const rect = canvas.getBoundingClientRect();
+      const scale = canvas.getBoundingClientRect().width / canvas.offsetWidth; // חישוב ה-scale הנוכחי
       
-      let xPercent = ((clientX - rect.left) / rect.width) * 100;
-      let yPercent = ((clientY - rect.top) / rect.height) * 100;
+      const x = (clientX - rect.left) / scale;
+      const y = (clientY - rect.top) / scale;
 
-      // Bound check (optional, keep inside 0-100)
-      // xPercent = Math.max(0, Math.min(100, xPercent));
-      // yPercent = Math.max(0, Math.min(100, yPercent));
+      // המרה לאחוזים (יותר בטוח לרספונסיביות)
+      const xPercent = (x / canvas.offsetWidth) * 100;
+      const yPercent = (y / canvas.offsetHeight) * 100;
 
       elm.style.left = xPercent.toFixed(2) + '%';
       elm.style.top = yPercent.toFixed(2) + '%';
     }
 
-    function generateReport() {
-      let report = "אנא העתק את השורות האלו:\n--------------------------\n";
-      
+    function getPositions() {
+      let result = "אנא שלח לי את השורות האלה:\n-------------------------\n";
       const items = [
-        {id: 'nameText', name: 'שם מלא'},
-        {id: 'idText', name: 'תעודת זהות'},
-        {id: 'fromText', name: 'מתאריך'},
-        {id: 'toText', name: 'עד תאריך'},
-        {id: 'daysText', name: 'ימים'},
-        {id: 'doctorText', name: 'רופא תחתון'},
-        {id: 'bottomDateText', name: 'תאריך תחתון'}
+        {id: 'nameText', label: 'שם'},
+        {id: 'idText', label: 'תעודת זהות'},
+        {id: 'fromText', label: 'מתאריך'},
+        {id: 'toText', label: 'עד תאריך'},
+        {id: 'daysText', label: 'ימים'},
+        {id: 'doctorText', label: 'רופא תחתון'},
+        {id: 'bottomDateText', label: 'תאריך תחתון'},
       ];
 
       items.forEach(item => {
         const el = document.getElementById(item.id);
-        report += `${item.id}: left: ${el.style.left}, top: ${el.style.top}\n`;
+        result += `${item.id}: left: ${el.style.left}, top: ${el.style.top}\n`;
       });
 
-      const area = document.getElementById('output-area');
-      area.value = report;
-      area.select(); // Auto select for easier copying
+      const txt = document.getElementById('output');
+      txt.value = result;
+      txt.select();
+      
+      // גלילה למטה לתוצאה
+      txt.scrollIntoView({behavior: "smooth"});
     }
   </script>
 </body>
