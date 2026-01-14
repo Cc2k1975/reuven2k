@@ -40,6 +40,7 @@
             width: 100%; display: flex; justify-content: center; overflow: hidden; position: relative;
         }
 
+        /* קנבס קשיח ברוחב קבוע כדי לשמור על פרופורציות */
         #fixed-canvas {
             position: relative; width: 600px; flex-shrink: 0; background: white;
             box-shadow: 0 0 20px rgba(0,0,0,0.5); transform-origin: top center;
@@ -47,6 +48,7 @@
 
         #bgImage { display: block; width: 100%; height: auto; }
 
+        /* קונטיינר הטקסט - ממוקם באחוזים ומטושטש קלות */
         .text-container {
             position: absolute; left: 50%; transform: translateX(-50%); width: 80%;
             text-align: center; display: flex; flex-direction: column; align-items: center;
@@ -58,6 +60,7 @@
             transform: scale(0.8); gap: 4px;
         }
 
+        /* טיפוגרפיה */
         .header-quote { color: var(--main-gold); font-weight: 700; font-size: 24px; line-height: 1.1; margin-bottom: 10px; }
         .intro-text { color: var(--text-dark); font-size: 16px; line-height: 1.3; }
         .heb-date { color: var(--text-dark); font-size: 16px; font-weight: 500; margin-top: 5px; }
@@ -77,18 +80,22 @@
             <label>תאריך:</label>
             <input type="date" id="dateInput">
         </div>
+        
         <div class="input-group">
             <label>שם האולם/מקום:</label>
             <input type="text" id="locInput" value='באולמי "יהלום", עין המפרץ' oninput="updateLocTime()">
         </div>
+        
         <div class="input-group">
             <label>שעה:</label>
             <input type="text" id="timeInput" value="12:30" oninput="updateLocTime()">
         </div>
+        
         <div class="input-group">
             <label>חתימה (הורים/מארחים):</label>
             <input type="text" id="hostsInput" value="נשמח לראותכם,<br>דנה ורועי" oninput="updateText('footerText', this.value)">
         </div>
+        
         <button onclick="saveImage()">📷 שמור תמונה</button>
         <a href="index.html" style="text-align:center; color:#ccc; margin-top:10px; width:100%; display:block;">חזרה לתפריט ראשי</a>
     </div>
@@ -113,6 +120,7 @@
     </div>
 
     <script>
+        // פונקציית התאמה למובייל (Scale)
         function fitToScreen() {
             const wrapper = document.getElementById('scalable-wrapper');
             const canvas = document.getElementById('fixed-canvas');
@@ -133,10 +141,13 @@
         window.addEventListener('load', fitToScreen);
         window.addEventListener('resize', fitToScreen);
 
+        // עדכון טקסט כללי (לחתימה)
         function updateText(elementId, val) {
-            document.getElementById(elementId).innerHTML = val;
+            // מאפשר שימוש ב-<br> לשבירת שורות
+            document.getElementById(elementId).innerHTML = val.replace(/\n/g, '<br>');
         }
 
+        // עדכון משולב של מיקום ושעה
         function updateLocTime() {
             const loc = document.getElementById('locInput').value;
             const time = document.getElementById('timeInput').value;
@@ -174,6 +185,8 @@
         function saveImage() {
             const canvas = document.getElementById('fixed-canvas');
             const originalTransform = canvas.style.transform;
+            
+            // איפוס סקייל זמני לצורך שמירה איכותית
             canvas.style.transform = 'scale(1)';
             
             html2canvas(canvas, { useCORS: true, scale: 2 }).then(result => {
@@ -181,6 +194,8 @@
                 link.download = "brit_invite.jpg";
                 link.href = result.toDataURL("image/jpeg", 0.9);
                 link.click();
+                
+                // החזרה למצב מותאם
                 canvas.style.transform = originalTransform;
             });
         }
