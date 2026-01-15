@@ -3,66 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>צורב NFC למשפחת שיין</title>
+    <title>צורב NFC מתוקן למשפחת שיין</title>
     <style>
-        body {
-            font-family: sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            text-align: center;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            width: 90%;
-            max-width: 400px;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-        button {
-            background-color: #007bff;
-            color: white;
-            padding: 15px;
-            border: none;
-            border-radius: 8px;
-            width: 100%;
-            font-size: 18px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        button:disabled {
-            background-color: #ccc;
-        }
-        #status {
-            margin-top: 20px;
-            font-weight: bold;
-            color: #333;
-        }
+        body { font-family: sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
+        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 90%; max-width: 400px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; direction: ltr; }
+        button { background-color: #28a745; color: white; padding: 15px; border: none; border-radius: 8px; width: 100%; font-size: 18px; cursor: pointer; margin-top: 10px; }
+        #status { margin-top: 20px; font-weight: bold; color: #333; }
+        .warning { font-size: 12px; color: #777; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>📡 צורב WiFi לתג NFC</h2>
-        <p>הזן את פרטי הרשת ולחץ על צריבה</p>
+        <h2>📡 צורב WiFi (גרסה מתוקנת)</h2>
+        <p class="warning">שים לב: שם הרשת חייב להיות מדויק (אותיות גדולות/קטנות)</p>
         
-        <input type="text" id="ssid" placeholder="שם הרשת (SSID)" value="Shein_Family">
-        <input type="text" id="password" placeholder="סיסמה">
+        <input type="text" id="ssid" placeholder="שם הרשת (SSID)" value="shein">
+        <input type="text" id="password" placeholder="סיסמה" value="0507449001">
         
-        <button id="writeBtn">לחץ כאן והצמד תג NFC</button>
+        <button id="writeBtn">לחץ לצריבה והצמד תג</button>
         
         <div id="status"></div>
     </div>
@@ -76,32 +36,39 @@
             const password = document.getElementById("password").value;
 
             if (!ssid || !password) {
-                statusDiv.innerText = "❌ נא להזין שם רשת וסיסמה";
+                statusDiv.innerText = "❌ חובה למלא שם רשת וסיסמה";
                 statusDiv.style.color = "red";
                 return;
             }
 
-            // יצירת מחרוזת החיבור (פורמט סטנדרטי)
-            // T=WPA (סוג האבטחה), S=שם, P=סיסמה
+            // הפורמט נשאר זהה
             const wifiCommand = `WIFI:S:${ssid};T:WPA;P:${password};;`;
+            
+            // המרה לפורמט בינארי כדי שהטלפון יקרא את זה כפקודה ולא כסתם טקסט
+            const encoder = new TextEncoder();
+            const data = encoder.encode(wifiCommand);
 
-            statusDiv.innerText = "⏳ ממתין לתג NFC... הצמד כעת";
+            statusDiv.innerText = "⏳ ממתין לתג... הצמד כעת";
             statusDiv.style.color = "blue";
 
             try {
-                // בדיקה אם הדפדפן תומך ב-NFC (רק אנדרואיד/כרום)
                 if (!("NDEFReader" in window)) {
-                    throw new Error("הדפדפן שלך לא תומך בכתיבת NFC (נסה באנדרואיד Chrome).");
+                    throw new Error("הדפדפן לא תומך ב-NFC (נסה Chrome באנדרואיד).");
                 }
 
                 const ndef = new NDEFReader();
                 
-                // התחלת הסריקה והכתיבה
+                // השינוי הגדול: שימוש ב-mime עם סוג text/plain נקי
+                // זה מונע מהדפדפן להוסיף תווי שפה ששוברים את הפקודה
                 await ndef.write({
-                    records: [{ recordType: "text", data: wifiCommand }]
+                    records: [{ 
+                        recordType: "mime", 
+                        mediaType: "text/plain", 
+                        data: data 
+                    }]
                 });
 
-                statusDiv.innerText = "✅ הצריבה הצליחה! התג מוכן.";
+                statusDiv.innerText = "✅ הצריבה הצליחה! נסה לסרוק עכשיו.";
                 statusDiv.style.color = "green";
 
             } catch (error) {
