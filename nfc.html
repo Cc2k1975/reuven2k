@@ -3,72 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>צורב NFC מתוקן למשפחת שיין</title>
+    <title>צורב WiFi מקצועי למשפחת שיין</title>
     <style>
-        body { font-family: sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; text-align: center; }
-        .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 90%; max-width: 400px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; max-width: 350px; text-align: center; }
+        h2 { margin-top: 0; color: #333; }
         input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; direction: ltr; }
-        button { background-color: #28a745; color: white; padding: 15px; border: none; border-radius: 8px; width: 100%; font-size: 18px; cursor: pointer; margin-top: 10px; }
-        #status { margin-top: 20px; font-weight: bold; color: #333; }
-        .warning { font-size: 12px; color: #777; margin-bottom: 15px; }
+        button { background-color: #007bff; color: white; padding: 15px; border: none; border-radius: 8px; width: 100%; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+        #status { margin-top: 20px; font-weight: bold; min-height: 24px; }
+        .note { font-size: 12px; color: #666; margin-top: 10px; line-height: 1.4; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h2>📡 צורב WiFi (גרסה מתוקנת)</h2>
-        <p class="warning">שים לב: שם הרשת חייב להיות מדויק (אותיות גדולות/קטנות)</p>
+    <div class="card">
+        <h2>📡 צריבת WiFi (בינארי)</h2>
+        <p>הכנס פרטים ולחץ על צריבה</p>
         
-        <input type="text" id="ssid" placeholder="שם הרשת (SSID)" value="shein">
-        <input type="text" id="password" placeholder="סיסמה" value="0507449001">
+        <input type="text" id="ssid" value="shein" placeholder="שם הרשת (SSID)">
+        <input type="text" id="password" value="0507449001" placeholder="סיסמה">
         
-        <button id="writeBtn">לחץ לצריבה והצמד תג</button>
+        <button id="writeBtn">לחץ כאן והצמד תג</button>
         
         <div id="status"></div>
+        <div class="note">קוד זה צורב פרוטוקול WSC שאנדרואיד מזהה כהגדרת רשת אוטומטית.</div>
     </div>
 
     <script>
         const writeBtn = document.getElementById("writeBtn");
         const statusDiv = document.getElementById("status");
 
+        // פונקציה שהופכת טקסט ומספרים למבנה הבינארי שאנדרואיד דורש
+        function buildWscPayload(ssid, password) {
+            const SSID_TAG = 0x1045;
+            const AUTH_TYPE_TAG = 0x1003;
+            const ENCR_TYPE_TAG = 0x100F;
+            const NETWORK_KEY_TAG = 0x1027;
+            const CREDENTIAL_TAG = 0x100E;
+
+            const encoder = new TextEncoder();
+            const ssidBytes = encoder.encode(ssid);
+            const passBytes = encoder.encode(password);
+
+            // בניית ה-TLV (Tag-Length-Value)
+            const parts = [];
+
+            // 1. SSID
+            parts.push(shortToBytes(SSID_TAG));
+            parts.push(shortToBytes(ssidBytes.length));
+            parts.push(ssidBytes);
+
+            // 2. Auth Type (WPA2-PSK = 0x0020)
+            parts.push(shortToBytes(AUTH_TYPE_TAG));
+            parts.push(shortToBytes(2));
+            parts.push(shortToBytes(0x0020)); 
+
+            // 3. Encryption Type (AES = 0x0012) - סטנדרט היום
+            parts.push(shortToBytes(ENCR_TYPE_TAG));
+            parts.push(shortToBytes(2));
+            parts.push(shortToBytes(0x0012));
+
+            // 4. Password
+            parts.push(shortToBytes(NETWORK_KEY_TAG));
+            parts.push(shortToBytes(passBytes.length));
+            parts.push(passBytes);
+
+            // חיבור הכל ביחד
+            const flatParts = flatten(parts);
+
+            // עטיפה בתוך Credential Tag
+            const finalPayload = [];
+            finalPayload.push(...shortToBytes(CREDENTIAL_TAG));
+            finalPayload.push(...shortToBytes(flatParts.length));
+            finalPayload.push(...flatParts);
+
+            return new Uint8Array(finalPayload);
+        }
+
+        function shortToBytes(val) {
+            return [ (val >> 8) & 0xFF, val & 0xFF ];
+        }
+
+        function flatten(arr) {
+            let res = [];
+            arr.forEach(item => {
+                if (item instanceof Uint8Array || Array.isArray(item)) {
+                    res.push(...item);
+                } else {
+                    res.push(item);
+                }
+            });
+            return res;
+        }
+
         writeBtn.addEventListener("click", async () => {
             const ssid = document.getElementById("ssid").value;
             const password = document.getElementById("password").value;
 
             if (!ssid || !password) {
-                statusDiv.innerText = "❌ חובה למלא שם רשת וסיסמה";
+                statusDiv.innerText = "❌ חסרים פרטים";
                 statusDiv.style.color = "red";
                 return;
             }
-
-            // הפורמט נשאר זהה
-            const wifiCommand = `WIFI:S:${ssid};T:WPA;P:${password};;`;
-            
-            // המרה לפורמט בינארי כדי שהטלפון יקרא את זה כפקודה ולא כסתם טקסט
-            const encoder = new TextEncoder();
-            const data = encoder.encode(wifiCommand);
 
             statusDiv.innerText = "⏳ ממתין לתג... הצמד כעת";
             statusDiv.style.color = "blue";
 
             try {
                 if (!("NDEFReader" in window)) {
-                    throw new Error("הדפדפן לא תומך ב-NFC (נסה Chrome באנדרואיד).");
+                    throw new Error("דפדפן זה לא תומך ב-NFC (נסה Chrome באנדרואיד).");
                 }
 
+                const payload = buildWscPayload(ssid, password);
+                
                 const ndef = new NDEFReader();
                 
-                // השינוי הגדול: שימוש ב-mime עם סוג text/plain נקי
-                // זה מונע מהדפדפן להוסיף תווי שפה ששוברים את הפקודה
+                // כאן הקסם: שימוש ב-MIME TYPE ייעודי לאנדרואיד WIFI
                 await ndef.write({
-                    records: [{ 
-                        recordType: "mime", 
-                        mediaType: "text/plain", 
-                        data: data 
+                    records: [{
+                        recordType: "mime",
+                        mediaType: "application/vnd.wfa.wsc",
+                        data: payload
                     }]
                 });
 
-                statusDiv.innerText = "✅ הצריבה הצליחה! נסה לסרוק עכשיו.";
+                statusDiv.innerText = "✅ הצריבה הצליחה! זה אמור לעבוד.";
                 statusDiv.style.color = "green";
 
             } catch (error) {
