@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת צריבת מלאי NFC</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            color: #333;
+        }
+
+        h1 { margin-bottom: 30px; color: #1a73e8; }
+        
+        /* מסכים */
+        .screen { display: none; }
+        .active { display: block; }
+
+        /* כפתורים ראשיים */
+        .big-btn {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            margin: 15px 0;
+            font-size: 24px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.1s;
+        }
+        .big-btn:active { transform: scale(0.98); }
+        .btn-write { background-color: #34a853; color: white; }
+        .btn-read { background-color: #4285f4; color: white; }
+        .btn-action { background-color: #1a73e8; color: white; font-size: 18px; padding: 15px; margin-top: 20px; }
+        .btn-secondary { background-color: #ea4335; color: white; }
+        .btn-back { background-color: #5f6368; color: white; margin-top: 30px; }
+        
+        /* כפתור הגדרות */
+        .settings-icon {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 10px;
+        }
+
+        /* טפסים */
+        .form-group { margin-bottom: 15px; text-align: right; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        input[readonly] { background-color: #e0e0e0; }
+
+        /* לוגים והודעות */
+        #statusMsg {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        
+        #readResult {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: right;
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+        }
+
+        /* כפתור הבא (מוסתר בהתחלה) */
+        #nextBtnContainer { display: none; }
+    </style>
+</head>
+<body>
+
+    <button class="settings-icon" onclick="openSettings()">⚙️</button>
+
+    <div id="homeScreen" class="screen active">
+        <h1>מערכת ניהול מלאי</h1>
+        <button class="big-btn btn-write" onclick="showScreen('writeScreen')">צריבה</button>
+        <button class="big-btn btn-read" onclick="showScreen('readScreen'); startScan();">קריאה</button>
+    </div>
+
+    <div id="writeScreen" class="screen">
+        <h2>צריבת פריט חדש</h2>
+        
+        <div class="form-group">
+            <label>מספר אינוונטר (7 ספרות):</label>
+            <input type="number" id="invNumber" value="6000001">
+        </div>
+        
+        <div class="form-group">
+            <label>מספר סידורי (אופציונלי):</label>
+            <input type="text" id="serialNumber" placeholder="הכנס מספר סידורי">
+        </div>
+
+        <div class="form-group">
+            <label>שם הפריט:</label>
+            <input type="text" id="itemName" placeholder="למשל: מחשב נייד">
+        </div>
+
+        <div class="form-group">
+            <label>תאריך:</label>
+            <input type="text" id="dateDisplay" readonly>
+        </div>
+
+        <div id="writeActions">
+            <button class="big-btn btn-action" onclick="writeTag()">לחץ כאן וגע בתג לצריבה</button>
+        </div>
+
+        <div id="nextBtnContainer">
+            <div id="statusMsg" class="success">הצריבה בוצעה בהצלחה!</div>
+            <button class="big-btn btn-write" onclick="prepareNext()">צרוב תג הבא >></button>
+        </div>
+
+        <button class="big-btn btn-back" onclick="showScreen('homeScreen')">חזרה לתפריט</button>
+        <div id="writeLog" style="margin-top:10px;"></div>
+    </div>
+
+    <div id="readScreen" class="screen">
+        <h2>סריקת נתונים</h2>
+        <p>הצמד את הטלפון לתג לקריאה...</p>
+        <div id="readResult">ממתין לסריקה...</div>
+        <button class="big-btn btn-back" onclick="showScreen('homeScreen')">חזרה לתפריט</button>
+    </div>
+
+    <div id="settingsScreen" class="screen">
+        <h2>הגדרות מערכת</h2>
+        <p>אזור מוגבל למנהלים</p>
+        
+        <button class="big-btn btn-action" onclick="downloadCSV()">📥 הורד קובץ CSV</button>
+        <br>
+        <button class="big-btn btn-secondary" onclick="resetCounter()">0️⃣ איפוס מונה ל-600001</button>
+        <br>
+        <button class="big-btn btn-secondary" onclick="wipeTag()">🗑️ מחיקת תג (Wipe)</button>
+
+        <button class="big-btn btn-back" onclick="showScreen('homeScreen')">יציאה</button>
+    </div>
+
+    <script>
+        // --- ניהול משתנים גלובליים ---
+        const PASSWORD = "4451";
+        let historyLog = JSON.parse(localStorage.getItem('nfcHistory')) || [];
+        let currentInv = parseInt(localStorage.getItem('currentInventory')) || 600001;
+
+        // --- אתחול ---
+        document.getElementById('invNumber').value = currentInv;
+        document.getElementById('dateDisplay').value = new Date().toLocaleDateString('he-IL');
+
+        // שמירה אוטומטית של שינוי ידני באינוונטר
+        document.getElementById('invNumber').addEventListener('change', (e) => {
+            currentInv = parseInt(e.target.value);
+            localStorage.setItem('currentInventory', currentInv);
+        });
+
+        // --- ניווט ---
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            
+            // איפוסים ביציאה/כניסה
+            if(screenId === 'writeScreen') {
+                document.getElementById('nextBtnContainer').style.display = 'none';
+                document.getElementById('writeActions').style.display = 'block';
+                document.getElementById('writeLog').innerText = '';
+            }
+        }
+
+        function openSettings() {
+            const pass = prompt("הכנס סיסמת מנהל:");
+            if (pass === PASSWORD) {
+                showScreen('settingsScreen');
+            } else {
+                alert("סיסמה שגויה");
+            }
+        }
+
+        // --- לוגיקה לצריבה ---
+        async function writeTag() {
+            const inv = document.getElementById('invNumber').value;
+            const serial = document.getElementById('serialNumber').value || "ללא";
+            const name = document.getElementById('itemName').value;
+            const date = document.getElementById('dateDisplay').value;
+
+            // בדיקת תקינות
+            if (!name) return alert("חובה להזין שם פריט");
+            if (inv.length !== 7) return alert("מספר אינוונטר חייב להיות 7 ספרות בדיוק");
+
+            const dataObj = { inv, serial, name, date };
+            const jsonString = JSON.stringify(dataObj);
+
+            if (!('NDEFReader' in window)) {
+                return alert("NFC לא נתמך בדפדפן זה או במכשיר זה (נסה Chrome באנדרואיד).");
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                document.getElementById('writeLog').innerText = "אנא הצמד את התג לטלפון כעת...";
+                await ndef.scan(); // הפעלת NFC
+
+                ndef.onreading = async (event) => {
+                    const message = event.message;
+                    let isClean = true;
+
+                    // בדיקה אם התג ריק או מכיל מידע שלנו
+                    if (message.records.length > 0) {
+                        const confirmPass = prompt("התג מכיל מידע! הכנס סיסמה 4451 לדריסה:");
+                        if (confirmPass !== PASSWORD) {
+                            alert("סיסמה שגויה. הצריבה בוטלה.");
+                            return;
+                        }
+                    }
+
+                    // ביצוע הצריבה
+                    try {
+                        await ndef.write({
+                            records: [{ recordType: "text", data: jsonString }]
+                        });
+                        
+                        // שמירה להיסטוריה
+                        saveToHistory(dataObj);
+                        
+                        // עדכון ממשק
+                        document.getElementById('writeLog').innerText = "";
+                        document.getElementById('writeActions').style.display = 'none';
+                        document.getElementById('nextBtnContainer').style.display = 'block';
+                        
+                        // הפסקת האזנה כדי לא לצרוב שוב בטעות
+                        // הערה: ב-API הנוכחי קשה לעצור scan ספציפי בלי AbortController, 
+                        // אבל הממשק משתנה ומונע לחיצה נוספת.
+                    } catch (writeError) {
+                        alert("שגיאה בכתיבה: " + writeError);
+                    }
+                };
+            } catch (error) {
+                alert("שגיאה בהפעלת NFC: " + error);
+            }
+        }
+
+        function prepareNext() {
+            // העלאת מונה
+            currentInv++;
+            localStorage.setItem('currentInventory', currentInv);
+            
+            // איפוס שדות
+            document.getElementById('invNumber').value = currentInv;
+            document.getElementById('itemName').value = '';
+            document.getElementById('serialNumber').value = '';
+            
+            // החזרת מסך למצב צריבה
+            document.getElementById('nextBtnContainer').style.display = 'none';
+            document.getElementById('writeActions').style.display = 'block';
+        }
+
+        function saveToHistory(data) {
+            historyLog.push(data);
+            localStorage.setItem('nfcHistory', JSON.stringify(historyLog));
+        }
+
+        // --- לוגיקה לקריאה ---
+        async function startScan() {
+            if (!('NDEFReader' in window)) {
+                document.getElementById('readResult').innerText = "NFC לא נתמך במכשיר זה.";
+                return;
+            }
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                document.getElementById('readResult').innerText = "ממתין להצמדת תג...";
+                
+                ndef.onreadingerror = () => {
+                    document.getElementById('readResult').innerText = "שגיאה בקריאת התג.";
+                };
+
+                ndef.onreading = event => {
+                    const record = event.message.records[0];
+                    const textDecoder = new TextDecoder(record.encoding);
+                    const data = textDecoder.decode(record.data);
+                    
+                    try {
+                        // ניסיון לפרמט יפה אם זה ה-JSON שלנו
+                        const parsed = JSON.parse(data);
+                        document.getElementById('readResult').innerHTML = `
+                            <strong>מספר אינוונטר:</strong> ${parsed.inv}<br>
+                            <strong>שם פריט:</strong> ${parsed.name}<br>
+                            <strong>מספר סידורי:</strong> ${parsed.serial}<br>
+                            <strong>תאריך:</strong> ${parsed.date}
+                        `;
+                    } catch (e) {
+                        // אם זה סתם טקסט אחר
+                        document.getElementById('readResult').innerText = "מידע גולמי: " + data;
+                    }
+                };
+            } catch (error) {
+                document.getElementById('readResult').innerText = "שגיאה: " + error;
+            }
+        }
+
+        // --- לוגיקה להגדרות ---
+        
+        function downloadCSV() {
+            if (historyLog.length === 0) return alert("אין נתונים לייצוא");
+            
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // הוספת BOM לעברית
+            csvContent += "Inventory,Serial,Item Name,Date\n";
+            
+            historyLog.forEach(row => {
+                csvContent += `${row.inv},${row.serial},${row.name},${row.date}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "nfc_data_" + new Date().toISOString().slice(0,10) + ".csv");
+            document.body.appendChild(link);
+            link.click();
+        }
+
+        async function wipeTag() {
+            const pass = prompt("פעולה זו תמחק את התג לצמיתות. אשר בסיסמה 4451:");
+            if (pass !== PASSWORD) return alert("סיסמה שגויה");
+
+            alert("הצמד תג למחיקה כעת...");
+            try {
+                const ndef = new NDEFReader();
+                await ndef.scan();
+                ndef.onreading = async () => {
+                    try {
+                        await ndef.write({ records: [] }); // כתיבת מערך ריק מוחקת
+                        alert("התג אופס בהצלחה!");
+                    } catch (e) {
+                        alert("שגיאה במחיקה: " + e);
+                    }
+                }
+            } catch (e) {
+                alert("שגיאה בהפעלת NFC: " + e);
+            }
+        }
+
+        function resetCounter() {
+            const pass = prompt("פעולה זו תאפס את המונה ל-600001. אשר בסיסמה 4451:");
+            if (pass !== PASSWORD) return alert("סיסמה שגויה");
+
+            currentInv = 600001;
+            localStorage.setItem('currentInventory', currentInv);
+            document.getElementById('invNumber').value = currentInv;
+            alert("המונה אופס בהצלחה!");
+        }
+
+    </script>
+</body>
+</html>
