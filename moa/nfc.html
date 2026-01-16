@@ -16,11 +16,9 @@
 
         h1 { margin-bottom: 30px; color: #1a73e8; }
         
-        /* מסכים */
         .screen { display: none; }
         .active { display: block; }
 
-        /* כפתורים ראשיים */
         .big-btn {
             display: block;
             width: 100%;
@@ -40,7 +38,6 @@
         .btn-secondary { background-color: #ea4335; color: white; }
         .btn-back { background-color: #5f6368; color: white; margin-top: 30px; }
         
-        /* כפתור הגדרות */
         .settings-icon {
             position: fixed;
             top: 20px;
@@ -53,7 +50,6 @@
             z-index: 100;
         }
 
-        /* טפסים */
         .form-group { margin-bottom: 15px; text-align: right; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
         input {
@@ -66,7 +62,6 @@
         }
         input[readonly] { background-color: #e0e0e0; }
 
-        /* לוגים והודעות */
         #statusMsg {
             margin-top: 20px;
             padding: 10px;
@@ -74,7 +69,6 @@
             font-weight: bold;
         }
         .success { background-color: #d4edda; color: #155724; }
-        .error { background-color: #f8d7da; color: #721c24; }
         
         #readResult {
             background: white;
@@ -90,12 +84,10 @@
             margin-top: 20px;
             font-weight: bold;
             font-size: 18px;
-            color: #d32f2f;
             min-height: 40px;
             padding: 10px;
         }
 
-        /* כפתור הבא (מוסתר בהתחלה) */
         #nextBtnContainer { display: none; }
     </style>
 </head>
@@ -142,7 +134,7 @@
         </div>
 
         <button class="big-btn btn-back" onclick="showScreen('homeScreen')">חזרה לתפריט</button>
-        <div id="writeLog" style="margin-top:10px;"></div>
+        <div id="writeLog" style="margin-top:10px; font-weight:bold;"></div>
     </div>
 
     <div id="readScreen" class="screen">
@@ -168,13 +160,15 @@
     </div>
 
     <script>
-        // --- ניהול משתנים גלובליים ---
         const PASSWORD = "4451";
         const START_INV = 6000001; 
         let historyLog = JSON.parse(localStorage.getItem('nfcHistory')) || [];
         let currentInv = parseInt(localStorage.getItem('currentInventory')) || START_INV;
 
-        // --- אתחול ---
+        // בקר שליטה לביטול סריקות קודמות (התיקון החשוב)
+        let abortController = null;
+
+        // אתחול
         document.getElementById('invNumber').value = currentInv;
         document.getElementById('dateDisplay').value = new Date().toLocaleDateString('he-IL');
 
@@ -183,12 +177,18 @@
             localStorage.setItem('currentInventory', currentInv);
         });
 
-        // --- ניווט ---
+        // --- ניווט וניהול סריקות ---
         function showScreen(screenId) {
+            // בכל מעבר מסך - מפסיקים סריקות קודמות כדי למנוע התנגשות
+            if (abortController) {
+                abortController.abort();
+                abortController = null;
+            }
+
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
             
-            // איפוסים
+            // איפוסים ויזואליים
             if(screenId === 'writeScreen') {
                 document.getElementById('nextBtnContainer').style.display = 'none';
                 document.getElementById('writeActions').style.display = 'block';
@@ -208,7 +208,7 @@
             }
         }
 
-        // --- לוגיקה לצריבה ---
+        // --- פונקציית צריבה (עם הגנה מדריסה) ---
         async function writeTag() {
             const inv = document.getElementById('invNumber').value;
             const serial = document.getElementById('serialNumber').value || "ללא";
@@ -221,42 +221,63 @@
             const dataObj = { inv, serial, name, date };
             const jsonString = JSON.stringify(dataObj);
 
-            if (!('NDEFReader' in window)) {
-                return alert("NFC לא נתמך בדפדפן זה.");
-            }
+            if (!('NDEFReader' in window)) return alert("NFC לא נתמך בדפדפן זה.");
+
+            // ביטול סריקות קודמות
+            if (abortController) abortController.abort();
+            abortController = new AbortController();
 
             try {
                 const ndef = new NDEFReader();
-                document.getElementById('writeLog').innerText = "אנא הצמד את התג לטלפון כעת...";
-                await ndef.scan();
+                document.getElementById('writeLog').innerText = "אנא הצמד את התג כעת...";
+                document.getElementById('writeLog').style.color = "blue";
+
+                // כאן אנחנו מתחילים סריקה כדי לבדוק אם התג מלא
+                await ndef.scan({ signal: abortController.signal });
 
                 ndef.onreading = async (event) => {
                     const message = event.message;
 
-                    // הגנה מפני דריסה
+                    // בדיקת הגנה: אם יש מידע, מבקשים סיסמה
                     if (message.records.length > 0) {
-                        // אם יש מידע, אנחנו עדיין שואלים סיסמה. כאן ה-prompt בסדר כי אנחנו כבר בתוך האירוע
+                        // חשוב: עוצרים את הסריקה הנוכחית לפני שמנסים לכתוב או להציג הודעה
+                        // כדי למנוע את השגיאה AbortError
+                        abortController.abort(); 
+                        abortController = null;
+
                         const confirmPass = prompt("התג מכיל מידע! הכנס סיסמה 4451 לדריסה:");
                         if (confirmPass !== PASSWORD) {
                             alert("סיסמה שגויה. הצריבה בוטלה.");
+                            showScreen('writeScreen'); // מאפסים מצב
                             return;
                         }
+                    } else {
+                        // אם התג ריק, גם עוצרים את הסריקה לפני הכתיבה
+                         abortController.abort();
+                         abortController = null;
                     }
 
+                    // ביצוע הכתיבה בפועל (כפעולה עצמאית ונקייה)
                     try {
-                        await ndef.write({
+                        const newNdef = new NDEFReader(); // אובייקט חדש לכתיבה
+                        await newNdef.write({
                             records: [{ recordType: "text", data: jsonString }]
                         });
+                        
                         saveToHistory(dataObj);
                         
+                        // עדכון ממשק הצלחה
                         document.getElementById('writeLog').innerText = "";
                         document.getElementById('writeActions').style.display = 'none';
                         document.getElementById('nextBtnContainer').style.display = 'block';
+                        
                     } catch (writeError) {
                         alert("שגיאה בכתיבה: " + writeError);
+                        showScreen('writeScreen'); // חזרה למצב התחלתי
                     }
                 };
             } catch (error) {
+                if (error.name === 'AbortError') return; // מתעלמים משגיאות ביטול יזומות
                 alert("שגיאה בהפעלת NFC: " + error);
             }
         }
@@ -276,12 +297,17 @@
             localStorage.setItem('nfcHistory', JSON.stringify(historyLog));
         }
 
-        // --- לוגיקה לקריאה ---
+        // --- פונקציית קריאה ---
         async function startScan() {
             if (!('NDEFReader' in window)) return;
+            
+            // ביטול סריקות קודמות
+            if (abortController) abortController.abort();
+            abortController = new AbortController();
+
             try {
                 const ndef = new NDEFReader();
-                await ndef.scan();
+                await ndef.scan({ signal: abortController.signal });
                 document.getElementById('readResult').innerText = "ממתין להצמדת תג...";
                 
                 ndef.onreadingerror = () => {
@@ -290,14 +316,20 @@
 
                 ndef.onreading = event => {
                     const record = event.message.records[0];
-                    if (!record) {
-                         document.getElementById('readResult').innerText = "תג ריק";
+                    if (!record || !record.data) {
+                         document.getElementById('readResult').innerText = "תג ריק (או לא בפורמט מוכר)";
                          return;
                     }
                     const textDecoder = new TextDecoder(record.encoding);
                     const data = textDecoder.decode(record.data);
                     
                     try {
+                        // אם המידע ריק (אחרי איפוס)
+                        if (!data) {
+                             document.getElementById('readResult').innerText = "התג ריק";
+                             return;
+                        }
+
                         const parsed = JSON.parse(data);
                         document.getElementById('readResult').innerHTML = `
                             <strong>מספר אינוונטר:</strong> ${parsed.inv}<br>
@@ -306,20 +338,15 @@
                             <strong>תאריך:</strong> ${parsed.date}
                         `;
                     } catch (e) {
-                        // אם זה ריק או טקסט רגיל
-                        if(data === "") {
-                             document.getElementById('readResult').innerText = "התג ריק (אופס בהצלחה)";
-                        } else {
-                             document.getElementById('readResult').innerText = "מידע גולמי: " + data;
-                        }
+                        document.getElementById('readResult').innerText = "מידע גולמי: " + data;
                     }
                 };
             } catch (error) {
+                if (error.name === 'AbortError') return;
                 console.log(error);
             }
         }
 
-        // --- לוגיקה להגדרות ---
         function downloadCSV() {
             if (historyLog.length === 0) return alert("אין נתונים לייצוא");
             
@@ -337,43 +364,36 @@
             link.click();
         }
 
-        // --- הפונקציה המתוקנת למחיקה (ללא הודעות קופצות תוקעות) ---
+        // --- פונקציית מחיקה (Wipe) מתוקנת ויציבה ---
         async function wipeTag() {
-            // 1. קודם סיסמה
-            const pass = prompt("פעולה זו תמחק את התג לצמיתות. אשר בסיסמה 4451:");
-            if (pass !== PASSWORD) return; // אם ביטל או טעה - פשוט יוצאים
+            // קודם כל עוצרים כל פעילות רקע
+            if (abortController) {
+                abortController.abort();
+                abortController = null;
+            }
 
-            // 2. עדכון מסך במקום Alert
+            const pass = prompt("פעולה זו תמחק את התג לצמיתות. אשר בסיסמה 4451:");
+            if (pass !== PASSWORD) return; 
+
             const logDiv = document.getElementById('settingsLog');
-            logDiv.innerText = "מפעיל סורק... הצמד תג למחיקה כעת!";
+            logDiv.innerText = "מפעיל סורק למחיקה... הצמד תג כעת!";
             logDiv.style.color = "blue";
 
             try {
-                // 3. התחלת סריקה
+                // שיטה ישירה: כותבים ישר. זה מקפיץ את חלונית המערכת אוטומטית
                 const ndef = new NDEFReader();
-                await ndef.scan(); 
                 
-                ndef.onreading = async () => {
-                    try {
-                        // 4. התיקון הקריטי: כתיבת טקסט ריק במקום מערך ריק
-                        await ndef.write({ 
-                            records: [{ recordType: "text", data: "" }] 
-                        });
-                        
-                        // 5. הודעת הצלחה
-                        logDiv.innerText = "התג אופס בהצלחה! (ריק)";
-                        logDiv.style.color = "green";
-                        
-                        // רטט קצר לאישור (אם נתמך)
-                        if (navigator.vibrate) navigator.vibrate(200);
+                // כותבים רשומה עם טקסט ריק (ולא מערך ריק שגורם לשגיאה)
+                await ndef.write({ 
+                    records: [{ recordType: "text", data: "" }] 
+                });
+                
+                logDiv.innerText = "התג אופס בהצלחה! (נמחק)";
+                logDiv.style.color = "green";
+                if (navigator.vibrate) navigator.vibrate(200);
 
-                    } catch (e) {
-                        logDiv.innerText = "שגיאה במחיקה: " + e;
-                        logDiv.style.color = "red";
-                    }
-                }
             } catch (e) {
-                logDiv.innerText = "שגיאה בהפעלת NFC: " + e;
+                logDiv.innerText = "שגיאה: " + e;
                 logDiv.style.color = "red";
             }
         }
