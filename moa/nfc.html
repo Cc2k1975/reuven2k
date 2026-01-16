@@ -50,6 +50,7 @@
             background: none;
             border: none;
             padding: 10px;
+            z-index: 100;
         }
 
         /* טפסים */
@@ -148,7 +149,7 @@
         
         <button class="big-btn btn-action" onclick="downloadCSV()">📥 הורד קובץ CSV</button>
         <br>
-        <button class="big-btn btn-secondary" onclick="resetCounter()">0️⃣ איפוס מונה ל-600001</button>
+        <button class="big-btn btn-secondary" onclick="resetCounter()">0️⃣ איפוס מונה ל-6000001</button>
         <br>
         <button class="big-btn btn-secondary" onclick="wipeTag()">🗑️ מחיקת תג (Wipe)</button>
 
@@ -158,8 +159,9 @@
     <script>
         // --- ניהול משתנים גלובליים ---
         const PASSWORD = "4451";
+        const START_INV = 6000001; // מספר התחלתי 7 ספרות
         let historyLog = JSON.parse(localStorage.getItem('nfcHistory')) || [];
-        let currentInv = parseInt(localStorage.getItem('currentInventory')) || 600001;
+        let currentInv = parseInt(localStorage.getItem('currentInventory')) || START_INV;
 
         // --- אתחול ---
         document.getElementById('invNumber').value = currentInv;
@@ -208,7 +210,7 @@
             const jsonString = JSON.stringify(dataObj);
 
             if (!('NDEFReader' in window)) {
-                return alert("NFC לא נתמך בדפדפן זה או במכשיר זה (נסה Chrome באנדרואיד).");
+                return alert("NFC לא נתמך בדפדפן זה (נסה ב-Chrome לאנדרואיד).");
             }
 
             try {
@@ -218,9 +220,10 @@
 
                 ndef.onreading = async (event) => {
                     const message = event.message;
-                    let isClean = true;
 
-                    // בדיקה אם התג ריק או מכיל מידע שלנו
+                    // בדיקה אם התג ריק או מכיל מידע
+                    // אם יש מידע, אנחנו עדיין שואלים סיסמה כדי לא לדרוס בטעות
+                    // אם זה מפריע לך - תגיד לי ואבטל גם את זה.
                     if (message.records.length > 0) {
                         const confirmPass = prompt("התג מכיל מידע! הכנס סיסמה 4451 לדריסה:");
                         if (confirmPass !== PASSWORD) {
@@ -243,9 +246,6 @@
                         document.getElementById('writeActions').style.display = 'none';
                         document.getElementById('nextBtnContainer').style.display = 'block';
                         
-                        // הפסקת האזנה כדי לא לצרוב שוב בטעות
-                        // הערה: ב-API הנוכחי קשה לעצור scan ספציפי בלי AbortController, 
-                        // אבל הממשק משתנה ומונע לחיצה נוספת.
                     } catch (writeError) {
                         alert("שגיאה בכתיבה: " + writeError);
                     }
@@ -262,7 +262,7 @@
             
             // איפוס שדות
             document.getElementById('invNumber').value = currentInv;
-            document.getElementById('itemName').value = '';
+            // document.getElementById('itemName').value = ''; // השורה הזו בוטלה כדי לשמור את השם
             document.getElementById('serialNumber').value = '';
             
             // החזרת מסך למצב צריבה
@@ -356,10 +356,10 @@
         }
 
         function resetCounter() {
-            const pass = prompt("פעולה זו תאפס את המונה ל-600001. אשר בסיסמה 4451:");
+            const pass = prompt("פעולה זו תאפס את המונה ל-6000001. אשר בסיסמה 4451:");
             if (pass !== PASSWORD) return alert("סיסמה שגויה");
 
-            currentInv = 600001;
+            currentInv = START_INV;
             localStorage.setItem('currentInventory', currentInv);
             document.getElementById('invNumber').value = currentInv;
             alert("המונה אופס בהצלחה!");
