@@ -89,8 +89,10 @@
         #settingsLog {
             margin-top: 20px;
             font-weight: bold;
+            font-size: 18px;
             color: #d32f2f;
-            min-height: 30px;
+            min-height: 40px;
+            padding: 10px;
         }
 
         /* כפתור הבא (מוסתר בהתחלה) */
@@ -233,6 +235,7 @@
 
                     // הגנה מפני דריסה
                     if (message.records.length > 0) {
+                        // אם יש מידע, אנחנו עדיין שואלים סיסמה. כאן ה-prompt בסדר כי אנחנו כבר בתוך האירוע
                         const confirmPass = prompt("התג מכיל מידע! הכנס סיסמה 4451 לדריסה:");
                         if (confirmPass !== PASSWORD) {
                             alert("סיסמה שגויה. הצריבה בוטלה.");
@@ -246,131 +249,4 @@
                         });
                         saveToHistory(dataObj);
                         
-                        document.getElementById('writeLog').innerText = "";
-                        document.getElementById('writeActions').style.display = 'none';
-                        document.getElementById('nextBtnContainer').style.display = 'block';
-                    } catch (writeError) {
-                        alert("שגיאה בכתיבה: " + writeError);
-                    }
-                };
-            } catch (error) {
-                alert("שגיאה בהפעלת NFC: " + error);
-            }
-        }
-
-        function prepareNext() {
-            currentInv++;
-            localStorage.setItem('currentInventory', currentInv);
-            document.getElementById('invNumber').value = currentInv;
-            document.getElementById('serialNumber').value = '';
-            
-            document.getElementById('nextBtnContainer').style.display = 'none';
-            document.getElementById('writeActions').style.display = 'block';
-        }
-
-        function saveToHistory(data) {
-            historyLog.push(data);
-            localStorage.setItem('nfcHistory', JSON.stringify(historyLog));
-        }
-
-        // --- לוגיקה לקריאה ---
-        async function startScan() {
-            if (!('NDEFReader' in window)) return;
-            try {
-                const ndef = new NDEFReader();
-                await ndef.scan();
-                document.getElementById('readResult').innerText = "ממתין להצמדת תג...";
-                
-                ndef.onreadingerror = () => {
-                    document.getElementById('readResult').innerText = "שגיאה בקריאת התג.";
-                };
-
-                ndef.onreading = event => {
-                    const record = event.message.records[0];
-                    if (!record) {
-                         document.getElementById('readResult').innerText = "תג ריק";
-                         return;
-                    }
-                    const textDecoder = new TextDecoder(record.encoding);
-                    const data = textDecoder.decode(record.data);
-                    
-                    try {
-                        const parsed = JSON.parse(data);
-                        document.getElementById('readResult').innerHTML = `
-                            <strong>מספר אינוונטר:</strong> ${parsed.inv}<br>
-                            <strong>שם פריט:</strong> ${parsed.name}<br>
-                            <strong>מספר סידורי:</strong> ${parsed.serial}<br>
-                            <strong>תאריך:</strong> ${parsed.date}
-                        `;
-                    } catch (e) {
-                        document.getElementById('readResult').innerText = "מידע גולמי: " + data;
-                    }
-                };
-            } catch (error) {
-                console.log(error);
-            }
-        }
-
-        // --- לוגיקה להגדרות ---
-        function downloadCSV() {
-            if (historyLog.length === 0) return alert("אין נתונים לייצוא");
-            
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "Inventory,Serial,Item Name,Date\n";
-            historyLog.forEach(row => {
-                csvContent += `${row.inv},${row.serial},${row.name},${row.date}\n`;
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "nfc_data_" + new Date().toISOString().slice(0,10) + ".csv");
-            document.body.appendChild(link);
-            link.click();
-        }
-
-        // --- הפונקציה המתוקנת למחיקה ---
-        async function wipeTag() {
-            // קודם כל מבקשים סיסמה
-            const pass = prompt("פעולה זו תמחק את התג לצמיתות. אשר בסיסמה 4451:");
-            if (pass !== PASSWORD) return alert("סיסמה שגויה");
-
-            // במקום alert, אנו מעדכנים את הטקסט במסך כדי לא לתקוע את הסורק
-            const logDiv = document.getElementById('settingsLog');
-            logDiv.innerText = "אנא הצמד את התג כעת למחיקה...";
-
-            try {
-                const ndef = new NDEFReader();
-                await ndef.scan(); // הפעלת הסורק מייד
-                
-                ndef.onreading = async () => {
-                    try {
-                        // כתיבת רשימה ריקה מוחקת את התוכן
-                        await ndef.write({ records: [] });
-                        logDiv.innerText = "התג אופס בהצלחה!";
-                        alert("התג אופס ונמחק בהצלחה!");
-                        logDiv.innerText = ""; // ניקוי ההודעה
-                    } catch (e) {
-                        logDiv.innerText = "שגיאה במחיקה";
-                        alert("שגיאה במחיקה: " + e);
-                    }
-                }
-            } catch (e) {
-                logDiv.innerText = "שגיאה בהפעלת NFC";
-                alert("שגיאה בהפעלת NFC: " + e);
-            }
-        }
-
-        function resetCounter() {
-            const pass = prompt("פעולה זו תאפס את המונה ל-6000001. אשר בסיסמה 4451:");
-            if (pass !== PASSWORD) return alert("סיסמה שגויה");
-
-            currentInv = START_INV;
-            localStorage.setItem('currentInventory', currentInv);
-            document.getElementById('invNumber').value = currentInv;
-            alert("המונה אופס בהצלחה!");
-        }
-
-    </script>
-</body>
-</html>
+                        document.getElementById('write
