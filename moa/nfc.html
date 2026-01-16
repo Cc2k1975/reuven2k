@@ -165,7 +165,6 @@
         let historyLog = JSON.parse(localStorage.getItem('nfcHistory')) || [];
         let currentInv = parseInt(localStorage.getItem('currentInventory')) || START_INV;
 
-        // בקר שליטה למניעת שגיאות והתנגשויות
         let abortController = null;
 
         // אתחול
@@ -177,9 +176,8 @@
             localStorage.setItem('currentInventory', currentInv);
         });
 
-        // --- ניווט וניהול סריקות ---
+        // --- ניווט ---
         function showScreen(screenId) {
-            // בכל מעבר מסך - חותכים סריקות קודמות
             if (abortController) {
                 abortController.abort();
                 abortController = null;
@@ -188,7 +186,6 @@
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(screenId).classList.add('active');
             
-            // איפוסים ויזואליים
             if(screenId === 'writeScreen') {
                 document.getElementById('nextBtnContainer').style.display = 'none';
                 document.getElementById('writeActions').style.display = 'block';
@@ -208,7 +205,7 @@
             }
         }
 
-        // --- פונקציית צריבה (ללא סיסמה! דורס הכל) ---
+        // --- צריבה ---
         async function writeTag() {
             const inv = document.getElementById('invNumber').value;
             const serial = document.getElementById('serialNumber').value || "ללא";
@@ -223,7 +220,6 @@
 
             if (!('NDEFReader' in window)) return alert("NFC לא נתמך בדפדפן זה.");
 
-            // ביטול סריקות קודמות
             if (abortController) abortController.abort();
             abortController = new AbortController();
 
@@ -232,15 +228,12 @@
                 document.getElementById('writeLog').innerText = "ממתין לתג לצריבה...";
                 document.getElementById('writeLog').style.color = "blue";
 
-                // האזנה לתג
                 await ndef.scan({ signal: abortController.signal });
 
                 ndef.onreading = async (event) => {
-                    // ברגע שזוהה תג - עוצרים את הסריקה המקדימה כדי לשחרר את הרכיב לכתיבה
                     abortController.abort(); 
                     abortController = null;
 
-                    // אין יותר בדיקות ואין שאלות. ישר כותבים.
                     try {
                         const newNdef = new NDEFReader(); 
                         await newNdef.write({
@@ -249,18 +242,17 @@
                         
                         saveToHistory(dataObj);
                         
-                        // עדכון ממשק הצלחה
                         document.getElementById('writeLog').innerText = "";
                         document.getElementById('writeActions').style.display = 'none';
                         document.getElementById('nextBtnContainer').style.display = 'block';
                         
                     } catch (writeError) {
                         alert("שגיאה בכתיבה: " + writeError);
-                        showScreen('writeScreen'); // חזרה למצב התחלתי
+                        showScreen('writeScreen');
                     }
                 };
             } catch (error) {
-                if (error.name === 'AbortError') return; // מתעלמים משגיאות ביטול יזומות
+                if (error.name === 'AbortError') return;
                 alert("שגיאה בהפעלת NFC: " + error);
             }
         }
@@ -280,7 +272,7 @@
             localStorage.setItem('nfcHistory', JSON.stringify(historyLog));
         }
 
-        // --- פונקציית קריאה ---
+        // --- קריאה ---
         async function startScan() {
             if (!('NDEFReader' in window)) return;
             
@@ -298,7 +290,6 @@
 
                 ndef.onreading = event => {
                     const record = event.message.records[0];
-                    // אם אין רשומות או שהרשומה ריקה
                     if (!record || !record.data) {
                          document.getElementById('readResult').innerText = "תג ריק";
                          return;
@@ -307,7 +298,6 @@
                     const data = textDecoder.decode(record.data);
                     
                     try {
-                        // אם המידע הוא טקסט ריק (אחרי מחיקה)
                         if (!data || data.trim() === "") {
                              document.getElementById('readResult').innerText = "התג ריק";
                              return;
@@ -330,24 +320,35 @@
             }
         }
 
+        // --- הורדת CSV (התיקון לעברית!) ---
         function downloadCSV() {
             if (historyLog.length === 0) return alert("אין נתונים לייצוא");
             
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            csvContent += "Inventory,Serial,Item Name,Date\n";
+            // יצירת תוכן ה-CSV
+            let csvContent = "Inventory,Serial,Item Name,Date\n";
             historyLog.forEach(row => {
-                csvContent += `${row.inv},${row.serial},${row.name},${row.date}\n`;
+                // ניקוי פסיקים משמות כדי לא לשבור את ה-CSV
+                let safeName = row.name.replace(/,/g, " "); 
+                let safeSerial = row.serial.replace(/,/g, " ");
+                csvContent += `${row.inv},${safeSerial},${safeName},${row.date}\n`;
             });
 
-            const encodedUri = encodeURI(csvContent);
+            // יצירת BLOB עם BOM לעברית תקינה
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            
+            // יצירת לינק להורדה
+            const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "nfc_data_" + new Date().toISOString().slice(0,10) + ".csv");
+            link.setAttribute("href", url);
+            link.setAttribute("download", "nfc_inventory_" + new Date().toISOString().slice(0,10) + ".csv");
+            link.style.visibility = 'hidden';
+            
             document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
         }
 
-        // --- פונקציית מחיקה (Wipe) ---
+        // --- מחיקה ---
         async function wipeTag() {
             if (abortController) {
                 abortController.abort();
@@ -363,7 +364,6 @@
 
             try {
                 const ndef = new NDEFReader();
-                // כותבים טקסט ריק
                 await ndef.write({ 
                     records: [{ recordType: "text", data: "" }] 
                 });
