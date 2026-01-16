@@ -1,398 +1,631 @@
 <!DOCTYPE html>
-<html dir="rtl" lang="he">
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מערכת צריבת מלאי NFC</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מחשבון מתכונים חכם</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-            color: #333;
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; -webkit-tap-highlight-color: transparent; padding-bottom: 150px; }
+        .btn-press:active { transform: scale(0.95); }
+        .input-mobile { font-size: 16px; padding: 12px; border-radius: 12px; border: 1px solid #ddd; width: 100%; background: #fff; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 16px; margin-bottom: 12px; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .sticky-footer {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #1f2937; color: white;
+            padding: 16px; border-top-left-radius: 20px; border-top-right-radius: 20px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.2); z-index: 40;
         }
 
-        h1 { margin-bottom: 30px; color: #1a73e8; }
-        
-        .screen { display: none; }
-        .active { display: block; }
+        /* מודל כללי (משמש גם להגדרות וגם למתכונים) */
+        .slide-modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: #f8fafc; z-index: 100;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .slide-modal.open { transform: translateY(0); }
 
-        .big-btn {
-            display: block;
-            width: 100%;
-            padding: 20px;
-            margin: 15px 0;
-            font-size: 24px;
-            border: none;
-            border-radius: 12px;
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d4d4d4;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .autocomplete-items div {
+            padding: 10px;
             cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.1s;
+            background-color: #fff;
+            border-bottom: 1px solid #d4d4d4;
         }
-        .big-btn:active { transform: scale(0.98); }
-        
-        /* צבעים */
-        .btn-write { background-color: #34a853; color: white; }
-        .btn-read { background-color: #4285f4; color: white; }
-        .btn-menus { background-color: #673ab7; color: white; } /* כפתור תפריטים סגול */
-        .btn-action { background-color: #1a73e8; color: white; font-size: 18px; padding: 15px; margin-top: 20px; }
-        .btn-secondary { background-color: #ea4335; color: white; }
-        .btn-back { background-color: #5f6368; color: white; margin-top: 30px; }
-        
-        .settings-icon {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            font-size: 30px;
-            cursor: pointer;
-            background: none;
-            border: none;
-            padding: 10px;
-            z-index: 100;
+        .autocomplete-items div:hover {
+            background-color: #e9e9e9; 
         }
-
-        .form-group { margin-bottom: 15px; text-align: right; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input {
-            width: 100%;
-            padding: 12px;
-            font-size: 18px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            box-sizing: border-box;
-        }
-        input[readonly] { background-color: #e0e0e0; }
-
-        #statusMsg {
-            margin-top: 20px;
-            padding: 10px;
-            border-radius: 8px;
-            font-weight: bold;
-        }
-        .success { background-color: #d4edda; color: #155724; }
-        
-        #readResult {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            text-align: right;
-            white-space: pre-wrap;
-            border: 1px solid #ddd;
-        }
-
-        #settingsLog {
-            margin-top: 20px;
-            font-weight: bold;
-            font-size: 18px;
-            min-height: 40px;
-            padding: 10px;
-        }
-
-        #nextBtnContainer { display: none; }
     </style>
 </head>
-<body>
+<body onclick="closeAllLists(event)">
 
-    <button class="settings-icon" onclick="openSettings()">⚙️</button>
-
-    <div id="homeScreen" class="screen active">
-        <h1>מערכת ניהול מלאי</h1>
-        <button class="big-btn btn-write" onclick="showScreen('writeScreen')">צריבה</button>
-        <button class="big-btn btn-read" onclick="showScreen('readScreen'); startScan();">קריאה</button>
-        <button class="big-btn btn-menus" onclick="showScreen('menusScreen')">התפריטים שלי 🍴</button>
-    </div>
-
-    <div id="writeScreen" class="screen">
-        <h2>צריבת פריט חדש</h2>
+    <div class="bg-indigo-600 text-white p-4 pt-6 sticky top-0 z-30 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-bold">מחשבון עלות <i class="fas fa-utensils mr-2"></i></h1>
         
-        <div class="form-group">
-            <label>מספר אינוונטר (7 ספרות):</label>
-            <input type="number" id="invNumber" value="6000001">
+        <div class="flex gap-2">
+            <button onclick="toggleRecipes()" class="text-white bg-indigo-500 p-2 rounded-full w-10 h-10 shadow-lg hover:bg-indigo-400 transition-colors" title="המתכונים שלי">
+                <i class="fas fa-book-open fa-lg"></i>
+            </button>
+
+            <button onclick="clearAll()" class="text-white bg-indigo-500 p-2 rounded-full w-10 h-10 shadow-lg hover:bg-red-500 transition-colors" title="רשימה חדשה">
+                <i class="fas fa-redo-alt fa-lg"></i>
+            </button>
+            
+            <button onclick="toggleSettings()" class="text-white bg-indigo-500 p-2 rounded-full w-10 h-10 shadow-lg hover:bg-indigo-400">
+                <i class="fas fa-cog fa-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="p-4 max-w-md mx-auto">
+        <div class="card border-2 border-indigo-100 overflow-visible relative">
+            <div class="mb-2 text-sm font-bold text-gray-500">הוספת רכיב למתכון:</div>
+            
+            <div class="relative mb-3">
+                <input type="text" id="productInput" placeholder="התחל להקליד שם מוצר..." class="input-mobile bg-indigo-50 border-indigo-200 font-medium placeholder-gray-400" autocomplete="off">
+                <input type="hidden" id="selectedProductId">
+                <div id="autocomplete-list" class="autocomplete-items hidden"></div>
+            </div>
+
+            <div class="flex gap-2 items-end">
+                <div class="flex-1">
+                    <label class="text-xs text-gray-400">כמות</label>
+                    <input type="number" id="qtyInput" placeholder="0" class="input-mobile text-center font-bold text-xl">
+                </div>
+                <div class="flex-1">
+                    <label class="text-xs text-gray-400">יחידה</label>
+                    <select id="unitSelect" class="input-mobile text-sm"></select>
+                </div>
+            </div>
+
+            <button onclick="addItem()" class="w-full bg-indigo-600 text-white text-lg font-bold py-3 rounded-xl mt-4 shadow-lg btn-press flex justify-center items-center gap-2">
+                <i class="fas fa-arrow-down"></i> הוסף לקומבו
+            </button>
+        </div>
+
+        <div id="comboList" class="space-y-2 pb-4"></div>
+
+        <div class="card mt-6 bg-orange-50 border border-orange-100">
+            <div class="flex items-center gap-3">
+                <div class="bg-orange-200 p-2 rounded-full text-orange-700">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="font-bold text-gray-700">זמן אפייה/בישול (דקות)</div>
+            </div>
+            <div class="mt-3">
+                <input type="number" id="bakingMinutes" oninput="calculate()" placeholder="0" class="input-mobile text-center font-bold bg-white">
+            </div>
+        </div>
+    </div>
+
+    <div class="sticky-footer">
+        <div class="flex justify-between items-end">
+            <div>
+                <div class="text-gray-400 text-xs mb-1">סה"כ עלות סופית</div>
+                <div class="text-3xl font-bold leading-none text-green-400">
+                    <span id="totalPrice">0.00</span> ₪
+                </div>
+            </div>
+            <div class="text-right flex gap-2">
+                <button onclick="saveCurrentRecipe()" class="bg-blue-600 hover:bg-blue-500 p-3 rounded-lg text-white shadow-lg btn-press flex items-center gap-2">
+                    <i class="fas fa-save"></i> שמור מתכון
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="recipesPage" class="slide-modal p-4">
+        <div class="flex justify-between items-center mb-6 border-b pb-4 sticky top-0 bg-[#f8fafc] z-10 pt-2">
+            <h2 class="text-2xl font-bold text-blue-800"><i class="fas fa-book-open mr-2"></i>המתכונים שלי</h2>
+            <button onclick="toggleRecipes()" class="bg-gray-200 text-gray-600 rounded-full w-10 h-10 font-bold">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="mb-8">
+            <div id="savedRecipesList" class="space-y-3"></div>
+            <div id="noRecipesMsg" class="text-gray-400 text-sm text-center py-4 hidden">
+                <i class="fas fa-cookie-bite text-4xl mb-2 block text-gray-300"></i>
+                עדיין אין מתכונים שמורים.<br>בנה מתכון במסך הראשי ושמור אותו!
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsPage" class="slide-modal p-4">
+        <div class="flex justify-between items-center mb-6 border-b pb-4 sticky top-0 bg-[#f8fafc] z-10 pt-2">
+            <h2 class="text-2xl font-bold text-gray-800">הגדרות וניהול</h2>
+            <button onclick="toggleSettings()" class="bg-gray-200 text-gray-600 rounded-full w-10 h-10 font-bold">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="mb-8 bg-gray-100 p-4 rounded-xl border border-gray-300">
+            <h3 class="font-bold text-lg text-gray-700 mb-3"><i class="fas fa-save mr-2"></i> גיבוי ושחזור נתונים</h3>
+            <div class="flex gap-2">
+                <button onclick="exportData()" class="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm font-bold shadow hover:bg-gray-800">
+                    <i class="fas fa-download"></i> שמור גיבוי לקובץ
+                </button>
+                <button onclick="document.getElementById('fileInput').click()" class="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm font-bold shadow hover:bg-gray-800">
+                    <i class="fas fa-upload"></i> שחזר מגיבוי
+                </button>
+                <input type="file" id="fileInput" class="hidden" onchange="importData(this)">
+            </div>
+            <div class="text-xs text-gray-500 mt-2">שומר את כל המוצרים, המתכונים והמחירים לקובץ במכשיר.</div>
         </div>
         
-        <div class="form-group">
-            <label>מספר סידורי (אופציונלי):</label>
-            <input type="text" id="serialNumber" placeholder="הכנס מספר סידורי">
+        <hr class="border-gray-300 mb-8">
+
+        <div class="mb-4">
+            <h3 class="font-bold text-xl text-indigo-700 mb-3 border-r-4 border-indigo-500 pr-2">ניהול מוצרים</h3>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-green-200 mb-6">
+                <h4 class="font-bold text-green-700 mb-2 text-sm"><i class="fas fa-plus-circle"></i> הוספת מוצר חדש</h4>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <input type="text" id="npName" placeholder="שם המוצר" class="input-mobile p-2 text-sm border-gray-300">
+                    <input type="number" id="npPrice" placeholder="מחיר (₪)" class="input-mobile p-2 text-sm border-gray-300">
+                </div>
+                <div class="mb-3">
+                    <select id="npType" onchange="checkCustomWeight()" class="input-mobile p-2 text-sm bg-gray-50 border-gray-300">
+                        <option value="1000">המחיר הוא לקילו (1000 גרם)</option>
+                        <option value="1">המחיר הוא ליחידה בודדת</option>
+                        <option value="custom">משקל חבילה אחר...</option>
+                    </select>
+                    <input type="number" id="npWeightCustom" placeholder="משקל בגרמים" class="input-mobile p-2 text-sm mt-2 hidden border-green-500">
+                </div>
+                <button onclick="saveNewProduct()" class="w-full bg-green-600 text-white font-bold py-2 rounded-lg shadow-sm text-sm">שמור מוצר למאגר</button>
+            </div>
+            <div id="managerList" class="space-y-3 pb-20"></div>
         </div>
-
-        <div class="form-group">
-            <label>שם הפריט:</label>
-            <input type="text" id="itemName" placeholder="למשל: מחשב נייד">
-        </div>
-
-        <div class="form-group">
-            <label>תאריך:</label>
-            <input type="text" id="dateDisplay" readonly>
-        </div>
-
-        <div id="writeActions">
-            <button class="big-btn btn-action" onclick="writeTag()">לחץ כאן וגע בתג לצריבה</button>
-        </div>
-
-        <div id="nextBtnContainer">
-            <div id="statusMsg" class="success">הצריבה בוצעה בהצלחה!</div>
-            <button class="big-btn btn-write" onclick="prepareNext()">צרוב תג הבא >></button>
-        </div>
-
-        <button class="big-btn btn-back" onclick="showScreen('homeScreen')">חזרה לתפריט</button>
-        <div id="writeLog" style="margin-top:10px; font-weight:bold;"></div>
-    </div>
-
-    <div id="readScreen" class="screen">
-        <h2>סריקת נתונים</h2>
-        <p>הצמד את הטלפון לתג לקריאה...</p>
-        <div id="readResult">ממתין לסריקה...</div>
-        <button class="big-btn btn-back" onclick="showScreen('homeScreen')">חזרה לתפריט</button>
-    </div>
-
-    <div id="menusScreen" class="screen">
-        <h2>התפריטים שלי</h2>
-        <p>כאן יופיע מחשבון העלות והמתכונים שלך.</p>
-        <button class="big-btn btn-back" onclick="showScreen('homeScreen')">חזרה לתפריט</button>
-    </div>
-
-    <div id="settingsScreen" class="screen">
-        <h2>הגדרות מערכת</h2>
-        <p>אזור מוגבל למנהלים</p>
-        
-        <button class="big-btn btn-action" onclick="downloadCSV()">📥 הורד קובץ CSV</button>
-        <br>
-        <button class="big-btn btn-secondary" onclick="resetCounter()">0️⃣ איפוס מונה ל-6000001</button>
-        <br>
-        <button class="big-btn btn-secondary" onclick="wipeTag()">🗑️ מחיקת תג (Wipe)</button>
-
-        <div id="settingsLog"></div>
-
-        <button class="big-btn btn-back" onclick="showScreen('homeScreen')">יציאה</button>
     </div>
 
     <script>
-        const PASSWORD = "4451";
-        const START_INV = 6000001; 
-        let historyLog = JSON.parse(localStorage.getItem('nfcHistory')) || [];
-        let currentInv = parseInt(localStorage.getItem('currentInventory')) || START_INV;
+        // --- נתונים ---
+        const initialProducts = [
+            { id: 1, name: 'קמח', price: 4, weight: 1000 },
+            { id: 2, name: 'סוכר', price: 5.5, weight: 1000 },
+            { id: 3, name: 'אבקת אפיה', price: 0.5, weight: 1 }, 
+            { id: 4, name: 'סוכר וניל', price: 0.5, weight: 1 }, 
+            { id: 5, name: 'שמרים', price: 20, weight: 1000 },
+            { id: 6, name: 'שמן', price: 10, weight: 1000 },
+            { id: 7, name: 'שמנת מתוקה', price: 8, weight: 250 },
+            { id: 8, name: 'מלח', price: 2, weight: 1000 },
+            { id: 9, name: 'קקאו', price: 35, weight: 1000 },
+            { id: 10, name: 'שוקולית', price: 20, weight: 1000 },
+            { id: 11, name: 'ביצה', price: 1, weight: 1 },
+            { id: 12, name: 'מיץ תפוזים', price: 8, weight: 1500 },
+            { id: 13, name: 'אורז', price: 12, weight: 1000 },
+            { id: 14, name: 'פסטה', price: 10, weight: 1000 },
+            { id: 15, name: 'רסק עגבניות', price: 2, weight: 1 },
+            { id: 16, name: 'רוטב צ\'ילי', price: 15, weight: 1000 }
+        ];
 
-        let abortController = null;
+        const units = [
+            { name: 'גרם / מ"ל', val: 1 },
+            { name: 'יחידה / שקית', val: 1 },
+            { name: 'ספל', val: 300 },
+            { name: 'כוס ח"פ', val: 180 },
+            { name: 'כף', val: 20 },
+            { name: 'כפית', val: 10 },
+            { name: 'קילו', val: 1000 }
+        ];
 
-        // אתחול
-        document.getElementById('invNumber').value = currentInv;
-        document.getElementById('dateDisplay').value = new Date().toLocaleDateString('he-IL');
+        let products = [];
+        let combo = [];
+        let savedRecipes = [];
+        
+        window.onload = function() {
+            loadAllData();
+        };
 
-        document.getElementById('invNumber').addEventListener('change', (e) => {
-            currentInv = parseInt(e.target.value);
-            localStorage.setItem('currentInventory', currentInv);
-        });
-
-        // --- ניווט ---
-        function showScreen(screenId) {
-            if (abortController) {
-                abortController.abort();
-                abortController = null;
-            }
-
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
+        function loadAllData() {
+            const savedProds = localStorage.getItem('mob_products_clean');
+            products = savedProds ? JSON.parse(savedProds) : initialProducts;
             
-            if(screenId === 'writeScreen') {
-                document.getElementById('nextBtnContainer').style.display = 'none';
-                document.getElementById('writeActions').style.display = 'block';
-                document.getElementById('writeLog').innerText = '';
-            }
-            if(screenId === 'settingsScreen') {
-                document.getElementById('settingsLog').innerText = '';
-            }
+            const savedCombo = localStorage.getItem('mob_combo_clean');
+            combo = savedCombo ? JSON.parse(savedCombo) : [];
+            const savedTime = localStorage.getItem('mob_baking_time');
+            if(savedTime) document.getElementById('bakingMinutes').value = savedTime;
+
+            const savedRecs = localStorage.getItem('mob_saved_recipes');
+            savedRecipes = savedRecs ? JSON.parse(savedRecs) : [];
+
+            initUnitSelector();
+            setupAutocomplete();
+            renderCombo();
+            renderManagerList();
+            renderSavedRecipes();
+            calculate();
         }
 
-        function openSettings() {
-            const pass = prompt("הכנס סיסמת מנהל:");
-            if (pass === PASSWORD) {
-                showScreen('settingsScreen');
-            } else {
-                alert("סיסמה שגויה");
-            }
-        }
-
-        // --- צריבה ---
-        async function writeTag() {
-            const inv = document.getElementById('invNumber').value;
-            const serial = document.getElementById('serialNumber').value || "ללא";
-            const name = document.getElementById('itemName').value;
-            const date = document.getElementById('dateDisplay').value;
-
-            if (!name) return alert("חובה להזין שם פריט");
-            if (inv.length !== 7) return alert("מספר אינוונטר חייב להיות 7 ספרות בדיוק");
-
-            const dataObj = { inv, serial, name, date };
-            const jsonString = JSON.stringify(dataObj);
-
-            if (!('NDEFReader' in window)) return alert("NFC לא נתמך בדפדפן זה.");
-
-            if (abortController) abortController.abort();
-            abortController = new AbortController();
-
-            try {
-                const ndef = new NDEFReader();
-                document.getElementById('writeLog').innerText = "ממתין לתג לצריבה...";
-                document.getElementById('writeLog').style.color = "blue";
-
-                await ndef.scan({ signal: abortController.signal });
-
-                ndef.onreading = async (event) => {
-                    abortController.abort(); 
-                    abortController = null;
-
-                    try {
-                        const newNdef = new NDEFReader(); 
-                        await newNdef.write({
-                            records: [{ recordType: "text", data: jsonString }]
-                        });
-                        
-                        saveToHistory(dataObj);
-                        
-                        document.getElementById('writeLog').innerText = "";
-                        document.getElementById('writeActions').style.display = 'none';
-                        document.getElementById('nextBtnContainer').style.display = 'block';
-                        
-                    } catch (writeError) {
-                        alert("שגיאה בכתיבה: " + writeError);
-                        showScreen('writeScreen');
-                    }
-                };
-            } catch (error) {
-                if (error.name === 'AbortError') return;
-                alert("שגיאה בהפעלת NFC: " + error);
+        // --- לוגיקת מסכים ---
+        function toggleSettings() {
+            const el = document.getElementById('settingsPage');
+            el.classList.toggle('open');
+            // סגור את המתכונים אם פתוח
+            document.getElementById('recipesPage').classList.remove('open');
+            if (el.classList.contains('open')) {
+                renderManagerList();
             }
         }
 
-        function prepareNext() {
-            currentInv++;
-            localStorage.setItem('currentInventory', currentInv);
-            document.getElementById('invNumber').value = currentInv;
-            document.getElementById('serialNumber').value = '';
-            
-            document.getElementById('nextBtnContainer').style.display = 'none';
-            document.getElementById('writeActions').style.display = 'block';
+        function toggleRecipes() {
+            const el = document.getElementById('recipesPage');
+            el.classList.toggle('open');
+            // סגור את ההגדרות אם פתוח
+            document.getElementById('settingsPage').classList.remove('open');
+            if (el.classList.contains('open')) {
+                renderSavedRecipes();
+            }
         }
 
-        function saveToHistory(data) {
-            historyLog.push(data);
-            localStorage.setItem('nfcHistory', JSON.stringify(historyLog));
+        // --- לוגיקת גיבוי ושחזור ---
+        function exportData() {
+            const dataToSave = {
+                products: localStorage.getItem('mob_products_clean') || JSON.stringify(initialProducts),
+                recipes: localStorage.getItem('mob_saved_recipes') || '[]',
+                currentCombo: localStorage.getItem('mob_combo_clean') || '[]',
+                bakingTime: localStorage.getItem('mob_baking_time') || ''
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToSave));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "recipe_backup.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
         }
 
-        // --- קריאה ---
-        async function startScan() {
-            if (!('NDEFReader' in window)) return;
-            
-            if (abortController) abortController.abort();
-            abortController = new AbortController();
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
 
-            try {
-                const ndef = new NDEFReader();
-                await ndef.scan({ signal: abortController.signal });
-                document.getElementById('readResult').innerText = "ממתין להצמדת תג...";
-                
-                ndef.onreadingerror = () => {
-                    document.getElementById('readResult').innerText = "שגיאה בקריאת התג.";
-                };
-
-                ndef.onreading = event => {
-                    const record = event.message.records[0];
-                    if (!record || !record.data) {
-                         document.getElementById('readResult').innerText = "תג ריק";
-                         return;
-                    }
-                    const textDecoder = new TextDecoder(record.encoding);
-                    const data = textDecoder.decode(record.data);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
                     
-                    try {
-                        if (!data || data.trim() === "") {
-                             document.getElementById('readResult').innerText = "התג ריק";
-                             return;
-                        }
-
-                        const parsed = JSON.parse(data);
-                        document.getElementById('readResult').innerHTML = `
-                            <strong>מספר אינוונטר:</strong> ${parsed.inv}<br>
-                            <strong>שם פריט:</strong> ${parsed.name}<br>
-                            <strong>מספר סידורי:</strong> ${parsed.serial}<br>
-                            <strong>תאריך:</strong> ${parsed.date}
-                        `;
-                    } catch (e) {
-                        document.getElementById('readResult').innerText = "מידע גולמי: " + data;
+                    if(confirm("פעולה זו תדרוס את כל הנתונים הנוכחיים ותחליף אותם בנתונים מהגיבוי. להמשיך?")) {
+                        if(data.products) localStorage.setItem('mob_products_clean', data.products);
+                        if(data.recipes) localStorage.setItem('mob_saved_recipes', data.recipes);
+                        if(data.currentCombo) localStorage.setItem('mob_combo_clean', data.currentCombo);
+                        if(data.bakingTime) localStorage.setItem('mob_baking_time', data.bakingTime);
+                        
+                        alert("הנתונים שוחזרו בהצלחה!");
+                        location.reload();
                     }
-                };
-            } catch (error) {
-                if (error.name === 'AbortError') return;
-                console.log(error);
+                } catch (err) {
+                    alert("שגיאה בקריאת הקובץ.");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        // --- לוגיקה לחיפוש חכם ---
+        function setupAutocomplete() {
+            const inp = document.getElementById("productInput");
+            
+            inp.addEventListener("input", function(e) {
+                const val = this.value;
+                const listDiv = document.getElementById("autocomplete-list");
+                listDiv.innerHTML = "";
+                document.getElementById("selectedProductId").value = "";
+
+                if (!val) {
+                    listDiv.classList.add("hidden");
+                    return false;
+                }
+
+                let matches = 0;
+                products.forEach(p => {
+                    if (p.name.includes(val) || p.name.toLowerCase().includes(val.toLowerCase())) {
+                        const itemDiv = document.createElement("DIV");
+                        itemDiv.innerHTML = p.name + " <span class='text-xs text-gray-400'>(" + p.price + "₪)</span>";
+                        itemDiv.innerHTML += "<input type='hidden' value='" + p.name + "'>";
+                        itemDiv.addEventListener("click", function(e) {
+                            inp.value = p.name;
+                            document.getElementById("selectedProductId").value = p.id;
+                            listDiv.innerHTML = "";
+                            listDiv.classList.add("hidden");
+                        });
+                        listDiv.appendChild(itemDiv);
+                        matches++;
+                    }
+                });
+
+                if (matches > 0) listDiv.classList.remove("hidden");
+                else listDiv.classList.add("hidden");
+            });
+        }
+
+        function closeAllLists(elmnt) {
+            const inp = document.getElementById("productInput");
+            if (elmnt.target != inp) {
+                 document.getElementById("autocomplete-list").classList.add("hidden");
             }
         }
 
-        // --- הורדת CSV (עם תיקון עברית) ---
-        function downloadCSV() {
-            if (historyLog.length === 0) return alert("אין נתונים לייצוא");
-            
-            let csvContent = "Inventory,Serial,Item Name,Date\n";
-            historyLog.forEach(row => {
-                let safeName = row.name.replace(/,/g, " "); 
-                let safeSerial = row.serial.replace(/,/g, " ");
-                csvContent += `${row.inv},${safeSerial},${safeName},${row.date}\n`;
+        function initUnitSelector() {
+            const unitSel = document.getElementById('unitSelect');
+            if(unitSel.innerHTML === "") {
+                unitSel.innerHTML = units.map((u, i) => `<option value="${i}">${u.name}</option>`).join('');
+            }
+        }
+
+        function addItem() {
+            const prodId = document.getElementById('selectedProductId').value;
+            const unitIdx = document.getElementById('unitSelect').value;
+            const qty = parseFloat(document.getElementById('qtyInput').value);
+
+            if (!prodId) {
+                alert("אנא בחר מוצר מהרשימה");
+                return;
+            }
+
+            if(!qty) {
+                alert("חסרה כמות");
+                return;
+            }
+
+            const prod = products.find(p => p.id == prodId);
+            const unit = units[unitIdx];
+
+            if (!prod) return;
+
+            const cost = (prod.price / prod.weight) * (unit.val * qty);
+
+            combo.push({
+                id: Date.now(),
+                prodId: prod.id,
+                unitIdx: unitIdx,
+                name: prod.name,
+                qty: qty,
+                qtyDisplay: `${qty} ${unit.name}`,
+                cost: cost
             });
 
-            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", "nfc_inventory_" + new Date().toISOString().slice(0,10) + ".csv");
-            link.style.visibility = 'hidden';
+            saveData();
+            renderCombo();
             
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            document.getElementById('qtyInput').value = '';
+            document.getElementById('productInput').value = '';
+            document.getElementById('selectedProductId').value = '';
         }
 
-        // --- מחיקה ---
-        async function wipeTag() {
-            if (abortController) {
-                abortController.abort();
-                abortController = null;
+        function renderCombo() {
+            const list = document.getElementById('comboList');
+            if(combo.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-400 py-4 text-sm">הרשימה ריקה...</div>`;
+            } else {
+                list.innerHTML = combo.map(item => `
+                    <div class="bg-white p-3 rounded-xl shadow-sm flex justify-between items-center border-r-4 border-indigo-500">
+                        <div>
+                            <div class="font-bold text-gray-800">${item.name}</div>
+                            <div class="text-xs text-gray-500">${item.qtyDisplay}</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="deleteItem(${item.id})" class="text-red-400 bg-red-50 p-2 rounded-full w-8 h-8 flex items-center justify-center">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            calculate();
+        }
+
+        function deleteItem(id) {
+            combo = combo.filter(i => i.id !== id);
+            saveData();
+            renderCombo();
+        }
+
+        function calculate() {
+            let total = combo.reduce((s, i) => s + i.cost, 0);
+            const mins = parseFloat(document.getElementById('bakingMinutes').value) || 0;
+            const elecCost = 2 * (mins / 60) * 0.64; 
+            total += elecCost;
+            document.getElementById('totalPrice').innerText = total.toFixed(2);
+        }
+
+        function saveData() {
+            localStorage.setItem('mob_products_clean', JSON.stringify(products));
+            localStorage.setItem('mob_combo_clean', JSON.stringify(combo));
+            localStorage.setItem('mob_baking_time', document.getElementById('bakingMinutes').value);
+        }
+        
+        function clearAll() {
+            if(confirm("לנקות את המסך ולהתחיל מחדש?")) {
+                combo = [];
+                document.getElementById('bakingMinutes').value = '';
+                saveData();
+                renderCombo();
+            }
+        }
+
+        function saveCurrentRecipe() {
+            if(combo.length === 0) {
+                alert("הרשימה ריקה.");
+                return;
+            }
+            const recipeName = prompt("תן שם למתכון:");
+            if(!recipeName) return;
+
+            const newRecipe = {
+                id: Date.now(),
+                name: recipeName,
+                items: combo.map(item => ({
+                    prodId: item.prodId, 
+                    unitIdx: item.unitIdx, 
+                    qty: item.qty 
+                })),
+                bakingTime: document.getElementById('bakingMinutes').value
+            };
+
+            savedRecipes.push(newRecipe);
+            localStorage.setItem('mob_saved_recipes', JSON.stringify(savedRecipes));
+            renderSavedRecipes();
+            alert(`נשמר!`);
+        }
+
+        function renderSavedRecipes() {
+            const list = document.getElementById('savedRecipesList');
+            const msg = document.getElementById('noRecipesMsg');
+            
+            if(savedRecipes.length === 0) {
+                list.innerHTML = '';
+                msg.classList.remove('hidden');
+                return;
             }
 
-            const pass = prompt("פעולה זו תמחק את התג לצמיתות. אשר בסיסמה 4451:");
-            if (pass !== PASSWORD) return; 
+            msg.classList.add('hidden');
+            list.innerHTML = savedRecipes.map(r => `
+                <div class="bg-white p-3 rounded-lg shadow-sm border border-blue-100 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-gray-800 text-lg">${r.name}</div>
+                        <div class="text-xs text-gray-500">${r.items.length} רכיבים • ${r.bakingTime || 0} דק' אפייה</div>
+                    </div>
+                    <div class="flex gap-2">
+                         <button onclick="loadRecipe(${r.id})" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700">
+                            טען
+                        </button>
+                        <button onclick="deleteRecipe(${r.id})" class="text-red-400 p-2 hover:text-red-600">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
 
-            const logDiv = document.getElementById('settingsLog');
-            logDiv.innerText = "מפעיל סורק למחיקה... הצמד תג כעת!";
-            logDiv.style.color = "blue";
+        function loadRecipe(id) {
+            const recipe = savedRecipes.find(r => r.id === id);
+            if(!recipe) return;
 
-            try {
-                const ndef = new NDEFReader();
-                await ndef.write({ 
-                    records: [{ recordType: "text", data: "" }] 
-                });
-                
-                logDiv.innerText = "התג אופס בהצלחה! (נמחק)";
-                logDiv.style.color = "green";
-                if (navigator.vibrate) navigator.vibrate(200);
+            if(combo.length > 0 && !confirm("המסך לא ריק. לדרוס?")) return;
 
-            } catch (e) {
-                logDiv.innerText = "שגיאה: " + e;
-                logDiv.style.color = "red";
+            combo = [];
+            recipe.items.forEach(savedItem => {
+                const prod = products.find(p => p.id == savedItem.prodId);
+                const unit = units[savedItem.unitIdx];
+                if (prod && unit) {
+                    const cost = (prod.price / prod.weight) * (unit.val * savedItem.qty);
+                    combo.push({
+                        id: Date.now() + Math.random(),
+                        prodId: prod.id,
+                        unitIdx: savedItem.unitIdx,
+                        name: prod.name,
+                        qty: savedItem.qty,
+                        qtyDisplay: `${savedItem.qty} ${unit.name}`,
+                        cost: cost
+                    });
+                }
+            });
+
+            document.getElementById('bakingMinutes').value = recipe.bakingTime || '';
+            saveData();
+            renderCombo();
+            // סגירת מסך מתכונים
+            toggleRecipes();
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        function deleteRecipe(id) {
+            if(confirm("למחוק מתכון זה?")) {
+                savedRecipes = savedRecipes.filter(r => r.id !== id);
+                localStorage.setItem('mob_saved_recipes', JSON.stringify(savedRecipes));
+                renderSavedRecipes();
             }
         }
 
-        function resetCounter() {
-            const pass = prompt("פעולה זו תאפס את המונה ל-6000001. אשר בסיסמה 4451:");
-            if (pass !== PASSWORD) return alert("סיסמה שגויה");
-
-            currentInv = START_INV;
-            localStorage.setItem('currentInventory', currentInv);
-            document.getElementById('invNumber').value = currentInv;
-            alert("המונה אופס בהצלחה!");
+        function checkCustomWeight() {
+            const type = document.getElementById('npType').value;
+            const customInput = document.getElementById('npWeightCustom');
+            if(type === 'custom') customInput.classList.remove('hidden');
+            else customInput.classList.add('hidden');
         }
 
+        function saveNewProduct() {
+            const name = document.getElementById('npName').value;
+            const price = parseFloat(document.getElementById('npPrice').value);
+            const type = document.getElementById('npType').value;
+            let weight = (type === 'custom') ? parseFloat(document.getElementById('npWeightCustom').value) : parseFloat(type);
+
+            if(name && price && weight) {
+                products.push({ id: Date.now(), name, price, weight });
+                localStorage.setItem('mob_products_clean', JSON.stringify(products)); 
+                renderManagerList();
+                document.getElementById('npName').value = '';
+                document.getElementById('npPrice').value = '';
+                alert('מוצר נוסף בהצלחה');
+            } else {
+                alert('חסרים נתונים');
+            }
+        }
+
+        function renderManagerList() {
+            const list = document.getElementById('managerList');
+            list.innerHTML = products.map(p => {
+                let unitText = p.weight === 1000 ? 'לקילו' : (p.weight === 1 ? 'ליחידה' : `ל-${p.weight} גרם`);
+                return `
+                <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex items-center gap-2">
+                    <div class="flex-1">
+                        <input type="text" id="name-${p.id}" value="${p.name}" class="w-full border-b border-gray-200 py-1 font-bold text-gray-700 focus:outline-none">
+                    </div>
+                    <div class="w-20">
+                        <input type="number" id="price-${p.id}" value="${p.price}" class="w-full border-b border-gray-200 py-1 font-bold text-gray-700 focus:outline-none">
+                    </div>
+                    <div class="text-xs text-gray-400 w-16 text-center pt-4 leading-tight">${unitText}</div>
+                    <div class="flex gap-1 pt-3">
+                        <button onclick="updateProduct(${p.id})" class="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full">
+                            <i class="fas fa-save"></i>
+                        </button>
+                        <button onclick="removeProduct(${p.id})" class="bg-red-50 text-red-500 w-8 h-8 rounded-full">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function updateProduct(id) {
+            const newName = document.getElementById(`name-${id}`).value;
+            const newPrice = parseFloat(document.getElementById(`price-${id}`).value);
+            const prod = products.find(p => p.id === id);
+            if(prod && newName && newPrice) {
+                prod.name = newName;
+                prod.price = newPrice;
+                localStorage.setItem('mob_products_clean', JSON.stringify(products));
+                alert('עודכן!');
+            }
+        }
+
+        function removeProduct(id) {
+            if(confirm("למחוק מוצר זה?")) {
+                products = products.filter(p => p.id !== id);
+                localStorage.setItem('mob_products_clean', JSON.stringify(products));
+                renderManagerList();
+            }
+        }
     </script>
 </body>
 </html>
