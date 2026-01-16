@@ -29,7 +29,6 @@
         }
         .settings-modal.open { transform: translateY(0); }
 
-        /* עיצוב רשימת ההשלמה האוטומטית */
         .autocomplete-items {
             position: absolute;
             border: 1px solid #d4d4d4;
@@ -53,17 +52,12 @@
         .autocomplete-items div:hover {
             background-color: #e9e9e9; 
         }
-        .autocomplete-active {
-            background-color: DodgerBlue !important; 
-            color: #ffffff; 
-        }
     </style>
 </head>
 <body onclick="closeAllLists(event)">
 
     <div class="bg-indigo-600 text-white p-4 pt-6 sticky top-0 z-30 shadow-md flex justify-between items-center">
         <h1 class="text-xl font-bold">מחשבון עלות <i class="fas fa-utensils mr-2"></i></h1>
-        
         <div class="flex gap-3">
             <button onclick="clearAll()" class="text-white bg-indigo-500 p-2 rounded-full w-10 h-10 shadow-lg hover:bg-red-500 transition-colors" title="רשימה חדשה">
                 <i class="fas fa-redo-alt fa-lg"></i>
@@ -80,7 +74,8 @@
             
             <div class="relative mb-3">
                 <input type="text" id="productInput" placeholder="התחל להקליד שם מוצר..." class="input-mobile bg-indigo-50 border-indigo-200 font-medium placeholder-gray-400" autocomplete="off">
-                <input type="hidden" id="selectedProductId"> <div id="autocomplete-list" class="autocomplete-items hidden"></div>
+                <input type="hidden" id="selectedProductId">
+                <div id="autocomplete-list" class="autocomplete-items hidden"></div>
             </div>
 
             <div class="flex gap-2 items-end">
@@ -136,6 +131,20 @@
             <button onclick="toggleSettings()" class="bg-gray-200 text-gray-600 rounded-full w-10 h-10 font-bold">
                 <i class="fas fa-times"></i>
             </button>
+        </div>
+
+        <div class="mb-8 bg-gray-100 p-4 rounded-xl border border-gray-300">
+            <h3 class="font-bold text-lg text-gray-700 mb-3"><i class="fas fa-save mr-2"></i> גיבוי ושחזור נתונים</h3>
+            <div class="flex gap-2">
+                <button onclick="exportData()" class="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm font-bold shadow hover:bg-gray-800">
+                    <i class="fas fa-download"></i> שמור גיבוי לקובץ
+                </button>
+                <button onclick="document.getElementById('fileInput').click()" class="flex-1 bg-gray-700 text-white py-2 rounded-lg text-sm font-bold shadow hover:bg-gray-800">
+                    <i class="fas fa-upload"></i> שחזר מגיבוי
+                </button>
+                <input type="file" id="fileInput" class="hidden" onchange="importData(this)">
+            </div>
+            <div class="text-xs text-gray-500 mt-2">שומר את כל המוצרים, המתכונים והמחירים לקובץ במכשיר.</div>
         </div>
 
         <div class="mb-8">
@@ -204,6 +213,10 @@
         let savedRecipes = [];
         
         window.onload = function() {
+            loadAllData();
+        };
+
+        function loadAllData() {
             const savedProds = localStorage.getItem('mob_products_clean');
             products = savedProds ? JSON.parse(savedProds) : initialProducts;
             
@@ -215,15 +228,60 @@
             const savedRecs = localStorage.getItem('mob_saved_recipes');
             savedRecipes = savedRecs ? JSON.parse(savedRecs) : [];
 
-            initUnitSelector(); // טעינת יחידות
-            setupAutocomplete(); // הפעלת מנגנון החיפוש
+            initUnitSelector();
+            setupAutocomplete();
             renderCombo();
             renderManagerList();
             renderSavedRecipes();
             calculate();
-        };
+        }
 
-        // --- לוגיקה לחיפוש חכם (Autocomplete) ---
+        // --- לוגיקת גיבוי ושחזור ---
+        function exportData() {
+            const dataToSave = {
+                products: localStorage.getItem('mob_products_clean') || JSON.stringify(initialProducts),
+                recipes: localStorage.getItem('mob_saved_recipes') || '[]',
+                currentCombo: localStorage.getItem('mob_combo_clean') || '[]',
+                bakingTime: localStorage.getItem('mob_baking_time') || ''
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToSave));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "recipe_backup.json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if(confirm("פעולה זו תדרוס את כל הנתונים הנוכחיים ותחליף אותם בנתונים מהגיבוי. להמשיך?")) {
+                        if(data.products) localStorage.setItem('mob_products_clean', data.products);
+                        if(data.recipes) localStorage.setItem('mob_saved_recipes', data.recipes);
+                        if(data.currentCombo) localStorage.setItem('mob_combo_clean', data.currentCombo);
+                        if(data.bakingTime) localStorage.setItem('mob_baking_time', data.bakingTime);
+                        
+                        alert("הנתונים שוחזרו בהצלחה!");
+                        location.reload(); // רענון הדף לטעינת הנתונים החדשים
+                    }
+                } catch (err) {
+                    alert("שגיאה בקריאת הקובץ. וודא שזהו קובץ גיבוי תקין.");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; // איפוס האינפוט כדי שאפשר יהיה לבחור אותו קובץ שוב
+        }
+
+        // --- לוגיקה לחיפוש חכם ---
         function setupAutocomplete() {
             const inp = document.getElementById("productInput");
             
@@ -231,7 +289,7 @@
                 const val = this.value;
                 const listDiv = document.getElementById("autocomplete-list");
                 listDiv.innerHTML = "";
-                document.getElementById("selectedProductId").value = ""; // איפוס בחירה אם מקלידים
+                document.getElementById("selectedProductId").value = "";
 
                 if (!val) {
                     listDiv.classList.add("hidden");
@@ -240,15 +298,13 @@
 
                 let matches = 0;
                 products.forEach(p => {
-                    // חיפוש אם הטקסט קיים בשם המוצר
                     if (p.name.includes(val) || p.name.toLowerCase().includes(val.toLowerCase())) {
                         const itemDiv = document.createElement("DIV");
-                        // הדגשת החלק שתואם
                         itemDiv.innerHTML = p.name + " <span class='text-xs text-gray-400'>(" + p.price + "₪)</span>";
                         itemDiv.innerHTML += "<input type='hidden' value='" + p.name + "'>";
                         itemDiv.addEventListener("click", function(e) {
-                            inp.value = p.name; // השלם את השם בתיבה
-                            document.getElementById("selectedProductId").value = p.id; // שמור את ה-ID
+                            inp.value = p.name;
+                            document.getElementById("selectedProductId").value = p.id;
                             listDiv.innerHTML = "";
                             listDiv.classList.add("hidden");
                         });
@@ -257,18 +313,12 @@
                     }
                 });
 
-                if (matches > 0) {
-                    listDiv.classList.remove("hidden");
-                } else {
-                    listDiv.classList.add("hidden");
-                }
+                if (matches > 0) listDiv.classList.remove("hidden");
+                else listDiv.classList.add("hidden");
             });
 
-            // פתיחת רשימה גם בלחיצה אם התיבה ריקה
             inp.addEventListener("click", function(){
-                if(this.value === "") {
-                   // אפשר להציג את כל המוצרים או האחרונים, כרגע נשאיר ריק למניעת עומס
-                }
+                // אופציונלי: פתיחת רשימה מלאה
             });
         }
 
@@ -287,7 +337,6 @@
         }
 
         function addItem() {
-            // שינוי: קריאת ה-ID מהשדה הנסתר ולא מה-Select
             const prodId = document.getElementById('selectedProductId').value;
             const unitIdx = document.getElementById('unitSelect').value;
             const qty = parseFloat(document.getElementById('qtyInput').value);
@@ -305,10 +354,7 @@
             const prod = products.find(p => p.id == prodId);
             const unit = units[unitIdx];
 
-            if (!prod) {
-                alert("שגיאה בזיהוי המוצר");
-                return;
-            }
+            if (!prod) return;
 
             const cost = (prod.price / prod.weight) * (unit.val * qty);
 
@@ -325,13 +371,10 @@
             saveData();
             renderCombo();
             
-            // איפוס שדות
             document.getElementById('qtyInput').value = '';
             document.getElementById('productInput').value = '';
             document.getElementById('selectedProductId').value = '';
         }
-
-        // --- שאר הפונקציות (ללא שינוי מהותי) ---
 
         function renderCombo() {
             const list = document.getElementById('comboList');
@@ -501,7 +544,7 @@
 
             if(name && price && weight) {
                 products.push({ id: Date.now(), name, price, weight });
-                localStorage.setItem('mob_products_clean', JSON.stringify(products)); // עדכון ישיר
+                localStorage.setItem('mob_products_clean', JSON.stringify(products)); 
                 renderManagerList();
                 document.getElementById('npName').value = '';
                 document.getElementById('npPrice').value = '';
