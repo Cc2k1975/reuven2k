@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מחשבון מתכונים חכם</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; -webkit-tap-highlight-color: transparent; padding-bottom: 150px; }
+        .btn-press:active { transform: scale(0.95); }
+        .input-mobile { font-size: 16px; padding: 12px; border-radius: 12px; border: 1px solid #ddd; width: 100%; background: #fff; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 16px; margin-bottom: 12px; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .sticky-footer {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #1f2937; color: white;
+            padding: 16px; border-top-left-radius: 20px; border-top-right-radius: 20px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.2); z-index: 40;
+        }
+
+        .settings-modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: #f8fafc; z-index: 100;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .settings-modal.open { transform: translateY(0); }
+
+        /* עיצוב רשימת ההשלמה האוטומטית */
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #d4d4d4;
+            border-bottom: none;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            border-radius: 0 0 12px 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .autocomplete-items div {
+            padding: 10px;
+            cursor: pointer;
+            background-color: #fff;
+            border-bottom: 1px solid #d4d4d4;
+        }
+        .autocomplete-items div:hover {
+            background-color: #e9e9e9; 
+        }
+        .autocomplete-active {
+            background-color: DodgerBlue !important; 
+            color: #ffffff; 
+        }
+    </style>
+</head>
+<body onclick="closeAllLists(event)">
+
+    <div class="bg-indigo-600 text-white p-4 pt-6 sticky top-0 z-30 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-bold">מחשבון עלות <i class="fas fa-utensils mr-2"></i></h1>
+        
+        <div class="flex gap-3">
+            <button onclick="clearAll()" class="text-white bg-indigo-500 p-2 rounded-full w-10 h-10 shadow-lg hover:bg-red-500 transition-colors" title="רשימה חדשה">
+                <i class="fas fa-redo-alt fa-lg"></i>
+            </button>
+            <button onclick="toggleSettings()" class="text-white bg-indigo-500 p-2 rounded-full w-10 h-10 shadow-lg hover:bg-indigo-400">
+                <i class="fas fa-cog fa-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="p-4 max-w-md mx-auto">
+        <div class="card border-2 border-indigo-100 overflow-visible relative">
+            <div class="mb-2 text-sm font-bold text-gray-500">הוספת רכיב למתכון:</div>
+            
+            <div class="relative mb-3">
+                <input type="text" id="productInput" placeholder="התחל להקליד שם מוצר..." class="input-mobile bg-indigo-50 border-indigo-200 font-medium placeholder-gray-400" autocomplete="off">
+                <input type="hidden" id="selectedProductId"> <div id="autocomplete-list" class="autocomplete-items hidden"></div>
+            </div>
+
+            <div class="flex gap-2 items-end">
+                <div class="flex-1">
+                    <label class="text-xs text-gray-400">כמות</label>
+                    <input type="number" id="qtyInput" placeholder="0" class="input-mobile text-center font-bold text-xl">
+                </div>
+                <div class="flex-1">
+                    <label class="text-xs text-gray-400">יחידה</label>
+                    <select id="unitSelect" class="input-mobile text-sm"></select>
+                </div>
+            </div>
+
+            <button onclick="addItem()" class="w-full bg-indigo-600 text-white text-lg font-bold py-3 rounded-xl mt-4 shadow-lg btn-press flex justify-center items-center gap-2">
+                <i class="fas fa-arrow-down"></i> הוסף לקומבו
+            </button>
+        </div>
+
+        <div id="comboList" class="space-y-2 pb-4"></div>
+
+        <div class="card mt-6 bg-orange-50 border border-orange-100">
+            <div class="flex items-center gap-3">
+                <div class="bg-orange-200 p-2 rounded-full text-orange-700">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="font-bold text-gray-700">זמן אפייה/בישול (דקות)</div>
+            </div>
+            <div class="mt-3">
+                <input type="number" id="bakingMinutes" oninput="calculate()" placeholder="0" class="input-mobile text-center font-bold bg-white">
+            </div>
+        </div>
+    </div>
+
+    <div class="sticky-footer">
+        <div class="flex justify-between items-end">
+            <div>
+                <div class="text-gray-400 text-xs mb-1">סה"כ עלות סופית</div>
+                <div class="text-3xl font-bold leading-none text-green-400">
+                    <span id="totalPrice">0.00</span> ₪
+                </div>
+            </div>
+            <div class="text-right flex gap-2">
+                <button onclick="saveCurrentRecipe()" class="bg-blue-600 hover:bg-blue-500 p-3 rounded-lg text-white shadow-lg btn-press flex items-center gap-2">
+                    <i class="fas fa-save"></i> שמור מתכון
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsPage" class="settings-modal p-4">
+        <div class="flex justify-between items-center mb-6 border-b pb-4 sticky top-0 bg-[#f8fafc] z-10 pt-2">
+            <h2 class="text-2xl font-bold text-gray-800">ניהול ומתכונים</h2>
+            <button onclick="toggleSettings()" class="bg-gray-200 text-gray-600 rounded-full w-10 h-10 font-bold">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="mb-8">
+            <h3 class="font-bold text-xl text-blue-700 mb-3 border-r-4 border-blue-500 pr-2">המתכונים שלי</h3>
+            <div id="savedRecipesList" class="space-y-3"></div>
+            <div id="noRecipesMsg" class="text-gray-400 text-sm text-center py-4 hidden">אין עדיין מתכונים שמורים</div>
+        </div>
+        
+        <hr class="border-gray-300 mb-8">
+
+        <div class="mb-4">
+            <h3 class="font-bold text-xl text-indigo-700 mb-3 border-r-4 border-indigo-500 pr-2">ניהול מוצרים</h3>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-green-200 mb-6">
+                <h4 class="font-bold text-green-700 mb-2 text-sm"><i class="fas fa-plus-circle"></i> הוספת מוצר חדש</h4>
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <input type="text" id="npName" placeholder="שם המוצר" class="input-mobile p-2 text-sm border-gray-300">
+                    <input type="number" id="npPrice" placeholder="מחיר (₪)" class="input-mobile p-2 text-sm border-gray-300">
+                </div>
+                <div class="mb-3">
+                    <select id="npType" onchange="checkCustomWeight()" class="input-mobile p-2 text-sm bg-gray-50 border-gray-300">
+                        <option value="1000">המחיר הוא לקילו (1000 גרם)</option>
+                        <option value="1">המחיר הוא ליחידה בודדת</option>
+                        <option value="custom">משקל חבילה אחר...</option>
+                    </select>
+                    <input type="number" id="npWeightCustom" placeholder="משקל בגרמים" class="input-mobile p-2 text-sm mt-2 hidden border-green-500">
+                </div>
+                <button onclick="saveNewProduct()" class="w-full bg-green-600 text-white font-bold py-2 rounded-lg shadow-sm text-sm">שמור מוצר למאגר</button>
+            </div>
+            <div id="managerList" class="space-y-3 pb-20"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- נתונים ---
+        const initialProducts = [
+            { id: 1, name: 'קמח', price: 4, weight: 1000 },
+            { id: 2, name: 'סוכר', price: 5.5, weight: 1000 },
+            { id: 3, name: 'אבקת אפיה', price: 0.5, weight: 1 }, 
+            { id: 4, name: 'סוכר וניל', price: 0.5, weight: 1 }, 
+            { id: 5, name: 'שמרים', price: 20, weight: 1000 },
+            { id: 6, name: 'שמן', price: 10, weight: 1000 },
+            { id: 7, name: 'שמנת מתוקה', price: 8, weight: 250 },
+            { id: 8, name: 'מלח', price: 2, weight: 1000 },
+            { id: 9, name: 'קקאו', price: 35, weight: 1000 },
+            { id: 10, name: 'שוקולית', price: 20, weight: 1000 },
+            { id: 11, name: 'ביצה', price: 1, weight: 1 },
+            { id: 12, name: 'מיץ תפוזים', price: 8, weight: 1500 },
+            { id: 13, name: 'אורז', price: 12, weight: 1000 },
+            { id: 14, name: 'פסטה', price: 10, weight: 1000 },
+            { id: 15, name: 'רסק עגבניות', price: 2, weight: 1 },
+            { id: 16, name: 'רוטב צ\'ילי', price: 15, weight: 1000 }
+        ];
+
+        const units = [
+            { name: 'גרם / מ"ל', val: 1 },
+            { name: 'יחידה / שקית', val: 1 },
+            { name: 'ספל', val: 300 },
+            { name: 'כוס ח"פ', val: 180 },
+            { name: 'כף', val: 20 },
+            { name: 'כפית', val: 10 },
+            { name: 'קילו', val: 1000 }
+        ];
+
+        let products = [];
+        let combo = [];
+        let savedRecipes = [];
+        
+        window.onload = function() {
+            const savedProds = localStorage.getItem('mob_products_clean');
+            products = savedProds ? JSON.parse(savedProds) : initialProducts;
+            
+            const savedCombo = localStorage.getItem('mob_combo_clean');
+            combo = savedCombo ? JSON.parse(savedCombo) : [];
+            const savedTime = localStorage.getItem('mob_baking_time');
+            if(savedTime) document.getElementById('bakingMinutes').value = savedTime;
+
+            const savedRecs = localStorage.getItem('mob_saved_recipes');
+            savedRecipes = savedRecs ? JSON.parse(savedRecs) : [];
+
+            initUnitSelector(); // טעינת יחידות
+            setupAutocomplete(); // הפעלת מנגנון החיפוש
+            renderCombo();
+            renderManagerList();
+            renderSavedRecipes();
+            calculate();
+        };
+
+        // --- לוגיקה לחיפוש חכם (Autocomplete) ---
+        function setupAutocomplete() {
+            const inp = document.getElementById("productInput");
+            
+            inp.addEventListener("input", function(e) {
+                const val = this.value;
+                const listDiv = document.getElementById("autocomplete-list");
+                listDiv.innerHTML = "";
+                document.getElementById("selectedProductId").value = ""; // איפוס בחירה אם מקלידים
+
+                if (!val) {
+                    listDiv.classList.add("hidden");
+                    return false;
+                }
+
+                let matches = 0;
+                products.forEach(p => {
+                    // חיפוש אם הטקסט קיים בשם המוצר
+                    if (p.name.includes(val) || p.name.toLowerCase().includes(val.toLowerCase())) {
+                        const itemDiv = document.createElement("DIV");
+                        // הדגשת החלק שתואם
+                        itemDiv.innerHTML = p.name + " <span class='text-xs text-gray-400'>(" + p.price + "₪)</span>";
+                        itemDiv.innerHTML += "<input type='hidden' value='" + p.name + "'>";
+                        itemDiv.addEventListener("click", function(e) {
+                            inp.value = p.name; // השלם את השם בתיבה
+                            document.getElementById("selectedProductId").value = p.id; // שמור את ה-ID
+                            listDiv.innerHTML = "";
+                            listDiv.classList.add("hidden");
+                        });
+                        listDiv.appendChild(itemDiv);
+                        matches++;
+                    }
+                });
+
+                if (matches > 0) {
+                    listDiv.classList.remove("hidden");
+                } else {
+                    listDiv.classList.add("hidden");
+                }
+            });
+
+            // פתיחת רשימה גם בלחיצה אם התיבה ריקה
+            inp.addEventListener("click", function(){
+                if(this.value === "") {
+                   // אפשר להציג את כל המוצרים או האחרונים, כרגע נשאיר ריק למניעת עומס
+                }
+            });
+        }
+
+        function closeAllLists(elmnt) {
+            const inp = document.getElementById("productInput");
+            if (elmnt.target != inp) {
+                 document.getElementById("autocomplete-list").classList.add("hidden");
+            }
+        }
+
+        function initUnitSelector() {
+            const unitSel = document.getElementById('unitSelect');
+            if(unitSel.innerHTML === "") {
+                unitSel.innerHTML = units.map((u, i) => `<option value="${i}">${u.name}</option>`).join('');
+            }
+        }
+
+        function addItem() {
+            // שינוי: קריאת ה-ID מהשדה הנסתר ולא מה-Select
+            const prodId = document.getElementById('selectedProductId').value;
+            const unitIdx = document.getElementById('unitSelect').value;
+            const qty = parseFloat(document.getElementById('qtyInput').value);
+
+            if (!prodId) {
+                alert("אנא בחר מוצר מהרשימה (תתחיל להקליד ולחץ על התוצאה)");
+                return;
+            }
+
+            if(!qty) {
+                alert("חסרה כמות");
+                return;
+            }
+
+            const prod = products.find(p => p.id == prodId);
+            const unit = units[unitIdx];
+
+            if (!prod) {
+                alert("שגיאה בזיהוי המוצר");
+                return;
+            }
+
+            const cost = (prod.price / prod.weight) * (unit.val * qty);
+
+            combo.push({
+                id: Date.now(),
+                prodId: prod.id,
+                unitIdx: unitIdx,
+                name: prod.name,
+                qty: qty,
+                qtyDisplay: `${qty} ${unit.name}`,
+                cost: cost
+            });
+
+            saveData();
+            renderCombo();
+            
+            // איפוס שדות
+            document.getElementById('qtyInput').value = '';
+            document.getElementById('productInput').value = '';
+            document.getElementById('selectedProductId').value = '';
+        }
+
+        // --- שאר הפונקציות (ללא שינוי מהותי) ---
+
+        function renderCombo() {
+            const list = document.getElementById('comboList');
+            if(combo.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-400 py-4 text-sm">הרשימה ריקה...</div>`;
+            } else {
+                list.innerHTML = combo.map(item => `
+                    <div class="bg-white p-3 rounded-xl shadow-sm flex justify-between items-center border-r-4 border-indigo-500">
+                        <div>
+                            <div class="font-bold text-gray-800">${item.name}</div>
+                            <div class="text-xs text-gray-500">${item.qtyDisplay}</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="deleteItem(${item.id})" class="text-red-400 bg-red-50 p-2 rounded-full w-8 h-8 flex items-center justify-center">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            calculate();
+        }
+
+        function deleteItem(id) {
+            combo = combo.filter(i => i.id !== id);
+            saveData();
+            renderCombo();
+        }
+
+        function calculate() {
+            let total = combo.reduce((s, i) => s + i.cost, 0);
+            const mins = parseFloat(document.getElementById('bakingMinutes').value) || 0;
+            const elecCost = 2 * (mins / 60) * 0.64; 
+            total += elecCost;
+            document.getElementById('totalPrice').innerText = total.toFixed(2);
+        }
+
+        function saveData() {
+            localStorage.setItem('mob_products_clean', JSON.stringify(products));
+            localStorage.setItem('mob_combo_clean', JSON.stringify(combo));
+            localStorage.setItem('mob_baking_time', document.getElementById('bakingMinutes').value);
+        }
+        
+        function clearAll() {
+            if(confirm("לנקות את המסך ולהתחיל מחדש?")) {
+                combo = [];
+                document.getElementById('bakingMinutes').value = '';
+                saveData();
+                renderCombo();
+            }
+        }
+
+        function saveCurrentRecipe() {
+            if(combo.length === 0) {
+                alert("הרשימה ריקה.");
+                return;
+            }
+            const recipeName = prompt("תן שם למתכון:");
+            if(!recipeName) return;
+
+            const newRecipe = {
+                id: Date.now(),
+                name: recipeName,
+                items: combo.map(item => ({
+                    prodId: item.prodId, 
+                    unitIdx: item.unitIdx, 
+                    qty: item.qty 
+                })),
+                bakingTime: document.getElementById('bakingMinutes').value
+            };
+
+            savedRecipes.push(newRecipe);
+            localStorage.setItem('mob_saved_recipes', JSON.stringify(savedRecipes));
+            renderSavedRecipes();
+            alert(`נשמר!`);
+        }
+
+        function renderSavedRecipes() {
+            const list = document.getElementById('savedRecipesList');
+            const msg = document.getElementById('noRecipesMsg');
+            
+            if(savedRecipes.length === 0) {
+                list.innerHTML = '';
+                msg.classList.remove('hidden');
+                return;
+            }
+
+            msg.classList.add('hidden');
+            list.innerHTML = savedRecipes.map(r => `
+                <div class="bg-white p-3 rounded-lg shadow-sm border border-blue-100 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-gray-800 text-lg">${r.name}</div>
+                        <div class="text-xs text-gray-500">${r.items.length} רכיבים • ${r.bakingTime || 0} דק' אפייה</div>
+                    </div>
+                    <div class="flex gap-2">
+                         <button onclick="loadRecipe(${r.id})" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700">
+                            טען
+                        </button>
+                        <button onclick="deleteRecipe(${r.id})" class="text-red-400 p-2 hover:text-red-600">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadRecipe(id) {
+            const recipe = savedRecipes.find(r => r.id === id);
+            if(!recipe) return;
+
+            if(combo.length > 0 && !confirm("המסך לא ריק. לדרוס?")) return;
+
+            combo = [];
+            recipe.items.forEach(savedItem => {
+                const prod = products.find(p => p.id == savedItem.prodId);
+                const unit = units[savedItem.unitIdx];
+                if (prod && unit) {
+                    const cost = (prod.price / prod.weight) * (unit.val * savedItem.qty);
+                    combo.push({
+                        id: Date.now() + Math.random(),
+                        prodId: prod.id,
+                        unitIdx: savedItem.unitIdx,
+                        name: prod.name,
+                        qty: savedItem.qty,
+                        qtyDisplay: `${savedItem.qty} ${unit.name}`,
+                        cost: cost
+                    });
+                }
+            });
+
+            document.getElementById('bakingMinutes').value = recipe.bakingTime || '';
+            saveData();
+            renderCombo();
+            toggleSettings();
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        function deleteRecipe(id) {
+            if(confirm("למחוק מתכון זה?")) {
+                savedRecipes = savedRecipes.filter(r => r.id !== id);
+                localStorage.setItem('mob_saved_recipes', JSON.stringify(savedRecipes));
+                renderSavedRecipes();
+            }
+        }
+
+        function toggleSettings() {
+            const el = document.getElementById('settingsPage');
+            el.classList.toggle('open');
+            if (el.classList.contains('open')) {
+                renderManagerList();
+                renderSavedRecipes();
+            }
+        }
+
+        function checkCustomWeight() {
+            const type = document.getElementById('npType').value;
+            const customInput = document.getElementById('npWeightCustom');
+            if(type === 'custom') customInput.classList.remove('hidden');
+            else customInput.classList.add('hidden');
+        }
+
+        function saveNewProduct() {
+            const name = document.getElementById('npName').value;
+            const price = parseFloat(document.getElementById('npPrice').value);
+            const type = document.getElementById('npType').value;
+            let weight = (type === 'custom') ? parseFloat(document.getElementById('npWeightCustom').value) : parseFloat(type);
+
+            if(name && price && weight) {
+                products.push({ id: Date.now(), name, price, weight });
+                localStorage.setItem('mob_products_clean', JSON.stringify(products)); // עדכון ישיר
+                renderManagerList();
+                document.getElementById('npName').value = '';
+                document.getElementById('npPrice').value = '';
+                alert('מוצר נוסף בהצלחה');
+            } else {
+                alert('חסרים נתונים');
+            }
+        }
+
+        function renderManagerList() {
+            const list = document.getElementById('managerList');
+            list.innerHTML = products.map(p => {
+                let unitText = p.weight === 1000 ? 'לקילו' : (p.weight === 1 ? 'ליחידה' : `ל-${p.weight} גרם`);
+                return `
+                <div class="bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex items-center gap-2">
+                    <div class="flex-1">
+                        <input type="text" id="name-${p.id}" value="${p.name}" class="w-full border-b border-gray-200 py-1 font-bold text-gray-700 focus:outline-none">
+                    </div>
+                    <div class="w-20">
+                        <input type="number" id="price-${p.id}" value="${p.price}" class="w-full border-b border-gray-200 py-1 font-bold text-gray-700 focus:outline-none">
+                    </div>
+                    <div class="text-xs text-gray-400 w-16 text-center pt-4 leading-tight">${unitText}</div>
+                    <div class="flex gap-1 pt-3">
+                        <button onclick="updateProduct(${p.id})" class="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full">
+                            <i class="fas fa-save"></i>
+                        </button>
+                        <button onclick="removeProduct(${p.id})" class="bg-red-50 text-red-500 w-8 h-8 rounded-full">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function updateProduct(id) {
+            const newName = document.getElementById(`name-${id}`).value;
+            const newPrice = parseFloat(document.getElementById(`price-${id}`).value);
+            const prod = products.find(p => p.id === id);
+            if(prod && newName && newPrice) {
+                prod.name = newName;
+                prod.price = newPrice;
+                localStorage.setItem('mob_products_clean', JSON.stringify(products));
+                alert('עודכן!');
+            }
+        }
+
+        function removeProduct(id) {
+            if(confirm("למחוק מוצר זה?")) {
+                products = products.filter(p => p.id !== id);
+                localStorage.setItem('mob_products_clean', JSON.stringify(products));
+                renderManagerList();
+            }
+        }
+    </script>
+</body>
+</html>
