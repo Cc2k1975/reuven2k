@@ -317,6 +317,7 @@
                       <option value="3">רביעי</option>
                       <option value="4">חמישי</option>
                       <option value="5">שישי</option>
+                      <option value="6">שבת</option>
                   </select>
                   <select id="fixTime"></select> 
               </div>
@@ -356,13 +357,13 @@ let selectedTimeStr = '';
 
 const LS_CLIENTS_KEY = 'salonClients';
 const LS_APPTS_KEY   = 'salonAppointmentsByDate';
-const LS_FIXED_KEY   = 'salonFixedSlots'; // שמירת קבועים
+const LS_FIXED_KEY   = 'salonFixedSlots'; 
 const MANAGER_PHONE  = '972507449001';
 
 let clients = [];           
 let appointmentsByDate = {}; 
 let appointments = {};       
-let fixedSlots = []; // מערך לקוחות קבועים
+let fixedSlots = []; 
 
 let currentDateKey = '';
 let todayKey = '';
@@ -415,7 +416,8 @@ function setDateLimits(){
   const max   = new Date();
   max.setMonth(max.getMonth()+1);
   datePicker.min = formatDateKey(today);
-  datePicker.max = formatDateKey(max);
+  // אפשר להגדיל טווח אם צריך
+  datePicker.max = ''; 
 }
 
 /* --- ניהול כפתורי משך --- */
@@ -487,8 +489,6 @@ window.addEventListener('DOMContentLoaded', () => {
   datePicker.value = todayKey;
 
   loadFromStorage();
-  
-  // טעינה ראשונית של התאריך
   loadDate(todayKey);
 });
 
@@ -499,7 +499,7 @@ datePicker.addEventListener('change', () => {
 function loadDate(dateKey) {
   currentDateKey = dateKey;
   
-  // אם אין מידע לתאריך זה - נסה למלא ברירת מחדל (קבועים)
+  // בדיקה ומילוי קבועים אם זה יום חדש/ריק
   if(!appointmentsByDate[currentDateKey]) {
       appointmentsByDate[currentDateKey] = {};
       applyFixedSlots(currentDateKey);
@@ -519,22 +519,18 @@ function loadDate(dateKey) {
 
 /* --- לוגיקה של לקוחות קבועים --- */
 function applyFixedSlots(dateKey) {
-    // 1. קבלת יום בשבוע (0-6)
     const d = new Date(dateKey);
-    const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday...
+    const dayOfWeek = d.getDay(); // 0-6
 
-    // 2. מציאת קבועים ליום זה
     const slotsToday = fixedSlots.filter(s => parseInt(s.day) === dayOfWeek);
 
-    // 3. מילוי התורים
     slotsToday.forEach(slot => {
         const startIdx = times.indexOf(slot.time);
-        if(startIdx === -1) return; // שעה לא תקינה
+        if(startIdx === -1) return;
 
         const slotsNeeded = Math.ceil(slot.minutes / 5);
-        if(startIdx + slotsNeeded > times.length) return; // חורג מהזמן
+        if(startIdx + slotsNeeded > times.length) return;
 
-        // בדיקה שאין חפיפה (למרות שזה יום ריק, ליתר ביטחון)
         let isFree = true;
         for(let i=0; i<slotsNeeded; i++){
             if(appointmentsByDate[dateKey][times[startIdx + i]]) isFree = false;
@@ -550,7 +546,6 @@ function applyFixedSlots(dateKey) {
             }
         }
     });
-    // שמירה
     saveAppointments();
 }
 
@@ -594,7 +589,6 @@ btnAddFixed.addEventListener('click', () => {
     const name = fixName.value.trim();
     if(!name) { alert('נא להזין שם לקוחה'); return; }
     
-    // בדיקה שזה לא מתנגש עם משהו שכבר ברשימה הקבועה (באותו יום ושעה)
     const exists = fixedSlots.some(s => s.day == fixDay.value && s.time == fixTime.value);
     if(exists){ alert('כבר קיים לקוח קבוע ביום ובשעה הזו'); return; }
 
@@ -607,7 +601,7 @@ btnAddFixed.addEventListener('click', () => {
     saveFixedSlots();
     renderFixedList();
     fixName.value = '';
-    alert('נוסף בהצלחה! יופיע בימים עתידיים ריקים.');
+    alert('נוסף בהצלחה!');
 });
 
 function renderFixedList() {
@@ -619,7 +613,6 @@ function renderFixedList() {
         return;
     }
 
-    // מיון לפי יום ושעה
     fixedSlots.sort((a,b) => {
         if(a.day != b.day) return a.day - b.day;
         return a.time.localeCompare(b.time);
@@ -734,15 +727,13 @@ btnSaveAppt.addEventListener('click', () => {
   setNextFreeTime(startIdx + slots);
 });
 
-/* --- רשימה חדשה (גם כאן בודקים קבועים) --- */
+/* --- רשימה חדשה --- */
 btnNewDay.addEventListener('click', () => {
   if(!confirm('למחוק הכל ולהתחיל יום חדש?')) return;
   
-  // איפוס
   appointments = {};
   appointmentsByDate[currentDateKey || (datePicker.value || todayKey)] = appointments;
   
-  // מילוי מחדש מקבועים
   applyFixedSlots(currentDateKey || (datePicker.value || todayKey));
 
   selectedTimeStr = '';
@@ -833,7 +824,6 @@ btnReport.addEventListener('click', () => {
             const slots = Math.ceil(appt.minutes / 5);
             i += slots;
         } else {
-            // כל שעה פנויה בנפרד
             report += `🟢 ${t} (פנוי)\n`;
             hasContent = true;
             i++;
