@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ניהול תורים - מלא (גיבוי ושחזור)</title>
+  <title>ניהול תורים - יציב ופשוט</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     html,body{
@@ -26,7 +26,6 @@
       border-radius:18px;
       box-shadow:0 12px 25px rgba(0,0,0,0.08);
       padding:20px 18px 28px;
-      position: relative;
     }
 
     /* כותרת */
@@ -39,19 +38,23 @@
     }
     h1{ font-size:1.4rem; font-weight:700; white-space:nowrap; }
 
-    .header-actions {
-        display: flex; gap: 8px; align-items: center;
+    /* כפתור החירום */
+    .btn-emergency {
+        background: #ff4757; color: white; border: none;
+        padding: 10px; border-radius: 8px; font-weight: bold;
+        cursor: pointer; width: 100%; margin-bottom: 15px;
+        box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3);
+        animation: pulse 2s infinite;
     }
-    .btn-icon {
-        background: #f0f0f0; border: none; font-size: 1.2rem;
-        padding: 6px 10px; border-radius: 8px; cursor: pointer;
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.02); }
+        100% { transform: scale(1); }
     }
-    .btn-icon:hover { background: #e0e0e0; }
 
     .btn-reset{
-      padding:6px 12px; border-radius:10px; border:none;
-      font-size:0.8rem; background:#ffecec; color:#c80000; cursor:pointer;
-      white-space:nowrap;
+      padding:4px 10px; border-radius:10px; border:none;
+      font-size:0.75rem; background:#ffecec; color:#c80000; cursor:pointer;
     }
 
     /* תאריך */
@@ -69,12 +72,11 @@
       display:block; font-size:0.95rem; margin-bottom:6px;
       color:#333; font-weight:600;
     }
-    input[type="text"], select {
+    input[type="text"]{
       width:100%; padding:12px; border-radius:12px;
       border:1px solid #ccd3e0; font-size:1.1rem; background:#f9fafc;
-      outline: none;
     }
-    input[type="text"]:focus, select:focus{ border-color:#4a6cf7; background:#fff; }
+    input[type="text"]:focus{ border-color:#4a6cf7; background:#fff; }
 
     /* גריד שעות */
     .time-grid {
@@ -172,65 +174,16 @@
       font-size:1rem; cursor:pointer; background:#25D366; color:#fff;
       font-weight:600; box-shadow:0 4px 10px rgba(37, 211, 102, 0.3);
     }
-
-    /* --- מודל הגדרות --- */
-    .modal-overlay {
-        display: none;
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5); z-index: 100;
-        justify-content: center; align-items: center;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal-content {
-        background: #fff; width: 90%; max-width: 450px;
-        padding: 20px; border-radius: 16px;
-        max-height: 85vh; overflow-y: auto;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-    .modal-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 15px; }
-    .fixed-list { margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
-    .fixed-item {
-        background: #f9fafc; padding: 10px; border-radius: 8px;
-        margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
-        font-size: 0.9rem;
-    }
-    .btn-del-fixed {
-        background: #ffe5e5; color: #c0392b; border: none;
-        padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
-    }
-    .close-modal {
-        margin-top: 15px; width: 100%; padding: 10px;
-        background: #ddd; border: none; border-radius: 8px; cursor: pointer;
-    }
-    .row-inputs { display: flex; gap: 8px; margin-bottom: 8px; }
-    .row-inputs select, .row-inputs input { flex: 1; padding: 8px; }
-    
-    /* אזור גיבוי */
-    .backup-section {
-        margin-top: 20px; padding-top: 20px; border-top: 2px dashed #eee;
-        background: #f8faff; padding: 15px; border-radius: 12px;
-    }
-    .backup-title { font-weight: 700; margin-bottom: 10px; color: #333; }
-    .btn-backup {
-        flex:1; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;
-        padding: 10px; border-radius: 8px; cursor: pointer; font-weight:600;
-    }
-    .btn-restore {
-        flex:1; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;
-        padding: 10px; border-radius: 8px; cursor: pointer; font-weight:600;
-    }
-
   </style>
 </head>
 
 <body>
   <div class="app">
+    <button class="btn-emergency" id="btnFixDates">🔧 לחץ כאן: העבר תורים מה-18 ל-17 (תיקון)</button>
+
     <div class="header-row">
       <h1>ניהול תורים</h1>
-      <div class="header-actions">
-          <button class="btn-icon" id="btnSettings" title="הגדרות וגיבוי">⚙️</button>
-          <button class="btn-reset" id="btnNewDay">יום חדש</button>
-      </div>
+      <button class="btn-reset" id="btnNewDay">רשימה חדשה</button>
     </div>
 
     <div class="date-row">
@@ -279,51 +232,6 @@
     </div>
   </div>
 
-  <div id="settingsModal" class="modal-overlay">
-      <div class="modal-content">
-          <div class="modal-title">הגדרות</div>
-          
-          <label>הוסף לקוחה קבועה (שבועי):</label>
-          <div class="field-group">
-              <div class="row-inputs">
-                  <select id="fixDay">
-                      <option value="0">ראשון</option>
-                      <option value="1">שני</option>
-                      <option value="2">שלישי</option>
-                      <option value="3">רביעי</option>
-                      <option value="4">חמישי</option>
-                      <option value="5">שישי</option>
-                      <option value="6">שבת</option>
-                  </select>
-                  <select id="fixTime"></select> 
-              </div>
-              <div class="row-inputs">
-                   <select id="fixDuration">
-                       <option value="15">15 דק'</option>
-                       <option value="20">20 דק'</option>
-                       <option value="30">30 דק'</option>
-                   </select>
-                   <input type="text" id="fixName" placeholder="שם הלקוחה">
-              </div>
-              <button class="btn-primary" style="padding: 8px; font-size: 0.9rem;" id="btnAddFixed">הוסף לרשימה</button>
-          </div>
-
-          <div class="fixed-list" id="fixedListContainer"></div>
-
-          <div class="backup-section">
-              <div class="backup-title">גיבוי ושחזור נתונים</div>
-              <div class="row-inputs">
-                  <button class="btn-backup" id="btnDownloadBackup">📥 הורד גיבוי</button>
-                  <button class="btn-restore" id="btnUploadRestore">📤 שחזר מגיבוי</button>
-                  <input type="file" id="fileInput" accept=".json" style="display:none;">
-              </div>
-              <small style="color:#666; font-size:0.8rem;">שמור את הקובץ במקום בטוח.</small>
-          </div>
-
-          <button class="close-modal" id="btnCloseModal">סגור</button>
-      </div>
-  </div>
-
 <script>
 /* --- הגדרות זמנים: 16:30 עד 22:30 --- */
 const times = [];
@@ -342,18 +250,14 @@ let selectedTimeStr = '';
 
 const LS_CLIENTS_KEY = 'salonClients';
 const LS_APPTS_KEY   = 'salonAppointmentsByDate';
-const LS_FIXED_KEY   = 'salonFixedSlots';
 const MANAGER_PHONE  = '972507449001';
 
 let clients = [];           
 let appointmentsByDate = {}; 
 let appointments = {};       
-let fixedSlots = [];
-
 let currentDateKey = '';
 let todayKey = '';
 
-/* אלמנטים */
 const timeGrid        = document.getElementById('timeGrid');
 const durationGroup   = document.getElementById('durationGroup');
 const clientInput     = document.getElementById('clientInput');
@@ -365,29 +269,7 @@ const btnNewDay       = document.getElementById('btnNewDay');
 const datePicker      = document.getElementById('datePicker');
 const filterInput     = document.getElementById('filterInput');
 const btnReport       = document.getElementById('btnReport');
-
-/* מודל הגדרות */
-const btnSettings     = document.getElementById('btnSettings');
-const settingsModal   = document.getElementById('settingsModal');
-const btnCloseModal   = document.getElementById('btnCloseModal');
-const fixDay          = document.getElementById('fixDay');
-const fixTime         = document.getElementById('fixTime');
-const fixDuration     = document.getElementById('fixDuration');
-const fixName         = document.getElementById('fixName');
-const btnAddFixed     = document.getElementById('btnAddFixed');
-const fixedListContainer = document.getElementById('fixedListContainer');
-
-/* גיבוי */
-const btnDownloadBackup = document.getElementById('btnDownloadBackup');
-const btnUploadRestore  = document.getElementById('btnUploadRestore');
-const fileInput         = document.getElementById('fileInput');
-
-/* מילוי שעות במודל הגדרות */
-times.forEach(t => {
-    const op = document.createElement('option');
-    op.value = t; op.textContent = t;
-    fixTime.appendChild(op);
-});
+const btnFixDates     = document.getElementById('btnFixDates');
 
 /* --- עזר תאריכים --- */
 function formatDateKey(d){
@@ -408,6 +290,55 @@ function setDateLimits(){
   datePicker.min = formatDateKey(today);
   datePicker.max = ''; 
 }
+
+/* --- פונקציית תיקון חירום --- */
+btnFixDates.addEventListener('click', () => {
+    if(!confirm('האם אתה בטוח שאתה רוצה להעביר את כל התורים מה-18.01 ל-17.01 ולנקות הגדרות?')) return;
+
+    // 1. מחיקת ההגדרות הקבועות שיצרו את הבעיה
+    localStorage.removeItem('salonFixedSlots');
+
+    // 2. העברת נתונים
+    const wrongDate = "2026-01-18";
+    const correctDate = "2026-01-17"; // התאריך של היום
+
+    // טעינת נתונים עדכנית
+    try {
+        const a = localStorage.getItem(LS_APPTS_KEY);
+        if(a) appointmentsByDate = JSON.parse(a);
+    } catch {}
+
+    // בדיקה אם יש מידע בתאריך השגוי
+    if (appointmentsByDate[wrongDate]) {
+        // אם בתאריך הנכון כבר יש מידע, נמזג בזהירות (או נדרוס אם הנכון ריק)
+        if (!appointmentsByDate[correctDate]) {
+             appointmentsByDate[correctDate] = {};
+        }
+        
+        // העתקה
+        Object.assign(appointmentsByDate[correctDate], appointmentsByDate[wrongDate]);
+        
+        // מחיקת השגוי
+        delete appointmentsByDate[wrongDate];
+        
+        // מחיקת ימים עתידיים ששוכפלו בטעות (אופציונלי, למנוע זבל)
+        // כאן אני מנקה רק את השגוי הספציפי כדי לא למחוק משהו חשוב אחר
+        
+        saveAppointments();
+        
+        alert('התיקון בוצע! התורים עברו ל-17.01 וההגדרות השבועיות בוטלו.');
+        
+        // רענון למסך
+        datePicker.value = correctDate;
+        loadDate(correctDate);
+    } else {
+        alert('לא נמצאו תורים ב-18.01 להעברה. אבל ההגדרות הקבועות בוטלו בכל מקרה.');
+    }
+    
+    // הסתרת הכפתור אחרי השימוש
+    btnFixDates.style.display = 'none';
+});
+
 
 /* --- ניהול כפתורי משך --- */
 function selectDuration(mins, btnElement){
@@ -433,6 +364,7 @@ function renderTimeGrid() {
         } else {
             btn.className = 'time-btn free';
             btn.textContent = t;
+            
             btn.onclick = () => {
                 selectedTimeStr = t;
                 updateGridVisuals();
@@ -443,6 +375,7 @@ function renderTimeGrid() {
         if(t === selectedTimeStr) {
             btn.classList.add('selected');
         }
+        
         timeGrid.appendChild(btn);
     });
 }
@@ -487,15 +420,9 @@ datePicker.addEventListener('change', () => {
   loadDate(datePicker.value || todayKey);
 });
 
-/* טעינת יום */
 function loadDate(dateKey) {
   currentDateKey = dateKey;
-  
-  if(!appointmentsByDate[currentDateKey]) {
-      appointmentsByDate[currentDateKey] = {};
-      applyFixedSlots(currentDateKey);
-  }
-  
+  if(!appointmentsByDate[currentDateKey]) appointmentsByDate[currentDateKey] = {};
   appointments = appointmentsByDate[currentDateKey];
 
   selectedTimeStr = '';
@@ -506,38 +433,6 @@ function loadDate(dateKey) {
   renderTimeGrid();
   renderAppointments();
   setNextFreeTime();
-}
-
-/* --- לוגיקה של לקוחות קבועים --- */
-function applyFixedSlots(dateKey) {
-    const d = new Date(dateKey);
-    const dayOfWeek = d.getDay(); 
-
-    const slotsToday = fixedSlots.filter(s => parseInt(s.day) === dayOfWeek);
-
-    slotsToday.forEach(slot => {
-        const startIdx = times.indexOf(slot.time);
-        if(startIdx === -1) return;
-
-        const slotsNeeded = Math.ceil(slot.minutes / 5);
-        if(startIdx + slotsNeeded > times.length) return;
-
-        let isFree = true;
-        for(let i=0; i<slotsNeeded; i++){
-            if(appointmentsByDate[dateKey][times[startIdx + i]]) isFree = false;
-        }
-
-        if(isFree) {
-            for(let i=0; i<slotsNeeded; i++){
-                appointmentsByDate[dateKey][times[startIdx + i]] = {
-                    name: slot.name,
-                    minutes: parseInt(slot.minutes),
-                    isMain: i === 0
-                };
-            }
-        }
-    });
-    saveAppointments();
 }
 
 filterInput.addEventListener('input', () => renderAppointments());
@@ -551,10 +446,6 @@ function loadFromStorage(){
     const a = localStorage.getItem(LS_APPTS_KEY);
     if(a) appointmentsByDate = JSON.parse(a) || {};
   }catch {}
-  try{
-    const f = localStorage.getItem(LS_FIXED_KEY);
-    if(f) fixedSlots = JSON.parse(f) || [];
-  }catch {}
 }
 
 function saveClients(){ localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(clients)); }
@@ -562,9 +453,6 @@ function saveAppointments(){
   if(!currentDateKey) currentDateKey = datePicker.value || todayKey;
   appointmentsByDate[currentDateKey] = appointments;
   localStorage.setItem(LS_APPTS_KEY, JSON.stringify(appointmentsByDate));
-}
-function saveFixedSlots(){
-    localStorage.setItem(LS_FIXED_KEY, JSON.stringify(fixedSlots));
 }
 
 /* --- השלמת שמות --- */
@@ -658,12 +546,10 @@ btnSaveAppt.addEventListener('click', () => {
 /* --- רשימה חדשה --- */
 btnNewDay.addEventListener('click', () => {
   if(!confirm('למחוק הכל ולהתחיל יום חדש?')) return;
-  
   appointments = {};
   appointmentsByDate[currentDateKey || (datePicker.value || todayKey)] = appointments;
+  saveAppointments();
   
-  applyFixedSlots(currentDateKey || (datePicker.value || todayKey));
-
   selectedTimeStr = '';
   selectedDuration = 0;
   document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
@@ -672,122 +558,6 @@ btnNewDay.addEventListener('click', () => {
   renderTimeGrid();
   renderAppointments();
   setNextFreeTime();
-});
-
-/* --- ניהול מודל הגדרות וגיבוי --- */
-btnSettings.addEventListener('click', () => {
-    renderFixedList();
-    settingsModal.classList.add('open');
-});
-btnCloseModal.addEventListener('click', () => {
-    settingsModal.classList.remove('open');
-});
-
-/* הוספת לקוח קבוע */
-btnAddFixed.addEventListener('click', () => {
-    const name = fixName.value.trim();
-    if(!name) { alert('נא להזין שם לקוחה'); return; }
-    
-    const exists = fixedSlots.some(s => s.day == fixDay.value && s.time == fixTime.value);
-    if(exists){ alert('כבר קיים לקוח קבוע ביום ובשעה הזו'); return; }
-
-    fixedSlots.push({
-        day: fixDay.value,
-        time: fixTime.value,
-        minutes: fixDuration.value,
-        name: name
-    });
-    saveFixedSlots();
-    renderFixedList();
-    fixName.value = '';
-    
-    const currentD = new Date(currentDateKey);
-    if (currentD.getDay() == fixDay.value) {
-        applyFixedSlots(currentDateKey); 
-        renderTimeGrid(); 
-        renderAppointments();
-    }
-    alert('נוסף בהצלחה!');
-});
-
-function renderFixedList() {
-    fixedListContainer.innerHTML = '';
-    const daysMap = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-    
-    if(fixedSlots.length === 0){
-        fixedListContainer.innerHTML = '<div style="text-align:center;color:#777;">אין לקוחות קבועים</div>';
-        return;
-    }
-
-    fixedSlots.sort((a,b) => {
-        if(a.day != b.day) return a.day - b.day;
-        return a.time.localeCompare(b.time);
-    });
-
-    fixedSlots.forEach((slot, idx) => {
-        const item = document.createElement('div');
-        item.className = 'fixed-item';
-        item.innerHTML = `
-            <span><strong>${daysMap[slot.day]}</strong>, ${slot.time} - ${slot.name} (${slot.minutes} דק')</span>
-        `;
-        const btnDel = document.createElement('button');
-        btnDel.className = 'btn-del-fixed';
-        btnDel.textContent = 'מחק';
-        btnDel.onclick = () => {
-            if(confirm('למחוק את הקבוע?')){
-                fixedSlots.splice(idx, 1);
-                saveFixedSlots();
-                renderFixedList();
-            }
-        };
-        item.appendChild(btnDel);
-        fixedListContainer.appendChild(item);
-    });
-}
-
-/* לוגיקה של גיבוי ושחזור */
-btnDownloadBackup.addEventListener('click', () => {
-    const data = {
-        clients: localStorage.getItem(LS_CLIENTS_KEY),
-        appts: localStorage.getItem(LS_APPTS_KEY),
-        fixed: localStorage.getItem(LS_FIXED_KEY)
-    };
-    const jsonStr = JSON.stringify(data);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = "salon_backup_" + new Date().toISOString().split('T')[0] + ".json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-});
-
-btnUploadRestore.addEventListener('click', () => {
-    fileInput.click();
-});
-
-fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-        try {
-            const data = JSON.parse(evt.target.result);
-            if(data.clients) localStorage.setItem(LS_CLIENTS_KEY, data.clients);
-            if(data.appts) localStorage.setItem(LS_APPTS_KEY, data.appts);
-            if(data.fixed) localStorage.setItem(LS_FIXED_KEY, data.fixed);
-            
-            alert('השחזור בוצע בהצלחה! הדף יתרענן.');
-            location.reload();
-        } catch(err) {
-            alert('שגיאה בקובץ הגיבוי: ' + err);
-        }
-    };
-    reader.readAsText(file);
 });
 
 /* --- תצוגה --- */
@@ -860,14 +630,17 @@ btnReport.addEventListener('click', () => {
         const t = times[i];
         
         if(appointments[t]){
+            // תור קיים
             const appt = appointments[t];
             if(appt.isMain){
                 report += `${t} - ${appt.name} (${appt.minutes} דק')\n`;
                 hasContent = true;
             }
+            // מדלגים על משך התור
             const slots = Math.ceil(appt.minutes / 5);
             i += slots;
         } else {
+            // כעת מציג כל שעה פנויה בנפרד
             report += `🟢 ${t} (פנוי)\n`;
             hasContent = true;
             i++;
