@@ -108,9 +108,9 @@
       border-color: #e9ecef;
       cursor: not-allowed;
     }
-    /* עיצוב שם הלקוחה בתוך הריבוע - הוקטן */
+    /* עיצוב שם הלקוחה בתוך הריבוע */
     .btn-name {
-      font-size: 0.55rem; /* הוקטן מ-0.65 */
+      font-size: 0.55rem;
       font-weight: 400;
       color: #555;
       white-space: nowrap;
@@ -322,7 +322,6 @@ function renderTimeGrid() {
         if(appointments[t]) {
             btn.className = 'time-btn taken';
             const appt = appointments[t];
-            // חיתוך שם ארוך
             const displayName = appt.name.length > 7 ? appt.name.substring(0,6)+'..' : appt.name;
             btn.innerHTML = `
               <div>${t}</div>
@@ -335,7 +334,6 @@ function renderTimeGrid() {
             btn.onclick = () => {
                 selectedTimeStr = t;
                 updateGridVisuals();
-                // הקפצה חלקה לאזור בחירת הזמן
                 durationGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
             };
         }
@@ -589,17 +587,7 @@ function updateStats(mainTimesAll){
   statsContainer.textContent = `סה״כ תורים: ${mainTimesAll.length}${timeText}`;
 }
 
-/* --- דו"ח וואטסאפ --- */
-function addMinutes(timeStr, minsToAdd){
-    const [hh, mm] = timeStr.split(':').map(Number);
-    const d = new Date();
-    d.setHours(hh, mm, 0, 0);
-    d.setMinutes(d.getMinutes() + minsToAdd);
-    const h = d.getHours().toString().padStart(2,'0');
-    const m = d.getMinutes().toString().padStart(2,'0');
-    return `${h}:${m}`;
-}
-
+/* --- דו"ח וואטסאפ (מעודכן: פירוט מלא) --- */
 btnReport.addEventListener('click', () => {
     const dateKey = currentDateKey || (datePicker.value || todayKey);
     let report = `*דו"ח תורים לתאריך ${niceDateFromKey(dateKey)}*\n------------------\n`;
@@ -611,23 +599,20 @@ btnReport.addEventListener('click', () => {
         const t = times[i];
         
         if(appointments[t]){
+            // תור קיים
             const appt = appointments[t];
             if(appt.isMain){
                 report += `${t} - ${appt.name} (${appt.minutes} דק')\n`;
                 hasContent = true;
             }
+            // מדלגים על משך התור
             const slots = Math.ceil(appt.minutes / 5);
             i += slots;
         } else {
-            const startGap = t;
-            let gapSlots = 0;
-            while(i < times.length && !appointments[times[i]]){
-                gapSlots++;
-                i++;
-            }
-            const endTime = addMinutes(startGap, gapSlots * 5);
-            report += `🟢 ${startGap} - ${endTime} (פנוי)\n`;
+            // כעת מציג כל שעה פנויה בנפרד
+            report += `🟢 ${t} (פנוי)\n`;
             hasContent = true;
+            i++;
         }
     }
 
