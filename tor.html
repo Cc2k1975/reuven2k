@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ניהול תורים - יציב ופשוט</title>
+  <title>ניהול תורים - כלי חירום</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     html,body{
@@ -28,6 +28,37 @@
       padding:20px 18px 28px;
     }
 
+    /* --- אזור החירום (העברת תאריכים) --- */
+    .rescue-box {
+        background: #ffe5e5;
+        border: 2px solid #ff4757;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .rescue-title {
+        color: #c0392b;
+        font-weight: 800;
+        margin-bottom: 10px;
+        font-size: 1.1rem;
+    }
+    .rescue-row {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .rescue-label { font-size: 0.9rem; font-weight: bold; }
+    .btn-move-date {
+        background: #ff4757; color: white; border: none;
+        padding: 10px 20px; border-radius: 8px; font-weight: bold;
+        cursor: pointer; width: 100%; font-size: 1rem;
+        box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3);
+    }
+    .btn-move-date:active { transform: scale(0.98); }
+
     /* כותרת */
     .header-row{
       display:flex;
@@ -37,20 +68,6 @@
       margin-bottom:6px;
     }
     h1{ font-size:1.4rem; font-weight:700; white-space:nowrap; }
-
-    /* כפתור החירום */
-    .btn-emergency {
-        background: #ff4757; color: white; border: none;
-        padding: 10px; border-radius: 8px; font-weight: bold;
-        cursor: pointer; width: 100%; margin-bottom: 15px;
-        box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3);
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.02); }
-        100% { transform: scale(1); }
-    }
 
     .btn-reset{
       padding:4px 10px; border-radius:10px; border:none;
@@ -179,15 +196,29 @@
 
 <body>
   <div class="app">
-    <button class="btn-emergency" id="btnFixDates">🔧 לחץ כאן: העבר תורים מה-18 ל-17 (תיקון)</button>
-
+    
+    <div class="rescue-box">
+        <div class="rescue-title">כלי לתיקון תאריכים (העברה)</div>
+        <div class="rescue-row">
+            <div>
+                <div class="rescue-label">מאיזה תאריך לקחת?</div>
+                <input type="date" id="moveFromDate" class="date-input">
+            </div>
+            <div style="font-size:1.5rem">➡️</div>
+            <div>
+                <div class="rescue-label">לאיזה תאריך להעביר?</div>
+                <input type="date" id="moveToDate" class="date-input">
+            </div>
+        </div>
+        <button class="btn-move-date" id="btnExecuteMove">בצע העברה עכשיו</button>
+    </div>
     <div class="header-row">
       <h1>ניהול תורים</h1>
       <button class="btn-reset" id="btnNewDay">רשימה חדשה</button>
     </div>
 
     <div class="date-row">
-      <span class="date-label">תאריך:</span>
+      <span class="date-label">תאריך מוצג:</span>
       <input type="date" id="datePicker" class="date-input">
     </div>
 
@@ -269,7 +300,11 @@ const btnNewDay       = document.getElementById('btnNewDay');
 const datePicker      = document.getElementById('datePicker');
 const filterInput     = document.getElementById('filterInput');
 const btnReport       = document.getElementById('btnReport');
-const btnFixDates     = document.getElementById('btnFixDates');
+
+/* כלי התיקון */
+const moveFromDate = document.getElementById('moveFromDate');
+const moveToDate = document.getElementById('moveToDate');
+const btnExecuteMove = document.getElementById('btnExecuteMove');
 
 /* --- עזר תאריכים --- */
 function formatDateKey(d){
@@ -291,54 +326,46 @@ function setDateLimits(){
   datePicker.max = ''; 
 }
 
-/* --- פונקציית תיקון חירום --- */
-btnFixDates.addEventListener('click', () => {
-    if(!confirm('האם אתה בטוח שאתה רוצה להעביר את כל התורים מה-18.01 ל-17.01 ולנקות הגדרות?')) return;
+/* --- לוגיקה של העברת תאריכים (הצלה) --- */
+btnExecuteMove.addEventListener('click', () => {
+    const fromVal = moveFromDate.value;
+    const toVal = moveToDate.value;
 
-    // 1. מחיקת ההגדרות הקבועות שיצרו את הבעיה
-    localStorage.removeItem('salonFixedSlots');
-
-    // 2. העברת נתונים
-    const wrongDate = "2026-01-18";
-    const correctDate = "2026-01-17"; // התאריך של היום
-
-    // טעינת נתונים עדכנית
-    try {
-        const a = localStorage.getItem(LS_APPTS_KEY);
-        if(a) appointmentsByDate = JSON.parse(a);
-    } catch {}
-
-    // בדיקה אם יש מידע בתאריך השגוי
-    if (appointmentsByDate[wrongDate]) {
-        // אם בתאריך הנכון כבר יש מידע, נמזג בזהירות (או נדרוס אם הנכון ריק)
-        if (!appointmentsByDate[correctDate]) {
-             appointmentsByDate[correctDate] = {};
-        }
-        
-        // העתקה
-        Object.assign(appointmentsByDate[correctDate], appointmentsByDate[wrongDate]);
-        
-        // מחיקת השגוי
-        delete appointmentsByDate[wrongDate];
-        
-        // מחיקת ימים עתידיים ששוכפלו בטעות (אופציונלי, למנוע זבל)
-        // כאן אני מנקה רק את השגוי הספציפי כדי לא למחוק משהו חשוב אחר
-        
-        saveAppointments();
-        
-        alert('התיקון בוצע! התורים עברו ל-17.01 וההגדרות השבועיות בוטלו.');
-        
-        // רענון למסך
-        datePicker.value = correctDate;
-        loadDate(correctDate);
-    } else {
-        alert('לא נמצאו תורים ב-18.01 להעברה. אבל ההגדרות הקבועות בוטלו בכל מקרה.');
+    if(!fromVal || !toVal) {
+        alert('חובה לבחור שני תאריכים (מאיפה ולאן).');
+        return;
     }
-    
-    // הסתרת הכפתור אחרי השימוש
-    btnFixDates.style.display = 'none';
-});
+    if(fromVal === toVal) {
+        alert('התאריכים זהים, אי אפשר להעביר.');
+        return;
+    }
 
+    // טעינת מידע עדכני
+    loadFromStorage();
+
+    const sourceData = appointmentsByDate[fromVal];
+    if(!sourceData || Object.keys(sourceData).length === 0) {
+        alert('אין תורים בתאריך המקור שבחרת (' + niceDateFromKey(fromVal) + ').');
+        return;
+    }
+
+    if(!confirm('האם להעביר את כל התורים מ-' + niceDateFromKey(fromVal) + ' ל-' + niceDateFromKey(toVal) + '?')) return;
+
+    // ביצוע ההעברה
+    // מוחקים את היעד כדי לדרוס אותו נקי, או ממזגים? עדיף לדרוס כדי שיהיה בדיוק כמו במקור
+    appointmentsByDate[toVal] = JSON.parse(JSON.stringify(sourceData)); 
+    
+    // מחיקת המקור
+    delete appointmentsByDate[fromVal];
+
+    saveAppointments();
+
+    alert('ההעברה בוצעה בהצלחה!');
+    
+    // עדכון תצוגה לתאריך היעד
+    datePicker.value = toVal;
+    loadDate(toVal);
+});
 
 /* --- ניהול כפתורי משך --- */
 function selectDuration(mins, btnElement){
@@ -559,64 +586,6 @@ btnNewDay.addEventListener('click', () => {
   renderAppointments();
   setNextFreeTime();
 });
-
-/* --- תצוגה --- */
-function renderAppointments(){
-  appointmentsDiv.innerHTML = '';
-  const mainTimesAll = times.filter(t => appointments[t] && appointments[t].isMain);
-  const filter = (filterInput.value || '').trim().toLowerCase();
-
-  updateStats(mainTimesAll);
-
-  let mainTimes = mainTimesAll;
-  if(filter){
-    mainTimes = mainTimesAll.filter(t => appointments[t].name.toLowerCase().includes(filter));
-  }
-
-  if(mainTimes.length === 0 && !filter){
-    appointmentsDiv.innerHTML = '<div class="empty-msg">אין תורים היום.</div>';
-    return;
-  }
-
-  mainTimes.forEach(t => {
-    const appt = appointments[t];
-    const row = document.createElement('div');
-    row.className = 'appt-row';
-    
-    row.innerHTML = `
-      <div class="appt-time">${t}</div>
-      <div class="appt-info">
-        <div class="appt-name">${appt.name}</div>
-        <div class="appt-type">${appt.minutes} דקות</div>
-      </div>
-    `;
-    
-    const delBtn = document.createElement('button');
-    delBtn.className = 'appt-delete';
-    delBtn.textContent = 'מחק';
-    delBtn.onclick = () => {
-      if(!confirm('למחוק תור?')) return;
-      const startIdx = times.indexOf(t);
-      const slots = Math.ceil((appt.minutes || 15) / 5);
-      for(let i=0;i<slots;i++) delete appointments[times[startIdx + i]];
-      saveAppointments();
-      renderTimeGrid();
-      renderAppointments();
-    };
-    row.appendChild(delBtn);
-    appointmentsDiv.appendChild(row);
-  });
-}
-
-function updateStats(mainTimesAll){
-  let totalMinutes = 0;
-  mainTimesAll.forEach(t => totalMinutes += (appointments[t].minutes || 0));
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  let timeText = '';
-  if(h>0 || m>0) timeText = ` | זמן עבודה: ${h}:${m.toString().padStart(2,'0')}`;
-  statsContainer.textContent = `סה״כ תורים: ${mainTimesAll.length}${timeText}`;
-}
 
 /* --- דו"ח וואטסאפ (פירוט מלא) --- */
 btnReport.addEventListener('click', () => {
