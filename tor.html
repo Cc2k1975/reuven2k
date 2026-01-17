@@ -332,9 +332,7 @@
               <button class="btn-primary" style="padding: 8px; font-size: 0.9rem;" id="btnAddFixed">הוסף לרשימה</button>
           </div>
 
-          <div class="fixed-list" id="fixedListContainer">
-              </div>
-
+          <div class="fixed-list" id="fixedListContainer"></div>
           <button class="close-modal" id="btnCloseModal">סגור</button>
       </div>
   </div>
@@ -416,7 +414,6 @@ function setDateLimits(){
   const max   = new Date();
   max.setMonth(max.getMonth()+1);
   datePicker.min = formatDateKey(today);
-  // אפשר להגדיל טווח אם צריך
   datePicker.max = ''; 
 }
 
@@ -499,11 +496,11 @@ datePicker.addEventListener('change', () => {
 function loadDate(dateKey) {
   currentDateKey = dateKey;
   
-  // בדיקה ומילוי קבועים אם זה יום חדש/ריק
   if(!appointmentsByDate[currentDateKey]) {
       appointmentsByDate[currentDateKey] = {};
-      applyFixedSlots(currentDateKey);
   }
+  // תמיד מנסה להחיל קבועים, כדי לתפוס שינויים
+  applyFixedSlots(currentDateKey);
   
   appointments = appointmentsByDate[currentDateKey];
 
@@ -531,11 +528,14 @@ function applyFixedSlots(dateKey) {
         const slotsNeeded = Math.ceil(slot.minutes / 5);
         if(startIdx + slotsNeeded > times.length) return;
 
+        // בדיקה שאין חפיפה עם תור קיים
         let isFree = true;
         for(let i=0; i<slotsNeeded; i++){
+            // אם יש כבר מישהו בשעה הזו, לא דורסים
             if(appointmentsByDate[dateKey][times[startIdx + i]]) isFree = false;
         }
 
+        // אם פנוי - מכניסים
         if(isFree) {
             for(let i=0; i<slotsNeeded; i++){
                 appointmentsByDate[dateKey][times[startIdx + i]] = {
@@ -546,6 +546,7 @@ function applyFixedSlots(dateKey) {
             }
         }
     });
+    // שומרים שינויים אם היו
     saveAppointments();
 }
 
@@ -601,6 +602,15 @@ btnAddFixed.addEventListener('click', () => {
     saveFixedSlots();
     renderFixedList();
     fixName.value = '';
+    
+    // תיקון: בדיקה מיידית אם הלקוח החדש רלוונטי ליום שמוצג כרגע
+    const currentD = new Date(currentDateKey);
+    if (currentD.getDay() == fixDay.value) {
+        applyFixedSlots(currentDateKey); // מריץ את הבדיקה מחדש
+        renderTimeGrid(); // מרענן תצוגה
+        renderAppointments();
+    }
+
     alert('נוסף בהצלחה!');
 });
 
@@ -734,6 +744,7 @@ btnNewDay.addEventListener('click', () => {
   appointments = {};
   appointmentsByDate[currentDateKey || (datePicker.value || todayKey)] = appointments;
   
+  // מילוי מחדש מקבועים
   applyFixedSlots(currentDateKey || (datePicker.value || todayKey));
 
   selectedTimeStr = '';
