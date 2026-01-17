@@ -66,15 +66,13 @@
     /* --- גריד השעות (הקוביות) --- */
     .time-grid {
       display: grid;
-      /* גודל קבוע וקטן לכל ריבוע */
       grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
       gap: 5px;
       margin-bottom: 10px;
     }
 
     .time-btn {
-      /* עיצוב פנימי של הריבוע */
-      height: 48px; /* גובה קבוע שלא יזוז */
+      height: 48px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -93,10 +91,10 @@
 
     /* --- סגנון תור פנוי (ירוק זוהר) --- */
     .time-btn.free {
-      background: #caffbf;       /* רקע ירוק בהיר */
-      border: 1px solid #4cd137; /* מסגרת ירוקה */
-      color: #006400;            /* טקסט ירוק כהה */
-      box-shadow: 0 0 5px rgba(76, 209, 55, 0.3); /* הילה עדינה */
+      background: #caffbf;
+      border: 1px solid #4cd137;
+      color: #006400;
+      box-shadow: 0 0 5px rgba(76, 209, 55, 0.3);
     }
     .time-btn.free:hover {
       background: #b2fab4;
@@ -110,19 +108,20 @@
       border-color: #e9ecef;
       cursor: not-allowed;
     }
-    /* עיצוב שם הלקוחה בתוך הריבוע */
+    /* עיצוב שם הלקוחה בתוך הריבוע - הוקטן */
     .btn-name {
-      font-size: 0.65rem; /* פונט קטן מאוד לשם */
+      font-size: 0.55rem; /* הוקטן מ-0.65 */
       font-weight: 400;
       color: #555;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: 100%;
-      margin-top: 2px;
+      margin-top: 1px;
+      line-height: 1;
     }
 
-    /* --- סגנון נבחר (כחול) - דורס את הירוק --- */
+    /* --- סגנון נבחר (כחול) --- */
     .time-btn.selected {
       background: #4a6cf7 !important;
       color: #fff !important;
@@ -213,7 +212,7 @@
       <div id="timeGrid" class="time-grid"></div>
     </div>
 
-    <div class="field-group">
+    <div class="field-group" id="durationGroup">
       <label>משך טיפול</label>
       <div class="duration-buttons">
         <button type="button" class="btn-duration" onclick="selectDuration(15, this)">15 דק'</button>
@@ -276,6 +275,7 @@ let currentDateKey = '';
 let todayKey = '';
 
 const timeGrid        = document.getElementById('timeGrid');
+const durationGroup   = document.getElementById('durationGroup');
 const clientInput     = document.getElementById('clientInput');
 const suggestionsList = document.getElementById('suggestionsList');
 const appointmentsDiv = document.getElementById('appointmentsContainer');
@@ -313,38 +313,33 @@ function selectDuration(mins, btnElement){
   btnElement.classList.add('active');
 }
 
-/* --- בניית גריד השעות (עיצוב חדש) --- */
+/* --- בניית גריד השעות --- */
 function renderTimeGrid() {
     timeGrid.innerHTML = '';
     times.forEach(t => {
         const btn = document.createElement('div');
         
-        // בדיקה אם תפוס
         if(appointments[t]) {
             btn.className = 'time-btn taken';
-            
-            // הצגת שעה + שם הלקוחה בקטן
             const appt = appointments[t];
-            // חיתוך שם אם הוא ארוך מדי לתצוגה בריבוע
+            // חיתוך שם ארוך
             const displayName = appt.name.length > 7 ? appt.name.substring(0,6)+'..' : appt.name;
-            
             btn.innerHTML = `
               <div>${t}</div>
               <div class="btn-name">${displayName}</div>
             `;
         } else {
-            // פנוי - ירוק זוהר
             btn.className = 'time-btn free';
             btn.textContent = t;
             
-            // אירוע לחיצה רק על פנויים
             btn.onclick = () => {
                 selectedTimeStr = t;
                 updateGridVisuals();
+                // הקפצה חלקה לאזור בחירת הזמן
+                durationGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
             };
         }
         
-        // בדיקה אם נבחר (הכחול דורס הכל)
         if(t === selectedTimeStr) {
             btn.classList.add('selected');
         }
@@ -356,13 +351,8 @@ function renderTimeGrid() {
 function updateGridVisuals() {
     const btns = timeGrid.querySelectorAll('.time-btn');
     btns.forEach(btn => {
-        // בודקים אם הכפתור הוא "taken" - אם כן, מדלגים עליו (או שהוא נשאר taken)
         if(btn.classList.contains('taken')) return;
-
-        // מנקים בחירה
         btn.classList.remove('selected');
-        
-        // בדיקת תוכן הטקסט (בשעות פנויות הטקסט הוא רק השעה)
         if(btn.textContent === selectedTimeStr) {
             btn.classList.add('selected');
         }
