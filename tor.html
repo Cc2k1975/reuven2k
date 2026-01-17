@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ניהול תורים - מהיר</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{
+      font-family:system-ui,"Heebo","Arial",sans-serif;
+      background:#f3f5fa;
+      color:#111;
+      font-size:20px;
+    }
+    body{
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:18px;
+    }
+    .app{
+      width:100%;
+      max-width:540px;
+      background:#fff;
+      border-radius:18px;
+      box-shadow:0 12px 25px rgba(0,0,0,0.08);
+      padding:20px 18px 28px;
+    }
+
+    /* כותרת + כפתור בשורה אחת */
+    .header-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:nowrap;
+      margin-bottom:6px;
+    }
+    h1{
+      font-size:1.4rem;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    .btn-reset{
+      padding:4px 10px;
+      border-radius:10px;
+      border:none;
+      font-size:0.75rem;
+      background:#ffecec;
+      color:#c80000;
+      cursor:pointer;
+      white-space:nowrap;
+      flex-shrink:0;
+    }
+    .btn-reset:hover{
+      background:#ffd2d2;
+    }
+
+    /* שורת תאריך עם לוח שנה */
+    .date-row{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      margin-bottom:14px;
+    }
+    .date-label{
+      font-size:0.95rem;
+      color:#444;
+      white-space:nowrap;
+    }
+    .date-input{
+      padding:4px 8px;
+      border-radius:8px;
+      border:1px solid #ccd3e0;
+      font-size:0.95rem;
+      background:#f9fafc;
+    }
+
+    .field-group{
+      margin-bottom:18px;
+    }
+    label{
+      display:block;
+      font-size:1rem;
+      margin-bottom:6px;
+      color:#333;
+    }
+    select,
+    input[type="text"]{
+      width:100%;
+      padding:14px 14px;
+      border-radius:12px;
+      border:1px solid #ccd3e0;
+      font-size:1.1rem;
+      outline:none;
+      background:#f9fafc;
+    }
+    select:focus,
+    input[type="text"]:focus{
+      border-color:#4a6cf7;
+      box-shadow:0 0 0 2px rgba(74,108,247,0.35);
+      background:#fff;
+    }
+    select option[disabled]{
+      color:#bbb;
+      background:#f0f0f0;
+    }
+
+    /* כפתורי בחירת זמן (במקום סלקט) */
+    .duration-buttons{
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+    }
+    .btn-duration{
+      flex:1;
+      padding:12px 0;
+      border-radius:12px;
+      border:1px solid #ccd3e0;
+      background:#f9fafc;
+      font-size:1rem;
+      cursor:pointer;
+      transition: all 0.2s;
+      font-weight:600;
+    }
+    .btn-duration:hover{
+      background:#eef2ff;
+    }
+    .btn-duration.active{
+      background:#4a6cf7;
+      color:#fff;
+      border-color:#4a6cf7;
+      box-shadow:0 4px 10px rgba(74,108,247,0.3);
+    }
+
+    .inline-buttons{
+      display:flex;
+      margin-top:12px;
+    }
+    .btn{
+      flex:1;
+      padding:14px 0;
+      border-radius:999px;
+      border:none;
+      font-size:1.1rem;
+      cursor:pointer;
+    }
+    .btn-primary{
+      background:#4a6cf7;
+      color:#fff;
+    }
+    .btn-primary:hover{
+      background:#3857d1;
+    }
+
+    .suggestions{
+      position:relative;
+      margin-top:6px;
+    }
+    .suggestions-list{
+      position:absolute;
+      right:0;
+      left:0;
+      background:#fff;
+      border:1px solid #d0d7e5;
+      border-radius:12px;
+      max-height:230px;
+      overflow-y:auto;
+      z-index:20;
+      box-shadow:0 10px 22px rgba(0,0,0,0.08);
+    }
+    .suggestion-item{
+      padding:12px 14px;
+      font-size:1.05rem;
+      cursor:pointer;
+    }
+    .suggestion-item:hover{
+      background:#f2f5ff;
+    }
+    .suggestions-list.empty{
+      display:none;
+    }
+
+    .divider{
+      margin:20px 0 10px;
+      border-top:1px solid #ebedf3;
+    }
+
+    /* כותרת + חיפוש */
+    .section-header{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-bottom:12px;
+    }
+    .section-title{
+      font-size:1.3rem;
+      font-weight:600;
+    }
+    .filter-input{
+      padding:10px 12px;
+      border-radius:999px;
+      border:1px solid #ccd3e0;
+      font-size:0.95rem;
+      background:#f9fafc;
+    }
+
+    .appointments{
+      max-height:450px;
+      overflow-y:auto;
+      border-radius:14px;
+      border:1px solid #e1e5f0;
+      padding:8px;
+      background:#fafbff;
+    }
+    .appt-row{
+      display:flex;
+      align-items:center;
+      padding:14px 14px;
+      border-radius:12px;
+      background:#fff;
+      box-shadow:0 1px 3px rgba(0,0,0,0.07);
+      margin-bottom:10px;
+      gap:12px;
+    }
+    .appt-time{
+      font-weight:700;
+      font-size:1.05rem;
+      min-width:74px;
+    }
+    .appt-info{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+    }
+    .appt-name{
+      font-size:1.1rem;
+      color:#333;
+      font-weight:700; 
+    }
+    .appt-type{
+      font-size:0.85rem;
+      color:#666;
+    }
+    .appt-delete{
+      padding:8px 14px;
+      font-size:0.95rem;
+      border-radius:999px;
+      border:none;
+      cursor:pointer;
+      background:#ffe5e5;
+      color:#c0392b;
+    }
+    .appt-delete:hover{
+      background:#ffd2d2;
+    }
+    .empty-msg{
+      text-align:center;
+      font-size:1.1rem;
+      color:#777;
+      padding:22px 6px;
+    }
+
+    .stats{
+      margin-top:8px;
+      font-size:0.95rem;
+      color:#333;
+      text-align:right;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="header-row">
+      <h1>ניהול תורים מהיר</h1>
+      <button class="btn-reset" id="btnNewDay">רשימה יומית חדשה</button>
+    </div>
+
+    <div class="date-row">
+      <span class="date-label">תאריך:</span>
+      <input type="date" id="datePicker" class="date-input">
+    </div>
+
+    <div class="field-group">
+      <label for="timeSelect">בחר שעה</label>
+      <select id="timeSelect">
+        <option value="">בחר שעה...</option>
+      </select>
+    </div>
+
+    <div class="field-group">
+      <label>סוג טיפול (משך זמן)</label>
+      <div class="duration-buttons">
+        <button type="button" class="btn-duration" onclick="selectDuration(15, this)">15 דק'</button>
+        <button type="button" class="btn-duration" onclick="selectDuration(20, this)">20 דק'</button>
+        <button type="button" class="btn-duration" onclick="selectDuration(30, this)">30 דק'</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label for="clientInput">שם לקוחה</label>
+      <input type="text" id="clientInput" placeholder="הקלד שם לקוחה">
+      <div class="suggestions">
+        <div id="suggestionsList" class="suggestions-list empty"></div>
+      </div>
+
+      <div class="inline-buttons">
+        <button class="btn btn-primary" id="btnSaveAppt">שמור תור</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-header">
+      <div class="section-title">תורים להיום</div>
+      <input type="text" id="filterInput" class="filter-input" placeholder="סינון לפי שם לקוחה">
+    </div>
+
+    <div id="appointmentsContainer" class="appointments"></div>
+    <div id="statsContainer" class="stats"></div>
+  </div>
+
+<script>
+/* --- הגדרות זמנים: 16:30 עד 22:30 --- */
+const times = [];
+for(let h = 16; h <= 22; h++){
+  for(let m = 0; m < 60; m += 5){
+    // מתחילים ב 16:30
+    if(h === 16 && m < 30) continue;
+    // מסיימים ב 22:30 (כולל)
+    if(h === 22 && m > 30) continue;
+
+    const hh = h.toString().padStart(2,'0');
+    const mm = m.toString().padStart(2,'0');
+    times.push(`${hh}:${mm}`);
+  }
+}
+
+let selectedDuration = 0; // נשמור את הבחירה מהכפתורים
+
+/* --- אחסון --- */
+const LS_CLIENTS_KEY = 'salonClients';
+const LS_APPTS_KEY   = 'salonAppointmentsByDate';
+
+let clients = [];           
+let appointmentsByDate = {}; 
+let appointments = {};       
+let currentDateKey = '';
+let todayKey = '';
+
+const timeSelect      = document.getElementById('timeSelect');
+const clientInput     = document.getElementById('clientInput');
+const suggestionsList = document.getElementById('suggestionsList');
+const appointmentsDiv = document.getElementById('appointmentsContainer');
+const statsContainer  = document.getElementById('statsContainer');
+const btnSaveAppt     = document.getElementById('btnSaveAppt');
+const btnNewDay       = document.getElementById('btnNewDay');
+const datePicker      = document.getElementById('datePicker');
+const filterInput     = document.getElementById('filterInput');
+
+/* --- עזר תאריכים --- */
+function formatDateKey(d){
+  const y = d.getFullYear();
+  const m = (d.getMonth()+1).toString().padStart(2,'0');
+  const day = d.getDate().toString().padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function setDateLimits(){
+  const today = new Date();
+  const max   = new Date();
+  max.setMonth(max.getMonth()+1);
+  datePicker.min = formatDateKey(today);
+  datePicker.max = formatDateKey(max);
+}
+
+/* --- ניהול כפתורי בחירה (15/20/30) --- */
+function selectDuration(mins, btnElement){
+  selectedDuration = mins;
+  // איפוס ויזואלי לכל הכפתורים
+  document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
+  // סימון הכפתור שנלחץ
+  btnElement.classList.add('active');
+}
+
+/* --- לקוחות --- */
+function normalizeName(name){
+  return name.trim();
+}
+function findClientByName(name){
+  const norm = normalizeName(name).toLowerCase();
+  if(!norm) return null;
+  for(const c of clients){
+    if(c && c.name && c.name.trim().toLowerCase() === norm){
+      return c;
+    }
+  }
+  return null;
+}
+function ensureClientsArray(raw){
+  if(!Array.isArray(raw)) return [];
+  if(raw.length === 0) return [];
+  if(typeof raw[0] === 'string'){
+    return raw.map(n => ({name:n}));
+  }
+  return raw.map(c => ({name: c.name || ''})).filter(c => c.name);
+}
+
+/* --- אתחול --- */
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  todayKey = formatDateKey(now);
+  setDateLimits();
+  datePicker.value = todayKey;
+
+  loadFromStorage();
+
+  currentDateKey = datePicker.value || todayKey;
+  if(!appointmentsByDate[currentDateKey]) appointmentsByDate[currentDateKey] = {};
+  appointments = appointmentsByDate[currentDateKey];
+
+  fillTimesSelect();
+  updateTimeOptions();
+  renderAppointments();
+
+  // ברירת מחדל: נקפוץ לשעה הפנויה הראשונה ברגע שהדף עולה
+  setNextFreeTime();
+});
+
+/* שינוי תאריך */
+datePicker.addEventListener('change', () => {
+  currentDateKey = datePicker.value || todayKey;
+  if(!appointmentsByDate[currentDateKey]) appointmentsByDate[currentDateKey] = {};
+  appointments = appointmentsByDate[currentDateKey];
+
+  timeSelect.value = '';
+  clientInput.value = '';
+  filterInput.value = '';
+  hideSuggestions();
+
+  updateTimeOptions();
+  renderAppointments();
+  setNextFreeTime(); // קפיצה לזמן פנוי ראשון
+});
+
+filterInput.addEventListener('input', () => {
+  renderAppointments();
+});
+
+function fillTimesSelect(){
+  timeSelect.innerHTML = '<option value="">בחר שעה...</option>';
+  times.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t;
+    timeSelect.appendChild(opt);
+  });
+}
+
+function loadFromStorage(){
+  try{
+    const c = localStorage.getItem(LS_CLIENTS_KEY);
+    if(c){
+      const parsed = JSON.parse(c);
+      clients = ensureClientsArray(parsed);
+    }
+  }catch {}
+
+  try{
+    const a = localStorage.getItem(LS_APPTS_KEY);
+    if(a){
+      const parsed = JSON.parse(a);
+      if(parsed && typeof parsed === 'object'){
+        const keys = Object.keys(parsed);
+        const looksOld = keys.some(k => k.includes(':'));
+        if(looksOld){
+          appointmentsByDate = {};
+          appointmentsByDate[todayKey] = parsed;
+        }else{
+          appointmentsByDate = parsed;
+        }
+      }
+    }
+  }catch {}
+  if(!appointmentsByDate) appointmentsByDate = {};
+}
+
+function saveClients(){
+  localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(clients));
+}
+function saveAppointments(){
+  if(!currentDateKey){
+    currentDateKey = datePicker.value || todayKey;
+  }
+  appointmentsByDate[currentDateKey] = appointments;
+  localStorage.setItem(LS_APPTS_KEY, JSON.stringify(appointmentsByDate));
+}
+
+/* --- השלמת שמות --- */
+clientInput.addEventListener('input', () => {
+  showSuggestions(clientInput.value.trim());
+});
+clientInput.addEventListener('focus', () => {
+  showSuggestions(clientInput.value.trim());
+});
+document.addEventListener('click', e => {
+  if(!e.target.closest('.field-group')) hideSuggestions();
+});
+
+function showSuggestions(query){
+  const q = query.toLowerCase();
+  let filtered = clients;
+  if(q.length > 0){
+    filtered = clients.filter(c => c.name && c.name.toLowerCase().startsWith(q));
+  }
+  suggestionsList.innerHTML = '';
+  if(filtered.length === 0){
+    suggestionsList.classList.add('empty');
+    return;
+  }
+  suggestionsList.classList.remove('empty');
+  filtered.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    item.textContent = c.name;
+    item.addEventListener('click', () => {
+      clientInput.value = c.name;
+      hideSuggestions();
+    });
+    suggestionsList.appendChild(item);
+  });
+}
+function hideSuggestions(){
+  suggestionsList.innerHTML = '';
+  suggestionsList.classList.add('empty');
+}
+
+/* --- לוגיקה חכמה לקביעת הזמן הבא --- */
+function setNextFreeTime(startIndexToCheck = 0) {
+  // מחפש את השעה הפנויה הראשונה החל מאינדקס מסוים
+  for (let i = startIndexToCheck; i < times.length; i++) {
+    const t = times[i];
+    if (!appointments[t]) {
+      timeSelect.value = t;
+      return;
+    }
+  }
+  // אם הכל תפוס, נשאר על ריק או על האחרון
+  timeSelect.value = '';
+}
+
+/* --- שמירת תור --- */
+btnSaveAppt.addEventListener('click', () => {
+  const time = timeSelect.value;
+  const nameRaw = clientInput.value.trim();
+  const name = normalizeName(nameRaw);
+
+  if(!time){
+    alert('בחר שעה לתור.');
+    return;
+  }
+  if(selectedDuration === 0){
+    alert('בחר משך זמן (15/20/30 דקות).');
+    return;
+  }
+  if(!name){
+    alert('כתוב שם לקוחה.');
+    return;
+  }
+
+  // שמירת לקוחה חדשה אם צריך (ללא טלפון)
+  let client = findClientByName(name);
+  if(!client){
+    clients.push({name});
+    clients.sort((a,b)=>a.name.localeCompare(b.name,'he'));
+    saveClients();
+  }
+
+  const startIdx = times.indexOf(time);
+  if(startIdx === -1){
+    alert('שגיאה בשעה שנבחרה.');
+    return;
+  }
+  
+  // חישוב סלוטים (כל סלוט = 5 דקות)
+  const slots = Math.ceil(selectedDuration / 5);
+
+  if(startIdx + slots > times.length){
+    alert('אין מספיק זמן עד סוף היום (22:30) לטיפול זה.');
+    return;
+  }
+
+  // בדיקת חפיפה
+  for(let i=0;i<slots;i++){
+    const tSlot = times[startIdx + i];
+    if(appointments[tSlot]){
+      alert('טווח הזמן שבחרת חופף לתור אחר. בחר שעה אחרת.');
+      return;
+    }
+  }
+
+  // שמירה
+  for(let i=0;i<slots;i++){
+    const tSlot = times[startIdx + i];
+    appointments[tSlot] = {
+      name,
+      minutes: selectedDuration,
+      isMain: i === 0
+    };
+  }
+  saveAppointments();
+  updateTimeOptions();
+  renderAppointments();
+
+  // ניקוי שדות והכנה לתור הבא
+  clientInput.value = '';
+  hideSuggestions();
+  
+  // קפיצה חכמה: הזמן הבא = הזמן שנגמר התור הנוכחי
+  const nextSlotIndex = startIdx + slots;
+  setNextFreeTime(nextSlotIndex);
+});
+
+function updateTimeOptions(){
+  Array.from(timeSelect.options).forEach(opt => {
+    if(!opt.value) return;
+    const isTaken = !!appointments[opt.value];
+    opt.disabled = isTaken;
+    if(isTaken) {
+        opt.textContent = opt.value + ' (תפוס)';
+    } else {
+        opt.textContent = opt.value;
+    }
+  });
+}
+
+/* --- סטטיסטיקות --- */
+function updateStats(mainTimesAll){
+  if(!statsContainer) return;
+  if(mainTimesAll.length === 0){
+    statsContainer.textContent = '';
+    return;
+  }
+  let totalMinutes = 0;
+  mainTimesAll.forEach(t => {
+    const appt = appointments[t];
+    if(!appt) return;
+    totalMinutes += (appt.minutes || 0);
+  });
+  const totalAppointments = mainTimesAll.length;
+  let timeText = '';
+  if(totalMinutes > 0){
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    if(h > 0 && m > 0) timeText = `${h} שעות ו-${m} דקות`;
+    else if(h > 0)     timeText = `${h} שעות`;
+    else               timeText = `${m} דקות`;
+  }
+  statsContainer.textContent =
+    `סה״כ תורים: ${totalAppointments}` +
+    (timeText ? ` | זמן עבודה: ${timeText}` : '');
+}
+
+/* --- תצוגת תורים --- */
+function renderAppointments(){
+  appointmentsDiv.innerHTML = '';
+  statsContainer.textContent = '';
+
+  const mainTimesAll = times.filter(t => appointments[t] && appointments[t].isMain);
+  const filter = (filterInput.value || '').trim().toLowerCase();
+
+  if(mainTimesAll.length === 0){
+    appointmentsDiv.innerHTML =
+      '<div class="empty-msg">אין תורים רשומים ליום זה.</div>';
+    return;
+  }
+
+  let mainTimes = mainTimesAll;
+  if(filter){
+    mainTimes = mainTimesAll.filter(t => {
+      const appt = appointments[t];
+      if(!appt || !appt.name) return false;
+      return appt.name.toLowerCase().includes(filter);
+    });
+  }
+
+  if(mainTimes.length === 0){
+    updateStats(mainTimesAll);
+    appointmentsDiv.innerHTML =
+      '<div class="empty-msg">אין תורים התואמים לחיפוש.</div>';
+    return;
+  }
+
+  mainTimes.forEach(t => {
+    const appt = appointments[t];
+
+    const row = document.createElement('div');
+    row.className = 'appt-row';
+
+    const timeEl = document.createElement('div');
+    timeEl.className = 'appt-time';
+    timeEl.textContent = t;
+
+    const infoEl = document.createElement('div');
+    infoEl.className = 'appt-info';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'appt-name';
+    nameEl.textContent = appt.name;
+    
+    const typeEl = document.createElement('div');
+    typeEl.className = 'appt-type';
+    typeEl.textContent = `${appt.minutes} דקות`;
+
+    infoEl.appendChild(nameEl);
+    infoEl.appendChild(typeEl);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'appt-delete';
+    delBtn.textContent = 'מחק';
+    delBtn.addEventListener('click', () => {
+      if(!confirm(`למחוק את התור של "${appt.name}" בשעה ${t}?`)) return;
+
+      const startIdx = times.indexOf(t);
+      const slots = Math.ceil((appt.minutes || 15) / 5);
+
+      for(let i=0;i<slots;i++){
+        const tSlot = times[startIdx + i];
+        if(appointments[tSlot]) delete appointments[tSlot];
+      }
+      saveAppointments();
+      updateTimeOptions();
+      renderAppointments();
+    });
+
+    row.appendChild(timeEl);
+    row.appendChild(infoEl);
+    row.appendChild(delBtn);
+    appointmentsDiv.appendChild(row);
+  });
+
+  updateStats(mainTimesAll);
+}
+
+/* --- רשימה יומית חדשה --- */
+btnNewDay.addEventListener('click', () => {
+  if(!confirm('לפתוח רשימה יומית חדשה ולמחוק את כל התורים?')) return;
+
+  appointments = {};
+  appointmentsByDate[currentDateKey || (datePicker.value || todayKey)] = appointments;
+  saveAppointments();
+  updateTimeOptions();
+  renderAppointments();
+  
+  timeSelect.value = '';
+  // איפוס בחירת דקות
+  selectedDuration = 0;
+  document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
+  
+  clientInput.value = '';
+  filterInput.value = '';
+  hideSuggestions();
+  setNextFreeTime();
+});
+</script>
+
+</body>
+</html>
