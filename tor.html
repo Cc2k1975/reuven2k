@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ניהול תורים - מילוי אוטומטי</title>
+  <title>ניהול תורים - מתוקן (תאריכים)</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     html,body{
@@ -30,8 +30,11 @@
     }
 
     .header-row{
-      display:flex; align-items:center; justify-content:space-between;
-      gap:8px; margin-bottom:6px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:6px;
     }
     h1{ font-size:1.4rem; font-weight:700; white-space:nowrap; }
 
@@ -46,8 +49,13 @@
       white-space:nowrap;
     }
 
-    .date-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:14px; }
-    .date-input{ padding:4px 8px; border-radius:8px; border:1px solid #ccd3e0; font-size:0.95rem; background:#f9fafc; }
+    .date-row{ display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:10px; }
+    .date-input{ padding:8px; border-radius:8px; border:1px solid #ccd3e0; font-size:1.1rem; background:#fff; font-weight: bold; }
+
+    .current-date-display {
+        text-align: center; font-size: 0.95rem; color: #555; margin-bottom: 10px; font-weight: 600;
+        background: #eef2ff; padding: 5px; border-radius: 6px;
+    }
 
     .field-group{ margin-bottom:18px; }
     label{ display:block; font-size:0.95rem; margin-bottom:6px; color:#333; font-weight:600; }
@@ -159,6 +167,8 @@
       <span class="date-label">תאריך:</span>
       <input type="date" id="datePicker" class="date-input">
     </div>
+    
+    <div class="current-date-display" id="displayDateLabel"></div>
 
     <div class="field-group">
       <label>בחר שעה (לחץ על קובייה ירוקה)</label>
@@ -282,6 +292,7 @@ const statsContainer  = document.getElementById('statsContainer');
 const btnSaveAppt     = document.getElementById('btnSaveAppt');
 const btnNewDay       = document.getElementById('btnNewDay');
 const datePicker      = document.getElementById('datePicker');
+const displayDateLabel= document.getElementById('displayDateLabel'); // חדש
 const filterInput     = document.getElementById('filterInput');
 const btnReport       = document.getElementById('btnReport');
 
@@ -387,29 +398,44 @@ window.addEventListener('DOMContentLoaded', () => {
   loadDate(todayKey);
 });
 
-datePicker.addEventListener('change', () => {
-  loadDate(datePicker.value || todayKey);
+datePicker.addEventListener('change', (e) => {
+  // קריאה ישירה לטעינה עם הערך החדש
+  loadDate(e.target.value);
 });
 
 function loadDate(dateKey) {
   currentDateKey = dateKey;
+  
+  // עדכון כותרת חיווי
+  displayDateLabel.textContent = "מציג תורים לתאריך: " + niceDateFromKey(currentDateKey);
+
+  // וודא שהאובייקט קיים
   if(!appointmentsByDate[currentDateKey]) {
       appointmentsByDate[currentDateKey] = {};
   }
-  // הכנסת קבועים בכל טעינה (ממלא חורים)
+  
+  // הפעלת לוגיקה של לקוחות קבועים (תמיד, כדי למלא חורים)
   applyFixedSlots(currentDateKey);
   
+  // עדכון המשתנה הגלובלי
   appointments = appointmentsByDate[currentDateKey];
+
+  // איפוס בחירות
   selectedTimeStr = '';
+  selectedDuration = 0;
+  document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
+  
   clientInput.value = '';
   filterInput.value = '';
   hideSuggestions();
+  
+  // רינדור מחדש
   renderTimeGrid();
   renderAppointments();
   setNextFreeTime();
 }
 
-/* לוגיקה חכמה ללקוחות קבועים - ממלא אם פנוי */
+/* לוגיקה חכמה ללקוחות קבועים */
 function applyFixedSlots(dateKey) {
     const dayOfWeek = getDayOfWeek(dateKey); 
     const slotsToday = fixedSlots.filter(s => parseInt(s.day) === dayOfWeek);
@@ -424,9 +450,11 @@ function applyFixedSlots(dateKey) {
         // בדיקה אם המשבצות פנויות
         let isFree = true;
         for(let i=0; i<slotsNeeded; i++){
+            // אם המקום תפוס, אנחנו לא דורסים
             if(appointmentsByDate[dateKey][times[startIdx + i]]) isFree = false;
         }
 
+        // אם פנוי - מכניסים את הלקוחה הקבועה
         if(isFree) {
             for(let i=0; i<slotsNeeded; i++){
                 appointmentsByDate[dateKey][times[startIdx + i]] = {
@@ -438,6 +466,8 @@ function applyFixedSlots(dateKey) {
             changed = true;
         }
     });
+    
+    // אם היו שינויים, שומרים לזיכרון
     if(changed) saveAppointments();
 }
 
@@ -461,7 +491,7 @@ function loadFromStorage(){
 function saveClients(){ localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(clients)); }
 function saveAppointments(){
   if(!currentDateKey) currentDateKey = datePicker.value || todayKey;
-  appointmentsByDate[currentDateKey] = appointments;
+  appointmentsByDate[currentDateKey] = appointments; // עדכון הרפרנס
   localStorage.setItem(LS_APPTS_KEY, JSON.stringify(appointmentsByDate));
 }
 function saveFixedSlots(){ localStorage.setItem(LS_FIXED_KEY, JSON.stringify(fixedSlots)); }
@@ -556,7 +586,6 @@ btnAddFixed.addEventListener('click', () => {
     const name = fixName.value.trim();
     if(!name) { alert('נא להזין שם'); return; }
     
-    // בדיקה אם קיים
     const exists = fixedSlots.some(s => s.day == fixDay.value && s.time == fixTime.value);
     if(exists){ alert('כבר קיים לקוח בזמן הזה'); return; }
 
@@ -570,13 +599,8 @@ btnAddFixed.addEventListener('click', () => {
     renderFixedList();
     fixName.value = '';
     
-    // עדכון מיידי אם רלוונטי להיום
-    const currentD = new Date(currentDateKey);
-    if (currentD.getDay() == fixDay.value) {
-        applyFixedSlots(currentDateKey); 
-        renderTimeGrid(); 
-        renderAppointments();
-    }
+    // רענון מיידי לתאריך הנוכחי
+    loadDate(currentDateKey);
     alert('נוסף בהצלחה!');
 });
 
@@ -597,6 +621,8 @@ function renderFixedList() {
                 fixedSlots.splice(idx, 1);
                 saveFixedSlots();
                 renderFixedList();
+                // רענון למקרה שמחקנו משהו שמשפיע על היום
+                loadDate(currentDateKey);
             }
         };
         item.appendChild(btnDel);
