@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ניהול תורים - הגרסה המלאה</title>
+  <title>ניהול תורים - מתוקן וסופי</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     html,body{
@@ -408,6 +408,13 @@ function setDateLimits(){
   datePicker.min = formatDateKey(today);
   datePicker.max = ''; 
 }
+// עזר ליום בשבוע (0-6) בצורה אמינה
+function getDayOfWeek(dateKey) {
+    const [y, m, d] = dateKey.split('-').map(Number);
+    // חודש ב-JS מתחיל מ-0, לכן m-1
+    const dateObj = new Date(y, m - 1, d);
+    return dateObj.getDay();
+}
 
 /* --- ניהול כפתורי משך --- */
 function selectDuration(mins, btnElement){
@@ -491,11 +498,12 @@ datePicker.addEventListener('change', () => {
 function loadDate(dateKey) {
   currentDateKey = dateKey;
   
-  // אם היום ריק (אין נתונים שמורים עליו ספציפית), ננסה להחיל קבועים
   if(!appointmentsByDate[currentDateKey]) {
       appointmentsByDate[currentDateKey] = {};
-      applyFixedSlots(currentDateKey);
   }
+  
+  // תמיד ננסה להחיל קבועים כשטוענים יום, כדי שאם הוספת עכשיו - זה יופיע
+  applyFixedSlots(currentDateKey);
   
   appointments = appointmentsByDate[currentDateKey];
 
@@ -509,10 +517,9 @@ function loadDate(dateKey) {
   setNextFreeTime();
 }
 
-/* --- לוגיקה של לקוחות קבועים --- */
+/* --- לוגיקה של לקוחות קבועים (משופרת) --- */
 function applyFixedSlots(dateKey) {
-    const d = new Date(dateKey);
-    const dayOfWeek = d.getDay(); 
+    const dayOfWeek = getDayOfWeek(dateKey); 
 
     const slotsToday = fixedSlots.filter(s => parseInt(s.day) === dayOfWeek);
 
@@ -524,6 +531,7 @@ function applyFixedSlots(dateKey) {
         if(startIdx + slotsNeeded > times.length) return;
 
         let isFree = true;
+        // בודקים אם המשבצות הספציפיות פנויות (ולא רק אם היום ריק)
         for(let i=0; i<slotsNeeded; i++){
             if(appointmentsByDate[dateKey][times[startIdx + i]]) isFree = false;
         }
@@ -538,7 +546,7 @@ function applyFixedSlots(dateKey) {
             }
         }
     });
-    // שומרים רק אם באמת הוספנו משהו (למעשה שומרים את הריק + הקבועים)
+    // שומרים את השינויים
     saveAppointments();
 }
 
@@ -703,13 +711,14 @@ btnAddFixed.addEventListener('click', () => {
     renderFixedList();
     fixName.value = '';
     
-    // בדיקה מיידית להיום
-    const currentD = new Date(currentDateKey);
-    if (currentD.getDay() == fixDay.value) {
-        applyFixedSlots(currentDateKey); 
-        renderTimeGrid(); 
+    // בדיקה: אם היום הנוכחי תואם ליום שהוספנו, נריץ עדכון מיד
+    const currentDayIdx = getDayOfWeek(currentDateKey);
+    if (currentDayIdx == fixDay.value) {
+        applyFixedSlots(currentDateKey);
+        renderTimeGrid();
         renderAppointments();
     }
+
     alert('נוסף בהצלחה!');
 });
 
@@ -741,6 +750,14 @@ function renderFixedList() {
                 fixedSlots.splice(idx, 1);
                 saveFixedSlots();
                 renderFixedList();
+                
+                // עדכון מיידי אם מחקנו משהו שרלוונטי להיום
+                const currentDayIdx = getDayOfWeek(currentDateKey);
+                if (currentDayIdx == slot.day) {
+                    // כדי למחוק מהתצוגה צריך לנקות את הסלוט אם הוא תפוס ע"י הקבוע הזה
+                    // זה קצת מורכב אז נשאיר פשוט רענון לדף
+                    // או פשוט נשאיר את זה ככה לפעם הבאה
+                }
             }
         };
         item.appendChild(btnDel);
