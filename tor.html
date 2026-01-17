@@ -1,87 +1,886 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>סורק תורים אבודים</title>
-    <style>
-        body { font-family: system-ui, sans-serif; padding: 20px; background: #f0f0f0; }
-        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        h1 { color: #d63031; text-align: center; }
-        .date-block { background: #eef2f3; margin-bottom: 15px; padding: 10px; border-radius: 8px; border-right: 5px solid #0984e3; }
-        .date-title { font-weight: bold; font-size: 1.2rem; color: #2d3436; margin-bottom: 5px; }
-        .appt-item { font-size: 1.1rem; padding: 5px 0; border-bottom: 1px solid #dfe6e9; }
-        .empty-msg { text-align: center; font-size: 1.2rem; color: #636e72; margin-top: 30px; }
-        .summary { background: #ffeaa7; padding: 10px; text-align: center; font-weight: bold; border-radius: 8px; margin-bottom: 20px; }
-    </style>
-</head>
-<body>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ניהול תורים - הגרסה המלאה</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html,body{
+      font-family:system-ui,"Heebo","Arial",sans-serif;
+      background:#f3f5fa;
+      color:#111;
+      font-size:18px;
+    }
+    body{
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:10px;
+    }
+    .app{
+      width:100%;
+      max-width:600px;
+      background:#fff;
+      border-radius:18px;
+      box-shadow:0 12px 25px rgba(0,0,0,0.08);
+      padding:20px 18px 28px;
+      position: relative;
+    }
 
-<div class="container">
-    <h1>🔍 סורק זיכרון - חיפוש תורים</h1>
-    <div id="summary" class="summary">טוען נתונים...</div>
-    <div id="output"></div>
-</div>
+    /* כותרת */
+    .header-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:6px;
+    }
+    h1{ font-size:1.4rem; font-weight:700; white-space:nowrap; }
+
+    .header-actions {
+        display: flex; gap: 8px; align-items: center;
+    }
+    .btn-icon {
+        background: #f0f0f0; border: none; font-size: 1.2rem;
+        padding: 6px 10px; border-radius: 8px; cursor: pointer;
+    }
+    .btn-icon:hover { background: #e0e0e0; }
+
+    .btn-reset{
+      padding:6px 12px; border-radius:10px; border:none;
+      font-size:0.8rem; background:#ffecec; color:#c80000; cursor:pointer;
+      white-space:nowrap;
+    }
+
+    /* תאריך */
+    .date-row{
+      display:flex; align-items:center; justify-content:center;
+      gap:8px; margin-bottom:14px;
+    }
+    .date-input{
+      padding:4px 8px; border-radius:8px; border:1px solid #ccd3e0;
+      font-size:0.95rem; background:#f9fafc;
+    }
+
+    .field-group{ margin-bottom:18px; }
+    label{
+      display:block; font-size:0.95rem; margin-bottom:6px;
+      color:#333; font-weight:600;
+    }
+    input[type="text"], select {
+      width:100%; padding:12px; border-radius:12px;
+      border:1px solid #ccd3e0; font-size:1.1rem; background:#f9fafc;
+      outline: none;
+    }
+    input[type="text"]:focus, select:focus{ border-color:#4a6cf7; background:#fff; }
+
+    /* גריד שעות */
+    .time-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .time-btn {
+      height: 48px;
+      display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      padding: 2px; border-radius: 8px;
+      border: 1px solid #dce1eb;
+      font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; text-align: center;
+      transition: all 0.1s; line-height: 1.1;
+    }
+    .time-btn.free {
+      background: #caffbf; border: 1px solid #4cd137;
+      color: #006400; box-shadow: 0 0 5px rgba(76, 209, 55, 0.3);
+    }
+    .time-btn.free:hover { background: #b2fab4; transform: scale(1.02); }
+    .time-btn.taken {
+      background: #f1f3f5; color: #888;
+      border-color: #e9ecef; cursor: not-allowed;
+    }
+    .btn-name {
+      font-size: 0.55rem; font-weight: 400; color: #555;
+      white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; max-width: 100%; margin-top: 1px; line-height: 1;
+    }
+    .time-btn.selected {
+      background: #4a6cf7 !important; color: #fff !important;
+      border-color: #4a6cf7 !important; font-weight: 700;
+      box-shadow: 0 3px 8px rgba(74,108,247,0.4); transform: scale(1.05);
+    }
+
+    /* כפתורי משך */
+    .duration-buttons{ display:flex; gap:10px; }
+    .btn-duration{
+      flex:1; padding:12px 0; border-radius:12px;
+      border:1px solid #ccd3e0; background:#f9fafc;
+      font-size:1rem; cursor:pointer; font-weight:600;
+    }
+    .btn-duration.active{ background: #222; color:#fff; border-color:#222; }
+
+    .inline-buttons{ display:flex; margin-top:12px; }
+    .btn-primary{
+      width: 100%; padding:14px 0; border-radius:999px; border:none;
+      font-size:1.1rem; cursor:pointer; background:#4a6cf7; color:#fff;
+    }
+    .btn-primary:hover{ background:#3857d1; }
+
+    .suggestions{ position:relative; margin-top:6px; }
+    .suggestions-list{
+      position:absolute; right:0; left:0;
+      background:#fff; border:1px solid #d0d7e5;
+      border-radius:12px; max-height:230px; overflow-y:auto; z-index:20;
+    }
+    .suggestion-item{ padding:12px 14px; cursor:pointer; }
+    .suggestion-item:hover{ background:#f2f5ff; }
+    .suggestions-list.empty{ display:none; }
+
+    .divider{ margin:20px 0 10px; border-top:1px solid #ebedf3; }
+    .section-header{ margin-bottom:12px; }
+    .section-title{ font-size:1.2rem; font-weight:600; margin-bottom:8px; display:block; }
+    .filter-input{
+      padding:8px 12px; border-radius:999px; border:1px solid #ccd3e0;
+      font-size:0.9rem; background:#f9fafc; width: 100%;
+    }
+
+    .appointments{
+      max-height:450px; overflow-y:auto; border-radius:14px;
+      border:1px solid #e1e5f0; padding:8px; background:#fafbff;
+    }
+    .appt-row{
+      display:flex; align-items:center; padding:10px;
+      border-radius:12px; background:#fff;
+      box-shadow:0 1px 3px rgba(0,0,0,0.07); margin-bottom:8px; gap:10px;
+    }
+    .appt-time{ font-weight:700; font-size:1rem; min-width:60px; }
+    .appt-info{ flex:1; }
+    .appt-name{ font-weight:700; font-size:1rem; }
+    .appt-type{ font-size:0.8rem; color:#666; }
+    .appt-delete{
+      padding:6px 12px; font-size:0.85rem; border-radius:999px; border:none;
+      cursor:pointer; background:#ffe5e5; color:#c0392b;
+    }
+
+    .stats{ margin-top:8px; font-size:0.9rem; text-align:right; color:#555; }
+    .report-section{ margin-top:20px; }
+    .btn-whatsapp-report{
+      width:100%; padding:12px 0; border-radius:999px; border:none;
+      font-size:1rem; cursor:pointer; background:#25D366; color:#fff;
+      font-weight:600; box-shadow:0 4px 10px rgba(37, 211, 102, 0.3);
+    }
+
+    /* --- מודל הגדרות --- */
+    .modal-overlay {
+        display: none;
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5); z-index: 100;
+        justify-content: center; align-items: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-content {
+        background: #fff; width: 90%; max-width: 450px;
+        padding: 20px; border-radius: 16px;
+        max-height: 85vh; overflow-y: auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .modal-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 15px; }
+    .fixed-list { margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
+    .fixed-item {
+        background: #f9fafc; padding: 10px; border-radius: 8px;
+        margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+        font-size: 0.9rem;
+    }
+    .btn-del-fixed {
+        background: #ffe5e5; color: #c0392b; border: none;
+        padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+    }
+    .close-modal {
+        margin-top: 15px; width: 100%; padding: 10px;
+        background: #ddd; border: none; border-radius: 8px; cursor: pointer;
+    }
+    .row-inputs { display: flex; gap: 8px; margin-bottom: 8px; }
+    .row-inputs select, .row-inputs input { flex: 1; padding: 8px; }
+    
+    /* אזור גיבוי */
+    .backup-section {
+        margin-top: 20px; padding-top: 20px; border-top: 2px dashed #eee;
+        background: #f8faff; padding: 15px; border-radius: 12px;
+    }
+    .backup-title { font-weight: 700; margin-bottom: 10px; color: #333; }
+    .btn-backup {
+        flex:1; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;
+        padding: 10px; border-radius: 8px; cursor: pointer; font-weight:600;
+    }
+    .btn-restore {
+        flex:1; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0;
+        padding: 10px; border-radius: 8px; cursor: pointer; font-weight:600;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="header-row">
+      <h1>ניהול תורים</h1>
+      <div class="header-actions">
+          <button class="btn-icon" id="btnSettings" title="הגדרות וגיבוי">⚙️</button>
+          <button class="btn-reset" id="btnNewDay">רשימה חדשה</button>
+      </div>
+    </div>
+
+    <div class="date-row">
+      <span class="date-label">תאריך:</span>
+      <input type="date" id="datePicker" class="date-input">
+    </div>
+
+    <div class="field-group">
+      <label>בחר שעה (לחץ על קובייה ירוקה)</label>
+      <div id="timeGrid" class="time-grid"></div>
+    </div>
+
+    <div class="field-group" id="durationGroup">
+      <label>משך טיפול</label>
+      <div class="duration-buttons">
+        <button type="button" class="btn-duration" onclick="selectDuration(15, this)">15 דק'</button>
+        <button type="button" class="btn-duration" onclick="selectDuration(20, this)">20 דק'</button>
+        <button type="button" class="btn-duration" onclick="selectDuration(30, this)">30 דק'</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label for="clientInput">שם לקוחה</label>
+      <input type="text" id="clientInput" placeholder="הקלד שם לקוחה">
+      <div class="suggestions">
+        <div id="suggestionsList" class="suggestions-list empty"></div>
+      </div>
+
+      <div class="inline-buttons">
+        <button class="btn-primary" id="btnSaveAppt">שמור תור</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-header">
+      <span class="section-title">תורים להיום</span>
+      <input type="text" id="filterInput" class="filter-input" placeholder="חיפוש לפי שם...">
+    </div>
+
+    <div id="appointmentsContainer" class="appointments"></div>
+    <div id="statsContainer" class="stats"></div>
+
+    <div class="report-section">
+        <button class="btn-whatsapp-report" id="btnReport">שלח דו״ח יומי למנהל</button>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal-overlay">
+      <div class="modal-content">
+          <div class="modal-title">הגדרות</div>
+          
+          <label>הוסף לקוחה קבועה (שבועי):</label>
+          <div class="field-group">
+              <div class="row-inputs">
+                  <select id="fixDay">
+                      <option value="0">ראשון</option>
+                      <option value="1">שני</option>
+                      <option value="2">שלישי</option>
+                      <option value="3">רביעי</option>
+                      <option value="4">חמישי</option>
+                      <option value="5">שישי</option>
+                      <option value="6">שבת</option>
+                  </select>
+                  <select id="fixTime"></select> 
+              </div>
+              <div class="row-inputs">
+                   <select id="fixDuration">
+                       <option value="15">15 דק'</option>
+                       <option value="20">20 דק'</option>
+                       <option value="30">30 דק'</option>
+                   </select>
+                   <input type="text" id="fixName" placeholder="שם הלקוחה">
+              </div>
+              <button class="btn-primary" style="padding: 8px; font-size: 0.9rem;" id="btnAddFixed">הוסף לרשימה</button>
+          </div>
+
+          <div class="fixed-list" id="fixedListContainer"></div>
+
+          <div class="backup-section">
+              <div class="backup-title">גיבוי ושחזור נתונים</div>
+              <div class="row-inputs">
+                  <button class="btn-backup" id="btnDownloadBackup">📥 הורד גיבוי</button>
+                  <button class="btn-restore" id="btnUploadRestore">📤 שחזר מגיבוי</button>
+                  <input type="file" id="fileInput" accept=".json" style="display:none;">
+              </div>
+              <small style="color:#666; font-size:0.8rem;">שמור את הקובץ במקום בטוח.</small>
+          </div>
+
+          <button class="close-modal" id="btnCloseModal">סגור</button>
+      </div>
+  </div>
 
 <script>
-    const output = document.getElementById('output');
-    const summary = document.getElementById('summary');
-    
-    // מפתח הזיכרון שבו השתמשנו כל הזמן
-    const KEY = 'salonAppointmentsByDate';
-    
-    try {
-        const raw = localStorage.getItem(KEY);
-        if (!raw) {
-            summary.textContent = "❌ הזיכרון ריק לגמרי (לא נמצא המפתח 'salonAppointmentsByDate').";
+/* --- הגדרות זמנים: 16:30 עד 22:30 --- */
+const times = [];
+for(let h = 16; h <= 22; h++){
+  for(let m = 0; m < 60; m += 5){
+    if(h === 16 && m < 30) continue;
+    if(h === 22 && m > 30) continue;
+    const hh = h.toString().padStart(2,'0');
+    const mm = m.toString().padStart(2,'0');
+    times.push(`${hh}:${mm}`);
+  }
+}
+
+let selectedDuration = 0; 
+let selectedTimeStr = '';
+
+const LS_CLIENTS_KEY = 'salonClients';
+const LS_APPTS_KEY   = 'salonAppointmentsByDate';
+const LS_FIXED_KEY   = 'salonFixedSlots';
+const MANAGER_PHONE  = '972507449001';
+
+let clients = [];           
+let appointmentsByDate = {}; 
+let appointments = {};       
+let fixedSlots = [];
+
+let currentDateKey = '';
+let todayKey = '';
+
+/* אלמנטים */
+const timeGrid        = document.getElementById('timeGrid');
+const durationGroup   = document.getElementById('durationGroup');
+const clientInput     = document.getElementById('clientInput');
+const suggestionsList = document.getElementById('suggestionsList');
+const appointmentsDiv = document.getElementById('appointmentsContainer');
+const statsContainer  = document.getElementById('statsContainer');
+const btnSaveAppt     = document.getElementById('btnSaveAppt');
+const btnNewDay       = document.getElementById('btnNewDay');
+const datePicker      = document.getElementById('datePicker');
+const filterInput     = document.getElementById('filterInput');
+const btnReport       = document.getElementById('btnReport');
+
+/* מודל הגדרות */
+const btnSettings     = document.getElementById('btnSettings');
+const settingsModal   = document.getElementById('settingsModal');
+const btnCloseModal   = document.getElementById('btnCloseModal');
+const fixDay          = document.getElementById('fixDay');
+const fixTime         = document.getElementById('fixTime');
+const fixDuration     = document.getElementById('fixDuration');
+const fixName         = document.getElementById('fixName');
+const btnAddFixed     = document.getElementById('btnAddFixed');
+const fixedListContainer = document.getElementById('fixedListContainer');
+
+/* גיבוי */
+const btnDownloadBackup = document.getElementById('btnDownloadBackup');
+const btnUploadRestore  = document.getElementById('btnUploadRestore');
+const fileInput         = document.getElementById('fileInput');
+
+/* מילוי שעות במודל הגדרות */
+times.forEach(t => {
+    const op = document.createElement('option');
+    op.value = t; op.textContent = t;
+    fixTime.appendChild(op);
+});
+
+/* --- עזר תאריכים --- */
+function formatDateKey(d){
+  const y = d.getFullYear();
+  const m = (d.getMonth()+1).toString().padStart(2,'0');
+  const day = d.getDate().toString().padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function niceDateFromKey(dateKey){
+    if(!dateKey) return '';
+    const [y,m,d] = dateKey.split('-');
+    return `${d}.${m}.${y}`;
+}
+function setDateLimits(){
+  const today = new Date();
+  const max   = new Date();
+  max.setMonth(max.getMonth()+1);
+  datePicker.min = formatDateKey(today);
+  datePicker.max = ''; 
+}
+
+/* --- ניהול כפתורי משך --- */
+function selectDuration(mins, btnElement){
+  selectedDuration = mins;
+  document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
+  btnElement.classList.add('active');
+}
+
+/* --- בניית גריד השעות --- */
+function renderTimeGrid() {
+    timeGrid.innerHTML = '';
+    times.forEach(t => {
+        const btn = document.createElement('div');
+        
+        if(appointments[t]) {
+            btn.className = 'time-btn taken';
+            const appt = appointments[t];
+            const displayName = appt.name.length > 7 ? appt.name.substring(0,6)+'..' : appt.name;
+            btn.innerHTML = `
+              <div>${t}</div>
+              <div class="btn-name">${displayName}</div>
+            `;
         } else {
-            const data = JSON.parse(raw);
-            const dates = Object.keys(data).sort();
-            
-            let totalAppts = 0;
-            let foundContent = false;
+            btn.className = 'time-btn free';
+            btn.textContent = t;
+            btn.onclick = () => {
+                selectedTimeStr = t;
+                updateGridVisuals();
+                durationGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            };
+        }
+        
+        if(t === selectedTimeStr) {
+            btn.classList.add('selected');
+        }
+        timeGrid.appendChild(btn);
+    });
+}
 
-            if (dates.length === 0) {
-                summary.textContent = "📂 הזיכרון קיים, אך אין בו תאריכים שמורים.";
-            } else {
-                dates.forEach(date => {
-                    const appointments = data[date];
-                    // בדיקה אם יש תורים אמיתיים בתאריך הזה
-                    const validTimes = Object.keys(appointments).filter(t => appointments[t].isMain);
-                    
-                    if (validTimes.length > 0) {
-                        foundContent = true;
-                        const div = document.createElement('div');
-                        div.className = 'date-block';
-                        
-                        // המרת תאריך למבנה קריא
-                        const [y, m, d] = date.split('-');
-                        const niceDate = `${d}.${m}.${y}`;
-                        
-                        let html = `<div class="date-title">📅 ${niceDate} (${validTimes.length} תורים)</div>`;
-                        
-                        validTimes.sort().forEach(time => {
-                            const appt = appointments[time];
-                            html += `<div class="appt-item">⏰ <strong>${time}</strong> - ${appt.name} <small>(${appt.minutes} דק')</small></div>`;
-                            totalAppts++;
-                        });
-                        
-                        div.innerHTML = html;
-                        output.appendChild(div);
-                    }
-                });
+function updateGridVisuals() {
+    const btns = timeGrid.querySelectorAll('.time-btn');
+    btns.forEach(btn => {
+        if(btn.classList.contains('taken')) return;
+        btn.classList.remove('selected');
+        if(btn.textContent === selectedTimeStr) {
+            btn.classList.add('selected');
+        }
+    });
+}
 
-                if (foundContent) {
-                    summary.textContent = `✅ נמצאו סה״כ ${totalAppts} תורים בזיכרון.`;
-                } else {
-                    summary.textContent = "⚠️ יש תאריכים בזיכרון, אך כולם ריקים מתורים.";
-                }
+/* --- לקוחות --- */
+function normalizeName(name){ return name.trim(); }
+function findClientByName(name){
+  const norm = normalizeName(name).toLowerCase();
+  if(!norm) return null;
+  return clients.find(c => c.name && c.name.trim().toLowerCase() === norm) || null;
+}
+function ensureClientsArray(raw){
+  if(!Array.isArray(raw)) return [];
+  if(raw.length === 0) return [];
+  if(typeof raw[0] === 'string') return raw.map(n => ({name:n}));
+  return raw.map(c => ({name: c.name || ''})).filter(c => c.name);
+}
+
+/* --- אתחול --- */
+window.addEventListener('DOMContentLoaded', () => {
+  const now = new Date();
+  todayKey = formatDateKey(now);
+  setDateLimits();
+  datePicker.value = todayKey;
+
+  loadFromStorage();
+  loadDate(todayKey);
+});
+
+datePicker.addEventListener('change', () => {
+  loadDate(datePicker.value || todayKey);
+});
+
+/* טעינת יום */
+function loadDate(dateKey) {
+  currentDateKey = dateKey;
+  
+  // אם היום ריק (אין נתונים שמורים עליו ספציפית), ננסה להחיל קבועים
+  if(!appointmentsByDate[currentDateKey]) {
+      appointmentsByDate[currentDateKey] = {};
+      applyFixedSlots(currentDateKey);
+  }
+  
+  appointments = appointmentsByDate[currentDateKey];
+
+  selectedTimeStr = '';
+  clientInput.value = '';
+  filterInput.value = '';
+  hideSuggestions();
+
+  renderTimeGrid();
+  renderAppointments();
+  setNextFreeTime();
+}
+
+/* --- לוגיקה של לקוחות קבועים --- */
+function applyFixedSlots(dateKey) {
+    const d = new Date(dateKey);
+    const dayOfWeek = d.getDay(); 
+
+    const slotsToday = fixedSlots.filter(s => parseInt(s.day) === dayOfWeek);
+
+    slotsToday.forEach(slot => {
+        const startIdx = times.indexOf(slot.time);
+        if(startIdx === -1) return;
+
+        const slotsNeeded = Math.ceil(slot.minutes / 5);
+        if(startIdx + slotsNeeded > times.length) return;
+
+        let isFree = true;
+        for(let i=0; i<slotsNeeded; i++){
+            if(appointmentsByDate[dateKey][times[startIdx + i]]) isFree = false;
+        }
+
+        if(isFree) {
+            for(let i=0; i<slotsNeeded; i++){
+                appointmentsByDate[dateKey][times[startIdx + i]] = {
+                    name: slot.name,
+                    minutes: parseInt(slot.minutes),
+                    isMain: i === 0
+                };
             }
         }
-    } catch (e) {
-        summary.textContent = "שגיאה בקריאת הנתונים: " + e.message;
-    }
-</script>
+    });
+    // שומרים רק אם באמת הוספנו משהו (למעשה שומרים את הריק + הקבועים)
+    saveAppointments();
+}
 
+filterInput.addEventListener('input', () => renderAppointments());
+
+function loadFromStorage(){
+  try{
+    const c = localStorage.getItem(LS_CLIENTS_KEY);
+    if(c) clients = ensureClientsArray(JSON.parse(c));
+  }catch {}
+  try{
+    const a = localStorage.getItem(LS_APPTS_KEY);
+    if(a) appointmentsByDate = JSON.parse(a) || {};
+  }catch {}
+  try{
+    const f = localStorage.getItem(LS_FIXED_KEY);
+    if(f) fixedSlots = JSON.parse(f) || [];
+  }catch {}
+}
+
+function saveClients(){ localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(clients)); }
+function saveAppointments(){
+  if(!currentDateKey) currentDateKey = datePicker.value || todayKey;
+  appointmentsByDate[currentDateKey] = appointments;
+  localStorage.setItem(LS_APPTS_KEY, JSON.stringify(appointmentsByDate));
+}
+function saveFixedSlots(){
+    localStorage.setItem(LS_FIXED_KEY, JSON.stringify(fixedSlots));
+}
+
+/* --- השלמת שמות --- */
+clientInput.addEventListener('input', () => showSuggestions(clientInput.value.trim()));
+clientInput.addEventListener('focus', () => showSuggestions(clientInput.value.trim()));
+document.addEventListener('click', e => {
+  if(!e.target.closest('.field-group')) hideSuggestions();
+});
+function showSuggestions(query){
+  const q = query.toLowerCase();
+  let filtered = clients;
+  if(q.length > 0) filtered = clients.filter(c => c.name && c.name.toLowerCase().startsWith(q));
+  suggestionsList.innerHTML = '';
+  if(filtered.length === 0){ suggestionsList.classList.add('empty'); return; }
+  suggestionsList.classList.remove('empty');
+  filtered.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'suggestion-item';
+    item.textContent = c.name;
+    item.addEventListener('click', () => {
+      clientInput.value = c.name;
+      hideSuggestions();
+    });
+    suggestionsList.appendChild(item);
+  });
+}
+function hideSuggestions(){
+  suggestionsList.innerHTML = '';
+  suggestionsList.classList.add('empty');
+}
+
+/* --- קפיצה חכמה --- */
+function setNextFreeTime(startIndexToCheck = 0) {
+  for (let i = startIndexToCheck; i < times.length; i++) {
+    const t = times[i];
+    if (!appointments[t]) {
+      selectedTimeStr = t;
+      renderTimeGrid();
+      return;
+    }
+  }
+  selectedTimeStr = '';
+  renderTimeGrid();
+}
+
+/* --- שמירה --- */
+btnSaveAppt.addEventListener('click', () => {
+  const time = selectedTimeStr;
+  const nameRaw = clientInput.value.trim();
+  const name = normalizeName(nameRaw);
+
+  if(!time){ alert('בחר שעה (לחץ על קובייה ירוקה).'); return; }
+  if(selectedDuration === 0){ alert('בחר משך זמן.'); return; }
+  if(!name){ alert('כתוב שם לקוחה.'); return; }
+
+  if(!findClientByName(name)){
+    clients.push({name});
+    clients.sort((a,b)=>a.name.localeCompare(b.name,'he'));
+    saveClients();
+  }
+
+  const startIdx = times.indexOf(time);
+  const slots = Math.ceil(selectedDuration / 5);
+
+  if(startIdx + slots > times.length){
+    alert('אין מספיק זמן עד סוף היום.');
+    return;
+  }
+
+  for(let i=0;i<slots;i++){
+    if(appointments[times[startIdx + i]]){
+      alert('יש חפיפה עם תור אחר.');
+      return;
+    }
+  }
+
+  for(let i=0;i<slots;i++){
+    appointments[times[startIdx + i]] = { name, minutes: selectedDuration, isMain: i === 0 };
+  }
+  saveAppointments();
+  
+  renderTimeGrid();
+  renderAppointments();
+
+  clientInput.value = '';
+  hideSuggestions();
+  
+  setNextFreeTime(startIdx + slots);
+});
+
+/* --- רשימה חדשה --- */
+btnNewDay.addEventListener('click', () => {
+  if(!confirm('למחוק הכל ולהתחיל יום חדש?')) return;
+  
+  appointments = {};
+  appointmentsByDate[currentDateKey || (datePicker.value || todayKey)] = appointments;
+  
+  applyFixedSlots(currentDateKey || (datePicker.value || todayKey));
+
+  selectedTimeStr = '';
+  selectedDuration = 0;
+  document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
+  clientInput.value = '';
+  
+  renderTimeGrid();
+  renderAppointments();
+  setNextFreeTime();
+});
+
+/* --- ניהול מודל הגדרות וגיבוי --- */
+btnSettings.addEventListener('click', () => {
+    renderFixedList();
+    settingsModal.classList.add('open');
+});
+btnCloseModal.addEventListener('click', () => {
+    settingsModal.classList.remove('open');
+});
+
+/* הוספת לקוח קבוע */
+btnAddFixed.addEventListener('click', () => {
+    const name = fixName.value.trim();
+    if(!name) { alert('נא להזין שם לקוחה'); return; }
+    
+    const exists = fixedSlots.some(s => s.day == fixDay.value && s.time == fixTime.value);
+    if(exists){ alert('כבר קיים לקוח קבוע ביום ובשעה הזו'); return; }
+
+    fixedSlots.push({
+        day: fixDay.value,
+        time: fixTime.value,
+        minutes: fixDuration.value,
+        name: name
+    });
+    saveFixedSlots();
+    renderFixedList();
+    fixName.value = '';
+    
+    // בדיקה מיידית להיום
+    const currentD = new Date(currentDateKey);
+    if (currentD.getDay() == fixDay.value) {
+        applyFixedSlots(currentDateKey); 
+        renderTimeGrid(); 
+        renderAppointments();
+    }
+    alert('נוסף בהצלחה!');
+});
+
+function renderFixedList() {
+    fixedListContainer.innerHTML = '';
+    const daysMap = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+    
+    if(fixedSlots.length === 0){
+        fixedListContainer.innerHTML = '<div style="text-align:center;color:#777;">אין לקוחות קבועים</div>';
+        return;
+    }
+
+    fixedSlots.sort((a,b) => {
+        if(a.day != b.day) return a.day - b.day;
+        return a.time.localeCompare(b.time);
+    });
+
+    fixedSlots.forEach((slot, idx) => {
+        const item = document.createElement('div');
+        item.className = 'fixed-item';
+        item.innerHTML = `
+            <span><strong>${daysMap[slot.day]}</strong>, ${slot.time} - ${slot.name} (${slot.minutes} דק')</span>
+        `;
+        const btnDel = document.createElement('button');
+        btnDel.className = 'btn-del-fixed';
+        btnDel.textContent = 'מחק';
+        btnDel.onclick = () => {
+            if(confirm('למחוק את הקבוע?')){
+                fixedSlots.splice(idx, 1);
+                saveFixedSlots();
+                renderFixedList();
+            }
+        };
+        item.appendChild(btnDel);
+        fixedListContainer.appendChild(item);
+    });
+}
+
+/* לוגיקה של גיבוי ושחזור */
+btnDownloadBackup.addEventListener('click', () => {
+    const data = {
+        clients: localStorage.getItem(LS_CLIENTS_KEY),
+        appts: localStorage.getItem(LS_APPTS_KEY),
+        fixed: localStorage.getItem(LS_FIXED_KEY)
+    };
+    const jsonStr = JSON.stringify(data);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = "salon_backup_" + new Date().toISOString().split('T')[0] + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+});
+
+btnUploadRestore.addEventListener('click', () => {
+    fileInput.click();
+});
+
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            const data = JSON.parse(evt.target.result);
+            if(data.clients) localStorage.setItem(LS_CLIENTS_KEY, data.clients);
+            if(data.appts) localStorage.setItem(LS_APPTS_KEY, data.appts);
+            if(data.fixed) localStorage.setItem(LS_FIXED_KEY, data.fixed);
+            
+            alert('השחזור בוצע בהצלחה! הדף יתרענן.');
+            location.reload();
+        } catch(err) {
+            alert('שגיאה בקובץ הגיבוי: ' + err);
+        }
+    };
+    reader.readAsText(file);
+});
+
+/* --- תצוגה --- */
+function renderAppointments(){
+  appointmentsDiv.innerHTML = '';
+  const mainTimesAll = times.filter(t => appointments[t] && appointments[t].isMain);
+  const filter = (filterInput.value || '').trim().toLowerCase();
+
+  updateStats(mainTimesAll);
+
+  let mainTimes = mainTimesAll;
+  if(filter){
+    mainTimes = mainTimesAll.filter(t => appointments[t].name.toLowerCase().includes(filter));
+  }
+
+  if(mainTimes.length === 0 && !filter){
+    appointmentsDiv.innerHTML = '<div class="empty-msg">אין תורים היום.</div>';
+    return;
+  }
+
+  mainTimes.forEach(t => {
+    const appt = appointments[t];
+    const row = document.createElement('div');
+    row.className = 'appt-row';
+    
+    row.innerHTML = `
+      <div class="appt-time">${t}</div>
+      <div class="appt-info">
+        <div class="appt-name">${appt.name}</div>
+        <div class="appt-type">${appt.minutes} דקות</div>
+      </div>
+    `;
+    
+    const delBtn = document.createElement('button');
+    delBtn.className = 'appt-delete';
+    delBtn.textContent = 'מחק';
+    delBtn.onclick = () => {
+      if(!confirm('למחוק תור?')) return;
+      const startIdx = times.indexOf(t);
+      const slots = Math.ceil((appt.minutes || 15) / 5);
+      for(let i=0;i<slots;i++) delete appointments[times[startIdx + i]];
+      saveAppointments();
+      renderTimeGrid();
+      renderAppointments();
+    };
+    row.appendChild(delBtn);
+    appointmentsDiv.appendChild(row);
+  });
+}
+
+function updateStats(mainTimesAll){
+  let totalMinutes = 0;
+  mainTimesAll.forEach(t => totalMinutes += (appointments[t].minutes || 0));
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  let timeText = '';
+  if(h>0 || m>0) timeText = ` | זמן עבודה: ${h}:${m.toString().padStart(2,'0')}`;
+  statsContainer.textContent = `סה״כ תורים: ${mainTimesAll.length}${timeText}`;
+}
+
+/* --- דו"ח וואטסאפ (פירוט מלא) --- */
+btnReport.addEventListener('click', () => {
+    const dateKey = currentDateKey || (datePicker.value || todayKey);
+    let report = `*דו"ח תורים לתאריך ${niceDateFromKey(dateKey)}*\n------------------\n`;
+    
+    let i = 0;
+    let hasContent = false;
+
+    while(i < times.length){
+        const t = times[i];
+        
+        if(appointments[t]){
+            const appt = appointments[t];
+            if(appt.isMain){
+                report += `${t} - ${appt.name} (${appt.minutes} דק')\n`;
+                hasContent = true;
+            }
+            const slots = Math.ceil(appt.minutes / 5);
+            i += slots;
+        } else {
+            report += `🟢 ${t} (פנוי)\n`;
+            hasContent = true;
+            i++;
+        }
+    }
+
+    if(!hasContent) report += "אין נתונים ליום זה.";
+    const url = `https://wa.me/${MANAGER_PHONE}?text=${encodeURIComponent(report)}`;
+    window.open(url, '_blank');
+});
+</script>
 </body>
 </html>
