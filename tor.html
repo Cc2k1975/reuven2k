@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ניהול תורים - גריד שעות</title>
+  <title>ניהול תורים - גריד חכם</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     html,body{
       font-family:system-ui,"Heebo","Arial",sans-serif;
       background:#f3f5fa;
       color:#111;
-      font-size:18px; /* הקטנתי טיפה כדי שייכנס יפה */
+      font-size:18px;
     }
     body{
       min-height:100vh;
@@ -21,14 +21,14 @@
     }
     .app{
       width:100%;
-      max-width:600px; /* הרחבתי טיפה לרוחב */
+      max-width:600px;
       background:#fff;
       border-radius:18px;
       box-shadow:0 12px 25px rgba(0,0,0,0.08);
       padding:20px 18px 28px;
     }
 
-    /* כותרת + כפתור בשורה אחת */
+    /* כותרת */
     .header-row{
       display:flex;
       align-items:center;
@@ -36,136 +36,117 @@
       gap:8px;
       margin-bottom:6px;
     }
-    h1{
-      font-size:1.4rem;
-      font-weight:700;
-      white-space:nowrap;
-    }
+    h1{ font-size:1.4rem; font-weight:700; white-space:nowrap; }
     .btn-reset{
-      padding:4px 10px;
-      border-radius:10px;
-      border:none;
-      font-size:0.75rem;
-      background:#ffecec;
-      color:#c80000;
-      cursor:pointer;
-      white-space:nowrap;
+      padding:4px 10px; border-radius:10px; border:none;
+      font-size:0.75rem; background:#ffecec; color:#c80000; cursor:pointer;
     }
 
-    /* שורת תאריך */
+    /* תאריך */
     .date-row{
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      margin-bottom:14px;
+      display:flex; align-items:center; justify-content:center;
+      gap:8px; margin-bottom:14px;
     }
     .date-input{
-      padding:4px 8px;
-      border-radius:8px;
-      border:1px solid #ccd3e0;
-      font-size:0.95rem;
-      background:#f9fafc;
+      padding:4px 8px; border-radius:8px; border:1px solid #ccd3e0;
+      font-size:0.95rem; background:#f9fafc;
     }
 
-    .field-group{
-      margin-bottom:18px;
-    }
+    .field-group{ margin-bottom:18px; }
     label{
-      display:block;
-      font-size:0.95rem;
-      margin-bottom:6px;
-      color:#333;
-      font-weight:600;
+      display:block; font-size:0.95rem; margin-bottom:6px;
+      color:#333; font-weight:600;
     }
     input[type="text"]{
-      width:100%;
-      padding:12px;
-      border-radius:12px;
-      border:1px solid #ccd3e0;
-      font-size:1.1rem;
-      background:#f9fafc;
+      width:100%; padding:12px; border-radius:12px;
+      border:1px solid #ccd3e0; font-size:1.1rem; background:#f9fafc;
     }
-    input[type="text"]:focus{
-      border-color:#4a6cf7;
-      background:#fff;
-    }
+    input[type="text"]:focus{ border-color:#4a6cf7; background:#fff; }
 
     /* --- גריד השעות (הקוביות) --- */
     .time-grid {
       display: grid;
-      /* מסדר את הקוביות אוטומטית, מינימום 60 פיקסל רוחב לקוביה */
-      grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
-      gap: 6px;
+      /* גודל קבוע וקטן לכל ריבוע */
+      grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+      gap: 5px;
       margin-bottom: 10px;
     }
+
     .time-btn {
-      padding: 8px 2px;
+      /* עיצוב פנימי של הריבוע */
+      height: 48px; /* גובה קבוע שלא יזוז */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2px;
+      
       border-radius: 8px;
       border: 1px solid #dce1eb;
-      background: #fff;
       font-size: 0.9rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       text-align: center;
       transition: all 0.1s;
-      color: #333;
+      line-height: 1.1;
     }
-    .time-btn:hover:not(.taken):not(.selected) {
-      background: #edf2ff;
-      border-color: #aec0f5;
+
+    /* --- סגנון תור פנוי (ירוק זוהר) --- */
+    .time-btn.free {
+      background: #caffbf;       /* רקע ירוק בהיר */
+      border: 1px solid #4cd137; /* מסגרת ירוקה */
+      color: #006400;            /* טקסט ירוק כהה */
+      box-shadow: 0 0 5px rgba(76, 209, 55, 0.3); /* הילה עדינה */
     }
-    /* שעה נבחרת */
-    .time-btn.selected {
-      background: #4a6cf7;
-      color: #fff;
-      border-color: #4a6cf7;
-      font-weight: 700;
-      box-shadow: 0 2px 5px rgba(74,108,247,0.3);
+    .time-btn.free:hover {
+      background: #b2fab4;
+      transform: scale(1.02);
     }
-    /* שעה תפוסה */
+
+    /* --- סגנון תור תפוס --- */
     .time-btn.taken {
-      background: #f0f0f0;
-      color: #a0a0a0;
-      border-color: #eee;
-      text-decoration: line-through;
+      background: #f1f3f5;
+      color: #888;
+      border-color: #e9ecef;
       cursor: not-allowed;
+    }
+    /* עיצוב שם הלקוחה בתוך הריבוע */
+    .btn-name {
+      font-size: 0.65rem; /* פונט קטן מאוד לשם */
+      font-weight: 400;
+      color: #555;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      margin-top: 2px;
+    }
+
+    /* --- סגנון נבחר (כחול) - דורס את הירוק --- */
+    .time-btn.selected {
+      background: #4a6cf7 !important;
+      color: #fff !important;
+      border-color: #4a6cf7 !important;
+      font-weight: 700;
+      box-shadow: 0 3px 8px rgba(74,108,247,0.4);
+      transform: scale(1.05);
     }
 
     /* כפתורי משך */
-    .duration-buttons{
-      display:flex;
-      gap:10px;
-    }
+    .duration-buttons{ display:flex; gap:10px; }
     .btn-duration{
-      flex:1;
-      padding:12px 0;
-      border-radius:12px;
-      border:1px solid #ccd3e0;
-      background:#f9fafc;
-      font-size:1rem;
-      cursor:pointer;
-      font-weight:600;
+      flex:1; padding:12px 0; border-radius:12px;
+      border:1px solid #ccd3e0; background:#f9fafc;
+      font-size:1rem; cursor:pointer; font-weight:600;
     }
     .btn-duration.active{
-      background: #222; /* צבע שונה למשך זמן כדי להבדיל מהשעות */
-      color:#fff;
-      border-color:#222;
+      background: #222; color:#fff; border-color:#222;
     }
 
-    .inline-buttons{
-      display:flex;
-      margin-top:12px;
-    }
+    .inline-buttons{ display:flex; margin-top:12px; }
     .btn-primary{
-      width: 100%;
-      padding:14px 0;
-      border-radius:999px;
-      border:none;
-      font-size:1.1rem;
-      cursor:pointer;
-      background:#4a6cf7;
-      color:#fff;
+      width: 100%; padding:14px 0; border-radius:999px; border:none;
+      font-size:1.1rem; cursor:pointer; background:#4a6cf7; color:#fff;
     }
     .btn-primary:hover{ background:#3857d1; }
 
@@ -180,7 +161,6 @@
     .suggestions-list.empty{ display:none; }
 
     .divider{ margin:20px 0 10px; border-top:1px solid #ebedf3; }
-
     .section-header{ margin-bottom:12px; }
     .section-title{ font-size:1.2rem; font-weight:600; margin-bottom:8px; display:block; }
     .filter-input{
@@ -207,7 +187,6 @@
     }
 
     .stats{ margin-top:8px; font-size:0.9rem; text-align:right; color:#555; }
-
     .report-section{ margin-top:20px; }
     .btn-whatsapp-report{
       width:100%; padding:12px 0; border-radius:999px; border:none;
@@ -220,7 +199,7 @@
 <body>
   <div class="app">
     <div class="header-row">
-      <h1>ניהול תורים - מהיר</h1>
+      <h1>ניהול תורים - גריד חכם</h1>
       <button class="btn-reset" id="btnNewDay">רשימה חדשה</button>
     </div>
 
@@ -230,9 +209,8 @@
     </div>
 
     <div class="field-group">
-      <label>בחר שעה (לחץ על קובייה)</label>
-      <div id="timeGrid" class="time-grid">
-        </div>
+      <label>בחר שעה (לחץ על קובייה ירוקה)</label>
+      <div id="timeGrid" class="time-grid"></div>
     </div>
 
     <div class="field-group">
@@ -285,7 +263,7 @@ for(let h = 16; h <= 22; h++){
 }
 
 let selectedDuration = 0; 
-let selectedTimeStr = ''; // שומר את השעה שנבחרה בגריד
+let selectedTimeStr = '';
 
 const LS_CLIENTS_KEY = 'salonClients';
 const LS_APPTS_KEY   = 'salonAppointmentsByDate';
@@ -335,26 +313,38 @@ function selectDuration(mins, btnElement){
   btnElement.classList.add('active');
 }
 
-/* --- בניית גריד השעות (הקוביות) --- */
+/* --- בניית גריד השעות (עיצוב חדש) --- */
 function renderTimeGrid() {
     timeGrid.innerHTML = '';
     times.forEach(t => {
         const btn = document.createElement('div');
-        btn.className = 'time-btn';
-        btn.textContent = t;
         
         // בדיקה אם תפוס
         if(appointments[t]) {
-            btn.classList.add('taken');
+            btn.className = 'time-btn taken';
+            
+            // הצגת שעה + שם הלקוחה בקטן
+            const appt = appointments[t];
+            // חיתוך שם אם הוא ארוך מדי לתצוגה בריבוע
+            const displayName = appt.name.length > 7 ? appt.name.substring(0,6)+'..' : appt.name;
+            
+            btn.innerHTML = `
+              <div>${t}</div>
+              <div class="btn-name">${displayName}</div>
+            `;
         } else {
-            // לחיצה על כפתור פנוי
+            // פנוי - ירוק זוהר
+            btn.className = 'time-btn free';
+            btn.textContent = t;
+            
+            // אירוע לחיצה רק על פנויים
             btn.onclick = () => {
                 selectedTimeStr = t;
                 updateGridVisuals();
             };
         }
         
-        // בדיקה אם נבחר
+        // בדיקה אם נבחר (הכחול דורס הכל)
         if(t === selectedTimeStr) {
             btn.classList.add('selected');
         }
@@ -364,14 +354,18 @@ function renderTimeGrid() {
 }
 
 function updateGridVisuals() {
-    // עדכון קליל של ה-Classים במקום לרנדר הכל מחדש
     const btns = timeGrid.querySelectorAll('.time-btn');
     btns.forEach(btn => {
-        const t = btn.textContent;
-        // איפוס בחירה
+        // בודקים אם הכפתור הוא "taken" - אם כן, מדלגים עליו (או שהוא נשאר taken)
+        if(btn.classList.contains('taken')) return;
+
+        // מנקים בחירה
         btn.classList.remove('selected');
-        // אם זה הזמן הנבחר - הוסף בחירה
-        if(t === selectedTimeStr) btn.classList.add('selected');
+        
+        // בדיקת תוכן הטקסט (בשעות פנויות הטקסט הוא רק השעה)
+        if(btn.textContent === selectedTimeStr) {
+            btn.classList.add('selected');
+        }
     });
 }
 
@@ -477,7 +471,7 @@ function setNextFreeTime(startIndexToCheck = 0) {
     const t = times[i];
     if (!appointments[t]) {
       selectedTimeStr = t;
-      renderTimeGrid(); // כדי לעדכן ויזואלית את הבחירה
+      renderTimeGrid();
       return;
     }
   }
@@ -487,11 +481,11 @@ function setNextFreeTime(startIndexToCheck = 0) {
 
 /* --- שמירה --- */
 btnSaveAppt.addEventListener('click', () => {
-  const time = selectedTimeStr; // משתמשים במשתנה החדש
+  const time = selectedTimeStr;
   const nameRaw = clientInput.value.trim();
   const name = normalizeName(nameRaw);
 
-  if(!time){ alert('בחר שעה (לחץ על קובייה).'); return; }
+  if(!time){ alert('בחר שעה (לחץ על קובייה ירוקה).'); return; }
   if(selectedDuration === 0){ alert('בחר משך זמן.'); return; }
   if(!name){ alert('כתוב שם לקוחה.'); return; }
 
@@ -521,18 +515,16 @@ btnSaveAppt.addEventListener('click', () => {
   }
   saveAppointments();
   
-  // עדכון ממשק
-  renderTimeGrid(); // מעדכן את הקוביות לתפוסות
+  renderTimeGrid();
   renderAppointments();
 
   clientInput.value = '';
   hideSuggestions();
   
-  // קפיצה חכמה לזמן הבא
   setNextFreeTime(startIdx + slots);
 });
 
-/* --- רשימה יומית חדשה --- */
+/* --- רשימה חדשה --- */
 btnNewDay.addEventListener('click', () => {
   if(!confirm('למחוק הכל ולהתחיל יום חדש?')) return;
   appointments = {};
@@ -540,13 +532,12 @@ btnNewDay.addEventListener('click', () => {
   saveAppointments();
   
   selectedTimeStr = '';
-  renderTimeGrid();
-  renderAppointments();
-  
   selectedDuration = 0;
   document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
   clientInput.value = '';
   
+  renderTimeGrid();
+  renderAppointments();
   setNextFreeTime();
 });
 
@@ -590,7 +581,7 @@ function renderAppointments(){
       const slots = Math.ceil((appt.minutes || 15) / 5);
       for(let i=0;i<slots;i++) delete appointments[times[startIdx + i]];
       saveAppointments();
-      renderTimeGrid(); // שחרור הקוביות
+      renderTimeGrid();
       renderAppointments();
     };
     row.appendChild(delBtn);
@@ -608,7 +599,7 @@ function updateStats(mainTimesAll){
   statsContainer.textContent = `סה״כ תורים: ${mainTimesAll.length}${timeText}`;
 }
 
-/* --- חישוב זמן עתידי (עזר לדו"ח) --- */
+/* --- דו"ח וואטסאפ --- */
 function addMinutes(timeStr, minsToAdd){
     const [hh, mm] = timeStr.split(':').map(Number);
     const d = new Date();
@@ -619,7 +610,6 @@ function addMinutes(timeStr, minsToAdd){
     return `${h}:${m}`;
 }
 
-/* --- שליחת דו"ח לוואטסאפ --- */
 btnReport.addEventListener('click', () => {
     const dateKey = currentDateKey || (datePicker.value || todayKey);
     let report = `*דו"ח תורים לתאריך ${niceDateFromKey(dateKey)}*\n------------------\n`;
@@ -631,7 +621,6 @@ btnReport.addEventListener('click', () => {
         const t = times[i];
         
         if(appointments[t]){
-            // תור קיים
             const appt = appointments[t];
             if(appt.isMain){
                 report += `${t} - ${appt.name} (${appt.minutes} דק')\n`;
@@ -640,7 +629,6 @@ btnReport.addEventListener('click', () => {
             const slots = Math.ceil(appt.minutes / 5);
             i += slots;
         } else {
-            // זיהוי חור
             const startGap = t;
             let gapSlots = 0;
             while(i < times.length && !appointments[times[i]]){
@@ -654,11 +642,9 @@ btnReport.addEventListener('click', () => {
     }
 
     if(!hasContent) report += "אין נתונים ליום זה.";
-
     const url = `https://wa.me/${MANAGER_PHONE}?text=${encodeURIComponent(report)}`;
     window.open(url, '_blank');
 });
-
 </script>
 </body>
 </html>
