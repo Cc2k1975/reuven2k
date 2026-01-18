@@ -1,281 +1,292 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מערכת צפייה ללא הפרעות</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #000;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>מערכת צפייה חכמה</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
 
-        /* החלון שדרכו רואים */
-        #view-container {
-            position: relative;
-            width: 100%; 
-            height: 35vh; /* גובה האזור שרואים - שליש מסך בערך */
-            background: #fff;
-            overflow: hidden;
-            border-bottom: 3px solid #007bff; /* פס כחול בזמן עריכה */
-            flex-shrink: 0;
-            z-index: 5;
-        }
+    /* אזור התצוגה הנקי */
+    #view-container {
+      position: relative;
+      width: 100%;
+      height: 300px; /* גובה האזור שרואים */
+      background: #fff;
+      overflow: hidden;
+      border-bottom: 2px solid #333;
+      flex-shrink: 0;
+    }
 
-        iframe {
-            position: absolute;
-            width: 1200px;
-            height: 1500px;
-            border: none;
-            transform-origin: 0 0;
-            /* ברירת מחדל */
-            top: -200px;
-            left: -200px;
-            transform: scale(0.6);
-            pointer-events: none; /* חוסם גלילה בתוך האתר עצמו כדי שלא יתבלגן */
-        }
+    iframe {
+      position: absolute;
+      width: 1200px;
+      height: 1500px;
+      border: none;
+      transform-origin: 0 0;
+      top: -200px;
+      left: -200px;
+      transform: scale(0.6);
+      opacity: 1;
+      transition: opacity 0.15s linear;
+    }
 
-        /* פס טעינה ירוק - מופיע רק כשהכל נעול */
-        #loader {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 5px;
-            background-color: #00ff00;
-            width: 0%;
-            transition: width 1s linear;
-            z-index: 10;
-            display: none; /* מוסתר בזמן עריכה */
-        }
+    /* פס טעינה */
+    #loader {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 5px;
+      background-color: #00ff00;
+      width: 0%;
+      transition: width 1s linear;
+      z-index: 10;
+    }
 
-        /* פאנל השליטה */
-        #controls {
-            flex: 1;
-            background-color: #222;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 10px;
-            z-index: 10;
-        }
+    /* פאנל שליטה */
+    #controls {
+      flex: 1;
+      background-color: #222;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      padding: 20px;
+      transition: transform 0.3s ease;
+    }
 
-        .row { display: flex; gap: 20px; }
+    .row { display: flex; gap: 20px; }
 
-        button {
-            width: 60px;
-            height: 60px;
-            background: #444;
-            color: white;
-            border: 1px solid #666;
-            border-radius: 10px;
-            font-size: 24px;
-            cursor: pointer;
-            touch-action: manipulation;
-        }
-        
-        button:active { background: #666; }
+    button {
+      width: 70px;
+      height: 70px;
+      background: #444;
+      color: white;
+      border: 1px solid #666;
+      border-radius: 10px;
+      font-size: 24px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    button:active { background: #666; }
 
-        .action-btn {
-            width: auto;
-            padding: 0 30px;
-            height: 50px;
-            font-size: 18px;
-            font-weight: bold;
-            margin-top: 10px;
-        }
+    .action-btn {
+      width: auto;
+      padding: 0 30px;
+      height: 60px;
+      font-size: 18px;
+      font-weight: bold;
+    }
 
-        #save-btn { background: #28a745; border-color: #28a745; }
-        #reset-btn { background: #dc3545; border-color: #dc3545; font-size: 14px; height: 40px; }
+    #save-btn { background: #28a745; border-color: #28a745; }
+    #reset-btn { background: #dc3545; border-color: #dc3545; font-size: 14px; }
 
-        /* כפתור עריכה שמופיע בסוף */
-        #edit-toggle {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.3);
-            border: 2px solid white;
-            font-size: 24px;
-            display: none;
-            z-index: 999;
-            cursor: pointer;
-        }
+    /* כפתור עריכה מוסתר */
+    #edit-toggle {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      font-size: 24px;
+      display: none;
+      z-index: 999;
+    }
 
-        .status-text {
-            color: orange;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        /* מחלקות למצב נעול */
-        .locked-mode #controls { display: none; }
-        .locked-mode #view-container { 
-            height: 100vh; 
-            border: none; 
-            background: black;
-        }
-        .locked-mode #loader { display: block; }
-
-    </style>
+    .hidden { display: none !important; }
+    .full-screen { height: 100vh !important; border: none !important; }
+  </style>
 </head>
 <body>
 
-    <div id="view-container">
-        <iframe id="gameFrame" src="https://www.football.org.il/leagues/games/game/?game_id=1066561" scrolling="no"></iframe>
-        <div id="loader"></div>
+  <div id="view-container">
+    <iframe id="gameFrame"
+      src="https://www.football.org.il/leagues/games/game/?game_id=1066561"
+      scrolling="no"></iframe>
+    <div id="loader"></div>
+  </div>
+
+  <button id="edit-toggle">⚙️</button>
+
+  <div id="controls">
+    <div style="color:white; margin-bottom:10px;">כוון את התוצאה למרכז המסך:</div>
+
+    <button onclick="move(0, 20)">⬆️</button>
+    <div class="row">
+      <button onclick="move(-20, 0)">⬅️</button>
+      <button onclick="move(20, 0)">➡️</button>
+    </div>
+    <button onclick="move(0, -20)">⬇️</button>
+
+    <div class="row" style="margin-top: 10px;">
+      <button onclick="zoom(-0.05)" style="font-size:16px;">זום -</button>
+      <button onclick="zoom(0.05)" style="font-size:16px;">זום +</button>
     </div>
 
-    <button id="edit-toggle">⚙️</button>
-
-    <div id="controls">
-        <div class="status-text">מצב כיוון (הרענון כבוי)</div>
-        <div style="color:#aaa; font-size:12px; margin-bottom:10px;">השתמש בחצים כדי למקם את התוצאה</div>
-        
-        <button onclick="move(0, 20)">⬆️</button>
-        <div class="row">
-            <button onclick="move(20, 0)">⬅️</button>
-            <button onclick="move(-20, 0)">➡️</button>
-        </div>
-        <button onclick="move(0, -20)">⬇️</button>
-
-        <div class="row" style="margin-top: 10px;">
-            <button onclick="zoom(-0.05)" style="font-size:16px;">🔍-</button>
-            <button onclick="zoom(0.05)" style="font-size:16px;">🔍+</button>
-        </div>
-
-        <button id="save-btn" class="action-btn" onclick="saveAndLock()">✅ סיים ושמור מיקום</button>
-        <button id="reset-btn" class="action-btn" onclick="resetSettings()">איפוס הכל</button>
+    <div class="row" style="margin-top: 20px;">
+      <button id="save-btn" class="action-btn" onclick="saveAndLock()">✅ שמור וקבע מיקום</button>
     </div>
+    <button id="reset-btn" class="action-btn" onclick="resetSettings()" style="margin-top:10px; height: 40px;">איפוס הגדרות</button>
+  </div>
 
-    <script>
-        // משתנים גלובליים
-        let posY = -200;
-        let posX = -200;
-        let scale = 0.6;
-        let refreshInterval = null;
-        
-        const iframe = document.getElementById('gameFrame');
-        const viewContainer = document.getElementById('view-container');
-        const editToggle = document.getElementById('edit-toggle');
-        const loader = document.getElementById('loader');
-        const body = document.body;
+<script>
+  // ====== מצב צפייה ======
+  let posY = -200;
+  let posX = -200;
+  let scale = 0.6;
 
-        // פונקציה לעדכון ה-CSS של ה-Iframe
-        function updateView() {
-            iframe.style.top = posY + 'px';
-            iframe.style.left = posX + 'px';
-            iframe.style.transform = `scale(${scale})`;
-        }
+  const iframe = document.getElementById('gameFrame');
+  const viewContainer = document.getElementById('view-container');
+  const controls = document.getElementById('controls');
+  const editToggle = document.getElementById('edit-toggle');
+  const loader = document.getElementById('loader');
 
-        // פונקציות להזזה עם הכפתורים
-        function move(x, y) {
-            posX += x;
-            posY += y;
-            updateView();
-        }
+  const LS_Y = 'my_soccer_y';
+  const LS_X = 'my_soccer_x';
+  const LS_S = 'my_soccer_scale';
+  const LS_SETUP = 'is_setup';
 
-        function zoom(z) {
-            scale += z;
-            updateView();
-        }
+  function clampScale(s) {
+    // גבולות סבירים כדי שלא תברח
+    return Math.max(0.2, Math.min(2.0, s));
+  }
 
-        // --- מנגנון שמירה ונעילה ---
+  function updateView() {
+    iframe.style.top = posY + 'px';
+    iframe.style.left = posX + 'px';
+    iframe.style.transform = `scale(${scale})`;
+  }
 
-        function saveAndLock() {
-            // שמירת נתונים בזיכרון
-            localStorage.setItem('final_soccer_y', posY);
-            localStorage.setItem('final_soccer_x', posX);
-            localStorage.setItem('final_soccer_scale', scale);
-            localStorage.setItem('final_setup_done', 'true');
+  function persist() {
+    localStorage.setItem(LS_Y, String(posY));
+    localStorage.setItem(LS_X, String(posX));
+    localStorage.setItem(LS_S, String(scale));
+  }
 
-            // כניסה למצב נעול
-            enterLockedMode();
-        }
+  function move(dx, dy) {
+    posX += dx;
+    posY += dy;
+    updateView();
+    // אם כבר נעול – לשמור כל שינוי אוטומטית
+    if (localStorage.getItem(LS_SETUP) === 'true') persist();
+  }
 
-        function enterLockedMode() {
-            body.classList.add('locked-mode');
-            editToggle.style.display = 'block';
-            
-            // התחלת רענון אוטומטי רק עכשיו!
-            startAutoRefresh();
-        }
+  function zoom(dz) {
+    scale = clampScale(scale + dz);
+    updateView();
+    if (localStorage.getItem(LS_SETUP) === 'true') persist();
+  }
 
-        function unlockMode() {
-            body.classList.remove('locked-mode');
-            editToggle.style.display = 'none';
-            
-            // עצירת רענון אוטומטי כדי לא להפריע לכיוון
-            stopAutoRefresh();
-        }
+  function lockUI() {
+    controls.classList.add('hidden');
+    viewContainer.classList.add('full-screen');
+    editToggle.style.display = 'block';
+    document.body.style.backgroundColor = "black";
+  }
 
-        // --- מנגנון רענון ---
-        
-        function startAutoRefresh() {
-            if (refreshInterval) clearInterval(refreshInterval);
-            
-            let seconds = 0;
-            loader.style.width = "0%";
-            
-            refreshInterval = setInterval(function() {
-                seconds++;
-                loader.style.width = (seconds / 15 * 100) + "%";
-                
-                if (seconds >= 15) {
-                    iframe.src = iframe.src; // רענון בפועל
-                    seconds = 0;
-                }
-            }, 1000);
-        }
+  function unlockUI() {
+    controls.classList.remove('hidden');
+    viewContainer.classList.remove('full-screen');
+    editToggle.style.display = 'none';
+  }
 
-        function stopAutoRefresh() {
-            if (refreshInterval) clearInterval(refreshInterval);
-            loader.style.width = "0%";
-        }
+  function saveAndLock() {
+    persist();
+    localStorage.setItem(LS_SETUP, 'true');
+    lockUI();
+  }
 
-        // --- טעינה ראשונית ---
-        
-        function init() {
-            const savedY = localStorage.getItem('final_soccer_y');
-            const savedX = localStorage.getItem('final_soccer_x');
-            const savedScale = localStorage.getItem('final_soccer_scale');
-            const isDone = localStorage.getItem('final_setup_done');
+  editToggle.onclick = function() {
+    unlockUI();
+  };
 
-            if (isDone === 'true') {
-                // טעינת נתונים שמורים
-                posY = parseFloat(savedY);
-                posX = parseFloat(savedX);
-                scale = parseFloat(savedScale);
-                updateView();
-                // כניסה ישר למצב נעול
-                enterLockedMode();
-            } else {
-                // מצב עריכה התחלתי - ללא רענון!
-                updateView();
-            }
-        }
+  function resetSettings() {
+    localStorage.removeItem(LS_Y);
+    localStorage.removeItem(LS_X);
+    localStorage.removeItem(LS_S);
+    localStorage.removeItem(LS_SETUP);
+    location.reload();
+  }
 
-        // איפוס מוחלט למקרה של תקלה
-        function resetSettings() {
-            localStorage.clear();
-            location.reload();
-        }
+  function loadSettings() {
+    const isSetup = localStorage.getItem(LS_SETUP);
 
-        // כפתור חזרה לעריכה
-        editToggle.onclick = unlockMode;
+    if (isSetup === 'true') {
+      const savedY = localStorage.getItem(LS_Y);
+      const savedX = localStorage.getItem(LS_X);
+      const savedS = localStorage.getItem(LS_S);
 
-        // הפעלה
-        init();
+      if (savedY !== null) posY = parseInt(savedY, 10);
+      if (savedX !== null) posX = parseInt(savedX, 10);
+      if (savedS !== null) scale = clampScale(parseFloat(savedS));
 
-    </script>
+      updateView();
+      lockUI();
+    } else {
+      updateView();
+    }
+  }
+
+  // ====== ריפרש יציב ======
+  let seconds = 0;
+  const REFRESH_EVERY = 15;
+
+  function refreshIframe() {
+    // להסתיר רגע כדי שלא תראה "קפיצה"
+    iframe.style.opacity = '0';
+
+    // תמיד להחיל את הטרנספורם לפני/אחרי ריפרש
+    updateView();
+
+    // ניסיון רילואד אמיתי (לפעמים נחסם בגלל cross-origin)
+    try {
+      if (iframe.contentWindow && iframe.contentWindow.location) {
+        iframe.contentWindow.location.reload();
+      } else {
+        throw new Error('no contentWindow');
+      }
+    } catch (e) {
+      // fallback: reload עם cache-bust כדי להכריח רענון
+      const base = "https://www.football.org.il/leagues/games/game/?game_id=1066561";
+      iframe.src = base + "&_t=" + Date.now();
+    }
+  }
+
+  // אחרי שהדף בתוך ה-iframe נטען – להחזיר opacity + להדביק שוב מיקום
+  iframe.addEventListener('load', () => {
+    // להבטיח שהמיקום והזום נשמרים גם אחרי טעינה
+    updateView();
+    requestAnimationFrame(() => {
+      iframe.style.opacity = '1';
+    });
+  });
+
+  setInterval(() => {
+    seconds++;
+    loader.style.width = (seconds / REFRESH_EVERY * 100) + "%";
+
+    if (seconds >= REFRESH_EVERY) {
+      refreshIframe();
+      seconds = 0;
+      loader.style.width = "0%";
+    }
+  }, 1000);
+
+  // הפעלה
+  loadSettings();
+</script>
+
 </body>
 </html>
