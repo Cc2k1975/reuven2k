@@ -3,145 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>כיול למובייל</title>
+    <title>תוצאה בלייב</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background-color: #222;
-            color: white;
-            font-family: Arial, sans-serif;
-            overflow: hidden; /* מונע גלילה של כל הדף */
-            height: 100vh;
+            background-color: #000; /* רקע שחור למראה נקי */
+            overflow: hidden;
             display: flex;
-            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
         }
 
-        /* האזור שבו רואים את המשחק (החלונית הסופית) */
-        #phone-wrapper {
-            width: 100%;
-            height: 40vh; /* תופס 40% מהגובה של הטלפון */
-            background: #fff;
+        /* המסגרת שתוחמת את התצוגה */
+        #screen-view {
+            width: 100vw;       /* רוחב מלא של הטלפון */
+            height: 50vh;       /* חצי גובה מסך (מתמקד באזור התוצאה) */
             position: relative;
             overflow: hidden;
-            border-bottom: 2px solid red; /* סימון הגבול */
-        }
-
-        /* גבולות עזר כדי שתדע מה רואים */
-        #crosshair {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 20px;
-            height: 20px;
-            border: 1px solid rgba(255,0,0,0.5);
-            transform: translate(-50%, -50%);
-            z-index: 10;
-            pointer-events: none;
+            background: #fff;
+            border-bottom: 2px solid #333;
         }
 
         iframe {
-            width: 1200px; /* רוחב ווירטואלי גדול */
+            position: absolute;
+            width: 1200px;    /* רוחב וירטואלי */
             height: 1500px;
             border: none;
+            
+            /* --- הנתונים שלך --- */
+            top: -317px;
+            left: -454px;
+            transform: scale(1.05);
+            transform-origin: 0 0;
+            
+            /* מונע גלילה בתוך החלונית כדי שהתצוגה לא תזוז */
+            pointer-events: none; 
+        }
+
+        /* פס טעינה קטן למטה שיראה לך מתי זה מתרענן */
+        #timer-bar {
             position: absolute;
-            top: 0;
+            bottom: 0;
             left: 0;
-            transform-origin: 0 0; /* הזום מתחיל מהפינה */
-        }
-
-        /* אזור הבקרה למטה */
-        #controls-area {
-            flex: 1;
-            padding: 10px;
-            background-color: #333;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-around;
-            z-index: 20;
-        }
-
-        .slider-group {
-            display: flex;
-            flex-direction: column;
-            margin-bottom: 5px;
-        }
-
-        label { font-size: 14px; margin-bottom: 2px; color: #aaa; }
-        
-        input[type=range] {
-            width: 100%;
-            height: 25px; /* גדול שיהיה נוח באצבע */
-        }
-
-        /* הנתונים שאתה צריך לשלוח לי */
-        #data-display {
-            background: black;
-            color: #0f0;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 16px;
-            text-align: center;
-            border: 1px solid #0f0;
-            direction: ltr;
+            height: 3px;
+            background-color: #00ff00;
+            width: 0%;
+            transition: width 1s linear;
         }
     </style>
 </head>
 <body>
 
-    <div id="phone-wrapper">
-        <div id="crosshair"></div> <iframe id="gameFrame" src="https://www.football.org.il/leagues/games/game/?game_id=1066561" scrolling="no"></iframe>
-    </div>
-
-    <div id="data-display">
-        TOP: <span id="valY">-200</span> | LEFT: <span id="valX">-200</span> | ZOOM: <span id="valZ">1.0</span>
-    </div>
-
-    <div id="controls-area">
-        <div class="slider-group">
-            <label>למעלה / למטה (Y)</label>
-            <input type="range" id="moveY" min="-1000" max="0" value="-200">
-        </div>
-        <div class="slider-group">
-            <label>ימינה / שמאלה (X)</label>
-            <input type="range" id="moveX" min="-800" max="0" value="-200">
-        </div>
-        <div class="slider-group">
-            <label>זום (Zoom)</label>
-            <input type="range" id="zoomLevel" min="0.3" max="2.0" step="0.05" value="0.6">
-        </div>
+    <div id="screen-view">
+        <iframe id="gameFrame" src="https://www.football.org.il/leagues/games/game/?game_id=1066561" scrolling="no"></iframe>
+        <div id="timer-bar"></div>
     </div>
 
     <script>
         const iframe = document.getElementById('gameFrame');
-        const moveY = document.getElementById('moveY');
-        const moveX = document.getElementById('moveX');
-        const zoomLevel = document.getElementById('zoomLevel');
-        
-        // תצוגת מספרים
-        const valY = document.getElementById('valY');
-        const valX = document.getElementById('valX');
-        const valZ = document.getElementById('valZ');
+        const timerBar = document.getElementById('timer-bar');
+        let seconds = 0;
 
-        function update() {
-            // עדכון ה-CSS של ה-Iframe
-            iframe.style.top = moveY.value + 'px';
-            iframe.style.left = moveX.value + 'px';
-            iframe.style.transform = `scale(${zoomLevel.value})`;
+        // פונקציה שמנהלת את הרענון והפס הירוק
+        setInterval(function() {
+            seconds++;
+            
+            // עדכון פס הטעינה (מ-0% ל-100% במשך 15 שניות)
+            timerBar.style.width = (seconds / 15 * 100) + "%";
 
-            // עדכון המספרים על המסך
-            valY.innerText = moveY.value;
-            valX.innerText = moveX.value;
-            valZ.innerText = zoomLevel.value;
-        }
-
-        // האזנה לגרירה
-        moveY.addEventListener('input', update);
-        moveX.addEventListener('input', update);
-        zoomLevel.addEventListener('input', update);
-
-        // הרצה ראשונית
-        update();
+            if (seconds >= 15) {
+                iframe.src = iframe.src; // רענון המשחק
+                seconds = 0;             // איפוס הטיימר
+                console.log("המשחק רוענן");
+            }
+        }, 1000); // בודק כל שנייה
     </script>
+
 </body>
 </html>
