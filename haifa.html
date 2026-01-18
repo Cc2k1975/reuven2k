@@ -3,54 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>תוצאה בלייב</title>
+    <title>תוצאה בלייב - מתכוונן</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background-color: #000; /* רקע שחור למראה נקי */
+            background-color: #000;
             overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            font-family: Arial, sans-serif;
             height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* המסגרת שתוחמת את התצוגה */
+        /* האזור של המשחק */
         #screen-view {
-            width: 100vw;       /* רוחב מלא של הטלפון */
-            height: 50vh;       /* חצי גובה מסך (מתמקד באזור התוצאה) */
+            width: 100%;
+            height: 50vh; /* חצי עליון של המסך */
             position: relative;
             overflow: hidden;
             background: #fff;
-            border-bottom: 2px solid #333;
+            border-bottom: 3px solid #333;
         }
 
         iframe {
             position: absolute;
-            width: 1200px;    /* רוחב וירטואלי */
+            width: 1200px;
             height: 1500px;
             border: none;
-            
-            /* --- הנתונים שלך --- */
+            /* מתחיל מהנתונים ששלחת, אבל ניתן לשינוי */
             top: -317px;
             left: -454px;
             transform: scale(1.05);
             transform-origin: 0 0;
-            
-            /* מונע גלילה בתוך החלונית כדי שהתצוגה לא תזוז */
-            pointer-events: none; 
         }
 
-        /* פס טעינה קטן למטה שיראה לך מתי זה מתרענן */
+        /* פס הטעינה הירוק */
         #timer-bar {
             position: absolute;
             bottom: 0;
             left: 0;
-            height: 3px;
+            height: 4px;
             background-color: #00ff00;
             width: 0%;
             transition: width 1s linear;
+            z-index: 5;
+        }
+
+        /* אזור השליטה למטה */
+        #controls-area {
+            flex: 1;
+            background-color: #222;
+            color: white;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            transition: opacity 0.5s;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 5px;
+        }
+
+        label { font-size: 14px; margin-bottom: 2px; color: #aaa; }
+        
+        input[type=range] { width: 100%; cursor: pointer; }
+
+        /* כפתור הנעילה */
+        #lock-btn {
+            background-color: #e60000;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-top: 5px;
+            cursor: pointer;
+        }
+        
+        /* כפתור החזרה (מוסתר בהתחלה) */
+        #unlock-btn {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: none; /* מוסתר */
+            z-index: 999;
+        }
+
+        /* מחלקה להסתרת הפקדים */
+        .hidden {
+            display: none !important;
+        }
+        
+        /* מגדיל את אזור הצפייה כשהכל מוסתר */
+        .full-screen-mode {
+            height: 100vh !important;
+            border: none !important;
         }
     </style>
 </head>
@@ -61,24 +119,73 @@
         <div id="timer-bar"></div>
     </div>
 
+    <button id="unlock-btn">⚙️ ערוך תצוגה</button>
+
+    <div id="controls-area">
+        <div class="slider-group">
+            <label>למעלה / למטה (התאם עד שתראה את התוצאה)</label>
+            <input type="range" id="moveY" min="-800" max="0" value="-317">
+        </div>
+        <div class="slider-group">
+            <label>ימינה / שמאלה</label>
+            <input type="range" id="moveX" min="-800" max="0" value="-454">
+        </div>
+        <div class="slider-group">
+            <label>זום</label>
+            <input type="range" id="zoomLevel" min="0.5" max="2.0" step="0.05" value="1.05">
+        </div>
+
+        <button id="lock-btn">🔒 זה בול! נעל מסך והסתר כפתורים</button>
+    </div>
+
     <script>
         const iframe = document.getElementById('gameFrame');
+        const moveY = document.getElementById('moveY');
+        const moveX = document.getElementById('moveX');
+        const zoomLevel = document.getElementById('zoomLevel');
+        const controlsArea = document.getElementById('controls-area');
+        const screenView = document.getElementById('screen-view');
+        const lockBtn = document.getElementById('lock-btn');
+        const unlockBtn = document.getElementById('unlock-btn');
         const timerBar = document.getElementById('timer-bar');
-        let seconds = 0;
 
-        // פונקציה שמנהלת את הרענון והפס הירוק
+        // עדכון מיקום בזמן אמת
+        function updatePosition() {
+            iframe.style.top = moveY.value + 'px';
+            iframe.style.left = moveX.value + 'px';
+            iframe.style.transform = `scale(${zoomLevel.value})`;
+        }
+
+        moveY.addEventListener('input', updatePosition);
+        moveX.addEventListener('input', updatePosition);
+        zoomLevel.addEventListener('input', updatePosition);
+
+        // מנגנון נעילה והסתרה
+        lockBtn.addEventListener('click', function() {
+            controlsArea.classList.add('hidden'); // מסתיר כפתורים
+            screenView.classList.add('full-screen-mode'); // הופך למסך מלא
+            unlockBtn.style.display = 'block'; // מראה כפתור עריכה קטן
+        });
+
+        // מנגנון פתיחה מחדש
+        unlockBtn.addEventListener('click', function() {
+            controlsArea.classList.remove('hidden');
+            screenView.classList.remove('full-screen-mode');
+            unlockBtn.style.display = 'none';
+        });
+
+        // מנגנון ריפרש אוטומטי (עובד תמיד ברקע)
+        let seconds = 0;
         setInterval(function() {
             seconds++;
-            
-            // עדכון פס הטעינה (מ-0% ל-100% במשך 15 שניות)
-            timerBar.style.width = (seconds / 15 * 100) + "%";
+            timerBar.style.width = (seconds / 15 * 100) + "%"; // מעדכן את הפס הירוק
 
             if (seconds >= 15) {
-                iframe.src = iframe.src; // רענון המשחק
-                seconds = 0;             // איפוס הטיימר
+                iframe.src = iframe.src; // מרענן רק את ה-iframe
+                seconds = 0;
                 console.log("המשחק רוענן");
             }
-        }, 1000); // בודק כל שנייה
+        }, 1000);
     </script>
 
 </body>
