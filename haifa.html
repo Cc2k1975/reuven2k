@@ -5,116 +5,101 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>מערכת צפייה חכמה</title>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #000;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
+    body{
+      margin:0; padding:0; background:#000;
+      height:100vh; display:flex; flex-direction:column;
+      overflow:hidden; font-family:Arial,sans-serif;
     }
 
-    /* אזור התצוגה הנקי */
-    #view-container {
-      position: relative;
-      width: 100%;
-      height: 300px; /* גובה האזור שרואים */
-      background: #fff;
-      overflow: hidden;
-      border-bottom: 2px solid #333;
-      flex-shrink: 0;
+    #view-container{
+      position:relative;
+      width:100%;
+      height:300px;
+      background:#fff;
+      overflow:hidden;
+      border-bottom:2px solid #333;
+      flex-shrink:0;
     }
 
-    iframe {
-      position: absolute;
-      width: 1200px;
-      height: 1500px;
-      border: none;
-      transform-origin: 0 0;
-      top: -200px;
-      left: -200px;
-      transform: scale(0.6);
-      opacity: 1;
-      transition: opacity 0.15s linear;
+    /* חשוב: crop נעשה על ידי top/left + scale (שלנו), לא תלוי בדף בפנים */
+    iframe{
+      position:absolute;
+      width:1200px;
+      height:1500px;
+      border:none;
+      transform-origin:0 0;
+      top:-200px;
+      left:-200px;
+      transform:scale(0.6);
+      opacity:1;
+      transition:opacity 0.12s linear;
+      will-change: transform, top, left, opacity;
     }
 
-    /* פס טעינה */
-    #loader {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      height: 5px;
-      background-color: #00ff00;
-      width: 0%;
-      transition: width 1s linear;
-      z-index: 10;
+    #loader{
+      position:absolute;
+      bottom:0; left:0;
+      height:5px;
+      background:#00ff00;
+      width:0%;
+      transition:width 1s linear;
+      z-index:10;
     }
 
-    /* פאנל שליטה */
-    #controls {
-      flex: 1;
-      background-color: #222;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 15px;
-      padding: 20px;
-      transition: transform 0.3s ease;
+    #controls{
+      flex:1;
+      background:#222;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:15px;
+      padding:20px;
     }
 
-    .row { display: flex; gap: 20px; }
+    .row{ display:flex; gap:20px; }
 
-    button {
-      width: 70px;
-      height: 70px;
-      background: #444;
-      color: white;
-      border: 1px solid #666;
-      border-radius: 10px;
-      font-size: 24px;
-      cursor: pointer;
+    button{
+      width:70px; height:70px;
+      background:#444; color:#fff;
+      border:1px solid #666;
+      border-radius:10px;
+      font-size:24px;
+      cursor:pointer;
       touch-action: manipulation;
     }
-    button:active { background: #666; }
+    button:active{ background:#666; }
 
-    .action-btn {
-      width: auto;
-      padding: 0 30px;
-      height: 60px;
-      font-size: 18px;
-      font-weight: bold;
+    .action-btn{
+      width:auto;
+      padding:0 30px;
+      height:60px;
+      font-size:18px;
+      font-weight:bold;
     }
 
-    #save-btn { background: #28a745; border-color: #28a745; }
-    #reset-btn { background: #dc3545; border-color: #dc3545; font-size: 14px; }
+    #save-btn{ background:#28a745; border-color:#28a745; }
+    #reset-btn{ background:#dc3545; border-color:#dc3545; font-size:14px; }
 
-    /* כפתור עריכה מוסתר */
-    #edit-toggle {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.2);
-      font-size: 24px;
-      display: none;
-      z-index: 999;
+    #edit-toggle{
+      position:fixed;
+      bottom:20px; right:20px;
+      width:50px; height:50px;
+      border-radius:50%;
+      background:rgba(255,255,255,0.2);
+      font-size:24px;
+      display:none;
+      z-index:999;
     }
 
-    .hidden { display: none !important; }
-    .full-screen { height: 100vh !important; border: none !important; }
+    .hidden{ display:none !important; }
+    .full-screen{ height:100vh !important; border:none !important; }
   </style>
 </head>
 <body>
 
   <div id="view-container">
-    <iframe id="gameFrame"
-      src="https://www.football.org.il/leagues/games/game/?game_id=1066561"
-      scrolling="no"></iframe>
+    <iframe id="gameFrame" scrolling="no"></iframe>
     <div id="loader"></div>
   </div>
 
@@ -142,12 +127,15 @@
   </div>
 
 <script>
-  // ====== מצב צפייה ======
+  // ===== הגדרות =====
+  const BASE_URL = "https://www.football.org.il/leagues/games/game/?game_id=1066561";
+  const REFRESH_EVERY = 15;
+
+  // ===== מצב תצוגה =====
   let posY = -200;
   let posX = -200;
   let scale = 0.6;
 
-  const iframe = document.getElementById('gameFrame');
   const viewContainer = document.getElementById('view-container');
   const controls = document.getElementById('controls');
   const editToggle = document.getElementById('edit-toggle');
@@ -158,61 +146,69 @@
   const LS_S = 'my_soccer_scale';
   const LS_SETUP = 'is_setup';
 
-  function clampScale(s) {
-    // גבולות סבירים כדי שלא תברח
-    return Math.max(0.2, Math.min(2.0, s));
-  }
+  function clampScale(s){ return Math.max(0.2, Math.min(2.0, s)); }
 
-  function updateView() {
+  // תמיד ניגש ל-iframe דרך getter (כי אנחנו מחליפים אותו בריפרש)
+  function getFrame(){ return document.getElementById('gameFrame'); }
+
+  function applyViewOnce(){
+    const iframe = getFrame();
     iframe.style.top = posY + 'px';
     iframe.style.left = posX + 'px';
     iframe.style.transform = `scale(${scale})`;
   }
 
-  function persist() {
+  // “נעילה חזקה” – מחיל את המיקום כמה פעמים כי הדף בפנים ממשיך להשתנות אחרי load
+  function applyViewHard(){
+    applyViewOnce();
+    setTimeout(applyViewOnce, 80);
+    setTimeout(applyViewOnce, 250);
+    setTimeout(applyViewOnce, 700);
+    setTimeout(applyViewOnce, 1400);
+  }
+
+  function persist(){
     localStorage.setItem(LS_Y, String(posY));
     localStorage.setItem(LS_X, String(posX));
     localStorage.setItem(LS_S, String(scale));
   }
 
-  function move(dx, dy) {
+  function move(dx, dy){
     posX += dx;
     posY += dy;
-    updateView();
-    // אם כבר נעול – לשמור כל שינוי אוטומטית
-    if (localStorage.getItem(LS_SETUP) === 'true') persist();
+    applyViewOnce();
+    if(localStorage.getItem(LS_SETUP) === 'true') persist();
   }
 
-  function zoom(dz) {
+  function zoom(dz){
     scale = clampScale(scale + dz);
-    updateView();
-    if (localStorage.getItem(LS_SETUP) === 'true') persist();
+    applyViewOnce();
+    if(localStorage.getItem(LS_SETUP) === 'true') persist();
   }
 
-  function lockUI() {
+  function lockUI(){
     controls.classList.add('hidden');
     viewContainer.classList.add('full-screen');
     editToggle.style.display = 'block';
     document.body.style.backgroundColor = "black";
   }
 
-  function unlockUI() {
+  function unlockUI(){
     controls.classList.remove('hidden');
     viewContainer.classList.remove('full-screen');
     editToggle.style.display = 'none';
   }
 
-  function saveAndLock() {
+  function saveAndLock(){
     persist();
     localStorage.setItem(LS_SETUP, 'true');
     lockUI();
+    applyViewHard();
   }
 
-  editToggle.onclick = function() {
-    unlockUI();
-  };
+  editToggle.onclick = () => { unlockUI(); };
 
-  function resetSettings() {
+  function resetSettings(){
     localStorage.removeItem(LS_Y);
     localStorage.removeItem(LS_X);
     localStorage.removeItem(LS_S);
@@ -220,72 +216,75 @@
     location.reload();
   }
 
-  function loadSettings() {
+  function loadSettings(){
     const isSetup = localStorage.getItem(LS_SETUP);
-
-    if (isSetup === 'true') {
+    if(isSetup === 'true'){
       const savedY = localStorage.getItem(LS_Y);
       const savedX = localStorage.getItem(LS_X);
       const savedS = localStorage.getItem(LS_S);
 
-      if (savedY !== null) posY = parseInt(savedY, 10);
-      if (savedX !== null) posX = parseInt(savedX, 10);
-      if (savedS !== null) scale = clampScale(parseFloat(savedS));
+      if(savedY !== null) posY = parseInt(savedY, 10);
+      if(savedX !== null) posX = parseInt(savedX, 10);
+      if(savedS !== null) scale = clampScale(parseFloat(savedS));
 
-      updateView();
       lockUI();
-    } else {
-      updateView();
     }
   }
 
-  // ====== ריפרש יציב ======
-  let seconds = 0;
-  const REFRESH_EVERY = 15;
-
-  function refreshIframe() {
-    // להסתיר רגע כדי שלא תראה "קפיצה"
-    iframe.style.opacity = '0';
-
-    // תמיד להחיל את הטרנספורם לפני/אחרי ריפרש
-    updateView();
-
-    // ניסיון רילואד אמיתי (לפעמים נחסם בגלל cross-origin)
-    try {
-      if (iframe.contentWindow && iframe.contentWindow.location) {
-        iframe.contentWindow.location.reload();
-      } else {
-        throw new Error('no contentWindow');
-      }
-    } catch (e) {
-      // fallback: reload עם cache-bust כדי להכריח רענון
-      const base = "https://www.football.org.il/leagues/games/game/?game_id=1066561";
-      iframe.src = base + "&_t=" + Date.now();
-    }
-  }
-
-  // אחרי שהדף בתוך ה-iframe נטען – להחזיר opacity + להדביק שוב מיקום
-  iframe.addEventListener('load', () => {
-    // להבטיח שהמיקום והזום נשמרים גם אחרי טעינה
-    updateView();
-    requestAnimationFrame(() => {
-      iframe.style.opacity = '1';
+  // ===== ריפרש יציב: מחליפים iframe חדש ושומרים crop =====
+  function attachLoadHandler(iframe){
+    iframe.addEventListener('load', () => {
+      applyViewHard();
+      requestAnimationFrame(() => { iframe.style.opacity = '1'; });
     });
-  });
+  }
 
+  function createFreshIframe(){
+    const old = getFrame();
+    const fresh = document.createElement('iframe');
+    fresh.id = 'gameFrame';
+    fresh.scrolling = 'no';
+    fresh.style.opacity = '0'; // להסתיר בזמן טעינה
+    attachLoadHandler(fresh);
+    old.replaceWith(fresh);
+    return fresh;
+  }
+
+  function setFrameSrcWithBust(iframe){
+    // cache bust כדי להכריח עדכון, בלי לשנות לנו את המיקום
+    iframe.src = BASE_URL + "&_t=" + Date.now();
+  }
+
+  function refreshIframe(){
+    const iframe = createFreshIframe();
+    // לפני טעינה – להצמיד את ה-view כדי שלא תראה קפיצה
+    applyViewOnce();
+    setFrameSrcWithBust(iframe);
+  }
+
+  // ===== טיימר ריפרש + Loader =====
+  let seconds = 0;
   setInterval(() => {
     seconds++;
     loader.style.width = (seconds / REFRESH_EVERY * 100) + "%";
 
-    if (seconds >= REFRESH_EVERY) {
+    if(seconds >= REFRESH_EVERY){
       refreshIframe();
       seconds = 0;
       loader.style.width = "0%";
     }
   }, 1000);
 
-  // הפעלה
+  // ===== אתחול =====
   loadSettings();
+
+  // יצירה ראשונית של iframe והטענה ראשונה
+  const first = getFrame();
+  attachLoadHandler(first);
+  first.style.opacity = '0';
+  applyViewOnce();
+  setFrameSrcWithBust(first);
+
 </script>
 
 </body>
