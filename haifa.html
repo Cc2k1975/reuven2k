@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>כיול למובייל</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden; /* מונע גלילה של כל הדף */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* האזור שבו רואים את המשחק (החלונית הסופית) */
+        #phone-wrapper {
+            width: 100%;
+            height: 40vh; /* תופס 40% מהגובה של הטלפון */
+            background: #fff;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 2px solid red; /* סימון הגבול */
+        }
+
+        /* גבולות עזר כדי שתדע מה רואים */
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            border: 1px solid rgba(255,0,0,0.5);
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        iframe {
+            width: 1200px; /* רוחב ווירטואלי גדול */
+            height: 1500px;
+            border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0; /* הזום מתחיל מהפינה */
+        }
+
+        /* אזור הבקרה למטה */
+        #controls-area {
+            flex: 1;
+            padding: 10px;
+            background-color: #333;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            z-index: 20;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 5px;
+        }
+
+        label { font-size: 14px; margin-bottom: 2px; color: #aaa; }
+        
+        input[type=range] {
+            width: 100%;
+            height: 25px; /* גדול שיהיה נוח באצבע */
+        }
+
+        /* הנתונים שאתה צריך לשלוח לי */
+        #data-display {
+            background: black;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 16px;
+            text-align: center;
+            border: 1px solid #0f0;
+            direction: ltr;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="phone-wrapper">
+        <div id="crosshair"></div> <iframe id="gameFrame" src="https://www.football.org.il/leagues/games/game/?game_id=1066561" scrolling="no"></iframe>
+    </div>
+
+    <div id="data-display">
+        TOP: <span id="valY">-200</span> | LEFT: <span id="valX">-200</span> | ZOOM: <span id="valZ">1.0</span>
+    </div>
+
+    <div id="controls-area">
+        <div class="slider-group">
+            <label>למעלה / למטה (Y)</label>
+            <input type="range" id="moveY" min="-1000" max="0" value="-200">
+        </div>
+        <div class="slider-group">
+            <label>ימינה / שמאלה (X)</label>
+            <input type="range" id="moveX" min="-800" max="0" value="-200">
+        </div>
+        <div class="slider-group">
+            <label>זום (Zoom)</label>
+            <input type="range" id="zoomLevel" min="0.3" max="2.0" step="0.05" value="0.6">
+        </div>
+    </div>
+
+    <script>
+        const iframe = document.getElementById('gameFrame');
+        const moveY = document.getElementById('moveY');
+        const moveX = document.getElementById('moveX');
+        const zoomLevel = document.getElementById('zoomLevel');
+        
+        // תצוגת מספרים
+        const valY = document.getElementById('valY');
+        const valX = document.getElementById('valX');
+        const valZ = document.getElementById('valZ');
+
+        function update() {
+            // עדכון ה-CSS של ה-Iframe
+            iframe.style.top = moveY.value + 'px';
+            iframe.style.left = moveX.value + 'px';
+            iframe.style.transform = `scale(${zoomLevel.value})`;
+
+            // עדכון המספרים על המסך
+            valY.innerText = moveY.value;
+            valX.innerText = moveX.value;
+            valZ.innerText = zoomLevel.value;
+        }
+
+        // האזנה לגרירה
+        moveY.addEventListener('input', update);
+        moveX.addEventListener('input', update);
+        zoomLevel.addEventListener('input', update);
+
+        // הרצה ראשונית
+        update();
+    </script>
+</body>
+</html>
