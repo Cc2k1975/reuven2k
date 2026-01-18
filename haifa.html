@@ -6,13 +6,13 @@
   <title>ריבוע קבוע</title>
   <style>
     body{
-      margin:0; padding:0; background:#000;
+      margin:0; padding:0;
       height:100vh; display:flex; flex-direction:column;
       overflow:hidden; font-family:Arial,sans-serif;
+      background:#fff; /* ✅ ברירת מחדל לבן */
     }
 
-    /* ======= זה גובה ה"ריבוע" שאתה רואה תמיד ======= */
-    :root { --boxH: 300px; }  /* לא שיניתי */
+    :root { --boxH: 300px; } /* לא נוגע */
 
     #view-container{
       position:relative;
@@ -48,7 +48,7 @@
       z-index:10;
     }
 
-    /* ===== כפתור שמירה למעלה ===== */
+    /* כפתור שמירה למעלה */
     #saveTopBtn{
       position:fixed;
       top:10px;
@@ -66,7 +66,7 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.35);
     }
 
-    /* ===== גלגל שיניים קטן שמאל למעלה ===== */
+    /* גלגל שיניים קטן שמאל למעלה */
     #gearBtn{
       position:fixed;
       top:8px;
@@ -75,9 +75,9 @@
       width:26px;
       height:26px;
       border-radius:50%;
-      background:rgba(255,255,255,0.20);
-      color:#fff;
-      border:1px solid rgba(255,255,255,0.20);
+      background:rgba(0,0,0,0.12);
+      color:#000;
+      border:1px solid rgba(0,0,0,0.10);
       display:none;
       align-items:center;
       justify-content:center;
@@ -87,9 +87,10 @@
       user-select:none;
     }
 
+    /* פאנל עריכה */
     #controls{
       flex:1;
-      background:#fff;          /* ✅ במקום שחור – לבן */
+      background:#fff; /* ✅ לבן תמיד */
       display:flex;
       flex-direction:column;
       align-items:center;
@@ -133,7 +134,7 @@
       border-radius:12px;
     }
 
-    /* ===== שורת מספר משחק (רק בעריכה) ===== */
+    /* ===== שורת מספר משחק — תופיע רק בעריכה ===== */
     #gameBar{
       width:min(520px, 92vw);
       background:#f3f3f3;
@@ -155,7 +156,7 @@
       font-size:16px;
       outline:none;
       background:#fff;
-      direction:ltr;            /* מספרים נוח יותר */
+      direction:ltr;
       text-align:center;
     }
     #gameSaveBtn{
@@ -171,13 +172,15 @@
       touch-action: manipulation;
       white-space:nowrap;
     }
-    #gameSaveBtn:active{ opacity:0.9; }
 
-    /* ===== מצב צפייה נקי: מסתיר חצים בלבד, לא משנה גובה הריבוע ===== */
+    /* ===== מצב צפייה נקי =====
+       חשוב: לא מציג חצים, אבל הרקע למטה לבן (לא שחור)
+    */
     .locked-view #controls{ display:none !important; }
     .locked-view #saveTopBtn{ display:none !important; }
     .locked-view #gearBtn{ display:flex !important; }
     .locked-view #loader{ display:none !important; }
+    .locked-view body, body.locked-view { background:#fff !important; } /* ✅ לבן גם בצפייה */
   </style>
 </head>
 <body>
@@ -190,6 +193,7 @@
     <div id="loader"></div>
   </div>
 
+  <!-- פאנל עריכה בלבד -->
   <div id="controls">
     <div style="color:#111; margin-bottom:6px; font-weight:bold;">כוון את התוצאה למרכז המסך:</div>
 
@@ -205,20 +209,18 @@
       <button class="small" onclick="zoom(0.05)">זום +</button>
     </div>
 
-    <!-- ✅ חלונית מספר משחק -->
+    <!-- ✅ פה הכנסת מספר משחק: רק כשנכנסים לעריכה דרך ⚙️ -->
     <div id="gameBar" style="margin-top:14px;">
-      <input id="gameIdInput" inputmode="numeric" pattern="[0-9]*" placeholder="הכנס מספר משחק (רק מספרים)">
-      <button id="gameSaveBtn">שמור משחק</button>
+      <input id="gameIdInput" inputmode="numeric" pattern="[0-9]*" placeholder="מספר משחק (רק ספרות)">
+      <button id="gameSaveBtn">שמור מספר</button>
     </div>
 
     <button id="resetBtn" class="small" onclick="resetSettings()" style="margin-top:14px;">איפוס הגדרות</button>
   </div>
 
 <script>
-  // ======= שינויים שביקשת: מספר משחק נשמר =======
   const BASE_URL_PREFIX = "https://www.football.org.il/leagues/games/game/?game_id=";
   const DEFAULT_GAME_ID = "1066561";
-
   const REFRESH_EVERY = 15;
 
   let posY = -200;
@@ -244,7 +246,6 @@
   function getGameId(){
     return localStorage.getItem(LS_GAME) || DEFAULT_GAME_ID;
   }
-
   function buildUrl(gameId){
     return BASE_URL_PREFIX + encodeURIComponent(gameId);
   }
@@ -274,7 +275,6 @@
     posY += dy;
     applyViewOnce();
   }
-
   function zoom(dz){
     scale = clampScale(scale + dz);
     applyViewOnce();
@@ -300,7 +300,6 @@
   }
 
   function loadSettings(){
-    // טען מספר משחק לקלט
     const savedGame = localStorage.getItem(LS_GAME);
     gameIdInput.value = savedGame ? savedGame : DEFAULT_GAME_ID;
 
@@ -314,39 +313,36 @@
       if(savedX !== null) posX = parseInt(savedX, 10);
       if(savedS !== null) scale = clampScale(parseFloat(savedS));
 
-      enterLockedView();
+      enterLockedView(); // מצב צפייה נקי בפתיחה
     }
   }
 
+  // כפתורים
   saveTopBtn.onclick = saveAndLock;
+
+  // ⚙️ נכנס לעריכה — פה אתה תראה את החלונית של מספר המשחק
   gearBtn.onclick = () => { exitLockedView(); };
 
-  // שמירת מספר משחק + טעינת המשחק הזה
+  // שמירת מספר משחק + טעינה מחדש של המשחק
   function saveGameIdAndReload(){
     const raw = (gameIdInput.value || "").trim();
-    const digits = raw.replace(/\D/g, ''); // רק מספרים
-
+    const digits = raw.replace(/\D/g, '');
     if(!digits){
       alert("תכניס מספר משחק (רק ספרות).");
       return;
     }
-
     localStorage.setItem(LS_GAME, digits);
-
-    // טען מיד את המשחק החדש (בלי לשנות מיקום/זום)
-    refreshIframe(true);
+    refreshIframe(); // טוען משחק חדש
   }
-
   gameSaveBtn.onclick = saveGameIdAndReload;
 
-  // ===== ריפרש יציב (החלפת iframe) =====
+  // ריפרש יציב
   function attachLoadHandler(iframe){
     iframe.addEventListener('load', () => {
       applyViewHard();
       requestAnimationFrame(() => { iframe.style.opacity = '1'; });
     });
   }
-
   function createFreshIframe(){
     const old = getFrame();
     const fresh = document.createElement('iframe');
@@ -357,20 +353,16 @@
     old.replaceWith(fresh);
     return fresh;
   }
-
   function setFrameSrcWithBust(iframe){
     const url = buildUrl(getGameId());
     iframe.src = url + "&_t=" + Date.now();
   }
-
-  // force=true כאשר מחליפים משחק ידנית – מיד רענון
-  function refreshIframe(force){
+  function refreshIframe(){
     const iframe = createFreshIframe();
     applyViewOnce();
     setFrameSrcWithBust(iframe);
   }
 
-  // ===== טיימר ריפרש + Loader =====
   let seconds = 0;
   setInterval(() => {
     seconds++;
@@ -378,13 +370,13 @@
       loader.style.width = (seconds / REFRESH_EVERY * 100) + "%";
     }
     if(seconds >= REFRESH_EVERY){
-      refreshIframe(false);
+      refreshIframe();
       seconds = 0;
       loader.style.width = "0%";
     }
   }, 1000);
 
-  // ===== אתחול =====
+  // אתחול
   loadSettings();
 
   const first = getFrame();
