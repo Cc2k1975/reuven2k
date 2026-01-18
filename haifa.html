@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>תוצאה בלייב - מתוקן</title>
+    <title>מערכת צפייה חכמה</title>
     <style>
         body {
             margin: 0;
@@ -11,20 +11,20 @@
             background-color: #000;
             height: 100vh;
             display: flex;
-            justify-content: center;
-            align-items: center;
+            flex-direction: column;
             overflow: hidden;
+            font-family: Arial, sans-serif;
         }
 
-        /* המסגרת הלבנה בדיוק בגודל שבחרת */
-        #final-view {
-            width: 340px;
-            height: 250px; /* הגובה של הריבוע האדום */
+        /* אזור התצוגה הנקי */
+        #view-container {
             position: relative;
+            width: 100%; 
+            height: 300px; /* גובה האזור שרואים */
+            background: #fff;
             overflow: hidden;
-            background-color: #fff;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
+            border-bottom: 2px solid #333;
+            flex-shrink: 0;
         }
 
         iframe {
@@ -32,14 +32,11 @@
             width: 1200px;
             height: 1500px;
             border: none;
-            
-            /* --- הנתונים המדויקים מהצילום (בלי לשנות למינוס!) --- */
-            top: 253px;        /* כאן הייתה הטעות שלי - החזרתי לפלוס */
-            left: -244px;      /* ה-X שנשאר אותו דבר */
-            transform: scale(0.50); /* הזום שבחרת */
-            
             transform-origin: 0 0;
-            pointer-events: none; /* נועל כדי שלא יזוז בטעות */
+            /* ערכי ברירת מחדל להתחלה */
+            top: -200px;
+            left: -200px;
+            transform: scale(0.6);
         }
 
         /* פס טעינה */
@@ -47,35 +44,196 @@
             position: absolute;
             bottom: 0;
             left: 0;
-            height: 4px;
+            height: 5px;
             background-color: #00ff00;
             width: 0%;
             transition: width 1s linear;
+            z-index: 10;
         }
+
+        /* פאנל שליטה */
+        #controls {
+            flex: 1;
+            background-color: #222;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .row { display: flex; gap: 20px; }
+
+        button {
+            width: 70px;
+            height: 70px;
+            background: #444;
+            color: white;
+            border: 1px solid #666;
+            border-radius: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            touch-action: manipulation; /* מונע זום בלחיצה כפולה */
+        }
+        
+        button:active { background: #666; }
+
+        .action-btn {
+            width: auto;
+            padding: 0 30px;
+            height: 60px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #save-btn { background: #28a745; border-color: #28a745; }
+        #reset-btn { background: #dc3545; border-color: #dc3545; font-size: 14px; }
+
+        /* כפתור עריכה מוסתר */
+        #edit-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            font-size: 24px;
+            display: none;
+            z-index: 999;
+        }
+
+        /* הסתרת אלמנטים */
+        .hidden { display: none !important; }
+        .full-screen { height: 100vh !important; border: none !important; }
+
     </style>
 </head>
 <body>
 
-    <div id="final-view">
+    <div id="view-container">
         <iframe id="gameFrame" src="https://www.football.org.il/leagues/games/game/?game_id=1066561" scrolling="no"></iframe>
         <div id="loader"></div>
     </div>
 
-    <script>
-        const iframe = document.getElementById('gameFrame');
-        const loader = document.getElementById('loader');
-        let seconds = 0;
+    <button id="edit-toggle">⚙️</button>
 
+    <div id="controls">
+        <div style="color:white; margin-bottom:10px;">כוון את התוצאה למרכז המסך:</div>
+        
+        <button onclick="move(0, 20)">⬆️</button>
+        <div class="row">
+            <button onclick="move(20, 0)">⬅️</button>
+            <button onclick="move(-20, 0)">➡️</button>
+        </div>
+        <button onclick="move(0, -20)">⬇️</button>
+
+        <div class="row" style="margin-top: 10px;">
+            <button onclick="zoom(-0.05)" style="font-size:16px;">זום -</button>
+            <button onclick="zoom(0.05)" style="font-size:16px;">זום +</button>
+        </div>
+
+        <div class="row" style="margin-top: 20px;">
+            <button id="save-btn" class="action-btn" onclick="saveAndLock()">✅ שמור וקבע מיקום</button>
+        </div>
+        <button id="reset-btn" class="action-btn" onclick="resetSettings()" style="margin-top:10px; height: 40px;">איפוס הגדרות</button>
+    </div>
+
+    <script>
+        // משתנים
+        let posY = -200;
+        let posX = -200;
+        let scale = 0.6;
+        
+        const iframe = document.getElementById('gameFrame');
+        const viewContainer = document.getElementById('view-container');
+        const controls = document.getElementById('controls');
+        const editToggle = document.getElementById('edit-toggle');
+        const loader = document.getElementById('loader');
+
+        // פונקציה לעדכון המסך
+        function updateView() {
+            iframe.style.top = posY + 'px';
+            iframe.style.left = posX + 'px';
+            iframe.style.transform = `scale(${scale})`;
+        }
+
+        // פונקציות תזוזה
+        function move(x, y) {
+            posX += x;
+            posY += y;
+            updateView();
+        }
+
+        function zoom(z) {
+            scale += z;
+            updateView();
+        }
+
+        // שמירה ונעילה
+        function saveAndLock() {
+            // שמירה בזיכרון הטלפון
+            localStorage.setItem('my_soccer_y', posY);
+            localStorage.setItem('my_soccer_x', posX);
+            localStorage.setItem('my_soccer_scale', scale);
+            localStorage.setItem('is_setup', 'true');
+
+            // שינוי תצוגה
+            controls.classList.add('hidden');
+            viewContainer.classList.add('full-screen');
+            editToggle.style.display = 'block';
+            
+            // שינוי צבע רקע לשחור מלא כדי שייראה נקי
+            document.body.style.backgroundColor = "black";
+        }
+
+        // פתיחת עריכה מחדש
+        editToggle.onclick = function() {
+            controls.classList.remove('hidden');
+            viewContainer.classList.remove('full-screen');
+            editToggle.style.display = 'none';
+        };
+
+        // איפוס
+        function resetSettings() {
+            localStorage.clear();
+            location.reload();
+        }
+
+        // טעינה ראשונית - בודק אם כבר שמרת בעבר
+        function loadSettings() {
+            const savedY = localStorage.getItem('my_soccer_y');
+            const savedX = localStorage.getItem('my_soccer_x');
+            const savedScale = localStorage.getItem('my_soccer_scale');
+            const isSetup = localStorage.getItem('is_setup');
+
+            if (isSetup === 'true') {
+                posY = parseInt(savedY);
+                posX = parseInt(savedX);
+                scale = parseFloat(savedScale);
+                updateView();
+                saveAndLock(); // נועל אוטומטית
+            } else {
+                updateView(); // מצב עריכה התחלתי
+            }
+        }
+
+        // מנגנון ריפרש אוטומטי
+        let seconds = 0;
         setInterval(function() {
             seconds++;
             loader.style.width = (seconds / 15 * 100) + "%";
-
             if (seconds >= 15) {
                 iframe.src = iframe.src;
                 seconds = 0;
             }
         }, 1000);
-    </script>
 
+        // הפעלה
+        loadSettings();
+
+    </script>
 </body>
 </html>
