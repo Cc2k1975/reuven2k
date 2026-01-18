@@ -3,43 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>כלי כיול מדוייק</title>
+    <title>תוצאה נטו</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background-color: #333;
+            background-color: #000; /* רקע שחור */
             height: 100vh;
             display: flex;
-            flex-direction: column;
-            align-items: center;
+            justify-content: center;
+            align-items: center; /* ממקם את הריבוע בדיוק באמצע המסך */
             overflow: hidden;
-            font-family: Arial, sans-serif;
         }
 
-        /* זה הריבוע האדום - מה שנכנס לפה זה מה שתראה בסוף */
-        #target-box {
-            width: 340px;   /* רוחב טיפוסי של טלפון */
-            height: 250px;  /* גובה משוער של הטבלה */
-            border: 4px solid red; /* מסגרת אדומה בולטת */
+        /* הריבוע הסופי - בדיוק בגודל המסגרת האדומה שלך */
+        #final-view {
+            width: 340px;
+            height: 250px;
             position: relative;
-            margin-top: 20px;
-            background-color: white; /* כדי שתראה איך זה נראה על לבן */
-            overflow: hidden; /* חותך את מה שיוצא החוצה */
-            box-shadow: 0 0 50px rgba(0,0,0,0.8);
-            z-index: 10;
-        }
-
-        /* צלב עזר באמצע לדיוק */
-        #target-box::after {
-            content: "+";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 40px;
-            color: rgba(255, 0, 0, 0.3);
-            pointer-events: none;
+            overflow: hidden;
+            background-color: #fff; /* רקע לבן למקרה של טעינה */
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.1); /* זוהר עדין מסביב */
+            border-radius: 4px; /* פינות מעוגלות בקטנה */
         }
 
         iframe {
@@ -47,114 +32,51 @@
             width: 1200px;
             height: 1500px;
             border: none;
-            top: 0;
-            left: 0;
+            
+            /* --- הנתונים המדויקים מהצילום שלך --- */
+            top: -253px;       /* תוקן למינוס כדי להתאים לזום */
+            left: -244px;      /* הנתון שלך */
+            transform: scale(0.50); /* הזום שבחרת */
+            
             transform-origin: 0 0;
+            pointer-events: none; /* מונע הזזה בטעות */
         }
 
-        /* אזור הנתונים */
-        #data-panel {
-            background: black;
-            color: #0f0;
-            padding: 10px;
-            margin-top: 10px;
-            font-size: 18px;
-            font-family: monospace;
-            border: 1px solid #0f0;
-            direction: ltr;
-            text-align: center;
-            width: 90%;
+        /* פס טעינה ירוק עדין בתחתית הריבוע */
+        #loader {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background-color: #00ff00;
+            width: 0%;
+            transition: width 1s linear;
         }
-
-        /* אזור הכפתורים */
-        #controls {
-            flex: 1;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            padding-bottom: 20px;
-        }
-
-        .row { display: flex; gap: 20px; }
-        
-        button {
-            width: 60px;
-            height: 60px;
-            font-size: 24px;
-            background: #555;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-        }
-        button:active { background: #777; }
-
-        .zoom-btn { background: #007bff; width: 80px; font-size: 18px; }
-
     </style>
 </head>
 <body>
 
-    <div id="target-box">
+    <div id="final-view">
         <iframe id="gameFrame" src="https://www.football.org.il/leagues/games/game/?game_id=1066561" scrolling="no"></iframe>
-    </div>
-
-    <div id="data-panel">
-        Y: <span id="valY">-200</span> | X: <span id="valX">-200</span> | Z: <span id="valZ">1.0</span>
-    </div>
-
-    <div id="controls">
-        <div class="row">
-            <button class="zoom-btn" onclick="changeZoom(-0.05)">זום -</button>
-            <button class="zoom-btn" onclick="changeZoom(0.05)">זום +</button>
-        </div>
-
-        <button onclick="move(0, 10)">⬆️</button>
-        <div class="row">
-            <button onclick="move(10, 0)">⬅️</button>
-            <button onclick="move(-10, 0)">➡️</button>
-        </div>
-        <button onclick="move(0, -10)">⬇️</button>
+        <div id="loader"></div>
     </div>
 
     <script>
-        // משתנים התחלתיים
-        let posX = -454;
-        let posY = -317;
-        let scale = 1.05;
-
         const iframe = document.getElementById('gameFrame');
-        const valX = document.getElementById('valX');
-        const valY = document.getElementById('valY');
-        const valZ = document.getElementById('valZ');
+        const loader = document.getElementById('loader');
+        let seconds = 0;
 
-        function update() {
-            iframe.style.left = posX + 'px';
-            iframe.style.top = posY + 'px';
-            iframe.style.transform = `scale(${scale})`;
-            
-            // עדכון טקסט
-            valX.innerText = posX;
-            valY.innerText = posY;
-            valZ.innerText = scale.toFixed(2);
-        }
+        // טיימר רענון ל-15 שניות
+        setInterval(function() {
+            seconds++;
+            loader.style.width = (seconds / 15 * 100) + "%";
 
-        function move(x, y) {
-            posX += x;
-            posY += y;
-            update();
-        }
-
-        function changeZoom(delta) {
-            scale += delta;
-            update();
-        }
-
-        // טעינה ראשונית עם הערכים הקודמים שלך
-        update();
+            if (seconds >= 15) {
+                iframe.src = iframe.src; // רענון
+                seconds = 0;
+                console.log("רוענן");
+            }
+        }, 1000);
     </script>
 
 </body>
