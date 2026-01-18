@@ -3,26 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live Score Tracker</title>
+    <title>כלי כיול מדוייק</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            background-color: #000;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
+            background-color: #333;
             height: 100vh;
             display: flex;
             flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
         }
 
-        /* מסך התצוגה - נקי לגמרי */
-        #screen-view {
-            width: 100%;
-            height: 100%; /* תופס את כל המסך */
+        /* זה הריבוע האדום - מה שנכנס לפה זה מה שתראה בסוף */
+        #target-box {
+            width: 340px;   /* רוחב טיפוסי של טלפון */
+            height: 250px;  /* גובה משוער של הטבלה */
+            border: 4px solid red; /* מסגרת אדומה בולטת */
             position: relative;
-            overflow: hidden;
-            background: #000;
+            margin-top: 20px;
+            background-color: white; /* כדי שתראה איך זה נראה על לבן */
+            overflow: hidden; /* חותך את מה שיוצא החוצה */
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        /* צלב עזר באמצע לדיוק */
+        #target-box::after {
+            content: "+";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: rgba(255, 0, 0, 0.3);
+            pointer-events: none;
         }
 
         iframe {
@@ -30,187 +47,115 @@
             width: 1200px;
             height: 1500px;
             border: none;
+            top: 0;
+            left: 0;
             transform-origin: 0 0;
-            pointer-events: none; /* מונע גלילה בטעות */
         }
 
-        /* פס טעינה ירוק דק למטה */
-        #timer-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            height: 5px;
-            background-color: #00ff00;
-            width: 0%;
-            transition: width 1s linear;
-            z-index: 10;
+        /* אזור הנתונים */
+        #data-panel {
+            background: black;
+            color: #0f0;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 18px;
+            font-family: monospace;
+            border: 1px solid #0f0;
+            direction: ltr;
+            text-align: center;
+            width: 90%;
         }
 
-        /* לוח הבקרה - מופיע רק כשצריך */
-        #controls-panel {
-            position: absolute;
-            bottom: 0;
-            left: 0;
+        /* אזור הכפתורים */
+        #controls {
+            flex: 1;
             width: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 20px;
-            box-sizing: border-box;
-            border-top: 2px solid #555;
-            z-index: 100;
-            display: flex; /* גמיש */
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .slider-group {
             display: flex;
             flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 20px;
         }
-        
-        label { margin-bottom: 5px; color: #ddd; font-size: 14px;}
-        input[type=range] { width: 100%; height: 30px; }
 
+        .row { display: flex; gap: 20px; }
+        
         button {
-            padding: 15px;
-            font-size: 18px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-
-        #save-btn { background-color: #28a745; color: white; }
-        
-        /* כפתור עריכה קטן צף */
-        #edit-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            background-color: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            color: white;
+            width: 60px;
+            height: 60px;
             font-size: 24px;
-            z-index: 90;
-            display: none; /* מוסתר בהתחלה */
+            background: #555;
+            color: white;
+            border: none;
+            border-radius: 10px;
             cursor: pointer;
         }
+        button:active { background: #777; }
 
-        /* מחלקה להסתרה */
-        .hidden { display: none !important; }
+        .zoom-btn { background: #007bff; width: 80px; font-size: 18px; }
 
     </style>
 </head>
 <body>
 
-    <div id="screen-view">
+    <div id="target-box">
         <iframe id="gameFrame" src="https://www.football.org.il/leagues/games/game/?game_id=1066561" scrolling="no"></iframe>
-        <div id="timer-bar"></div>
     </div>
 
-    <button id="edit-btn">⚙️</button>
+    <div id="data-panel">
+        Y: <span id="valY">-200</span> | X: <span id="valX">-200</span> | Z: <span id="valZ">1.0</span>
+    </div>
 
-    <div id="controls-panel">
-        <div style="text-align:center; font-weight:bold; color:orange;">מצב כיוונון ראשוני</div>
-        
-        <div class="slider-group">
-            <label>למעלה / למטה</label>
-            <input type="range" id="moveY" min="-1000" max="0" value="-317">
-        </div>
-        <div class="slider-group">
-            <label>ימינה / שמאלה</label>
-            <input type="range" id="moveX" min="-800" max="0" value="-454">
-        </div>
-        <div class="slider-group">
-            <label>זום (גודל)</label>
-            <input type="range" id="zoomLevel" min="0.5" max="2.0" step="0.05" value="1.05">
+    <div id="controls">
+        <div class="row">
+            <button class="zoom-btn" onclick="changeZoom(-0.05)">זום -</button>
+            <button class="zoom-btn" onclick="changeZoom(0.05)">זום +</button>
         </div>
 
-        <button id="save-btn">שמור מיקום ונעל מסך 🔒</button>
+        <button onclick="move(0, 10)">⬆️</button>
+        <div class="row">
+            <button onclick="move(10, 0)">⬅️</button>
+            <button onclick="move(-10, 0)">➡️</button>
+        </div>
+        <button onclick="move(0, -10)">⬇️</button>
     </div>
 
     <script>
+        // משתנים התחלתיים
+        let posX = -454;
+        let posY = -317;
+        let scale = 1.05;
+
         const iframe = document.getElementById('gameFrame');
-        const moveY = document.getElementById('moveY');
-        const moveX = document.getElementById('moveX');
-        const zoomLevel = document.getElementById('zoomLevel');
-        const controlsPanel = document.getElementById('controls-panel');
-        const saveBtn = document.getElementById('save-btn');
-        const editBtn = document.getElementById('edit-btn');
-        const timerBar = document.getElementById('timer-bar');
+        const valX = document.getElementById('valX');
+        const valY = document.getElementById('valY');
+        const valZ = document.getElementById('valZ');
 
-        // פונקציה לעדכון התצוגה בזמן אמת
-        function updateView() {
-            iframe.style.top = moveY.value + 'px';
-            iframe.style.left = moveX.value + 'px';
-            iframe.style.transform = `scale(${zoomLevel.value})`;
+        function update() {
+            iframe.style.left = posX + 'px';
+            iframe.style.top = posY + 'px';
+            iframe.style.transform = `scale(${scale})`;
+            
+            // עדכון טקסט
+            valX.innerText = posX;
+            valY.innerText = posY;
+            valZ.innerText = scale.toFixed(2);
         }
 
-        // האזנה לסליידרים
-        moveY.addEventListener('input', updateView);
-        moveX.addEventListener('input', updateView);
-        zoomLevel.addEventListener('input', updateView);
-
-        // --- מנגנון הזיכרון (Local Storage) ---
-
-        function loadSavedSettings() {
-            const savedY = localStorage.getItem('soccer_y');
-            const savedX = localStorage.getItem('soccer_x');
-            const savedZoom = localStorage.getItem('soccer_zoom');
-
-            if (savedY && savedX && savedZoom) {
-                // אם יש הגדרות שמורות - טען אותן והסתר את הפאנל
-                moveY.value = savedY;
-                moveX.value = savedX;
-                zoomLevel.value = savedZoom;
-                updateView();
-                closeControls(); 
-            } else {
-                // אם אין הגדרות (פעם ראשונה) - תפעיל את העדכון הראשוני
-                updateView();
-            }
+        function move(x, y) {
+            posX += x;
+            posY += y;
+            update();
         }
 
-        function saveSettings() {
-            localStorage.setItem('soccer_y', moveY.value);
-            localStorage.setItem('soccer_x', moveX.value);
-            localStorage.setItem('soccer_zoom', zoomLevel.value);
-            closeControls();
+        function changeZoom(delta) {
+            scale += delta;
+            update();
         }
 
-        function closeControls() {
-            controlsPanel.classList.add('hidden'); // הסתר פאנל
-            editBtn.style.display = 'block';       // הראה כפתור עריכה קטן
-        }
-
-        function openControls() {
-            controlsPanel.classList.remove('hidden'); // הראה פאנל
-            editBtn.style.display = 'none';           // הסתר כפתור עריכה
-        }
-
-        // כפתורים
-        saveBtn.addEventListener('click', saveSettings);
-        editBtn.addEventListener('click', openControls);
-
-        // --- מנגנון רענון אוטומטי ---
-        let seconds = 0;
-        setInterval(function() {
-            seconds++;
-            timerBar.style.width = (seconds / 15 * 100) + "%";
-
-            if (seconds >= 15) {
-                iframe.src = iframe.src; 
-                seconds = 0;
-            }
-        }, 1000);
-
-        // בעת טעינת הדף - נסה לטעון הגדרות
-        loadSavedSettings();
-
+        // טעינה ראשונית עם הערכים הקודמים שלך
+        update();
     </script>
+
 </body>
 </html>
