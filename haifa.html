@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>מערכת צפייה חכמה</title>
+  <title>צפייה בריבוע קבוע</title>
   <style>
     body{
       margin:0; padding:0; background:#000;
@@ -14,14 +14,13 @@
     #view-container{
       position:relative;
       width:100%;
-      height:300px;
+      height:300px;          /* גובה האזור שרואים במצב עריכה */
       background:#fff;
       overflow:hidden;
       border-bottom:2px solid #333;
       flex-shrink:0;
     }
 
-    /* חשוב: crop נעשה על ידי top/left + scale (שלנו), לא תלוי בדף בפנים */
     iframe{
       position:absolute;
       width:1200px;
@@ -81,19 +80,30 @@
     #save-btn{ background:#28a745; border-color:#28a745; }
     #reset-btn{ background:#dc3545; border-color:#dc3545; font-size:14px; }
 
-    #edit-toggle{
-      position:fixed;
-      bottom:20px; right:20px;
-      width:50px; height:50px;
-      border-radius:50%;
-      background:rgba(255,255,255,0.2);
-      font-size:24px;
-      display:none;
-      z-index:999;
+    /* מצב צפייה בלבד (נקי): רק הריבוע */
+    .locked-view #controls{ display:none !important; }
+    .locked-view #view-container{
+      height:100vh !important;
+      border:none !important;
+      background:#000 !important;
     }
+    /* גם פס טעינה תסתיר במצב צפייה אם אתה רוצה נקי לגמרי */
+    .locked-view #loader{ display:none !important; }
 
-    .hidden{ display:none !important; }
-    .full-screen{ height:100vh !important; border:none !important; }
+    /* הודעה קטנה (לא חובה) לשחרור */
+    #hint{
+      position:fixed;
+      bottom:10px;
+      left:50%;
+      transform:translateX(-50%);
+      color:rgba(255,255,255,0.45);
+      font-size:13px;
+      z-index:9999;
+      display:none;
+      pointer-events:none;
+      user-select:none;
+    }
+    .locked-view #hint{ display:block; }
   </style>
 </head>
 <body>
@@ -102,8 +112,6 @@
     <iframe id="gameFrame" scrolling="no"></iframe>
     <div id="loader"></div>
   </div>
-
-  <button id="edit-toggle">⚙️</button>
 
   <div id="controls">
     <div style="color:white; margin-bottom:10px;">כוון את התוצאה למרכז המסך:</div>
@@ -126,19 +134,16 @@
     <button id="reset-btn" class="action-btn" onclick="resetSettings()" style="margin-top:10px; height: 40px;">איפוס הגדרות</button>
   </div>
 
+  <div id="hint">לחיצה ארוכה 2 שניות – עריכה</div>
+
 <script>
-  // ===== הגדרות =====
   const BASE_URL = "https://www.football.org.il/leagues/games/game/?game_id=1066561";
   const REFRESH_EVERY = 15;
 
-  // ===== מצב תצוגה =====
   let posY = -200;
   let posX = -200;
   let scale = 0.6;
 
-  const viewContainer = document.getElementById('view-container');
-  const controls = document.getElementById('controls');
-  const editToggle = document.getElementById('edit-toggle');
   const loader = document.getElementById('loader');
 
   const LS_Y = 'my_soccer_y';
@@ -147,8 +152,6 @@
   const LS_SETUP = 'is_setup';
 
   function clampScale(s){ return Math.max(0.2, Math.min(2.0, s)); }
-
-  // תמיד ניגש ל-iframe דרך getter (כי אנחנו מחליפים אותו בריפרש)
   function getFrame(){ return document.getElementById('gameFrame'); }
 
   function applyViewOnce(){
@@ -157,8 +160,6 @@
     iframe.style.left = posX + 'px';
     iframe.style.transform = `scale(${scale})`;
   }
-
-  // “נעילה חזקה” – מחיל את המיקום כמה פעמים כי הדף בפנים ממשיך להשתנות אחרי load
   function applyViewHard(){
     applyViewOnce();
     setTimeout(applyViewOnce, 80);
@@ -177,36 +178,27 @@
     posX += dx;
     posY += dy;
     applyViewOnce();
-    if(localStorage.getItem(LS_SETUP) === 'true') persist();
   }
 
   function zoom(dz){
     scale = clampScale(scale + dz);
     applyViewOnce();
-    if(localStorage.getItem(LS_SETUP) === 'true') persist();
   }
 
-  function lockUI(){
-    controls.classList.add('hidden');
-    viewContainer.classList.add('full-screen');
-    editToggle.style.display = 'block';
-    document.body.style.backgroundColor = "black";
+  // ==== מצב צפייה נקי ====
+  function enterLockedView(){
+    document.body.classList.add('locked-view');
   }
-
-  function unlockUI(){
-    controls.classList.remove('hidden');
-    viewContainer.classList.remove('full-screen');
-    editToggle.style.display = 'none';
+  function exitLockedView(){
+    document.body.classList.remove('locked-view');
   }
 
   function saveAndLock(){
     persist();
     localStorage.setItem(LS_SETUP, 'true');
-    lockUI();
+    enterLockedView();
     applyViewHard();
   }
-
-  editToggle.onclick = () => { unlockUI(); };
 
   function resetSettings(){
     localStorage.removeItem(LS_Y);
@@ -227,11 +219,12 @@
       if(savedX !== null) posX = parseInt(savedX, 10);
       if(savedS !== null) scale = clampScale(parseFloat(savedS));
 
-      lockUI();
+      // נכנס אוטומטית למצב נקי בכל פתיחה
+      enterLockedView();
     }
   }
 
-  // ===== ריפרש יציב: מחליפים iframe חדש ושומרים crop =====
+  // ==== ריפרש יציב ====
   function attachLoadHandler(iframe){
     iframe.addEventListener('load', () => {
       applyViewHard();
@@ -244,29 +237,29 @@
     const fresh = document.createElement('iframe');
     fresh.id = 'gameFrame';
     fresh.scrolling = 'no';
-    fresh.style.opacity = '0'; // להסתיר בזמן טעינה
+    fresh.style.opacity = '0';
     attachLoadHandler(fresh);
     old.replaceWith(fresh);
     return fresh;
   }
 
   function setFrameSrcWithBust(iframe){
-    // cache bust כדי להכריח עדכון, בלי לשנות לנו את המיקום
     iframe.src = BASE_URL + "&_t=" + Date.now();
   }
 
   function refreshIframe(){
     const iframe = createFreshIframe();
-    // לפני טעינה – להצמיד את ה-view כדי שלא תראה קפיצה
     applyViewOnce();
     setFrameSrcWithBust(iframe);
   }
 
-  // ===== טיימר ריפרש + Loader =====
+  // ==== טיימר ריפרש + Loader ====
   let seconds = 0;
   setInterval(() => {
     seconds++;
-    loader.style.width = (seconds / REFRESH_EVERY * 100) + "%";
+    if(!document.body.classList.contains('locked-view')){
+      loader.style.width = (seconds / REFRESH_EVERY * 100) + "%";
+    }
 
     if(seconds >= REFRESH_EVERY){
       refreshIframe();
@@ -275,16 +268,32 @@
     }
   }, 1000);
 
-  // ===== אתחול =====
+  // ==== לחיצה ארוכה 2 שניות לפתיחת עריכה (כדי שתוכל לחזור) ====
+  let pressTimer = null;
+
+  function startLongPress(){
+    if(!document.body.classList.contains('locked-view')) return;
+    pressTimer = setTimeout(() => {
+      exitLockedView(); // חוזר לעריכה ומראה חצים
+    }, 2000);
+  }
+  function cancelLongPress(){
+    if(pressTimer) clearTimeout(pressTimer);
+    pressTimer = null;
+  }
+
+  document.addEventListener('touchstart', startLongPress, {passive:true});
+  document.addEventListener('touchend', cancelLongPress, {passive:true});
+  document.addEventListener('touchmove', cancelLongPress, {passive:true});
+
+  // ==== אתחול ====
   loadSettings();
 
-  // יצירה ראשונית של iframe והטענה ראשונה
   const first = getFrame();
   attachLoadHandler(first);
   first.style.opacity = '0';
   applyViewOnce();
   setFrameSrcWithBust(first);
-
 </script>
 
 </body>
