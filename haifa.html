@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>צפייה בריבוע קבוע</title>
+  <title>ריבוע קבוע</title>
   <style>
     body{
       margin:0; padding:0; background:#000;
@@ -11,10 +11,13 @@
       overflow:hidden; font-family:Arial,sans-serif;
     }
 
+    /* ======= זה גובה ה"ריבוע" שאתה רואה תמיד ======= */
+    :root { --boxH: 300px; }  /* אם תרצה יותר/פחות, תשנה פה */
+
     #view-container{
       position:relative;
       width:100%;
-      height:300px;          /* גובה האזור שרואים במצב עריכה */
+      height: var(--boxH);
       background:#fff;
       overflow:hidden;
       border-bottom:2px solid #333;
@@ -45,7 +48,7 @@
       z-index:10;
     }
 
-    /* ===== כפתור שמירה למעלה (לא דורש גלילה) ===== */
+    /* ===== כפתור שמירה למעלה ===== */
     #saveTopBtn{
       position:fixed;
       top:10px;
@@ -63,19 +66,19 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.35);
     }
 
-    /* ===== גלגל שיניים קטן (שמאל למעלה) ===== */
+    /* ===== גלגל שיניים קטן שמאל למעלה ===== */
     #gearBtn{
       position:fixed;
       top:8px;
       left:8px;
       z-index:10000;
-      width:28px;
-      height:28px;
+      width:26px;
+      height:26px;
       border-radius:50%;
       background:rgba(255,255,255,0.20);
       color:#fff;
       border:1px solid rgba(255,255,255,0.20);
-      display:none; /* מופיע רק אחרי שמירה */
+      display:none;
       align-items:center;
       justify-content:center;
       font-size:16px;
@@ -130,24 +133,16 @@
       border-radius:12px;
     }
 
-    /* ===== מצב צפייה נקי ===== */
+    /* ===== מצב צפייה נקי: מסתיר חצים בלבד, לא משנה גובה הריבוע ===== */
     .locked-view #controls{ display:none !important; }
-    .locked-view #view-container{
-      height:100vh !important;
-      border:none !important;
-      background:#000 !important;
-    }
-    .locked-view #loader{ display:none !important; }
     .locked-view #saveTopBtn{ display:none !important; }
     .locked-view #gearBtn{ display:flex !important; }
+    .locked-view #loader{ display:none !important; } /* נקי */
   </style>
 </head>
 <body>
 
-  <!-- כפתור שמירה למעלה -->
   <button id="saveTopBtn">✅ שמור</button>
-
-  <!-- גלגל שיניים קטן שמאל למעלה -->
   <div id="gearBtn" title="עריכה">⚙️</div>
 
   <div id="view-container">
@@ -257,11 +252,10 @@
       if(savedX !== null) posX = parseInt(savedX, 10);
       if(savedS !== null) scale = clampScale(parseFloat(savedS));
 
-      enterLockedView();     // נפתח נקי אוטומטית בכל פתיחה
+      enterLockedView();  // נפתח נקי אוטומטית
     }
   }
 
-  // כפתורים
   saveTopBtn.onclick = saveAndLock;
   gearBtn.onclick = () => { exitLockedView(); };
 
@@ -297,11 +291,9 @@
   let seconds = 0;
   setInterval(() => {
     seconds++;
-    // Loader רק במצב עריכה
     if(!document.body.classList.contains('locked-view')){
       loader.style.width = (seconds / REFRESH_EVERY * 100) + "%";
     }
-
     if(seconds >= REFRESH_EVERY){
       refreshIframe();
       seconds = 0;
