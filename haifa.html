@@ -12,7 +12,7 @@
     }
 
     /* ======= זה גובה ה"ריבוע" שאתה רואה תמיד ======= */
-    :root { --boxH: 300px; }  /* אם תרצה יותר/פחות, תשנה פה */
+    :root { --boxH: 300px; }  /* לא שיניתי */
 
     #view-container{
       position:relative;
@@ -89,7 +89,7 @@
 
     #controls{
       flex:1;
-      background:#222;
+      background:#fff;          /* ✅ במקום שחור – לבן */
       display:flex;
       flex-direction:column;
       align-items:center;
@@ -133,11 +133,51 @@
       border-radius:12px;
     }
 
+    /* ===== שורת מספר משחק (רק בעריכה) ===== */
+    #gameBar{
+      width:min(520px, 92vw);
+      background:#f3f3f3;
+      border:1px solid #d0d0d0;
+      border-radius:14px;
+      padding:12px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:center;
+      box-sizing:border-box;
+    }
+    #gameIdInput{
+      flex:1;
+      height:44px;
+      border-radius:12px;
+      border:1px solid #bdbdbd;
+      padding:0 12px;
+      font-size:16px;
+      outline:none;
+      background:#fff;
+      direction:ltr;            /* מספרים נוח יותר */
+      text-align:center;
+    }
+    #gameSaveBtn{
+      height:44px;
+      border-radius:12px;
+      border:1px solid #0d6efd;
+      background:#0d6efd;
+      color:#fff;
+      padding:0 14px;
+      font-size:15px;
+      font-weight:bold;
+      cursor:pointer;
+      touch-action: manipulation;
+      white-space:nowrap;
+    }
+    #gameSaveBtn:active{ opacity:0.9; }
+
     /* ===== מצב צפייה נקי: מסתיר חצים בלבד, לא משנה גובה הריבוע ===== */
     .locked-view #controls{ display:none !important; }
     .locked-view #saveTopBtn{ display:none !important; }
     .locked-view #gearBtn{ display:flex !important; }
-    .locked-view #loader{ display:none !important; } /* נקי */
+    .locked-view #loader{ display:none !important; }
   </style>
 </head>
 <body>
@@ -151,7 +191,7 @@
   </div>
 
   <div id="controls">
-    <div style="color:white; margin-bottom:10px;">כוון את התוצאה למרכז המסך:</div>
+    <div style="color:#111; margin-bottom:6px; font-weight:bold;">כוון את התוצאה למרכז המסך:</div>
 
     <button class="ctrl" onclick="move(0, 20)">⬆️</button>
     <div class="row">
@@ -165,11 +205,20 @@
       <button class="small" onclick="zoom(0.05)">זום +</button>
     </div>
 
+    <!-- ✅ חלונית מספר משחק -->
+    <div id="gameBar" style="margin-top:14px;">
+      <input id="gameIdInput" inputmode="numeric" pattern="[0-9]*" placeholder="הכנס מספר משחק (רק מספרים)">
+      <button id="gameSaveBtn">שמור משחק</button>
+    </div>
+
     <button id="resetBtn" class="small" onclick="resetSettings()" style="margin-top:14px;">איפוס הגדרות</button>
   </div>
 
 <script>
-  const BASE_URL = "https://www.football.org.il/leagues/games/game/?game_id=1066561";
+  // ======= שינויים שביקשת: מספר משחק נשמר =======
+  const BASE_URL_PREFIX = "https://www.football.org.il/leagues/games/game/?game_id=";
+  const DEFAULT_GAME_ID = "1066561";
+
   const REFRESH_EVERY = 15;
 
   let posY = -200;
@@ -180,13 +229,25 @@
   const saveTopBtn = document.getElementById('saveTopBtn');
   const gearBtn = document.getElementById('gearBtn');
 
+  const gameIdInput = document.getElementById('gameIdInput');
+  const gameSaveBtn = document.getElementById('gameSaveBtn');
+
   const LS_Y = 'my_soccer_y';
   const LS_X = 'my_soccer_x';
   const LS_S = 'my_soccer_scale';
   const LS_SETUP = 'is_setup';
+  const LS_GAME = 'my_game_id';
 
   function clampScale(s){ return Math.max(0.2, Math.min(2.0, s)); }
   function getFrame(){ return document.getElementById('gameFrame'); }
+
+  function getGameId(){
+    return localStorage.getItem(LS_GAME) || DEFAULT_GAME_ID;
+  }
+
+  function buildUrl(gameId){
+    return BASE_URL_PREFIX + encodeURIComponent(gameId);
+  }
 
   function applyViewOnce(){
     const iframe = getFrame();
@@ -202,7 +263,7 @@
     setTimeout(applyViewOnce, 1400);
   }
 
-  function persist(){
+  function persistView(){
     localStorage.setItem(LS_Y, String(posY));
     localStorage.setItem(LS_X, String(posX));
     localStorage.setItem(LS_S, String(scale));
@@ -219,15 +280,11 @@
     applyViewOnce();
   }
 
-  function enterLockedView(){
-    document.body.classList.add('locked-view');
-  }
-  function exitLockedView(){
-    document.body.classList.remove('locked-view');
-  }
+  function enterLockedView(){ document.body.classList.add('locked-view'); }
+  function exitLockedView(){ document.body.classList.remove('locked-view'); }
 
   function saveAndLock(){
-    persist();
+    persistView();
     localStorage.setItem(LS_SETUP, 'true');
     enterLockedView();
     applyViewHard();
@@ -238,10 +295,15 @@
     localStorage.removeItem(LS_X);
     localStorage.removeItem(LS_S);
     localStorage.removeItem(LS_SETUP);
+    localStorage.removeItem(LS_GAME);
     location.reload();
   }
 
   function loadSettings(){
+    // טען מספר משחק לקלט
+    const savedGame = localStorage.getItem(LS_GAME);
+    gameIdInput.value = savedGame ? savedGame : DEFAULT_GAME_ID;
+
     const isSetup = localStorage.getItem(LS_SETUP);
     if(isSetup === 'true'){
       const savedY = localStorage.getItem(LS_Y);
@@ -252,14 +314,32 @@
       if(savedX !== null) posX = parseInt(savedX, 10);
       if(savedS !== null) scale = clampScale(parseFloat(savedS));
 
-      enterLockedView();  // נפתח נקי אוטומטית
+      enterLockedView();
     }
   }
 
   saveTopBtn.onclick = saveAndLock;
   gearBtn.onclick = () => { exitLockedView(); };
 
-  // ריפרש יציב
+  // שמירת מספר משחק + טעינת המשחק הזה
+  function saveGameIdAndReload(){
+    const raw = (gameIdInput.value || "").trim();
+    const digits = raw.replace(/\D/g, ''); // רק מספרים
+
+    if(!digits){
+      alert("תכניס מספר משחק (רק ספרות).");
+      return;
+    }
+
+    localStorage.setItem(LS_GAME, digits);
+
+    // טען מיד את המשחק החדש (בלי לשנות מיקום/זום)
+    refreshIframe(true);
+  }
+
+  gameSaveBtn.onclick = saveGameIdAndReload;
+
+  // ===== ריפרש יציב (החלפת iframe) =====
   function attachLoadHandler(iframe){
     iframe.addEventListener('load', () => {
       applyViewHard();
@@ -279,15 +359,18 @@
   }
 
   function setFrameSrcWithBust(iframe){
-    iframe.src = BASE_URL + "&_t=" + Date.now();
+    const url = buildUrl(getGameId());
+    iframe.src = url + "&_t=" + Date.now();
   }
 
-  function refreshIframe(){
+  // force=true כאשר מחליפים משחק ידנית – מיד רענון
+  function refreshIframe(force){
     const iframe = createFreshIframe();
     applyViewOnce();
     setFrameSrcWithBust(iframe);
   }
 
+  // ===== טיימר ריפרש + Loader =====
   let seconds = 0;
   setInterval(() => {
     seconds++;
@@ -295,13 +378,13 @@
       loader.style.width = (seconds / REFRESH_EVERY * 100) + "%";
     }
     if(seconds >= REFRESH_EVERY){
-      refreshIframe();
+      refreshIframe(false);
       seconds = 0;
       loader.style.width = "0%";
     }
   }, 1000);
 
-  // אתחול
+  // ===== אתחול =====
   loadSettings();
 
   const first = getFrame();
