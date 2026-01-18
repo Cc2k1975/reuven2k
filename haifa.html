@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מערכת צפייה חכמה</title>
+    <title>מערכת צפייה ללא הפרעות</title>
     <style>
         body {
             margin: 0;
@@ -16,15 +16,16 @@
             font-family: Arial, sans-serif;
         }
 
-        /* אזור התצוגה הנקי */
+        /* החלון שדרכו רואים */
         #view-container {
             position: relative;
             width: 100%; 
-            height: 300px; /* גובה האזור שרואים */
+            height: 35vh; /* גובה האזור שרואים - שליש מסך בערך */
             background: #fff;
             overflow: hidden;
-            border-bottom: 2px solid #333;
+            border-bottom: 3px solid #007bff; /* פס כחול בזמן עריכה */
             flex-shrink: 0;
+            z-index: 5;
         }
 
         iframe {
@@ -33,13 +34,14 @@
             height: 1500px;
             border: none;
             transform-origin: 0 0;
-            /* ערכי ברירת מחדל להתחלה */
+            /* ברירת מחדל */
             top: -200px;
             left: -200px;
             transform: scale(0.6);
+            pointer-events: none; /* חוסם גלילה בתוך האתר עצמו כדי שלא יתבלגן */
         }
 
-        /* פס טעינה */
+        /* פס טעינה ירוק - מופיע רק כשהכל נעול */
         #loader {
             position: absolute;
             bottom: 0;
@@ -49,9 +51,10 @@
             width: 0%;
             transition: width 1s linear;
             z-index: 10;
+            display: none; /* מוסתר בזמן עריכה */
         }
 
-        /* פאנל שליטה */
+        /* פאנל השליטה */
         #controls {
             flex: 1;
             background-color: #222;
@@ -59,23 +62,23 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 15px;
-            padding: 20px;
-            transition: transform 0.3s ease;
+            gap: 10px;
+            padding: 10px;
+            z-index: 10;
         }
 
         .row { display: flex; gap: 20px; }
 
         button {
-            width: 70px;
-            height: 70px;
+            width: 60px;
+            height: 60px;
             background: #444;
             color: white;
             border: 1px solid #666;
             border-radius: 10px;
             font-size: 24px;
             cursor: pointer;
-            touch-action: manipulation; /* מונע זום בלחיצה כפולה */
+            touch-action: manipulation;
         }
         
         button:active { background: #666; }
@@ -83,15 +86,16 @@
         .action-btn {
             width: auto;
             padding: 0 30px;
-            height: 60px;
+            height: 50px;
             font-size: 18px;
             font-weight: bold;
+            margin-top: 10px;
         }
 
         #save-btn { background: #28a745; border-color: #28a745; }
-        #reset-btn { background: #dc3545; border-color: #dc3545; font-size: 14px; }
+        #reset-btn { background: #dc3545; border-color: #dc3545; font-size: 14px; height: 40px; }
 
-        /* כפתור עריכה מוסתר */
+        /* כפתור עריכה שמופיע בסוף */
         #edit-toggle {
             position: fixed;
             bottom: 20px;
@@ -99,15 +103,28 @@
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.3);
+            border: 2px solid white;
             font-size: 24px;
             display: none;
             z-index: 999;
+            cursor: pointer;
         }
 
-        /* הסתרת אלמנטים */
-        .hidden { display: none !important; }
-        .full-screen { height: 100vh !important; border: none !important; }
+        .status-text {
+            color: orange;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        /* מחלקות למצב נעול */
+        .locked-mode #controls { display: none; }
+        .locked-mode #view-container { 
+            height: 100vh; 
+            border: none; 
+            background: black;
+        }
+        .locked-mode #loader { display: block; }
 
     </style>
 </head>
@@ -121,7 +138,8 @@
     <button id="edit-toggle">⚙️</button>
 
     <div id="controls">
-        <div style="color:white; margin-bottom:10px;">כוון את התוצאה למרכז המסך:</div>
+        <div class="status-text">מצב כיוון (הרענון כבוי)</div>
+        <div style="color:#aaa; font-size:12px; margin-bottom:10px;">השתמש בחצים כדי למקם את התוצאה</div>
         
         <button onclick="move(0, 20)">⬆️</button>
         <div class="row">
@@ -131,36 +149,35 @@
         <button onclick="move(0, -20)">⬇️</button>
 
         <div class="row" style="margin-top: 10px;">
-            <button onclick="zoom(-0.05)" style="font-size:16px;">זום -</button>
-            <button onclick="zoom(0.05)" style="font-size:16px;">זום +</button>
+            <button onclick="zoom(-0.05)" style="font-size:16px;">🔍-</button>
+            <button onclick="zoom(0.05)" style="font-size:16px;">🔍+</button>
         </div>
 
-        <div class="row" style="margin-top: 20px;">
-            <button id="save-btn" class="action-btn" onclick="saveAndLock()">✅ שמור וקבע מיקום</button>
-        </div>
-        <button id="reset-btn" class="action-btn" onclick="resetSettings()" style="margin-top:10px; height: 40px;">איפוס הגדרות</button>
+        <button id="save-btn" class="action-btn" onclick="saveAndLock()">✅ סיים ושמור מיקום</button>
+        <button id="reset-btn" class="action-btn" onclick="resetSettings()">איפוס הכל</button>
     </div>
 
     <script>
-        // משתנים
+        // משתנים גלובליים
         let posY = -200;
         let posX = -200;
         let scale = 0.6;
+        let refreshInterval = null;
         
         const iframe = document.getElementById('gameFrame');
         const viewContainer = document.getElementById('view-container');
-        const controls = document.getElementById('controls');
         const editToggle = document.getElementById('edit-toggle');
         const loader = document.getElementById('loader');
+        const body = document.body;
 
-        // פונקציה לעדכון המסך
+        // פונקציה לעדכון ה-CSS של ה-Iframe
         function updateView() {
             iframe.style.top = posY + 'px';
             iframe.style.left = posX + 'px';
             iframe.style.transform = `scale(${scale})`;
         }
 
-        // פונקציות תזוזה
+        // פונקציות להזזה עם הכפתורים
         function move(x, y) {
             posX += x;
             posY += y;
@@ -172,67 +189,92 @@
             updateView();
         }
 
-        // שמירה ונעילה
-        function saveAndLock() {
-            // שמירה בזיכרון הטלפון
-            localStorage.setItem('my_soccer_y', posY);
-            localStorage.setItem('my_soccer_x', posX);
-            localStorage.setItem('my_soccer_scale', scale);
-            localStorage.setItem('is_setup', 'true');
+        // --- מנגנון שמירה ונעילה ---
 
-            // שינוי תצוגה
-            controls.classList.add('hidden');
-            viewContainer.classList.add('full-screen');
-            editToggle.style.display = 'block';
-            
-            // שינוי צבע רקע לשחור מלא כדי שייראה נקי
-            document.body.style.backgroundColor = "black";
+        function saveAndLock() {
+            // שמירת נתונים בזיכרון
+            localStorage.setItem('final_soccer_y', posY);
+            localStorage.setItem('final_soccer_x', posX);
+            localStorage.setItem('final_soccer_scale', scale);
+            localStorage.setItem('final_setup_done', 'true');
+
+            // כניסה למצב נעול
+            enterLockedMode();
         }
 
-        // פתיחת עריכה מחדש
-        editToggle.onclick = function() {
-            controls.classList.remove('hidden');
-            viewContainer.classList.remove('full-screen');
-            editToggle.style.display = 'none';
-        };
+        function enterLockedMode() {
+            body.classList.add('locked-mode');
+            editToggle.style.display = 'block';
+            
+            // התחלת רענון אוטומטי רק עכשיו!
+            startAutoRefresh();
+        }
 
-        // איפוס
+        function unlockMode() {
+            body.classList.remove('locked-mode');
+            editToggle.style.display = 'none';
+            
+            // עצירת רענון אוטומטי כדי לא להפריע לכיוון
+            stopAutoRefresh();
+        }
+
+        // --- מנגנון רענון ---
+        
+        function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            
+            let seconds = 0;
+            loader.style.width = "0%";
+            
+            refreshInterval = setInterval(function() {
+                seconds++;
+                loader.style.width = (seconds / 15 * 100) + "%";
+                
+                if (seconds >= 15) {
+                    iframe.src = iframe.src; // רענון בפועל
+                    seconds = 0;
+                }
+            }, 1000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            loader.style.width = "0%";
+        }
+
+        // --- טעינה ראשונית ---
+        
+        function init() {
+            const savedY = localStorage.getItem('final_soccer_y');
+            const savedX = localStorage.getItem('final_soccer_x');
+            const savedScale = localStorage.getItem('final_soccer_scale');
+            const isDone = localStorage.getItem('final_setup_done');
+
+            if (isDone === 'true') {
+                // טעינת נתונים שמורים
+                posY = parseFloat(savedY);
+                posX = parseFloat(savedX);
+                scale = parseFloat(savedScale);
+                updateView();
+                // כניסה ישר למצב נעול
+                enterLockedMode();
+            } else {
+                // מצב עריכה התחלתי - ללא רענון!
+                updateView();
+            }
+        }
+
+        // איפוס מוחלט למקרה של תקלה
         function resetSettings() {
             localStorage.clear();
             location.reload();
         }
 
-        // טעינה ראשונית - בודק אם כבר שמרת בעבר
-        function loadSettings() {
-            const savedY = localStorage.getItem('my_soccer_y');
-            const savedX = localStorage.getItem('my_soccer_x');
-            const savedScale = localStorage.getItem('my_soccer_scale');
-            const isSetup = localStorage.getItem('is_setup');
-
-            if (isSetup === 'true') {
-                posY = parseInt(savedY);
-                posX = parseInt(savedX);
-                scale = parseFloat(savedScale);
-                updateView();
-                saveAndLock(); // נועל אוטומטית
-            } else {
-                updateView(); // מצב עריכה התחלתי
-            }
-        }
-
-        // מנגנון ריפרש אוטומטי
-        let seconds = 0;
-        setInterval(function() {
-            seconds++;
-            loader.style.width = (seconds / 15 * 100) + "%";
-            if (seconds >= 15) {
-                iframe.src = iframe.src;
-                seconds = 0;
-            }
-        }, 1000);
+        // כפתור חזרה לעריכה
+        editToggle.onclick = unlockMode;
 
         // הפעלה
-        loadSettings();
+        init();
 
     </script>
 </body>
