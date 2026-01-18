@@ -45,6 +45,45 @@
       z-index:10;
     }
 
+    /* ===== כפתור שמירה למעלה (לא דורש גלילה) ===== */
+    #saveTopBtn{
+      position:fixed;
+      top:10px;
+      right:10px;
+      z-index:10000;
+      background:#28a745;
+      color:#fff;
+      border:1px solid #28a745;
+      border-radius:12px;
+      padding:10px 14px;
+      font-size:16px;
+      font-weight:bold;
+      cursor:pointer;
+      touch-action: manipulation;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    }
+
+    /* ===== גלגל שיניים קטן (שמאל למעלה) ===== */
+    #gearBtn{
+      position:fixed;
+      top:8px;
+      left:8px;
+      z-index:10000;
+      width:28px;
+      height:28px;
+      border-radius:50%;
+      background:rgba(255,255,255,0.20);
+      color:#fff;
+      border:1px solid rgba(255,255,255,0.20);
+      display:none; /* מופיע רק אחרי שמירה */
+      align-items:center;
+      justify-content:center;
+      font-size:16px;
+      cursor:pointer;
+      touch-action: manipulation;
+      user-select:none;
+    }
+
     #controls{
       flex:1;
       background:#222;
@@ -58,7 +97,7 @@
 
     .row{ display:flex; gap:20px; }
 
-    button{
+    button.ctrl{
       width:70px; height:70px;
       background:#444; color:#fff;
       border:1px solid #666;
@@ -67,46 +106,49 @@
       cursor:pointer;
       touch-action: manipulation;
     }
-    button:active{ background:#666; }
+    button.ctrl:active{ background:#666; }
 
-    .action-btn{
+    button.small{
       width:auto;
-      padding:0 30px;
-      height:60px;
-      font-size:18px;
+      padding:0 18px;
+      height:52px;
+      font-size:16px;
       font-weight:bold;
+      border-radius:12px;
+      border:1px solid #666;
+      background:#444;
+      color:#fff;
+      touch-action: manipulation;
     }
 
-    #save-btn{ background:#28a745; border-color:#28a745; }
-    #reset-btn{ background:#dc3545; border-color:#dc3545; font-size:14px; }
+    #resetBtn{
+      background:#dc3545;
+      border-color:#dc3545;
+      font-size:14px;
+      height:44px;
+      padding:0 18px;
+      border-radius:12px;
+    }
 
-    /* מצב צפייה בלבד (נקי): רק הריבוע */
+    /* ===== מצב צפייה נקי ===== */
     .locked-view #controls{ display:none !important; }
     .locked-view #view-container{
       height:100vh !important;
       border:none !important;
       background:#000 !important;
     }
-    /* גם פס טעינה תסתיר במצב צפייה אם אתה רוצה נקי לגמרי */
     .locked-view #loader{ display:none !important; }
-
-    /* הודעה קטנה (לא חובה) לשחרור */
-    #hint{
-      position:fixed;
-      bottom:10px;
-      left:50%;
-      transform:translateX(-50%);
-      color:rgba(255,255,255,0.45);
-      font-size:13px;
-      z-index:9999;
-      display:none;
-      pointer-events:none;
-      user-select:none;
-    }
-    .locked-view #hint{ display:block; }
+    .locked-view #saveTopBtn{ display:none !important; }
+    .locked-view #gearBtn{ display:flex !important; }
   </style>
 </head>
 <body>
+
+  <!-- כפתור שמירה למעלה -->
+  <button id="saveTopBtn">✅ שמור</button>
+
+  <!-- גלגל שיניים קטן שמאל למעלה -->
+  <div id="gearBtn" title="עריכה">⚙️</div>
 
   <div id="view-container">
     <iframe id="gameFrame" scrolling="no"></iframe>
@@ -116,25 +158,20 @@
   <div id="controls">
     <div style="color:white; margin-bottom:10px;">כוון את התוצאה למרכז המסך:</div>
 
-    <button onclick="move(0, 20)">⬆️</button>
+    <button class="ctrl" onclick="move(0, 20)">⬆️</button>
     <div class="row">
-      <button onclick="move(-20, 0)">⬅️</button>
-      <button onclick="move(20, 0)">➡️</button>
+      <button class="ctrl" onclick="move(-20, 0)">⬅️</button>
+      <button class="ctrl" onclick="move(20, 0)">➡️</button>
     </div>
-    <button onclick="move(0, -20)">⬇️</button>
+    <button class="ctrl" onclick="move(0, -20)">⬇️</button>
 
     <div class="row" style="margin-top: 10px;">
-      <button onclick="zoom(-0.05)" style="font-size:16px;">זום -</button>
-      <button onclick="zoom(0.05)" style="font-size:16px;">זום +</button>
+      <button class="small" onclick="zoom(-0.05)">זום -</button>
+      <button class="small" onclick="zoom(0.05)">זום +</button>
     </div>
 
-    <div class="row" style="margin-top: 20px;">
-      <button id="save-btn" class="action-btn" onclick="saveAndLock()">✅ שמור וקבע מיקום</button>
-    </div>
-    <button id="reset-btn" class="action-btn" onclick="resetSettings()" style="margin-top:10px; height: 40px;">איפוס הגדרות</button>
+    <button id="resetBtn" class="small" onclick="resetSettings()" style="margin-top:14px;">איפוס הגדרות</button>
   </div>
-
-  <div id="hint">לחיצה ארוכה 2 שניות – עריכה</div>
 
 <script>
   const BASE_URL = "https://www.football.org.il/leagues/games/game/?game_id=1066561";
@@ -145,6 +182,8 @@
   let scale = 0.6;
 
   const loader = document.getElementById('loader');
+  const saveTopBtn = document.getElementById('saveTopBtn');
+  const gearBtn = document.getElementById('gearBtn');
 
   const LS_Y = 'my_soccer_y';
   const LS_X = 'my_soccer_x';
@@ -185,7 +224,6 @@
     applyViewOnce();
   }
 
-  // ==== מצב צפייה נקי ====
   function enterLockedView(){
     document.body.classList.add('locked-view');
   }
@@ -219,12 +257,15 @@
       if(savedX !== null) posX = parseInt(savedX, 10);
       if(savedS !== null) scale = clampScale(parseFloat(savedS));
 
-      // נכנס אוטומטית למצב נקי בכל פתיחה
-      enterLockedView();
+      enterLockedView();     // נפתח נקי אוטומטית בכל פתיחה
     }
   }
 
-  // ==== ריפרש יציב ====
+  // כפתורים
+  saveTopBtn.onclick = saveAndLock;
+  gearBtn.onclick = () => { exitLockedView(); };
+
+  // ריפרש יציב
   function attachLoadHandler(iframe){
     iframe.addEventListener('load', () => {
       applyViewHard();
@@ -253,10 +294,10 @@
     setFrameSrcWithBust(iframe);
   }
 
-  // ==== טיימר ריפרש + Loader ====
   let seconds = 0;
   setInterval(() => {
     seconds++;
+    // Loader רק במצב עריכה
     if(!document.body.classList.contains('locked-view')){
       loader.style.width = (seconds / REFRESH_EVERY * 100) + "%";
     }
@@ -268,25 +309,7 @@
     }
   }, 1000);
 
-  // ==== לחיצה ארוכה 2 שניות לפתיחת עריכה (כדי שתוכל לחזור) ====
-  let pressTimer = null;
-
-  function startLongPress(){
-    if(!document.body.classList.contains('locked-view')) return;
-    pressTimer = setTimeout(() => {
-      exitLockedView(); // חוזר לעריכה ומראה חצים
-    }, 2000);
-  }
-  function cancelLongPress(){
-    if(pressTimer) clearTimeout(pressTimer);
-    pressTimer = null;
-  }
-
-  document.addEventListener('touchstart', startLongPress, {passive:true});
-  document.addEventListener('touchend', cancelLongPress, {passive:true});
-  document.addEventListener('touchmove', cancelLongPress, {passive:true});
-
-  // ==== אתחול ====
+  // אתחול
   loadSettings();
 
   const first = getFrame();
