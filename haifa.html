@@ -9,7 +9,7 @@
       margin:0; padding:0;
       height:100vh; display:flex; flex-direction:column;
       overflow:hidden; font-family:Arial,sans-serif;
-      background:#fff; /* ✅ ברירת מחדל לבן */
+      background:#fff;
     }
 
     :root { --boxH: 300px; } /* לא נוגע */
@@ -48,7 +48,6 @@
       z-index:10;
     }
 
-    /* כפתור שמירה למעלה */
     #saveTopBtn{
       position:fixed;
       top:10px;
@@ -66,7 +65,6 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.35);
     }
 
-    /* גלגל שיניים קטן שמאל למעלה */
     #gearBtn{
       position:fixed;
       top:8px;
@@ -87,16 +85,18 @@
       user-select:none;
     }
 
-    /* פאנל עריכה */
+    /* ✅ שינוי יחיד חשוב: פאנל עריכה לא ממורכז – מתחיל מלמעלה + גלילה פנימית */
     #controls{
       flex:1;
-      background:#fff; /* ✅ לבן תמיד */
+      background:#fff;
       display:flex;
       flex-direction:column;
       align-items:center;
-      justify-content:center;
-      gap:15px;
-      padding:20px;
+      justify-content:flex-start;     /* ✅ במקום center */
+      gap:14px;
+      padding:14px 20px 20px;
+      overflow:auto;                 /* ✅ אם צריך – שיהיה אפשר לגלול בתוך הפאנל */
+      -webkit-overflow-scrolling: touch;
     }
 
     .row{ display:flex; gap:20px; }
@@ -134,9 +134,9 @@
       border-radius:12px;
     }
 
-    /* ===== שורת מספר משחק — תופיע רק בעריכה ===== */
+    /* ✅ חלונית מספר משחק – תמיד למעלה בתוך ההגדרות */
     #gameBar{
-      width:min(520px, 92vw);
+      width:min(560px, 96vw);
       background:#f3f3f3;
       border:1px solid #d0d0d0;
       border-radius:14px;
@@ -146,7 +146,11 @@
       align-items:center;
       justify-content:center;
       box-sizing:border-box;
+      position: sticky;   /* ✅ נשארת למעלה גם אם גוללים */
+      top: 0;
+      z-index: 5;
     }
+
     #gameIdInput{
       flex:1;
       height:44px;
@@ -159,6 +163,7 @@
       direction:ltr;
       text-align:center;
     }
+
     #gameSaveBtn{
       height:44px;
       border-radius:12px;
@@ -173,14 +178,11 @@
       white-space:nowrap;
     }
 
-    /* ===== מצב צפייה נקי =====
-       חשוב: לא מציג חצים, אבל הרקע למטה לבן (לא שחור)
-    */
     .locked-view #controls{ display:none !important; }
     .locked-view #saveTopBtn{ display:none !important; }
     .locked-view #gearBtn{ display:flex !important; }
     .locked-view #loader{ display:none !important; }
-    .locked-view body, body.locked-view { background:#fff !important; } /* ✅ לבן גם בצפייה */
+    body.locked-view { background:#fff !important; }
   </style>
 </head>
 <body>
@@ -193,9 +195,14 @@
     <div id="loader"></div>
   </div>
 
-  <!-- פאנל עריכה בלבד -->
   <div id="controls">
-    <div style="color:#111; margin-bottom:6px; font-weight:bold;">כוון את התוצאה למרכז המסך:</div>
+    <!-- ✅ קודם כל חלונית מספר משחק (כמו שביקשת – בתוך ההגדרות) -->
+    <div id="gameBar">
+      <input id="gameIdInput" inputmode="numeric" pattern="[0-9]*" placeholder="מספר משחק (רק ספרות)">
+      <button id="gameSaveBtn">שמור מספר</button>
+    </div>
+
+    <div style="color:#111; font-weight:bold;">כוון את התוצאה למרכז המסך:</div>
 
     <button class="ctrl" onclick="move(0, 20)">⬆️</button>
     <div class="row">
@@ -204,18 +211,12 @@
     </div>
     <button class="ctrl" onclick="move(0, -20)">⬇️</button>
 
-    <div class="row" style="margin-top: 10px;">
+    <div class="row" style="margin-top: 6px;">
       <button class="small" onclick="zoom(-0.05)">זום -</button>
       <button class="small" onclick="zoom(0.05)">זום +</button>
     </div>
 
-    <!-- ✅ פה הכנסת מספר משחק: רק כשנכנסים לעריכה דרך ⚙️ -->
-    <div id="gameBar" style="margin-top:14px;">
-      <input id="gameIdInput" inputmode="numeric" pattern="[0-9]*" placeholder="מספר משחק (רק ספרות)">
-      <button id="gameSaveBtn">שמור מספר</button>
-    </div>
-
-    <button id="resetBtn" class="small" onclick="resetSettings()" style="margin-top:14px;">איפוס הגדרות</button>
+    <button id="resetBtn" class="small" onclick="resetSettings()" style="margin-top:6px;">איפוס הגדרות</button>
   </div>
 
 <script>
@@ -231,6 +232,7 @@
   const saveTopBtn = document.getElementById('saveTopBtn');
   const gearBtn = document.getElementById('gearBtn');
 
+  const controls = document.getElementById('controls');
   const gameIdInput = document.getElementById('gameIdInput');
   const gameSaveBtn = document.getElementById('gameSaveBtn');
 
@@ -313,17 +315,23 @@
       if(savedX !== null) posX = parseInt(savedX, 10);
       if(savedS !== null) scale = clampScale(parseFloat(savedS));
 
-      enterLockedView(); // מצב צפייה נקי בפתיחה
+      enterLockedView();
     }
   }
 
-  // כפתורים
   saveTopBtn.onclick = saveAndLock;
 
-  // ⚙️ נכנס לעריכה — פה אתה תראה את החלונית של מספר המשחק
-  gearBtn.onclick = () => { exitLockedView(); };
+  // ✅ נכנסים להגדרות: מציגים את החלונית למעלה + פוקוס אליה
+  gearBtn.onclick = () => {
+    exitLockedView();
+    // דואג שתראה את השדה גם אם הדפדפן "שומר" מצב גלילה
+    controls.scrollTop = 0;
+    setTimeout(() => {
+      gameIdInput.focus();
+      gameIdInput.select();
+    }, 50);
+  };
 
-  // שמירת מספר משחק + טעינה מחדש של המשחק
   function saveGameIdAndReload(){
     const raw = (gameIdInput.value || "").trim();
     const digits = raw.replace(/\D/g, '');
@@ -332,11 +340,10 @@
       return;
     }
     localStorage.setItem(LS_GAME, digits);
-    refreshIframe(); // טוען משחק חדש
+    refreshIframe();
   }
   gameSaveBtn.onclick = saveGameIdAndReload;
 
-  // ריפרש יציב
   function attachLoadHandler(iframe){
     iframe.addEventListener('load', () => {
       applyViewHard();
@@ -376,7 +383,6 @@
     }
   }, 1000);
 
-  // אתחול
   loadSettings();
 
   const first = getFrame();
