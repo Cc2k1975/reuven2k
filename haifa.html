@@ -3,184 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מערכת שליטה ידנית</title>
+    <title>צפייה יציבה</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #121212;
-            color: white;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* מונע גלילה של כל הדף */
-            font-family: Arial, sans-serif;
-        }
-
-        /* --- אזור הצפייה (החלון) --- */
-        #tv-screen {
+        body { margin: 0; background: #000; height: 100vh; overflow: hidden; font-family: sans-serif; }
+        
+        /* המסך */
+        #screen {
             position: relative;
             width: 100%;
-            height: 40vh; /* תופס את החלק העליון */
-            background: white;
-            overflow: hidden; /* חותך את השוליים */
-            border-bottom: 5px solid #007bff;
-            z-index: 1;
+            height: 40vh; /* גובה החלון */
+            background: #fff;
+            overflow: hidden;
+            border-bottom: 4px solid #007bff;
         }
 
-        /* האתר של ההתאחדות */
         iframe {
             position: absolute;
-            width: 1200px; /* רוחב גדול כדי לתפוס הכל */
-            height: 2000px;
+            width: 1200px; height: 2000px;
             border: none;
             transform-origin: 0 0;
-            
-            /* משתנים ששולטים במיקום */
-            top: var(--y, -200px);
-            left: var(--x, -200px);
-            transform: scale(var(--s, 0.6));
-            
-            /* מונע אינטראקציה עם האתר כדי שלא תלחץ בטעות על פרסומת */
-            pointer-events: none; 
+            top: var(--y); left: var(--x); transform: scale(var(--s));
+            /* מאפשר קליקים כדי שתוכל לסגור את ה-Cookies פעם אחת ולתמיד */
+            pointer-events: auto; 
         }
 
-        /* --- אזור השליטה (הג'ויסטיק) --- */
-        #controller {
-            flex: 1;
-            background: #222;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
-            z-index: 10;
+        /* הג'ויסטיק */
+        #controls {
+            height: 60vh;
+            background: #1a1a1a;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 15px;
         }
 
-        .label { font-size: 14px; color: #aaa; margin-bottom: 5px; }
+        .row { display: flex; gap: 20px; }
 
-        .row { display: flex; gap: 15px; }
-
-        /* כפתורי חצים גדולים ונוחים */
-        button.arrow {
+        button {
             width: 70px; height: 70px;
-            font-size: 30px;
             background: #333; color: white;
-            border: 2px solid #555; border-radius: 15px;
-            cursor: pointer;
-            touch-action: manipulation; /* תגובה מהירה בטלפון */
+            border: 2px solid #555; border-radius: 12px;
+            font-size: 30px; cursor: pointer;
+            touch-action: manipulation;
         }
-        button.arrow:active { background: #007bff; border-color: #fff; }
+        button:active { background: #007bff; }
 
-        /* כפתורי זום */
-        button.zoom {
-            width: 90px; height: 50px;
+        .btn-refresh {
+            width: 200px; height: 50px;
             font-size: 18px; font-weight: bold;
-            background: #444; color: white; border: none; border-radius: 8px;
-        }
-
-        /* כפתור רענון ידני */
-        button.refresh {
-            margin-top: 15px;
-            width: 200px; height: 45px;
-            background: #28a745; color: white;
-            font-weight: bold; border: none; border-radius: 25px;
-            font-size: 16px;
+            background: #28a745; border: none; border-radius: 50px;
+            margin-bottom: 20px;
         }
 
         #loader {
-            height: 3px; background: #00ff00; width: 0%; transition: width 0.5s;
+            height: 5px; background: #0f0; width: 0%; transition: width 0.5s;
         }
-
     </style>
 </head>
 <body>
 
-    <div id="tv-screen">
-        <iframe id="gameFrame" scrolling="no"></iframe>
-        <div style="position:absolute; bottom:0; width:100%; bg:black;">
-            <div id="loader"></div>
-        </div>
+    <div id="screen">
+        <iframe id="frame"></iframe>
     </div>
+    <div id="loader"></div>
 
-    <div id="controller">
-        <div class="label">כיוון המסך (השתמש בחצים):</div>
+    <div id="controls">
+        <button class="btn-refresh" onclick="refreshFrame()">🔄 רענן ידני</button>
         
-        <button class="arrow" onclick="move(0, 30)">⬆️</button>
+        <div style="color:#aaa; font-size:14px; margin-bottom:5px;">כיוון עדין (אם זה זז):</div>
+        <button onclick="move(0, 10)">⬆️</button>
         <div class="row">
-            <button class="arrow" onclick="move(30, 0)">⬅️</button>
-            <button class="arrow" onclick="move(-30, 0)">➡️</button>
+            <button onclick="move(10, 0)">⬅️</button>
+            <button onclick="move(-10, 0)">➡️</button>
         </div>
-        <button class="arrow" onclick="move(0, -30)">⬇️</button>
-
-        <div class="row" style="margin-top: 10px;">
-            <button class="zoom" onclick="zoom(-0.05)">זום -</button>
-            <button class="zoom" onclick="zoom(0.05)">זום +</button>
+        <button onclick="move(0, -10)">⬇️</button>
+        
+        <div class="row" style="margin-top:10px;">
+             <button style="font-size:16px; height:50px; width:80px;" onclick="zoom(-0.05)">➖</button>
+             <button style="font-size:16px; height:50px; width:80px;" onclick="zoom(0.05)">➕</button>
         </div>
-
-        <button class="refresh" onclick="forceRefresh()">🔄 רענן נתונים עכשיו</button>
-        <div class="label" style="font-size: 12px; margin-top:5px;">מתרענן אוטומטית כל 20 שניות</div>
     </div>
 
     <script>
-        const GAME_ID = "1066561";
-        const IFRAME = document.getElementById('gameFrame');
-        const SCREEN = document.getElementById('tv-screen');
-        const LOADER = document.getElementById('loader');
+        // כתובת קבועה בלי תוספות זמן!
+        const URL = "https://www.football.org.il/leagues/games/game/?game_id=1066561";
+        
+        // טעינת מיקום מהזיכרון
+        let x = parseFloat(localStorage.getItem('fix_x')) || -200;
+        let y = parseFloat(localStorage.getItem('fix_y')) || -200;
+        let s = parseFloat(localStorage.getItem('fix_s')) || 0.6;
 
-        // שליפת מיקום אחרון מהזיכרון
-        let x = parseFloat(localStorage.getItem('joy_x')) || -200;
-        let y = parseFloat(localStorage.getItem('joy_y')) || -300;
-        let s = parseFloat(localStorage.getItem('joy_s')) || 0.6;
+        const frame = document.getElementById('frame');
+        const screen = document.getElementById('screen');
+        const loader = document.getElementById('loader');
 
-        function updateView() {
-            // עדכון המשתנים ב-CSS כדי שהחלון יזוז
-            SCREEN.style.setProperty('--x', x + 'px');
-            SCREEN.style.setProperty('--y', y + 'px');
-            SCREEN.style.setProperty('--s', s);
-
-            // שמירה בזיכרון
-            localStorage.setItem('joy_x', x);
-            localStorage.setItem('joy_y', y);
-            localStorage.setItem('joy_s', s);
+        function update() {
+            frame.style.setProperty('--x', x + 'px');
+            frame.style.setProperty('--y', y + 'px');
+            frame.style.setProperty('--s', s);
+            localStorage.setItem('fix_x', x);
+            localStorage.setItem('fix_y', y);
+            localStorage.setItem('fix_s', s);
         }
 
-        // פונקציות תזוזה
-        function move(dx, dy) {
-            x += dx;
-            y += dy;
-            updateView();
+        function move(dx, dy) { x += dx; y += dy; update(); }
+        function zoom(ds) { s += ds; update(); }
+
+        function refreshFrame() {
+            loader.style.width = "100%";
+            // רענון רגיל ששומר על עוגיות
+            frame.contentWindow.location.reload();
+            setTimeout(() => { loader.style.width = "0%"; }, 1000);
         }
 
-        function zoom(ds) {
-            s += ds;
-            updateView();
-        }
+        // טעינה ראשונית
+        frame.src = URL;
+        update();
 
-        // טעינת האתר
-        function loadGame() {
-            // טריק: מוסיפים זמן כדי שהדפדפן לא יביא נתונים ישנים
-            IFRAME.src = `https://www.football.org.il/leagues/games/game/?game_id=${GAME_ID}&dummy=${Date.now()}`;
-        }
-
-        function forceRefresh() {
-            LOADER.style.width = "100%";
-            loadGame();
-            setTimeout(() => { LOADER.style.width = "0%"; }, 1000);
-        }
-
-        // הפעלה ראשונית
-        updateView();
-        loadGame();
-
-        // רענון אוטומטי שקט כל 20 שניות
+        // רענון אוטומטי כל 20 שניות
         setInterval(() => {
-            LOADER.style.width = "50%";
-            // אנחנו מרעננים רק את ה-SRC, המיקום נשמר כי הוא ב-CSS של ה-DIV העוטף!
-            loadGame();
-            setTimeout(() => { LOADER.style.width = "0%"; }, 1000);
+            loader.style.width = "50%";
+            frame.src = frame.src; // רענון עדין
+            setTimeout(() => { loader.style.width = "0%"; }, 1500);
         }, 20000);
 
     </script>
