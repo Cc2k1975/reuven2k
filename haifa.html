@@ -3,123 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>תוצאה חיה - נערים א'</title>
+    <title>תוצאה חיה - מתוקן</title>
     <style>
         body {
             background-color: #000;
             color: #fff;
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             height: 100vh;
             margin: 0;
-            text-align: center;
+            padding-top: 50px;
         }
 
         .container {
             width: 90%;
             max-width: 400px;
-            padding: 20px;
-            border: 2px solid #333;
-            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid #333;
+            border-radius: 20px;
             background: #111;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0,255,0,0.1);
         }
 
-        /* עיצוב התוצאה הגדולה */
         .score {
-            font-size: 80px;
+            font-size: 90px;
             font-weight: bold;
-            color: #4CAF50; /* צבע ירוק לתוצאה */
-            margin: 20px 0;
-            letter-spacing: 5px;
+            color: #4CAF50;
+            margin: 10px 0;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
         }
 
-        .teams {
-            font-size: 20px;
-            color: #ccc;
-            margin-bottom: 10px;
-        }
+        .label { font-size: 18px; color: #aaa; margin-bottom: 10px; }
+        .status { font-size: 14px; color: #666; margin-top: 20px; }
 
-        .status {
-            font-size: 14px;
-            color: #666;
-            margin-top: 15px;
+        /* כפתור להצגת מידע טכני במקרה של תקלה */
+        .debug-btn {
+            margin-top: 30px;
+            background: transparent; border: 1px solid #333;
+            color: #333; font-size: 12px; padding: 5px;
+            cursor: pointer;
         }
-
-        /* אנימציה קטנה לטעינה */
-        .blink { animation: blinker 1.5s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        #debug-area {
+            display: none;
+            width: 90%; height: 200px;
+            background: #222; color: #0f0;
+            font-family: monospace; font-size: 10px;
+            margin-top: 20px; overflow: auto;
+            text-align: left; direction: ltr;
+            padding: 10px; border: 1px solid #444;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="teams" id="teamNames">טוען נתונים...</div>
-        <div class="score blink" id="scoreBoard">-- : --</div>
-        <div class="status" id="lastUpdate">ממתחבר לשרת...</div>
+        <div class="label">תוצאה נוכחית:</div>
+        <div class="score" id="scoreBoard">-- : --</div>
+        <div class="status" id="statusMsg">מתחבר...</div>
     </div>
 
+    <button class="debug-btn" onclick="toggleDebug()">הצג מידע טכני (למקרה שלא עובד)</button>
+    <div id="debug-area">טוען נתונים גולמיים...</div>
+
     <script>
-        // המזהה של המשחק שלך
         const GAME_ID = "1066561";
-        
-        // הכתובת של אתר ההתאחדות
-        const IFA_URL = "https://www.football.org.il/leagues/games/game/?game_id=" + GAME_ID;
-        
-        // הדלת האחורית (Proxy) שעוקפת את החסימה
         const PROXY = "https://api.codetabs.com/v1/proxy?quest=";
+        const TARGET = `https://www.football.org.il/leagues/games/game/?game_id=${GAME_ID}`;
 
         async function fetchScore() {
-            const statusDiv = document.getElementById('lastUpdate');
             const scoreDiv = document.getElementById('scoreBoard');
+            const statusDiv = document.getElementById('statusMsg');
+            const debugArea = document.getElementById('debug-area');
 
             try {
-                // 1. מבקשים מהפרוקסי להביא את האתר
-                // מוסיפים זמן כדי שלא ישמור בזיכרון (Cache)
-                const response = await fetch(PROXY + encodeURIComponent(IFA_URL + "&t=" + Date.now()));
+                statusDiv.innerText = "מושך נתונים...";
                 
-                if (!response.ok) throw new Error("בעיה ברשת");
-
-                const htmlText = await response.text();
-
-                // 2. "דגים" את התוצאה מתוך הטקסט של האתר באמצעות חיפוש חכם (Regex)
-                // אנחנו מחפשים תבנית של "מספר : מספר" שנמצאת בתוך תגיות HTML
-                // זה עובד גם אם האתר משנה קצת את העיצוב
+                // 1. מביאים את המידע
+                const res = await fetch(PROXY + encodeURIComponent(TARGET + "&t=" + Date.now()));
+                if (!res.ok) throw new Error("תקלת רשת");
                 
-                // חיפוש ספציפי למבנה של ההתאחדות (בדרך כלל מספרים גדולים באמצע)
-                // מחפש תבנית >3 : 0< או דומה
-                const scoreMatch = htmlText.match(/>\s*(\d+)\s*:\s*(\d+)\s*</);
+                const html = await res.text();
+                
+                // כותבים ללוג הטכני למקרה הצורך
+                debugArea.innerText = "אורך דף שהתקבל: " + html.length + " תווים\n\n" + html.substring(0, 2000); 
 
-                if (scoreMatch) {
-                    // מצאנו! מעדכנים את המסך
-                    const score = `${scoreMatch[2]} : ${scoreMatch[1]}`; // הופך סדר אם צריך
-                    scoreDiv.innerText = score;
-                    scoreDiv.classList.remove("blink"); // מפסיק להבהב כשיש תוצאה
+                // 2. מנקים את כל ה-HTML ומשאירים רק טקסט
+                // זה הופך את "<span>2</span> : <span>1</span>" ל-"2 : 1"
+                let cleanText = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+                
+                // 3. מחפשים תבנית של תוצאה בתוך הטקסט הנקי
+                // מחפש: רווח, מספר, נקודותיים, מספר, רווח
+                // דוגמאות שיתפסו: " 2 : 1 ", " 0:0 "
+                const match = cleanText.match(/\s(\d{1,2})\s*:\s*(\d{1,2})\s/);
+
+                if (match) {
+                    // יש תוצאה!
+                    // בודקים שזה לא השעה (למשל 14:00)
+                    // בדרך כלל תוצאות הן עם רווחים ליד הנקודותיים, ושעות בלי.
                     
-                    statusDiv.innerText = "עודכן לאחרונה: " + new Date().toLocaleTimeString();
+                    let s1 = match[1];
+                    let s2 = match[2];
+                    
+                    scoreDiv.innerText = `${s2} : ${s1}`; // שים לב: אולי צריך להפוך את הסדר
+                    statusDiv.innerText = "עודכן: " + new Date().toLocaleTimeString();
+                    statusDiv.style.color = "#888";
                 } else {
-                    // נסיון נוסף - לפעמים זה מופיע אחרת
-                    const backupMatch = htmlText.match(/(\d+)\s*:\s*(\d+)/);
-                    if(backupMatch) {
-                         scoreDiv.innerText = `${backupMatch[2]} : ${backupMatch[1]}`;
-                         statusDiv.innerText = "עודכן (זיהוי משני)";
+                    // ניסיון גיבוי - חיפוש ספציפי יותר למבנה של ההתאחדות אם הטקסט הנקי נכשל
+                    // לפעמים זה מופיע כ "תוצאת מחצית: 0:0"
+                    const backup = cleanText.match(/(\d+)\s*:\s*(\d+)/);
+                    if (backup && backup[1].length < 3 && backup[2].length < 3) { // מוודא שזה לא שנה 2026
+                         scoreDiv.innerText = `${backup[2]} : ${backup[1]}`;
+                         statusDiv.innerText = "זוהה במצב גיבוי";
                     } else {
-                        statusDiv.innerText = "המשחק לא נמצא או לא התחיל";
+                        statusDiv.innerText = "הדף התקבל אך התוצאה לא זוהתה";
+                        statusDiv.style.color = "orange";
                     }
                 }
 
-            } catch (error) {
-                console.error(error);
-                statusDiv.innerText = "שגיאת תקשורת (מנסה שוב...)";
+            } catch (e) {
+                console.error(e);
+                statusDiv.innerText = "שגיאה בחיבור";
+                statusDiv.style.color = "red";
             }
         }
 
-        // הפעלה ראשונה
-        fetchScore();
+        function toggleDebug() {
+            const d = document.getElementById('debug-area');
+            d.style.display = d.style.display === 'none' ? 'block' : 'none';
+        }
 
-        // רענון אוטומטי כל 20 שניות
+        // הפעלה
+        fetchScore();
         setInterval(fetchScore, 20000);
 
     </script>
