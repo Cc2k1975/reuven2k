@@ -3,306 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מערכת צפייה יציבה</title>
+    <title>חילוץ תוצאה נקי</title>
     <style>
-        /* איפוס והגדרות בסיס */
-        body, html {
+        body {
             margin: 0; padding: 0;
-            height: 100%; width: 100%;
-            overflow: hidden;
-            background-color: #f0f0f0;
+            background: #000;
+            color: white;
             font-family: Arial, sans-serif;
+            overflow: hidden; /* אין גלילה במסך הראשי */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* --- המנוע הגרפי (CSS Variables) --- */
-        :root {
-            --pos-x: -200px;
-            --pos-y: -200px;
-            --scale: 0.6;
-            --view-height: 35vh; /* גובה החלון */
-        }
-
-        /* מיכל הצפייה */
-        #viewport {
+        /* --- אזור התצוגה (איפה שהתוצאה תהיה) --- */
+        #display-area {
             position: relative;
             width: 100%;
-            height: var(--view-height);
-            background: white;
-            overflow: hidden;
-            border-bottom: 3px solid #333;
-            z-index: 1;
+            height: 40vh; /* תופס את החלק העליון */
+            background: #fff;
+            color: #000;
+            overflow: hidden; /* מה שיוצא החוצה נעלם */
+            border-bottom: 4px solid #007bff;
         }
 
-        /* האתר עצמו - מוצמד לברזלים */
-        iframe {
+        /* זה האלמנט שמחזיק את האתר הגנוב */
+        #stolen-content {
             position: absolute;
-            width: 1200px;
-            height: 1500px;
-            border: none;
+            top: 0; left: 0;
+            width: 1000px; /* רוחב וירטואלי רחב */
             transform-origin: 0 0;
-            /* שימוש במשתנים - מונע קפיצות! */
-            top: var(--pos-y);
-            left: var(--pos-x);
-            transform: scale(var(--scale));
-            pointer-events: none; /* מונע גלילה בתוך האתר */
-            will-change: top, left, transform;
+            pointer-events: none; /* שלא תוכל ללחוץ על קישורים בטעות */
+        }
+
+        /* מסתיר אלמנטים מיותרים מהאתר שלהם באופן גס */
+        #stolen-content img, 
+        #stolen-content script, 
+        #stolen-content iframe,
+        #stolen-content nav,
+        #stolen-content footer {
+            display: none !important;
         }
 
         /* פס טעינה */
-        #loader {
+        #loader-bar {
             position: absolute;
             bottom: 0; left: 0;
             height: 5px; width: 0%;
             background: #00ff00;
-            transition: width 1s linear;
-            z-index: 10;
+            transition: width 0.5s linear;
+            z-index: 100;
         }
 
-        /* --- ממשק שליטה (למטה) --- */
+        /* --- אזור השליטה למטה --- */
         #controls {
             flex: 1;
             background: #222;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: start;
-            padding-top: 20px;
+            justify-content: flex-start;
             gap: 15px;
-            height: 65vh;
             overflow-y: auto;
-            transition: transform 0.3s ease;
         }
 
-        .btn-row { display: flex; gap: 20px; }
+        .btn-group { display: flex; gap: 20px; }
 
-        button.move-btn {
-            width: 70px; height: 70px;
+        button.arrow {
+            width: 60px; height: 60px;
             font-size: 30px;
             background: #444; color: white;
             border: 2px solid #666; border-radius: 12px;
-            cursor: pointer;
         }
-        button.move-btn:active { background: #666; border-color: white; }
+        button.arrow:active { background: #666; border-color: #fff; }
 
-        button.zoom-btn {
-            width: 100px; height: 50px;
+        button.action {
+            width: 100%; height: 50px;
             font-size: 18px; font-weight: bold;
-            background: #007bff; color: white;
+            background: #28a745; color: white;
             border: none; border-radius: 8px;
+            margin-top: 10px;
         }
 
-        /* --- כפתור שמירה ראשי (תמיד למעלה) --- */
-        #mainSaveBtn {
-            position: fixed;
-            top: 20px; left: 20px; /* בצד שמאל למעלה */
-            z-index: 999999; /* הכי גבוה שיש */
-            background: #28a745;
-            color: white;
-            font-size: 18px; font-weight: bold;
-            padding: 12px 24px;
-            border: none; border-radius: 50px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        #mainSaveBtn:active { transform: scale(0.95); }
+        .status { color: #aaa; font-size: 14px; margin-top: 5px; }
 
-        /* כפתור עריכה (גלגל שיניים) */
-        #editBtn {
-            position: fixed;
-            bottom: 20px; left: 20px;
-            z-index: 999999;
-            width: 60px; height: 60px;
-            font-size: 30px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            border: 2px solid white;
-            display: none; /* מוסתר בהתחלה */
-            justify-content: center; align-items: center;
-            cursor: pointer;
-        }
-
-        /* מצב נעול (Clean Mode) */
+        /* מצב נעול - מסתיר את הפאנל */
         body.locked #controls { display: none; }
-        body.locked #viewport { height: 100vh; border: none; background: black; }
-        body.locked #mainSaveBtn { display: none; }
-        body.locked #editBtn { display: flex; }
+        body.locked #display-area { height: 100vh; border: none; background: black; }
         
-        /* חלונית שינוי מספר משחק */
-        .game-id-box {
-            background: #333; padding: 10px; border-radius: 10px;
-            display: flex; gap: 10px; margin-bottom: 10px;
+        /* כפתור עריכה שצף במצב נעול */
+        #unlock-btn {
+            position: fixed; bottom: 20px; right: 20px;
+            width: 50px; height: 50px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white; border-radius: 50%;
+            display: none; justify-content: center; align-items: center;
+            font-size: 24px; cursor: pointer; z-index: 999;
         }
-        .game-id-box input {
-            text-align: center; font-size: 16px; padding: 5px; width: 100px;
-        }
+        body.locked #unlock-btn { display: flex; }
 
     </style>
 </head>
 <body>
 
-    <button id="mainSaveBtn" onclick="saveEverything()">✅ שמור וקבע</button>
-    
-    <div id="editBtn" onclick="unlock()">⚙️</div>
+    <div id="unlock-btn" onclick="unlock()">⚙️</div>
 
-    <div id="viewport">
-        <iframe id="gameFrame" src="" scrolling="no"></iframe>
-        <div id="loader"></div>
+    <div id="display-area">
+        <div id="stolen-content">
+            <div style="padding: 20px; text-align: center;">טוען נתונים...</div>
+        </div>
+        <div id="loader-bar"></div>
     </div>
 
     <div id="controls">
+        <div style="color: #fff; font-weight: bold;">משחק: 1066561</div>
+        <div class="status" id="status-msg">ממתין לנתונים...</div>
+
+        <div style="margin-top: 10px;">הזז את התוצאה למרכז:</div>
         
-        <div class="game-id-box">
-            <input type="text" id="gameIdInput" value="1066561">
-            <button onclick="updateGameID()" style="padding: 5px 10px;">עדכן משחק</button>
+        <button class="arrow" onclick="move(0, 20)">⬆️</button>
+        <div class="btn-group">
+            <button class="arrow" onclick="move(20, 0)">⬅️</button>
+            <button class="arrow" onclick="move(-20, 0)">➡️</button>
+        </div>
+        <button class="arrow" onclick="move(0, -20)">⬇️</button>
+
+        <div class="btn-group" style="margin-top: 15px;">
+            <button class="arrow" style="font-size: 16px; width: 80px;" onclick="zoom(-0.1)">זום -</button>
+            <button class="arrow" style="font-size: 16px; width: 80px;" onclick="zoom(0.1)">זום +</button>
         </div>
 
-        <div style="color: #bbb;">כוון את התוצאה למרכז:</div>
-
-        <button class="move-btn" onclick="adjust(0, 20)">⬆️</button>
-        <div class="btn-row">
-            <button class="move-btn" onclick="adjust(20, 0)">⬅️</button>
-            <button class="move-btn" onclick="adjust(-20, 0)">➡️</button>
-        </div>
-        <button class="move-btn" onclick="adjust(0, -20)">⬇️</button>
-
-        <div class="btn-row" style="margin-top: 20px;">
-            <button class="zoom-btn" onclick="zoom(-0.05)">זום -</button>
-            <button class="zoom-btn" onclick="zoom(0.05)">זום +</button>
-        </div>
-        
-        <button onclick="resetApp()" style="margin-top: 30px; background: red; color: white; border: none; padding: 10px; border-radius: 5px;">איפוס מלא (תקלה)</button>
+        <button class="action" onclick="lock()">✅ זה בול! נעל מסך</button>
+        <button class="action" style="background:#dc3545; margin-top:5px;" onclick="resetAll()">אפס הכל</button>
     </div>
 
     <script>
-        // --- ניהול משתנים ---
-        // קריאה ראשונית מהזיכרון כדי למנוע קפיצות
-        let currentX = parseFloat(localStorage.getItem('soccer_x')) || -200;
-        let currentY = parseFloat(localStorage.getItem('soccer_y')) || -200;
-        let currentScale = parseFloat(localStorage.getItem('soccer_scale')) || 0.6;
-        let currentGameID = localStorage.getItem('soccer_id') || '1066561';
-        let isLocked = localStorage.getItem('soccer_locked') === 'true';
+        // --- הגדרות ---
+        const GAME_ID = "1066561";
+        const PROXY_URL = "https://api.allorigins.win/get?url=";
+        const TARGET_URL = "https://www.football.org.il/leagues/games/game/?game_id=" + GAME_ID;
+
+        // --- משתנים למיקום ---
+        let posX = parseFloat(localStorage.getItem('my_x')) || -100;
+        let posY = parseFloat(localStorage.getItem('my_y')) || -200;
+        let scale = parseFloat(localStorage.getItem('my_s')) || 1.0;
+        let isLocked = localStorage.getItem('my_locked') === 'true';
 
         // אלמנטים
-        const root = document.documentElement;
-        const iframe = document.getElementById('gameFrame');
-        const loader = document.getElementById('loader');
-        const gameInput = document.getElementById('gameIdInput');
-        
-        // --- פונקציות ליבה ---
+        const contentDiv = document.getElementById('stolen-content');
+        const loader = document.getElementById('loader-bar');
+        const statusMsg = document.getElementById('status-msg');
 
-        // 1. החלת המיקום (מעדכן ישר את ה-CSS)
-        function applyVisuals() {
-            root.style.setProperty('--pos-x', currentX + 'px');
-            root.style.setProperty('--pos-y', currentY + 'px');
-            root.style.setProperty('--scale', currentScale);
+        // --- פונקציית החילוץ (הלב של המערכת) ---
+        async function fetchData() {
+            loader.style.width = "50%";
+            // מוסיף זמן כדי לעקוף Cache
+            const finalUrl = PROXY_URL + encodeURIComponent(TARGET_URL + "&t=" + Date.now());
+
+            try {
+                const response = await fetch(finalUrl);
+                const data = await response.json();
+                
+                if (data.contents) {
+                    // 1. מנקה את התוכן הישן בזהירות כדי לא לאבד פוקוס
+                    // אנחנו נחליף את ה-HTML הפנימי
+                    
+                    // טריק: מסננים רק את ה-BODY כדי לא לשבור את הדף שלנו
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(data.contents, "text/html");
+                    
+                    // לוקחים רק את התוכן הרלוונטי (ה-wrapper הראשי)
+                    // בדרך כלל בהתאחדות התוכן בתוך form או div ראשי
+                    const bodyContent = doc.body.innerHTML;
+
+                    // מכניסים לדף שלנו
+                    contentDiv.innerHTML = bodyContent;
+                    
+                    statusMsg.innerText = "עודכן: " + new Date().toLocaleTimeString();
+                    loader.style.width = "100%";
+                    setTimeout(() => loader.style.width = "0%", 500);
+                }
+            } catch (e) {
+                statusMsg.innerText = "שגיאה בטעינה, מנסה שוב...";
+                console.error(e);
+            }
         }
 
-        // 2. כפתורי תזוזה
-        function adjust(x, y) {
-            currentX += x;
-            currentY += y;
-            applyVisuals();
+        // --- ניהול תצוגה ---
+        function updateVisuals() {
+            contentDiv.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
         }
 
-        function zoom(factor) {
-            currentScale += factor;
-            if (currentScale < 0.2) currentScale = 0.2;
-            applyVisuals();
+        function move(x, y) {
+            posX += x;
+            posY += y;
+            updateVisuals();
+            saveSettings();
         }
 
-        // 3. עדכון כתובת האתר
-        function setSource() {
-            const url = `https://www.football.org.il/leagues/games/game/?game_id=${currentGameID}`;
-            // טריק למניעת קאש
-            iframe.src = url; 
+        function zoom(s) {
+            scale += s;
+            updateVisuals();
+            saveSettings();
         }
 
-        // 4. שמירה (הפונקציה שהייתה חסרה לך)
-        function saveEverything() {
-            const btn = document.getElementById('mainSaveBtn');
-            btn.innerText = "נשמר...";
-            btn.style.background = "#155724";
-
-            // שמירה לזיכרון
-            localStorage.setItem('soccer_x', currentX);
-            localStorage.setItem('soccer_y', currentY);
-            localStorage.setItem('soccer_scale', currentScale);
-            localStorage.setItem('soccer_locked', 'true'); // נועל לפעם הבאה
-
-            setTimeout(() => {
-                lockInterface(); // נועל את המסך
-                btn.innerText = "✅ שמור וקבע";
-                btn.style.background = "#28a745";
-            }, 500);
+        function saveSettings() {
+            localStorage.setItem('my_x', posX);
+            localStorage.setItem('my_y', posY);
+            localStorage.setItem('my_s', scale);
         }
 
-        // 5. נעילה / פתיחה
-        function lockInterface() {
+        function lock() {
             document.body.classList.add('locked');
-            isLocked = true;
-            localStorage.setItem('soccer_locked', 'true');
-            startAutoRefresh();
+            localStorage.setItem('my_locked', 'true');
         }
 
         function unlock() {
             document.body.classList.remove('locked');
-            isLocked = false;
-            localStorage.setItem('soccer_locked', 'false');
-            stopAutoRefresh();
+            localStorage.setItem('my_locked', 'false');
         }
 
-        // 6. רענון אוטומטי
-        let refreshInterval;
-        function startAutoRefresh() {
-            if (refreshInterval) clearInterval(refreshInterval);
-            
-            let seconds = 0;
-            loader.style.width = '0%';
-            
-            refreshInterval = setInterval(() => {
-                seconds++;
-                loader.style.width = (seconds / 15 * 100) + '%';
-                
-                if (seconds >= 15) {
-                    // רענון ה-iframe בלבד
-                    iframe.src = iframe.src; 
-                    seconds = 0;
-                }
-            }, 1000);
+        function resetAll() {
+            localStorage.clear();
+            location.reload();
         }
 
-        function stopAutoRefresh() {
-            if (refreshInterval) clearInterval(refreshInterval);
-            loader.style.width = '0%';
-        }
-
-        // 7. עדכון ID משחק
-        function updateGameID() {
-            currentGameID = gameInput.value;
-            localStorage.setItem('soccer_id', currentGameID);
-            setSource();
-        }
-        
-        // 8. איפוס במקרה חירום
-        function resetApp() {
-            if(confirm('לאפס את כל ההגדרות?')) {
-                localStorage.clear();
-                location.reload();
+        // --- מנוע רענון ---
+        let seconds = 0;
+        setInterval(() => {
+            seconds++;
+            // עדכון פס טעינה ויזואלי בין לבין
+            if (seconds < 15) {
+                loader.style.width = (seconds / 15 * 80) + "%";
             }
-        }
-
-        // --- אתחול (רץ ברגע שהדף נפתח) ---
-        (function init() {
-            gameInput.value = currentGameID;
-            applyVisuals(); // מיישם את המיקום שנשמר מיד!
-            setSource();    // טוען את האתר
-
-            // אם שמרת בעבר שזה נעול - זה יפתח נעול
-            if (isLocked) {
-                lockInterface();
+            // רענון כל 15 שניות
+            if (seconds >= 15) {
+                fetchData(); // מביא את המידע מחדש
+                seconds = 0;
             }
-        })();
+        }, 1000);
+
+        // --- הפעלה ראשונית ---
+        updateVisuals();
+        fetchData();
+        if (isLocked) lock();
 
     </script>
 </body>
