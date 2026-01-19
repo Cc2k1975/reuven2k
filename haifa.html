@@ -2,136 +2,163 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>תוצאה בזמן אמת</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מצב צלף - תוצאה בלבד</title>
     <style>
         body {
             background-color: #000;
-            color: #fff;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
+            font-family: Arial, sans-serif;
         }
 
-        .container {
-            width: 85%;
-            max-width: 500px;
-            padding: 40px 20px;
+        /* זה החור של המנעול - רק דרכו רואים */
+        #sniper-scope {
+            width: 340px;  /* רוחב התוצאה */
+            height: 180px; /* גובה התוצאה */
+            position: relative;
+            overflow: hidden; /* חותך את כל המסביב */
             border: 2px solid #333;
-            border-radius: 25px;
-            background: #111;
-            text-align: center;
-            box-shadow: 0 0 50px rgba(0, 255, 0, 0.1);
+            border-radius: 15px;
+            background: #fff;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
         }
 
-        .header {
-            font-size: 22px;
-            color: #888;
-            margin-bottom: 20px;
+        /* האתר עצמו - מוגדל ומוזז */
+        iframe {
+            position: absolute;
+            width: 1000px;
+            height: 1500px;
+            border: none;
+            transform-origin: 0 0;
+            pointer-events: auto; /* מאפשר ללחוץ אם קופץ משהו */
+            
+            /* המיקום נקבע על ידי המשתנים */
+            top: var(--y);
+            left: var(--x);
+            transform: scale(var(--s));
+            
+            opacity: 0; /* מוסתר עד שנטען */
+            transition: opacity 0.5s;
         }
 
-        .score {
-            font-size: 110px;
-            font-weight: bold;
-            color: #4CAF50; /* ירוק */
-            margin: 10px 0;
-            font-family: monospace; /* שומר על המספרים יציבים */
-            text-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
-            line-height: 1;
-        }
+        iframe.loaded { opacity: 1; }
 
-        .status {
-            color: #666;
-            font-size: 14px;
-            margin-top: 30px;
+        /* כפתורי שליטה - נעלמים כשמסיימים */
+        #controls {
+            margin-top: 20px;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
             gap: 10px;
+            z-index: 100;
         }
 
-        /* נקודה ירוקה מהבהבת כשהכל תקין */
-        .dot {
-            height: 10px; width: 10px;
-            background-color: #333;
-            border-radius: 50%;
-            display: inline-block;
+        .row { display: flex; gap: 15px; }
+
+        button {
+            background: #222; border: 1px solid #444; color: #fff;
+            padding: 15px; border-radius: 10px; font-size: 20px;
+            width: 60px; height: 60px; cursor: pointer;
+            touch-action: manipulation;
         }
-        .dot.active {
-            background-color: #0f0;
-            box-shadow: 0 0 10px #0f0;
-            animation: pulse 2s infinite;
+        button:active { background: #00ff00; color: black; }
+
+        .big-btn { width: auto; font-size: 16px; background: #007bff; border: none; font-weight: bold; }
+        .hide-btn { background: #dc3545; width: auto; padding: 10px 30px; font-size: 16px; }
+
+        /* כפתור הגדרות נסתר */
+        #gear {
+            position: fixed; bottom: 20px; right: 20px;
+            font-size: 24px; opacity: 0.3; cursor: pointer;
+            display: none;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
+        .hidden { display: none !important; }
+
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="header">תוצאה רשמית</div>
+    <div id="sniper-scope">
+        <iframe id="frame" scrolling="no"></iframe>
+    </div>
+
+    <div id="gear" onclick="showControls()">⚙️</div>
+
+    <div id="controls">
+        <div style="color: #aaa; margin-bottom: 5px;">כוון את התוצאה למרכז הריבוע:</div>
         
-        <div class="score" id="scoreDisplay">-- : --</div>
-        
-        <div class="status">
-            <span class="dot" id="liveDot"></span>
-            <span id="statusText">מתחבר ללוויין...</span>
+        <button onclick="move(0, 15)">⬆️</button>
+        <div class="row">
+            <button onclick="move(15, 0)">⬅️</button>
+            <button onclick="move(-15, 0)">➡️</button>
         </div>
+        <button onclick="move(0, -15)">⬇️</button>
+
+        <div class="row" style="margin-top:10px;">
+            <button class="big-btn" onclick="zoom(-0.1)">זום -</button>
+            <button class="big-btn" onclick="zoom(0.1)">זום +</button>
+        </div>
+
+        <button class="hide-btn" onclick="lockScreen()" style="margin-top: 20px;">✅ סיימתי לכוון (נעל מסך)</button>
     </div>
 
     <script>
-        // הכתובת הייחודית שיצרת בגוגל
-        const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbyv7-UttyVaGzNiHdmlXs9_-g9VjD2fCkzXcMaeBsMULH8l3MBzQveuxF-7C4w8oNKefg/exec";
+        const URL = "https://www.football.org.il/leagues/games/game/?game_id=1066561";
+        
+        // טעינת מיקום מהזיכרון
+        let x = parseFloat(localStorage.getItem('sn_x')) || -150;
+        let y = parseFloat(localStorage.getItem('sn_y')) || -180;
+        let s = parseFloat(localStorage.getItem('sn_s')) || 1.3; // זום ברירת מחדל גדול
 
-        async function updateScore() {
-            const display = document.getElementById('scoreDisplay');
-            const statusText = document.getElementById('statusText');
-            const dot = document.getElementById('liveDot');
+        const frame = document.getElementById('frame');
+        const controls = document.getElementById('controls');
+        const gear = document.getElementById('gear');
 
-            try {
-                // מביא נתונים מהסוכן שלך
-                let response = await fetch(GOOGLE_URL);
-                let text = await response.text();
-
-                // בודק אם קיבלנו מבנה של תוצאה (מספר:מספר)
-                if (text.includes(":")) {
-                    // מפרק את התוצאה
-                    let parts = text.split(":");
-                    
-                    // מציג על המסך (עם רווחים יפים)
-                    display.innerText = parts[0] + " : " + parts[1];
-                    
-                    // מעדכן סטטוס
-                    statusText.innerText = "עודכן: " + new Date().toLocaleTimeString();
-                    statusText.style.color = "#888";
-                    dot.classList.add('active'); // מדליק נורה ירוקה
-                } else {
-                    // אם גוגל החזיר הודעת שגיאה או המתנה
-                    statusText.innerText = "ממתין לנתונים...";
-                    dot.classList.remove('active');
-                }
-
-            } catch (error) {
-                console.error("Error:", error);
-                statusText.innerText = "מנסה להתחבר שוב...";
-                dot.classList.remove('active');
-            }
+        function update() {
+            frame.style.setProperty('--x', x + 'px');
+            frame.style.setProperty('--y', y + 'px');
+            frame.style.setProperty('--s', s);
+            
+            localStorage.setItem('sn_x', x);
+            localStorage.setItem('sn_y', y);
+            localStorage.setItem('sn_s', s);
         }
 
-        // הפעלה ראשונה מיד כשפותחים
-        updateScore();
+        function move(dx, dy) { x += dx; y += dy; update(); }
+        function zoom(ds) { s += ds; update(); }
 
-        // רענון אוטומטי כל 20 שניות
-        setInterval(updateScore, 20000);
+        function lockScreen() {
+            controls.classList.add('hidden');
+            gear.style.display = 'block';
+            // מתחיל רענון אוטומטי עדין רק כשנועלים
+            startAutoRefresh();
+        }
+
+        function showControls() {
+            controls.classList.remove('hidden');
+            gear.style.display = 'none';
+        }
+
+        let refreshTimer;
+        function startAutoRefresh() {
+            if (refreshTimer) clearInterval(refreshTimer);
+            // רענון כל 30 שניות - עדין כדי לא להיחסם
+            refreshTimer = setInterval(() => {
+                frame.src = frame.src;
+            }, 30000);
+        }
+
+        // טעינה ראשונית
+        frame.onload = () => { frame.classList.add('loaded'); };
+        frame.src = URL;
+        update();
 
     </script>
 </body>
