@@ -2,129 +2,136 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>צפייה יציבה</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>תוצאה בזמן אמת</title>
     <style>
-        body { margin: 0; background: #000; height: 100vh; overflow: hidden; font-family: sans-serif; }
-        
-        /* המסך */
-        #screen {
-            position: relative;
-            width: 100%;
-            height: 40vh; /* גובה החלון */
-            background: #fff;
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
             overflow: hidden;
-            border-bottom: 4px solid #007bff;
         }
 
-        iframe {
-            position: absolute;
-            width: 1200px; height: 2000px;
-            border: none;
-            transform-origin: 0 0;
-            top: var(--y); left: var(--x); transform: scale(var(--s));
-            /* מאפשר קליקים כדי שתוכל לסגור את ה-Cookies פעם אחת ולתמיד */
-            pointer-events: auto; 
+        .container {
+            width: 85%;
+            max-width: 500px;
+            padding: 40px 20px;
+            border: 2px solid #333;
+            border-radius: 25px;
+            background: #111;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 255, 0, 0.1);
         }
 
-        /* הג'ויסטיק */
-        #controls {
-            height: 60vh;
-            background: #1a1a1a;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            gap: 15px;
-        }
-
-        .row { display: flex; gap: 20px; }
-
-        button {
-            width: 70px; height: 70px;
-            background: #333; color: white;
-            border: 2px solid #555; border-radius: 12px;
-            font-size: 30px; cursor: pointer;
-            touch-action: manipulation;
-        }
-        button:active { background: #007bff; }
-
-        .btn-refresh {
-            width: 200px; height: 50px;
-            font-size: 18px; font-weight: bold;
-            background: #28a745; border: none; border-radius: 50px;
+        .header {
+            font-size: 22px;
+            color: #888;
             margin-bottom: 20px;
         }
 
-        #loader {
-            height: 5px; background: #0f0; width: 0%; transition: width 0.5s;
+        .score {
+            font-size: 110px;
+            font-weight: bold;
+            color: #4CAF50; /* ירוק */
+            margin: 10px 0;
+            font-family: monospace; /* שומר על המספרים יציבים */
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+            line-height: 1;
+        }
+
+        .status {
+            color: #666;
+            font-size: 14px;
+            margin-top: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* נקודה ירוקה מהבהבת כשהכל תקין */
+        .dot {
+            height: 10px; width: 10px;
+            background-color: #333;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .dot.active {
+            background-color: #0f0;
+            box-shadow: 0 0 10px #0f0;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
     </style>
 </head>
 <body>
 
-    <div id="screen">
-        <iframe id="frame"></iframe>
-    </div>
-    <div id="loader"></div>
-
-    <div id="controls">
-        <button class="btn-refresh" onclick="refreshFrame()">🔄 רענן ידני</button>
+    <div class="container">
+        <div class="header">תוצאה רשמית</div>
         
-        <div style="color:#aaa; font-size:14px; margin-bottom:5px;">כיוון עדין (אם זה זז):</div>
-        <button onclick="move(0, 10)">⬆️</button>
-        <div class="row">
-            <button onclick="move(10, 0)">⬅️</button>
-            <button onclick="move(-10, 0)">➡️</button>
-        </div>
-        <button onclick="move(0, -10)">⬇️</button>
+        <div class="score" id="scoreDisplay">-- : --</div>
         
-        <div class="row" style="margin-top:10px;">
-             <button style="font-size:16px; height:50px; width:80px;" onclick="zoom(-0.05)">➖</button>
-             <button style="font-size:16px; height:50px; width:80px;" onclick="zoom(0.05)">➕</button>
+        <div class="status">
+            <span class="dot" id="liveDot"></span>
+            <span id="statusText">מתחבר ללוויין...</span>
         </div>
     </div>
 
     <script>
-        // כתובת קבועה בלי תוספות זמן!
-        const URL = "https://www.football.org.il/leagues/games/game/?game_id=1066561";
-        
-        // טעינת מיקום מהזיכרון
-        let x = parseFloat(localStorage.getItem('fix_x')) || -200;
-        let y = parseFloat(localStorage.getItem('fix_y')) || -200;
-        let s = parseFloat(localStorage.getItem('fix_s')) || 0.6;
+        // הכתובת הייחודית שיצרת בגוגל
+        const GOOGLE_URL = "https://script.google.com/macros/s/AKfycbyv7-UttyVaGzNiHdmlXs9_-g9VjD2fCkzXcMaeBsMULH8l3MBzQveuxF-7C4w8oNKefg/exec";
 
-        const frame = document.getElementById('frame');
-        const screen = document.getElementById('screen');
-        const loader = document.getElementById('loader');
+        async function updateScore() {
+            const display = document.getElementById('scoreDisplay');
+            const statusText = document.getElementById('statusText');
+            const dot = document.getElementById('liveDot');
 
-        function update() {
-            frame.style.setProperty('--x', x + 'px');
-            frame.style.setProperty('--y', y + 'px');
-            frame.style.setProperty('--s', s);
-            localStorage.setItem('fix_x', x);
-            localStorage.setItem('fix_y', y);
-            localStorage.setItem('fix_s', s);
+            try {
+                // מביא נתונים מהסוכן שלך
+                let response = await fetch(GOOGLE_URL);
+                let text = await response.text();
+
+                // בודק אם קיבלנו מבנה של תוצאה (מספר:מספר)
+                if (text.includes(":")) {
+                    // מפרק את התוצאה
+                    let parts = text.split(":");
+                    
+                    // מציג על המסך (עם רווחים יפים)
+                    display.innerText = parts[0] + " : " + parts[1];
+                    
+                    // מעדכן סטטוס
+                    statusText.innerText = "עודכן: " + new Date().toLocaleTimeString();
+                    statusText.style.color = "#888";
+                    dot.classList.add('active'); // מדליק נורה ירוקה
+                } else {
+                    // אם גוגל החזיר הודעת שגיאה או המתנה
+                    statusText.innerText = "ממתין לנתונים...";
+                    dot.classList.remove('active');
+                }
+
+            } catch (error) {
+                console.error("Error:", error);
+                statusText.innerText = "מנסה להתחבר שוב...";
+                dot.classList.remove('active');
+            }
         }
 
-        function move(dx, dy) { x += dx; y += dy; update(); }
-        function zoom(ds) { s += ds; update(); }
-
-        function refreshFrame() {
-            loader.style.width = "100%";
-            // רענון רגיל ששומר על עוגיות
-            frame.contentWindow.location.reload();
-            setTimeout(() => { loader.style.width = "0%"; }, 1000);
-        }
-
-        // טעינה ראשונית
-        frame.src = URL;
-        update();
+        // הפעלה ראשונה מיד כשפותחים
+        updateScore();
 
         // רענון אוטומטי כל 20 שניות
-        setInterval(() => {
-            loader.style.width = "50%";
-            frame.src = frame.src; // רענון עדין
-            setTimeout(() => { loader.style.width = "0%"; }, 1500);
-        }, 20000);
+        setInterval(updateScore, 20000);
 
     </script>
 </body>
