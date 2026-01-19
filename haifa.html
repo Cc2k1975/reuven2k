@@ -2,144 +2,186 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>תוצאה חיה - מתוקן</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מערכת שליטה ידנית</title>
     <style>
         body {
-            background-color: #000;
-            color: #fff;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* מונע גלילה של כל הדף */
+            font-family: Arial, sans-serif;
+        }
+
+        /* --- אזור הצפייה (החלון) --- */
+        #tv-screen {
+            position: relative;
+            width: 100%;
+            height: 40vh; /* תופס את החלק העליון */
+            background: white;
+            overflow: hidden; /* חותך את השוליים */
+            border-bottom: 5px solid #007bff;
+            z-index: 1;
+        }
+
+        /* האתר של ההתאחדות */
+        iframe {
+            position: absolute;
+            width: 1200px; /* רוחב גדול כדי לתפוס הכל */
+            height: 2000px;
+            border: none;
+            transform-origin: 0 0;
+            
+            /* משתנים ששולטים במיקום */
+            top: var(--y, -200px);
+            left: var(--x, -200px);
+            transform: scale(var(--s, 0.6));
+            
+            /* מונע אינטראקציה עם האתר כדי שלא תלחץ בטעות על פרסומת */
+            pointer-events: none; 
+        }
+
+        /* --- אזור השליטה (הג'ויסטיק) --- */
+        #controller {
+            flex: 1;
+            background: #222;
+            padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            padding-top: 50px;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+            z-index: 10;
         }
 
-        .container {
-            width: 90%;
-            max-width: 400px;
-            padding: 30px;
-            border: 1px solid #333;
-            border-radius: 20px;
-            background: #111;
-            text-align: center;
-            box-shadow: 0 0 20px rgba(0,255,0,0.1);
-        }
+        .label { font-size: 14px; color: #aaa; margin-bottom: 5px; }
 
-        .score {
-            font-size: 90px;
-            font-weight: bold;
-            color: #4CAF50;
-            margin: 10px 0;
-            line-height: 1;
-            font-variant-numeric: tabular-nums;
-        }
+        .row { display: flex; gap: 15px; }
 
-        .label { font-size: 18px; color: #aaa; margin-bottom: 10px; }
-        .status { font-size: 14px; color: #666; margin-top: 20px; }
-
-        /* כפתור להצגת מידע טכני במקרה של תקלה */
-        .debug-btn {
-            margin-top: 30px;
-            background: transparent; border: 1px solid #333;
-            color: #333; font-size: 12px; padding: 5px;
+        /* כפתורי חצים גדולים ונוחים */
+        button.arrow {
+            width: 70px; height: 70px;
+            font-size: 30px;
+            background: #333; color: white;
+            border: 2px solid #555; border-radius: 15px;
             cursor: pointer;
+            touch-action: manipulation; /* תגובה מהירה בטלפון */
         }
-        
-        #debug-area {
-            display: none;
-            width: 90%; height: 200px;
-            background: #222; color: #0f0;
-            font-family: monospace; font-size: 10px;
-            margin-top: 20px; overflow: auto;
-            text-align: left; direction: ltr;
-            padding: 10px; border: 1px solid #444;
+        button.arrow:active { background: #007bff; border-color: #fff; }
+
+        /* כפתורי זום */
+        button.zoom {
+            width: 90px; height: 50px;
+            font-size: 18px; font-weight: bold;
+            background: #444; color: white; border: none; border-radius: 8px;
         }
+
+        /* כפתור רענון ידני */
+        button.refresh {
+            margin-top: 15px;
+            width: 200px; height: 45px;
+            background: #28a745; color: white;
+            font-weight: bold; border: none; border-radius: 25px;
+            font-size: 16px;
+        }
+
+        #loader {
+            height: 3px; background: #00ff00; width: 0%; transition: width 0.5s;
+        }
+
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="label">תוצאה נוכחית:</div>
-        <div class="score" id="scoreBoard">-- : --</div>
-        <div class="status" id="statusMsg">מתחבר...</div>
+    <div id="tv-screen">
+        <iframe id="gameFrame" scrolling="no"></iframe>
+        <div style="position:absolute; bottom:0; width:100%; bg:black;">
+            <div id="loader"></div>
+        </div>
     </div>
 
-    <button class="debug-btn" onclick="toggleDebug()">הצג מידע טכני (למקרה שלא עובד)</button>
-    <div id="debug-area">טוען נתונים גולמיים...</div>
+    <div id="controller">
+        <div class="label">כיוון המסך (השתמש בחצים):</div>
+        
+        <button class="arrow" onclick="move(0, 30)">⬆️</button>
+        <div class="row">
+            <button class="arrow" onclick="move(30, 0)">⬅️</button>
+            <button class="arrow" onclick="move(-30, 0)">➡️</button>
+        </div>
+        <button class="arrow" onclick="move(0, -30)">⬇️</button>
+
+        <div class="row" style="margin-top: 10px;">
+            <button class="zoom" onclick="zoom(-0.05)">זום -</button>
+            <button class="zoom" onclick="zoom(0.05)">זום +</button>
+        </div>
+
+        <button class="refresh" onclick="forceRefresh()">🔄 רענן נתונים עכשיו</button>
+        <div class="label" style="font-size: 12px; margin-top:5px;">מתרענן אוטומטית כל 20 שניות</div>
+    </div>
 
     <script>
         const GAME_ID = "1066561";
-        const PROXY = "https://api.codetabs.com/v1/proxy?quest=";
-        const TARGET = `https://www.football.org.il/leagues/games/game/?game_id=${GAME_ID}`;
+        const IFRAME = document.getElementById('gameFrame');
+        const SCREEN = document.getElementById('tv-screen');
+        const LOADER = document.getElementById('loader');
 
-        async function fetchScore() {
-            const scoreDiv = document.getElementById('scoreBoard');
-            const statusDiv = document.getElementById('statusMsg');
-            const debugArea = document.getElementById('debug-area');
+        // שליפת מיקום אחרון מהזיכרון
+        let x = parseFloat(localStorage.getItem('joy_x')) || -200;
+        let y = parseFloat(localStorage.getItem('joy_y')) || -300;
+        let s = parseFloat(localStorage.getItem('joy_s')) || 0.6;
 
-            try {
-                statusDiv.innerText = "מושך נתונים...";
-                
-                // 1. מביאים את המידע
-                const res = await fetch(PROXY + encodeURIComponent(TARGET + "&t=" + Date.now()));
-                if (!res.ok) throw new Error("תקלת רשת");
-                
-                const html = await res.text();
-                
-                // כותבים ללוג הטכני למקרה הצורך
-                debugArea.innerText = "אורך דף שהתקבל: " + html.length + " תווים\n\n" + html.substring(0, 2000); 
+        function updateView() {
+            // עדכון המשתנים ב-CSS כדי שהחלון יזוז
+            SCREEN.style.setProperty('--x', x + 'px');
+            SCREEN.style.setProperty('--y', y + 'px');
+            SCREEN.style.setProperty('--s', s);
 
-                // 2. מנקים את כל ה-HTML ומשאירים רק טקסט
-                // זה הופך את "<span>2</span> : <span>1</span>" ל-"2 : 1"
-                let cleanText = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
-                
-                // 3. מחפשים תבנית של תוצאה בתוך הטקסט הנקי
-                // מחפש: רווח, מספר, נקודותיים, מספר, רווח
-                // דוגמאות שיתפסו: " 2 : 1 ", " 0:0 "
-                const match = cleanText.match(/\s(\d{1,2})\s*:\s*(\d{1,2})\s/);
-
-                if (match) {
-                    // יש תוצאה!
-                    // בודקים שזה לא השעה (למשל 14:00)
-                    // בדרך כלל תוצאות הן עם רווחים ליד הנקודותיים, ושעות בלי.
-                    
-                    let s1 = match[1];
-                    let s2 = match[2];
-                    
-                    scoreDiv.innerText = `${s2} : ${s1}`; // שים לב: אולי צריך להפוך את הסדר
-                    statusDiv.innerText = "עודכן: " + new Date().toLocaleTimeString();
-                    statusDiv.style.color = "#888";
-                } else {
-                    // ניסיון גיבוי - חיפוש ספציפי יותר למבנה של ההתאחדות אם הטקסט הנקי נכשל
-                    // לפעמים זה מופיע כ "תוצאת מחצית: 0:0"
-                    const backup = cleanText.match(/(\d+)\s*:\s*(\d+)/);
-                    if (backup && backup[1].length < 3 && backup[2].length < 3) { // מוודא שזה לא שנה 2026
-                         scoreDiv.innerText = `${backup[2]} : ${backup[1]}`;
-                         statusDiv.innerText = "זוהה במצב גיבוי";
-                    } else {
-                        statusDiv.innerText = "הדף התקבל אך התוצאה לא זוהתה";
-                        statusDiv.style.color = "orange";
-                    }
-                }
-
-            } catch (e) {
-                console.error(e);
-                statusDiv.innerText = "שגיאה בחיבור";
-                statusDiv.style.color = "red";
-            }
+            // שמירה בזיכרון
+            localStorage.setItem('joy_x', x);
+            localStorage.setItem('joy_y', y);
+            localStorage.setItem('joy_s', s);
         }
 
-        function toggleDebug() {
-            const d = document.getElementById('debug-area');
-            d.style.display = d.style.display === 'none' ? 'block' : 'none';
+        // פונקציות תזוזה
+        function move(dx, dy) {
+            x += dx;
+            y += dy;
+            updateView();
         }
 
-        // הפעלה
-        fetchScore();
-        setInterval(fetchScore, 20000);
+        function zoom(ds) {
+            s += ds;
+            updateView();
+        }
+
+        // טעינת האתר
+        function loadGame() {
+            // טריק: מוסיפים זמן כדי שהדפדפן לא יביא נתונים ישנים
+            IFRAME.src = `https://www.football.org.il/leagues/games/game/?game_id=${GAME_ID}&dummy=${Date.now()}`;
+        }
+
+        function forceRefresh() {
+            LOADER.style.width = "100%";
+            loadGame();
+            setTimeout(() => { LOADER.style.width = "0%"; }, 1000);
+        }
+
+        // הפעלה ראשונית
+        updateView();
+        loadGame();
+
+        // רענון אוטומטי שקט כל 20 שניות
+        setInterval(() => {
+            LOADER.style.width = "50%";
+            // אנחנו מרעננים רק את ה-SRC, המיקום נשמר כי הוא ב-CSS של ה-DIV העוטף!
+            loadGame();
+            setTimeout(() => { LOADER.style.width = "0%"; }, 1000);
+        }, 20000);
 
     </script>
 </body>
