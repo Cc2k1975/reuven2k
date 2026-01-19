@@ -1,326 +1,309 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>מקובע למקום</title>
-  <style>
-    body {
-      margin: 0; padding: 0;
-      height: 100vh; display: flex; flex-direction: column;
-      overflow: hidden; font-family: Arial, sans-serif;
-      background: #fff; /* רקע לבן */
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>מערכת צפייה יציבה</title>
+    <style>
+        /* איפוס והגדרות בסיס */
+        body, html {
+            margin: 0; padding: 0;
+            height: 100%; width: 100%;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
 
-    /* הגובה של החלון שרואים */
-    :root { --boxH: 320px; }
+        /* --- המנוע הגרפי (CSS Variables) --- */
+        :root {
+            --pos-x: -200px;
+            --pos-y: -200px;
+            --scale: 0.6;
+            --view-height: 35vh; /* גובה החלון */
+        }
 
-    #view-container {
-      position: relative;
-      width: 100%;
-      height: var(--boxH);
-      background: #fff;
-      overflow: hidden;
-      border-bottom: 2px solid #333;
-      flex-shrink: 0;
-      z-index: 1;
-    }
+        /* מיכל הצפייה */
+        #viewport {
+            position: relative;
+            width: 100%;
+            height: var(--view-height);
+            background: white;
+            overflow: hidden;
+            border-bottom: 3px solid #333;
+            z-index: 1;
+        }
 
-    iframe {
-      position: absolute;
-      width: 1200px;
-      height: 1500px;
-      border: none;
-      transform-origin: 0 0;
-      /* ברירת מחדל כדי שלא יקפוץ */
-      top: -200px; 
-      left: -200px;
-      transform: scale(0.6);
-      will-change: transform, top, left;
-    }
+        /* האתר עצמו - מוצמד לברזלים */
+        iframe {
+            position: absolute;
+            width: 1200px;
+            height: 1500px;
+            border: none;
+            transform-origin: 0 0;
+            /* שימוש במשתנים - מונע קפיצות! */
+            top: var(--pos-y);
+            left: var(--pos-x);
+            transform: scale(var(--scale));
+            pointer-events: none; /* מונע גלילה בתוך האתר */
+            will-change: top, left, transform;
+        }
 
-    /* פס טעינה ירוק */
-    #loader {
-      position: absolute;
-      bottom: 0; left: 0;
-      height: 5px;
-      background: #28a745;
-      width: 0%;
-      transition: width 1s linear;
-      z-index: 10;
-    }
+        /* פס טעינה */
+        #loader {
+            position: absolute;
+            bottom: 0; left: 0;
+            height: 5px; width: 0%;
+            background: #00ff00;
+            transition: width 1s linear;
+            z-index: 10;
+        }
 
-    /* כפתור שמירה ירוק צף */
-    #saveTopBtn {
-      position: fixed;
-      top: 15px; left: 15px; /* הזזתי לצד שמאל שיהיה נוח */
-      z-index: 9999;
-      background: #28a745;
-      color: #fff;
-      border: none;
-      border-radius: 50px;
-      padding: 10px 20px;
-      font-size: 18px;
-      font-weight: bold;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-      cursor: pointer;
-    }
+        /* --- ממשק שליטה (למטה) --- */
+        #controls {
+            flex: 1;
+            background: #222;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: start;
+            padding-top: 20px;
+            gap: 15px;
+            height: 65vh;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
 
-    /* כפתור עריכה (גלגל שיניים) */
-    #gearBtn {
-      position: fixed;
-      bottom: 20px; left: 20px;
-      z-index: 9999;
-      width: 50px; height: 50px;
-      border-radius: 50%;
-      background: rgba(200, 200, 200, 0.3);
-      border: 1px solid #ccc;
-      display: none; /* מוסתר בהתחלה */
-      align-items: center; justify-content: center;
-      font-size: 24px;
-      cursor: pointer;
-    }
+        .btn-row { display: flex; gap: 20px; }
 
-    /* אזור הכפתורים למטה */
-    #controls {
-      flex: 1;
-      background: #f8f9fa;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 10px;
-      border-top: 1px solid #ddd;
-    }
+        button.move-btn {
+            width: 70px; height: 70px;
+            font-size: 30px;
+            background: #444; color: white;
+            border: 2px solid #666; border-radius: 12px;
+            cursor: pointer;
+        }
+        button.move-btn:active { background: #666; border-color: white; }
 
-    .row { display: flex; gap: 20px; }
+        button.zoom-btn {
+            width: 100px; height: 50px;
+            font-size: 18px; font-weight: bold;
+            background: #007bff; color: white;
+            border: none; border-radius: 8px;
+        }
 
-    button.ctrl {
-      width: 60px; height: 60px;
-      background: #fff; color: #333;
-      border: 1px solid #ccc;
-      border-radius: 12px;
-      font-size: 24px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      cursor: pointer;
-    }
-    button.ctrl:active { background: #e9ecef; }
+        /* --- כפתור שמירה ראשי (תמיד למעלה) --- */
+        #mainSaveBtn {
+            position: fixed;
+            top: 20px; left: 20px; /* בצד שמאל למעלה */
+            z-index: 999999; /* הכי גבוה שיש */
+            background: #28a745;
+            color: white;
+            font-size: 18px; font-weight: bold;
+            padding: 12px 24px;
+            border: none; border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #mainSaveBtn:active { transform: scale(0.95); }
 
-    button.small {
-      width: auto; padding: 0 20px; height: 50px;
-      font-size: 16px; font-weight: bold;
-      border-radius: 12px; border: 1px solid #ccc;
-      background: #fff; color: #333;
-    }
+        /* כפתור עריכה (גלגל שיניים) */
+        #editBtn {
+            position: fixed;
+            bottom: 20px; left: 20px;
+            z-index: 999999;
+            width: 60px; height: 60px;
+            font-size: 30px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            display: none; /* מוסתר בהתחלה */
+            justify-content: center; align-items: center;
+            cursor: pointer;
+        }
 
-    /* חלונית מספר משחק */
-    #gameBar {
-      width: 90%;
-      background: #e9ecef;
-      border-radius: 10px;
-      padding: 8px;
-      display: flex;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-    #gameIdInput {
-      flex: 1; height: 40px; border-radius: 8px; border: 1px solid #ccc;
-      padding: 0 10px; font-size: 16px; text-align: center;
-    }
-    #gameSaveBtn {
-      background: #007bff; color: white; border: none;
-      border-radius: 8px; padding: 0 15px; font-weight: bold;
-    }
+        /* מצב נעול (Clean Mode) */
+        body.locked #controls { display: none; }
+        body.locked #viewport { height: 100vh; border: none; background: black; }
+        body.locked #mainSaveBtn { display: none; }
+        body.locked #editBtn { display: flex; }
+        
+        /* חלונית שינוי מספר משחק */
+        .game-id-box {
+            background: #333; padding: 10px; border-radius: 10px;
+            display: flex; gap: 10px; margin-bottom: 10px;
+        }
+        .game-id-box input {
+            text-align: center; font-size: 16px; padding: 5px; width: 100px;
+        }
 
-    /* מצב נעול - מסתיר הכל משאיר נקי */
-    body.locked-view #controls { display: none !important; }
-    body.locked-view #saveTopBtn { display: none !important; }
-    body.locked-view #gearBtn { display: flex !important; }
-    body.locked-view { background: #fff !important; }
-    
-  </style>
+    </style>
 </head>
 <body>
 
-  <button id="saveTopBtn">✅ שמור וקבע מיקום</button>
-  
-  <div id="gearBtn">⚙️</div>
-
-  <div id="view-container">
-    <iframe id="gameFrame" scrolling="no"></iframe>
-    <div id="loader"></div>
-  </div>
-
-  <div id="controls">
+    <button id="mainSaveBtn" onclick="saveEverything()">✅ שמור וקבע</button>
     
-    <div id="gameBar">
-      <input id="gameIdInput" type="tel" placeholder="מספר משחק">
-      <button id="gameSaveBtn">עדכן משחק</button>
+    <div id="editBtn" onclick="unlock()">⚙️</div>
+
+    <div id="viewport">
+        <iframe id="gameFrame" src="" scrolling="no"></iframe>
+        <div id="loader"></div>
     </div>
 
-    <div style="color:#555; font-weight:bold; margin-bottom:5px;">כיוון תצוגה:</div>
+    <div id="controls">
+        
+        <div class="game-id-box">
+            <input type="text" id="gameIdInput" value="1066561">
+            <button onclick="updateGameID()" style="padding: 5px 10px;">עדכן משחק</button>
+        </div>
 
-    <button class="ctrl" onclick="move(0, 20)">⬆️</button>
-    <div class="row">
-      <button class="ctrl" onclick="move(-20, 0)">⬅️</button>
-      <button class="ctrl" onclick="move(20, 0)">➡️</button>
+        <div style="color: #bbb;">כוון את התוצאה למרכז:</div>
+
+        <button class="move-btn" onclick="adjust(0, 20)">⬆️</button>
+        <div class="btn-row">
+            <button class="move-btn" onclick="adjust(20, 0)">⬅️</button>
+            <button class="move-btn" onclick="adjust(-20, 0)">➡️</button>
+        </div>
+        <button class="move-btn" onclick="adjust(0, -20)">⬇️</button>
+
+        <div class="btn-row" style="margin-top: 20px;">
+            <button class="zoom-btn" onclick="zoom(-0.05)">זום -</button>
+            <button class="zoom-btn" onclick="zoom(0.05)">זום +</button>
+        </div>
+        
+        <button onclick="resetApp()" style="margin-top: 30px; background: red; color: white; border: none; padding: 10px; border-radius: 5px;">איפוס מלא (תקלה)</button>
     </div>
-    <button class="ctrl" onclick="move(0, -20)">⬇️</button>
 
-    <div class="row" style="margin-top: 10px;">
-      <button class="small" onclick="zoom(-0.05)">זום -</button>
-      <button class="small" onclick="zoom(0.05)">זום +</button>
-    </div>
+    <script>
+        // --- ניהול משתנים ---
+        // קריאה ראשונית מהזיכרון כדי למנוע קפיצות
+        let currentX = parseFloat(localStorage.getItem('soccer_x')) || -200;
+        let currentY = parseFloat(localStorage.getItem('soccer_y')) || -200;
+        let currentScale = parseFloat(localStorage.getItem('soccer_scale')) || 0.6;
+        let currentGameID = localStorage.getItem('soccer_id') || '1066561';
+        let isLocked = localStorage.getItem('soccer_locked') === 'true';
 
-    <button class="small" onclick="resetSettings()" style="margin-top:10px; background:#ffebee; color:red; border-color:red;">איפוס מלא</button>
-  </div>
+        // אלמנטים
+        const root = document.documentElement;
+        const iframe = document.getElementById('gameFrame');
+        const loader = document.getElementById('loader');
+        const gameInput = document.getElementById('gameIdInput');
+        
+        // --- פונקציות ליבה ---
 
-<script>
-  // --- הגדרות ---
-  const DEFAULT_ID = "1066561";
-  const BASE_URL = "https://www.football.org.il/leagues/games/game/?game_id=";
-  
-  // משתנים
-  let posY = -200;
-  let posX = -200;
-  let scale = 0.6;
-  
-  // אלמנטים
-  const iframe = document.getElementById('gameFrame');
-  const loader = document.getElementById('loader');
-  const saveBtn = document.getElementById('saveTopBtn');
-  const gearBtn = document.getElementById('gearBtn');
-  const controls = document.getElementById('controls');
-  const gameInput = document.getElementById('gameIdInput');
-  const gameBtn = document.getElementById('gameSaveBtn');
+        // 1. החלת המיקום (מעדכן ישר את ה-CSS)
+        function applyVisuals() {
+            root.style.setProperty('--pos-x', currentX + 'px');
+            root.style.setProperty('--pos-y', currentY + 'px');
+            root.style.setProperty('--scale', currentScale);
+        }
 
-  // טעינת הגדרות מיידית - לפני שהכל עולה
-  loadInitialSettings();
+        // 2. כפתורי תזוזה
+        function adjust(x, y) {
+            currentX += x;
+            currentY += y;
+            applyVisuals();
+        }
 
-  function buildUrl() {
-    let gid = localStorage.getItem('soccer_game_id') || DEFAULT_ID;
-    gameInput.value = gid;
-    return BASE_URL + gid;
-  }
+        function zoom(factor) {
+            currentScale += factor;
+            if (currentScale < 0.2) currentScale = 0.2;
+            applyVisuals();
+        }
 
-  // --- הפונקציה הכי חשובה: עדכון מיקום ---
-  function updateView() {
-    // אנחנו מפעילים את זה ישירות על ה-iframe
-    const frame = document.getElementById('gameFrame');
-    if(frame) {
-      frame.style.top = posY + 'px';
-      frame.style.left = posX + 'px';
-      frame.style.transform = `scale(${scale})`;
-    }
-  }
+        // 3. עדכון כתובת האתר
+        function setSource() {
+            const url = `https://www.football.org.il/leagues/games/game/?game_id=${currentGameID}`;
+            // טריק למניעת קאש
+            iframe.src = url; 
+        }
 
-  // תזוזה
-  function move(x, y) {
-    posX += x;
-    posY += y;
-    updateView();
-  }
-  
-  function zoom(s) {
-    scale += s;
-    if (scale < 0.2) scale = 0.2;
-    if (scale > 2.0) scale = 2.0;
-    updateView();
-  }
+        // 4. שמירה (הפונקציה שהייתה חסרה לך)
+        function saveEverything() {
+            const btn = document.getElementById('mainSaveBtn');
+            btn.innerText = "נשמר...";
+            btn.style.background = "#155724";
 
-  // --- שמירה ונעילה ---
-  function saveAndLock() {
-    localStorage.setItem('soccer_y', posY);
-    localStorage.setItem('soccer_x', posX);
-    localStorage.setItem('soccer_scale', scale);
-    localStorage.setItem('soccer_setup', 'true');
-    
-    document.body.classList.add('locked-view');
-    // רענון כפוי כדי לוודא שהכל יושב טוב
-    refreshIframe();
-  }
+            // שמירה לזיכרון
+            localStorage.setItem('soccer_x', currentX);
+            localStorage.setItem('soccer_y', currentY);
+            localStorage.setItem('soccer_scale', currentScale);
+            localStorage.setItem('soccer_locked', 'true'); // נועל לפעם הבאה
 
-  // חזרה לעריכה
-  gearBtn.onclick = function() {
-    document.body.classList.remove('locked-view');
-  };
+            setTimeout(() => {
+                lockInterface(); // נועל את המסך
+                btn.innerText = "✅ שמור וקבע";
+                btn.style.background = "#28a745";
+            }, 500);
+        }
 
-  // שמירת מספר משחק
-  gameBtn.onclick = function() {
-    let newId = gameInput.value.replace(/\D/g,''); // רק מספרים
-    if(newId) {
-      localStorage.setItem('soccer_game_id', newId);
-      refreshIframe(); // טוען מחדש עם המשחק החדש
-    }
-  };
+        // 5. נעילה / פתיחה
+        function lockInterface() {
+            document.body.classList.add('locked');
+            isLocked = true;
+            localStorage.setItem('soccer_locked', 'true');
+            startAutoRefresh();
+        }
 
-  function resetSettings() {
-    localStorage.clear();
-    location.reload();
-  }
+        function unlock() {
+            document.body.classList.remove('locked');
+            isLocked = false;
+            localStorage.setItem('soccer_locked', 'false');
+            stopAutoRefresh();
+        }
 
-  // --- מנגנון רענון חכם ---
-  function refreshIframe() {
-    const oldFrame = document.getElementById('gameFrame');
-    const newFrame = document.createElement('iframe');
-    
-    newFrame.id = 'gameFrame';
-    newFrame.scrolling = 'no';
-    
-    // *** התיקון הגדול: הגדרת המיקום לפני שהדף נכנס למסך ***
-    newFrame.style.top = posY + 'px';
-    newFrame.style.left = posX + 'px';
-    newFrame.style.transform = `scale(${scale})`;
-    
-    // טעינת הכתובת
-    newFrame.src = buildUrl();
-    
-    // החלפה
-    oldFrame.replaceWith(newFrame);
-  }
+        // 6. רענון אוטומטי
+        let refreshInterval;
+        function startAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            
+            let seconds = 0;
+            loader.style.width = '0%';
+            
+            refreshInterval = setInterval(() => {
+                seconds++;
+                loader.style.width = (seconds / 15 * 100) + '%';
+                
+                if (seconds >= 15) {
+                    // רענון ה-iframe בלבד
+                    iframe.src = iframe.src; 
+                    seconds = 0;
+                }
+            }, 1000);
+        }
 
-  // --- טיימר רענון (רק כשנעול) ---
-  let seconds = 0;
-  setInterval(function() {
-    // הפס מתקדם רק אם אנחנו במצב נעול
-    if (document.body.classList.contains('locked-view')) {
-      seconds++;
-      loader.style.width = (seconds / 15 * 100) + "%";
-      
-      if (seconds >= 15) {
-        refreshIframe();
-        seconds = 0;
-        loader.style.width = "0%";
-      }
-    } else {
-      seconds = 0;
-      loader.style.width = "0%";
-    }
-  }, 1000);
+        function stopAutoRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            loader.style.width = '0%';
+        }
 
-  // --- טעינה ראשונית מהזיכרון ---
-  function loadInitialSettings() {
-    const savedY = localStorage.getItem('soccer_y');
-    const savedX = localStorage.getItem('soccer_x');
-    const savedS = localStorage.getItem('soccer_scale');
-    const isSetup = localStorage.getItem('soccer_setup');
+        // 7. עדכון ID משחק
+        function updateGameID() {
+            currentGameID = gameInput.value;
+            localStorage.setItem('soccer_id', currentGameID);
+            setSource();
+        }
+        
+        // 8. איפוס במקרה חירום
+        function resetApp() {
+            if(confirm('לאפס את כל ההגדרות?')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
 
-    if (isSetup === 'true' && savedY) {
-      posY = parseFloat(savedY);
-      posX = parseFloat(savedX);
-      scale = parseFloat(savedS);
-      
-      // נכנס ישר למצב נעול
-      document.body.classList.add('locked-view');
-    }
-    
-    // מפעיל את התצוגה הראשונית
-    updateView();
-    // טוען את ה-src הראשוני
-    document.getElementById('gameFrame').src = buildUrl();
-  }
+        // --- אתחול (רץ ברגע שהדף נפתח) ---
+        (function init() {
+            gameInput.value = currentGameID;
+            applyVisuals(); // מיישם את המיקום שנשמר מיד!
+            setSource();    // טוען את האתר
 
-</script>
+            // אם שמרת בעבר שזה נעול - זה יפתח נעול
+            if (isLocked) {
+                lockInterface();
+            }
+        })();
+
+    </script>
 </body>
 </html>
