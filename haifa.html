@@ -3,251 +3,289 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>חילוץ תוצאה נקי</title>
+    <title>לוח תוצאות יציב</title>
     <style>
         body {
             margin: 0; padding: 0;
-            background: #000;
-            color: white;
-            font-family: Arial, sans-serif;
-            overflow: hidden; /* אין גלילה במסך הראשי */
+            background: #111;
             height: 100vh;
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
         }
 
-        /* --- אזור התצוגה (איפה שהתוצאה תהיה) --- */
-        #display-area {
+        /* --- האזור שבו רואים את המשחק --- */
+        #viewport {
             position: relative;
             width: 100%;
-            height: 40vh; /* תופס את החלק העליון */
+            height: 35vh; /* גובה החלונית */
             background: #fff;
-            color: #000;
-            overflow: hidden; /* מה שיוצא החוצה נעלם */
+            overflow: hidden;
             border-bottom: 4px solid #007bff;
+            z-index: 1;
         }
 
-        /* זה האלמנט שמחזיק את האתר הגנוב */
-        #stolen-content {
+        /* המעטפת שלתוכה מוכנסים החלונות - נשלטת ע"י המיקום שקבעת */
+        .iframe-wrapper {
             position: absolute;
             top: 0; left: 0;
-            width: 1000px; /* רוחב וירטואלי רחב */
-            transform-origin: 0 0;
-            pointer-events: none; /* שלא תוכל ללחוץ על קישורים בטעות */
+            width: 100%; height: 100%;
+            pointer-events: none; /* מונע גלילה ידנית */
         }
 
-        /* מסתיר אלמנטים מיותרים מהאתר שלהם באופן גס */
-        #stolen-content img, 
-        #stolen-content script, 
-        #stolen-content iframe,
-        #stolen-content nav,
-        #stolen-content footer {
-            display: none !important;
+        iframe {
+            position: absolute;
+            width: 1200px; /* רוחב וירטואלי רחב */
+            height: 1500px;
+            border: none;
+            transform-origin: 0 0;
+            /* המיקום נקבע כאן ע"י משתנים - זה מה שמונע קפיצות */
+            top: var(--y);
+            left: var(--x);
+            transform: scale(var(--s));
+            transition: opacity 0.5s ease-in-out; /* החלפה רכה */
         }
+
+        /* חלון פעיל מול חלון נטען */
+        iframe.active { opacity: 1; z-index: 2; }
+        iframe.loading { opacity: 0; z-index: 1; }
 
         /* פס טעינה */
-        #loader-bar {
-            position: absolute;
-            bottom: 0; left: 0;
+        #loader {
+            position: absolute; bottom: 0; left: 0;
             height: 5px; width: 0%;
-            background: #00ff00;
-            transition: width 0.5s linear;
-            z-index: 100;
+            background: #28a745;
+            transition: width 0.3s linear;
+            z-index: 10;
         }
 
-        /* --- אזור השליטה למטה --- */
+        /* --- כפתורי שליטה --- */
         #controls {
             flex: 1;
             background: #222;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 15px;
+            padding: 15px;
+            display: flex; flex-direction: column;
+            align-items: center; gap: 10px;
             overflow-y: auto;
         }
 
-        .btn-group { display: flex; gap: 20px; }
+        .btn-row { display: flex; gap: 20px; }
 
-        button.arrow {
-            width: 60px; height: 60px;
-            font-size: 30px;
+        button {
             background: #444; color: white;
-            border: 2px solid #666; border-radius: 12px;
+            border: 1px solid #666; border-radius: 10px;
+            font-size: 24px; cursor: pointer;
+            width: 60px; height: 60px;
+            touch-action: manipulation;
         }
-        button.arrow:active { background: #666; border-color: #fff; }
+        button:active { background: #666; }
 
-        button.action {
+        .action-btn {
             width: 100%; height: 50px;
             font-size: 18px; font-weight: bold;
-            background: #28a745; color: white;
-            border: none; border-radius: 8px;
+            background: #007bff; border: none;
             margin-top: 10px;
         }
+        #saveBtn { background: #28a745; }
+        #resetBtn { background: #dc3545; height: 40px; font-size: 14px; margin-top: 5px;}
 
-        .status { color: #aaa; font-size: 14px; margin-top: 5px; }
+        /* עריכת מספר משחק */
+        .game-input {
+            display: flex; gap: 10px; width: 100%;
+            background: #333; padding: 10px; border-radius: 8px;
+        }
+        .game-input input {
+            flex: 1; text-align: center; font-size: 18px; padding: 5px;
+        }
+        .game-input button {
+            width: auto; height: auto; font-size: 16px; padding: 5px 15px;
+        }
 
-        /* מצב נעול - מסתיר את הפאנל */
+        /* מצב נעול (Clean Mode) */
         body.locked #controls { display: none; }
-        body.locked #display-area { height: 100vh; border: none; background: black; }
+        body.locked #viewport { height: 100vh; border: none; background: black; }
         
-        /* כפתור עריכה שצף במצב נעול */
-        #unlock-btn {
+        /* כפתור הגדרות צף */
+        #gear-btn {
             position: fixed; bottom: 20px; right: 20px;
-            width: 50px; height: 50px;
+            width: 50px; height: 50px; border-radius: 50%;
             background: rgba(255,255,255,0.2);
-            border: 2px solid white; border-radius: 50%;
+            border: 2px solid white;
             display: none; justify-content: center; align-items: center;
             font-size: 24px; cursor: pointer; z-index: 999;
         }
-        body.locked #unlock-btn { display: flex; }
+        body.locked #gear-btn { display: flex; }
 
     </style>
 </head>
 <body>
 
-    <div id="unlock-btn" onclick="unlock()">⚙️</div>
+    <div id="gear-btn" onclick="unlock()">⚙️</div>
 
-    <div id="display-area">
-        <div id="stolen-content">
-            <div style="padding: 20px; text-align: center;">טוען נתונים...</div>
+    <div id="viewport">
+        <div class="iframe-wrapper" id="wrapper">
+            <iframe id="frameA" class="active"></iframe>
+            <iframe id="frameB" class="loading"></iframe>
         </div>
-        <div id="loader-bar"></div>
+        <div id="loader"></div>
     </div>
 
     <div id="controls">
-        <div style="color: #fff; font-weight: bold;">משחק: 1066561</div>
-        <div class="status" id="status-msg">ממתין לנתונים...</div>
-
-        <div style="margin-top: 10px;">הזז את התוצאה למרכז:</div>
-        
-        <button class="arrow" onclick="move(0, 20)">⬆️</button>
-        <div class="btn-group">
-            <button class="arrow" onclick="move(20, 0)">⬅️</button>
-            <button class="arrow" onclick="move(-20, 0)">➡️</button>
-        </div>
-        <button class="arrow" onclick="move(0, -20)">⬇️</button>
-
-        <div class="btn-group" style="margin-top: 15px;">
-            <button class="arrow" style="font-size: 16px; width: 80px;" onclick="zoom(-0.1)">זום -</button>
-            <button class="arrow" style="font-size: 16px; width: 80px;" onclick="zoom(0.1)">זום +</button>
+        <div class="game-input">
+            <input type="number" id="gameIdInput" value="1066561">
+            <button onclick="updateGame()">עדכן משחק</button>
         </div>
 
-        <button class="action" onclick="lock()">✅ זה בול! נעל מסך</button>
-        <button class="action" style="background:#dc3545; margin-top:5px;" onclick="resetAll()">אפס הכל</button>
+        <div style="color:#aaa; font-size:14px; margin-top:5px;">הזז את התוצאה למרכז:</div>
+
+        <button onclick="move(0, 20)">⬆️</button>
+        <div class="btn-row">
+            <button onclick="move(20, 0)">⬅️</button>
+            <button onclick="move(-20, 0)">➡️</button>
+        </div>
+        <button onclick="move(0, -20)">⬇️</button>
+
+        <div class="btn-row" style="margin-top:10px;">
+            <button onclick="zoom(-0.05)" style="font-size:16px; width:80px;">זום -</button>
+            <button onclick="zoom(0.05)" style="font-size:16px; width:80px;">זום +</button>
+        </div>
+
+        <button id="saveBtn" class="action-btn" onclick="lock()">✅ שמור ונעל מסך</button>
+        <button id="resetBtn" class="action-btn" onclick="resetApp()">אפס הכל</button>
     </div>
 
     <script>
-        // --- הגדרות ---
-        const GAME_ID = "1066561";
-        const PROXY_URL = "https://api.allorigins.win/get?url=";
-        const TARGET_URL = "https://www.football.org.il/leagues/games/game/?game_id=" + GAME_ID;
+        // --- ניהול זיכרון ומשתנים ---
+        let x = parseFloat(localStorage.getItem('posX')) || -200;
+        let y = parseFloat(localStorage.getItem('posY')) || -200;
+        let s = parseFloat(localStorage.getItem('scale')) || 0.6;
+        let gameID = localStorage.getItem('gameID') || '1066561';
+        let isLocked = localStorage.getItem('isLocked') === 'true';
 
-        // --- משתנים למיקום ---
-        let posX = parseFloat(localStorage.getItem('my_x')) || -100;
-        let posY = parseFloat(localStorage.getItem('my_y')) || -200;
-        let scale = parseFloat(localStorage.getItem('my_s')) || 1.0;
-        let isLocked = localStorage.getItem('my_locked') === 'true';
+        const wrapper = document.getElementById('wrapper');
+        const frameA = document.getElementById('frameA');
+        const frameB = document.getElementById('frameB');
+        const loader = document.getElementById('loader');
+        const gameInput = document.getElementById('gameIdInput');
 
-        // אלמנטים
-        const contentDiv = document.getElementById('stolen-content');
-        const loader = document.getElementById('loader-bar');
-        const statusMsg = document.getElementById('status-msg');
+        let activeFrame = frameA;
+        let hiddenFrame = frameB;
+        let refreshInterval;
 
-        // --- פונקציית החילוץ (הלב של המערכת) ---
-        async function fetchData() {
-            loader.style.width = "50%";
-            // מוסיף זמן כדי לעקוף Cache
-            const finalUrl = PROXY_URL + encodeURIComponent(TARGET_URL + "&t=" + Date.now());
-
-            try {
-                const response = await fetch(finalUrl);
-                const data = await response.json();
-                
-                if (data.contents) {
-                    // 1. מנקה את התוכן הישן בזהירות כדי לא לאבד פוקוס
-                    // אנחנו נחליף את ה-HTML הפנימי
-                    
-                    // טריק: מסננים רק את ה-BODY כדי לא לשבור את הדף שלנו
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(data.contents, "text/html");
-                    
-                    // לוקחים רק את התוכן הרלוונטי (ה-wrapper הראשי)
-                    // בדרך כלל בהתאחדות התוכן בתוך form או div ראשי
-                    const bodyContent = doc.body.innerHTML;
-
-                    // מכניסים לדף שלנו
-                    contentDiv.innerHTML = bodyContent;
-                    
-                    statusMsg.innerText = "עודכן: " + new Date().toLocaleTimeString();
-                    loader.style.width = "100%";
-                    setTimeout(() => loader.style.width = "0%", 500);
-                }
-            } catch (e) {
-                statusMsg.innerText = "שגיאה בטעינה, מנסה שוב...";
-                console.error(e);
-            }
+        // --- 1. עדכון ויזואלי (ללא קפיצות) ---
+        function applyTransform() {
+            // משתמשים ב-CSS Variables כדי לעדכן את שני החלונות במכה אחת
+            wrapper.style.setProperty('--x', x + 'px');
+            wrapper.style.setProperty('--y', y + 'px');
+            wrapper.style.setProperty('--s', s);
         }
 
-        // --- ניהול תצוגה ---
-        function updateVisuals() {
-            contentDiv.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
-        }
-
-        function move(x, y) {
-            posX += x;
-            posY += y;
-            updateVisuals();
+        function move(dx, dy) {
+            x += dx; y += dy;
+            applyTransform();
             saveSettings();
         }
 
-        function zoom(s) {
-            scale += s;
-            updateVisuals();
+        function zoom(ds) {
+            s += ds;
+            if (s < 0.2) s = 0.2;
+            applyTransform();
             saveSettings();
         }
 
         function saveSettings() {
-            localStorage.setItem('my_x', posX);
-            localStorage.setItem('my_y', posY);
-            localStorage.setItem('my_s', scale);
+            localStorage.setItem('posX', x);
+            localStorage.setItem('posY', y);
+            localStorage.setItem('scale', s);
+        }
+
+        // --- 2. מנוע ההחלפה (Double Buffering) ---
+        function loadUrl(frame) {
+            // מוסיף זמן כדי שהדפדפן לא יביא גרסה ישנה מהזיכרון
+            const url = `https://www.football.org.il/leagues/games/game/?game_id=${gameID}&t=${Date.now()}`;
+            frame.src = url;
+        }
+
+        function swapFrames() {
+            // החלף תפקידים
+            hiddenFrame.className = 'active'; // הופך לגלוי
+            activeFrame.className = 'loading'; // הופך למוסתר
+
+            // עדכון הפניות למשתנים
+            const temp = activeFrame;
+            activeFrame = hiddenFrame;
+            hiddenFrame = temp;
+            
+            console.log("בוצעה החלפה חלקה");
+        }
+
+        function startRefreshCycle() {
+            if (refreshInterval) clearInterval(refreshInterval);
+
+            let seconds = 0;
+            loader.style.width = '0%';
+
+            refreshInterval = setInterval(() => {
+                seconds++;
+                loader.style.width = (seconds / 15 * 100) + '%';
+
+                // ב-12 שניות מתחילים לטעון את החלון הנסתר
+                if (seconds === 12) {
+                    loadUrl(hiddenFrame);
+                }
+
+                // ב-15 שניות, אם הוא נטען, מחליפים (או שמים Timeout)
+                if (seconds >= 15) {
+                    // ההחלפה תתבצע ב-onload של ה-iframe, אבל ליתר ביטחון נאפס
+                    seconds = 0;
+                    loader.style.width = '0%';
+                }
+            }, 1000);
+        }
+
+        // האזנה לאירוע טעינה - זה הקסם שמונע מסך לבן
+        frameA.onload = () => { if (activeFrame !== frameA) swapFrames(); };
+        frameB.onload = () => { if (activeFrame !== frameB) swapFrames(); };
+
+        // --- 3. ניהול מצבים ---
+        function updateGame() {
+            gameID = gameInput.value;
+            localStorage.setItem('gameID', gameID);
+            loadUrl(activeFrame); // טעינה מיידית ראשונה
         }
 
         function lock() {
             document.body.classList.add('locked');
-            localStorage.setItem('my_locked', 'true');
+            localStorage.setItem('isLocked', 'true');
+            startRefreshCycle(); // מתחיל רענון אוטומטי רק כשנועלים
         }
 
         function unlock() {
             document.body.classList.remove('locked');
-            localStorage.setItem('my_locked', 'false');
+            localStorage.setItem('isLocked', 'false');
+            clearInterval(refreshInterval); // עוצר רענון כדי לא להפריע לכיוון
+            loader.style.width = '0%';
         }
 
-        function resetAll() {
-            localStorage.clear();
-            location.reload();
+        function resetApp() {
+            if(confirm("לאפס הכל?")) {
+                localStorage.clear();
+                location.reload();
+            }
         }
 
-        // --- מנוע רענון ---
-        let seconds = 0;
-        setInterval(() => {
-            seconds++;
-            // עדכון פס טעינה ויזואלי בין לבין
-            if (seconds < 15) {
-                loader.style.width = (seconds / 15 * 80) + "%";
-            }
-            // רענון כל 15 שניות
-            if (seconds >= 15) {
-                fetchData(); // מביא את המידע מחדש
-                seconds = 0;
-            }
-        }, 1000);
+        // --- אתחול ---
+        (function init() {
+            gameInput.value = gameID;
+            applyTransform(); // שם את החלון במקום מיד
+            loadUrl(activeFrame); // טוען תוכן ראשוני
 
-        // --- הפעלה ראשונית ---
-        updateVisuals();
-        fetchData();
-        if (isLocked) lock();
+            if (isLocked) {
+                lock();
+            } else {
+                // אם לא נעול, נטען פעם אחת בלי רענון אוטומטי
+            }
+        })();
 
     </script>
 </body>
