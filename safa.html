@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>זיהוי שפה מדיבור</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --card:#111b33;
+      --btn:#2f6bff;
+      --btn2:#ff3b30;
+      --text:#eaf0ff;
+      --muted:#a8b3d6;
+      --ok:#22c55e;
+      --warn:#f59e0b;
+    }
+    *{ box-sizing: border-box; }
+    body{
+      margin:0;
+      min-height:100dvh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: radial-gradient(1200px 800px at 50% 20%, #1a2a5a 0%, var(--bg) 55%);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      padding: 18px;
+    }
+    .wrap{
+      width:min(720px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 22px;
+      padding: 18px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 18px 60px rgba(0,0,0,.35);
+    }
+    h1{
+      margin: 0 0 10px 0;
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .sub{
+      margin: 0 0 14px 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    .bigbtn{
+      width:100%;
+      height: 160px;
+      border:none;
+      border-radius: 22px;
+      background: var(--btn);
+      color: #fff;
+      font-size: 26px;
+      font-weight: 900;
+      cursor: pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap: 12px;
+      box-shadow: 0 12px 30px rgba(47,107,255,.35);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .bigbtn:active{ transform: scale(0.99); }
+    .bigbtn.listening{ background: var(--btn2); box-shadow: 0 12px 30px rgba(255,59,48,.35); }
+    .row{
+      margin-top: 14px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .card{
+      background: rgba(17,27,51,.72);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 18px;
+      padding: 14px;
+    }
+    .label{ color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+    .value{ font-size: 18px; font-weight: 800; }
+    .value.small{ font-size: 16px; font-weight: 700; line-height: 1.45; white-space: pre-wrap; }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.10);
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:50%;
+      background: var(--warn);
+      box-shadow: 0 0 0 4px rgba(245,158,11,.15);
+    }
+    .dot.ok{ background: var(--ok); box-shadow: 0 0 0 4px rgba(34,197,94,.15); }
+    .err{
+      color: #ffd3d0;
+      background: rgba(255,59,48,.12);
+      border: 1px solid rgba(255,59,48,.30);
+      border-radius: 14px;
+      padding: 10px;
+      font-size: 13px;
+      line-height: 1.35;
+      margin-top: 12px;
+      display:none;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>זיהוי שפה מהדיבור</h1>
+    <p class="sub">
+      לחץ על הכפתור, דבר 2–3 מילים, והוא יציג את השפה שזוהתה + הטקסט ששמע.<br>
+      עובד הכי טוב ב־Chrome באנדרואיד/מחשב, ודורש הרשאת מיקרופון.
+    </p>
+
+    <button id="btn" class="bigbtn">🎙️ לחץ כדי להתחיל להקשיב</button>
+
+    <div class="pill" id="statusPill">
+      <span class="dot" id="dot"></span>
+      <span id="statusText">מוכן</span>
+    </div>
+
+    <div class="err" id="errBox"></div>
+
+    <div class="row">
+      <div class="card">
+        <div class="label">השפה שזוהתה</div>
+        <div class="value" id="langOut">—</div>
+      </div>
+      <div class="card">
+        <div class="label">הטקסט ששמעתי</div>
+        <div class="value small" id="textOut">—</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const btn = document.getElementById('btn');
+  const langOut = document.getElementById('langOut');
+  const textOut = document.getElementById('textOut');
+  const errBox = document.getElementById('errBox');
+  const statusText = document.getElementById('statusText');
+  const dot = document.getElementById('dot');
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    showError("הדפדפן שלך לא תומך בזיהוי דיבור (SpeechRecognition). נסה לפתוח את הקובץ ב־Chrome באנדרואיד/מחשב.");
+    btn.disabled = true;
+    btn.style.opacity = "0.6";
+    return;
+  }
+
+  let rec = null;
+  let listening = false;
+  let lastFinalText = "";
+
+  function setStatus(t, ok=false){
+    statusText.textContent = t;
+    dot.classList.toggle('ok', ok);
+  }
+
+  function showError(msg){
+    errBox.style.display = "block";
+    errBox.textContent = msg;
+  }
+  function clearError(){
+    errBox.style.display = "none";
+    errBox.textContent = "";
+  }
+
+  function normalizeText(s){
+    return (s || "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // זיהוי שפה "אמיתי" מהטקסט (יוריסטיקה טובה לשפות נפוצות)
+  function detectLanguageFromText(text){
+    const t = normalizeText(text);
+    if (!t) return { code: "unknown", name: "לא זוהה" };
+
+    // ספירת תווים לפי טווחי יוניקוד
+    const counts = {
+      he: 0, ar: 0, ru: 0, el: 0, hi: 0, th: 0, ja: 0, ko: 0, zh: 0, en: 0, other: 0
+    };
+
+    for (const ch of t) {
+      const cp = ch.codePointAt(0);
+
+      // Hebrew
+      if (cp >= 0x0590 && cp <= 0x05FF) counts.he++;
+      // Arabic
+      else if ((cp >= 0x0600 && cp <= 0x06FF) || (cp >= 0x0750 && cp <= 0x077F) || (cp >= 0x08A0 && cp <= 0x08FF)) counts.ar++;
+      // Cyrillic (Russian etc.)
+      else if (cp >= 0x0400 && cp <= 0x04FF) counts.ru++;
+      // Greek
+      else if (cp >= 0x0370 && cp <= 0x03FF) counts.el++;
+      // Devanagari (Hindi)
+      else if (cp >= 0x0900 && cp <= 0x097F) counts.hi++;
+      // Thai
+      else if (cp >= 0x0E00 && cp <= 0x0E7F) counts.th++;
+      // Hiragana / Katakana / CJK (Japanese)
+      else if ((cp >= 0x3040 && cp <= 0x30FF)) counts.ja++;
+      // Hangul (Korean)
+      else if ((cp >= 0xAC00 && cp <= 0xD7AF) || (cp >= 0x1100 && cp <= 0x11FF)) counts.ko++;
+      // CJK Unified Ideographs (Chinese/Japanese)
+      else if ((cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0x3400 && cp <= 0x4DBF)) counts.zh++;
+      // Latin letters
+      else if ((cp >= 0x0041 && cp <= 0x007A) || (cp >= 0x00C0 && cp <= 0x024F)) counts.en++;
+      else if (/\d|[.,!?;:'"()\-\u2013\u2014]/.test(ch)) { /* ignore punctuation */ }
+      else counts.other++;
+    }
+
+    // בוחרים את השפה עם הספירה הכי גבוהה
+    let best = { code: "unknown", score: 0 };
+    for (const [k,v] of Object.entries(counts)) {
+      if (v > best.score) best = { code: k, score: v };
+    }
+
+    // אם אין כמעט אותיות, לא מזהה
+    const lettersTotal = Object.values(counts).reduce((a,b)=>a+b,0);
+    if (lettersTotal < 2) return { code: "unknown", name: "לא זוהה" };
+
+    const map = {
+      he: "עברית",
+      ar: "ערבית",
+      ru: "רוסית (קירילית)",
+      el: "יוונית",
+      hi: "הינדי (דבאנגרי)",
+      th: "תאית",
+      ja: "יפנית",
+      ko: "קוריאנית",
+      zh: "סינית (CJK)",
+      en: "לטינית/אנגלית (Latin)",
+      other: "שפה לא מזוהה (Other)",
+      unknown: "לא זוהה"
+    };
+
+    return { code: best.code, name: map[best.code] || "לא זוהה" };
+  }
+
+  function start(){
+    clearError();
+    lastFinalText = "";
+    langOut.textContent = "—";
+    textOut.textContent = "—";
+
+    rec = new SR();
+    rec.continuous = false;      // מספיק לנו "בוסט" קצר
+    rec.interimResults = true;   // ננסה לזהות מוקדם
+    rec.maxAlternatives = 1;
+
+    // טיפ: אם תשים פה 'he-IL' זה ישפר בעברית אבל יהרוס שפות אחרות.
+    // לכן אנחנו משאירים ברירת מחדל כדי שהמנוע ינסה לבד.
+    // rec.lang = 'en-US';
+
+    rec.onstart = () => {
+      listening = true;
+      btn.classList.add('listening');
+      btn.textContent = "⏹️ לחץ כדי לעצור (מקשיב...)";
+      setStatus("מקשיב… דבר 2–3 מילים", false);
+    };
+
+    rec.onerror = (e) => {
+      listening = false;
+      btn.classList.remove('listening');
+      btn.textContent = "🎙️ לחץ כדי להתחיל להקשיב";
+      setStatus("שגיאה", false);
+
+      let msg = "שגיאה בזיהוי דיבור.";
+      if (e && e.error) {
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          msg = "אין הרשאת מיקרופון. תן הרשאה ל־Chrome ואז נסה שוב.";
+        } else if (e.error === "no-speech") {
+          msg = "לא זוהה דיבור. נסה לדבר חזק וברור יותר.";
+        } else if (e.error === "network") {
+          msg = "שגיאת רשת/שירות. לפעמים זיהוי דיבור דורש חיבור אינטרנט במכשיר.";
+        } else {
+          msg = "שגיאה: " + e.error;
+        }
+      }
+      showError(msg);
+    };
+
+    rec.onresult = (event) => {
+      // אוספים גם interim וגם final
+      let interim = "";
+      let finalText = "";
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        const transcript = res[0]?.transcript || "";
+        if (res.isFinal) finalText += transcript;
+        else interim += transcript;
+      }
+
+      const combined = normalizeText(finalText || interim);
+      if (!combined) return;
+
+      // מציג טקסט ששמע
+      textOut.textContent = combined;
+
+      // מזהה שפה אחרי שיש לפחות 2 מילים או כמה אותיות
+      const words = combined.split(" ").filter(Boolean);
+      if (words.length >= 2 || combined.length >= 6) {
+        const d = detectLanguageFromText(combined);
+        langOut.textContent = `${d.name} (${d.code})`;
+        setStatus("זוהתה שפה ✅", true);
+      } else {
+        setStatus("שומע… עוד רגע", false);
+      }
+
+      // שומר final אם הגיע
+      if (finalText) lastFinalText = normalizeText(finalText);
+    };
+
+    rec.onend = () => {
+      listening = false;
+      btn.classList.remove('listening');
+      btn.textContent = "🎙️ לחץ כדי להתחיל להקשיב";
+
+      // אם הסתיים בלי שהספקנו לזהות – ננסה לזהות מהטקסט האחרון
+      const t = normalizeText(lastFinalText || textOut.textContent);
+      if (t && (langOut.textContent === "—" || langOut.textContent.includes("לא זוהה"))) {
+        const d = detectLanguageFromText(t);
+        langOut.textContent = `${d.name} (${d.code})`;
+      }
+
+      if (!t) setStatus("מוכן", false);
+      else setStatus("הסתיים", true);
+    };
+
+    try {
+      rec.start();
+    } catch (err) {
+      showError("לא הצלחתי להתחיל להקשיב. נסה לרענן את הדף ולנסות שוב.");
+    }
+  }
+
+  function stop(){
+    try { rec && rec.stop(); } catch(e){}
+  }
+
+  btn.addEventListener('click', () => {
+    clearError();
+    if (!listening) start();
+    else stop();
+  });
+})();
+</script>
+</body>
+</html>
