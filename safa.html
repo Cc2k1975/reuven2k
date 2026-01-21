@@ -3,238 +3,250 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>זיהוי שפה קולי</title>
+    <title>מזהה שפות מקצועי</title>
     <style>
         :root {
-            --primary-color: #4a90e2;
-            --bg-color: #f0f2f5;
-            --text-color: #333;
+            --primary: #6c5ce7;
+            --secondary: #a29bfe;
+            --bg: #dfe6e9;
         }
 
         body {
-            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
             height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* הגדרות כפתור ענק */
+        .big-button {
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: white;
+            border: 8px solid var(--primary);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 10;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--bg-color);
-            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        /* כותרת */
-        h1 {
-            margin-bottom: 40px;
-            color: var(--text-color);
-            font-weight: 300;
-            font-size: 2rem;
-            text-align: center;
-        }
-
-        /* עיצוב הלחצן הענק */
-        .record-btn {
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
-            border: none;
-            background: white;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            outline: none;
-        }
-
-        .record-btn svg {
-            width: 80px;
-            height: 80px;
-            fill: var(--primary-color);
-            transition: all 0.3s ease;
-        }
-
-        .record-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 15px 35px rgba(74, 144, 226, 0.2);
-        }
-
-        .record-btn:active {
+        .big-button:active {
             transform: scale(0.95);
         }
 
-        /* אנימציה כשהכפתור מקליט */
-        .record-btn.listening {
-            background: #ff4757;
-            animation: pulse 1.5s infinite;
-        }
-
-        .record-btn.listening svg {
-            fill: white;
+        /* אנימציה בזמן הקלטה */
+        .big-button.recording {
+            background: #ff7675;
+            border-color: #d63031;
+            color: white;
+            animation: pulse 1s infinite;
         }
 
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }
-            70% { box-shadow: 0 0 0 50px rgba(255, 71, 87, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(255, 118, 117, 0.7); }
+            70% { box-shadow: 0 0 0 40px rgba(255, 118, 117, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 118, 117, 0); }
         }
 
-        /* אזור התוצאה */
-        #result-container {
-            margin-top: 50px;
+        /* תוצאות */
+        .result-box {
+            margin-top: 40px;
             text-align: center;
-            min-height: 100px;
-            opacity: 0;
-            transition: opacity 0.5s ease;
+            min-height: 120px;
         }
 
-        #result-container.visible {
-            opacity: 1;
-        }
-
-        .language-label {
-            font-size: 1.2rem;
-            color: #666;
-            margin-bottom: 10px;
-        }
-
-        .detected-language {
+        .lang-result {
             font-size: 3.5rem;
-            font-weight: bold;
-            color: var(--primary-color);
+            font-weight: 800;
+            color: #2d3436;
+            margin: 10px 0;
         }
 
-        .transcript-text {
-            margin-top: 15px;
-            font-size: 1rem;
-            color: #888;
-            font-style: italic;
+        .status-text {
+            color: #636e72;
+            font-size: 1.1rem;
         }
 
-        /* הודעת שגיאה או סטטוס */
-        .status {
+        /* הגדרות API Key */
+        .api-setup {
             position: absolute;
-            bottom: 30px;
-            color: #999;
-            font-size: 0.9rem;
+            bottom: 20px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            background: rgba(255,255,255,0.8);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        input[type="password"] {
+            padding: 8px;
+            width: 70%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .save-btn {
+            padding: 8px 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
         }
 
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <h1>לחץ כדי לזהות שפה</h1>
-
-    <button class="record-btn" id="recordBtn" onclick="toggleRecording()">
-        <svg viewBox="0 0 24 24">
-            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-        </svg>
-    </button>
-
-    <div id="result-container">
-        <div class="language-label">השפה שזוהתה:</div>
-        <div class="detected-language" id="langDisplay">...</div>
-        <div class="transcript-text" id="textDisplay"></div>
+    <div class="result-box">
+        <div id="status" class="status-text">לחץ על הכפתור והתחל לדבר</div>
+        <div id="languageOutput" class="lang-result">?</div>
     </div>
 
-    <div class="status" id="statusMsg">מוכן להקלטה</div>
+    <button id="mainBtn" class="big-button" onclick="startProcess()">
+        <span>הקש להקלטה</span>
+        <span style="font-size:0.8rem; margin-top:5px">(2 שניות)</span>
+    </button>
+
+    <div class="api-setup" id="apiBox">
+        <p style="margin:0 0 10px 0; font-size:0.9rem;">הכנס מפתח OpenAI API:</p>
+        <input type="password" id="apiKeyInput" placeholder="sk-..." />
+        <button class="save-btn" onclick="saveKey()">שמור</button>
+    </div>
 
     <script>
-        const btn = document.getElementById('recordBtn');
-        const langDisplay = document.getElementById('langDisplay');
-        const textDisplay = document.getElementById('textDisplay');
-        const resultContainer = document.getElementById('result-container');
-        const statusMsg = document.getElementById('statusMsg');
+        let mediaRecorder;
+        let audioChunks = [];
+        const btn = document.getElementById('mainBtn');
+        const statusDiv = document.getElementById('status');
+        const langDiv = document.getElementById('languageOutput');
+        const apiBox = document.getElementById('apiBox');
+        
+        // מילון תרגום קודי שפה לשמות מלאים בעברית
+        const langMap = {
+            'en': 'אנגלית', 'he': 'עברית', 'iw': 'עברית',
+            'ar': 'ערבית', 'ru': 'רוסית', 'es': 'ספרדית',
+            'fr': 'צרפתית', 'de': 'גרמנית', 'it': 'איטלקית',
+            'pt': 'פורטוגזית', 'ja': 'יפנית', 'zh': 'סינית',
+            'tr': 'טורקית', 'hi': 'הינדי', 'nl': 'הולנדית'
+        };
 
-        // בדיקה אם הדפדפן תומך בזיהוי דיבור
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-        if (!SpeechRecognition) {
-            alert("הדפדפן שלך לא תומך בזיהוי דיבור. נסה להשתמש ב-Chrome.");
-            btn.disabled = true;
+        // בדיקה אם יש מפתח שמור
+        if (localStorage.getItem('openai_key')) {
+            apiBox.classList.add('hidden');
         }
 
-        const recognition = new SpeechRecognition();
-        
-        // הגדרות זיהוי
-        recognition.continuous = false; // מפסיק אוטומטית כשהדיבור נעצר
-        recognition.interimResults = false; 
-        recognition.maxAlternatives = 1;
-
-        // טריק: אנו לא מגדירים שפה ספציפית כדי לאפשר לדפדפן להשתמש בברירת המחדל שלו
-        // או מגדירים רשימה אם הדפדפן תומך בכך (רובם תומכים רק באחת בכל פעם)
-        // כאן נסתמך על זיהוי הטקסט שחוזר כדי להבין מה השפה
-        
-        recognition.onstart = () => {
-            btn.classList.add('listening');
-            statusMsg.textContent = "מקשיב...";
-            resultContainer.classList.remove('visible');
-        };
-
-        recognition.onend = () => {
-            btn.classList.remove('listening');
-            statusMsg.textContent = "מוכן להקלטה";
-        };
-
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            const confidence = event.results[0][0].confidence;
-            
-            identifyLanguage(transcript);
-        };
-
-        recognition.onerror = (event) => {
-            statusMsg.textContent = "שגיאה: " + event.error;
-            btn.classList.remove('listening');
-        };
-
-        function toggleRecording() {
-            if (btn.classList.contains('listening')) {
-                recognition.stop();
+        function saveKey() {
+            const key = document.getElementById('apiKeyInput').value;
+            if (key.startsWith('sk-')) {
+                localStorage.setItem('openai_key', key);
+                apiBox.classList.add('hidden');
+                alert('המפתח נשמר בהצלחה!');
             } else {
-                recognition.start();
+                alert('מפתח לא תקין. הוא אמור להתחיל ב-sk-');
             }
         }
 
-        // פונקציית זיהוי שפה לפי התווים בטקסט
-        function identifyLanguage(text) {
-            let detectedLang = "לא ידוע";
-            let dir = "ltr";
-
-            // בדיקת תווים בעברית (טווח יוניקוד)
-            const hebrewPattern = /[\u0590-\u05FF]/;
-            // בדיקת תווים באנגלית/לטינית
-            const englishPattern = /[a-zA-Z]/;
-            // בדיקת תווים ברוסית
-            const russianPattern = /[\u0400-\u04FF]/;
-            // בדיקת תווים בערבית
-            const arabicPattern = /[\u0600-\u06FF]/;
-
-            if (hebrewPattern.test(text)) {
-                detectedLang = "עברית";
-                dir = "rtl";
-            } else if (russianPattern.test(text)) {
-                detectedLang = "רוסית";
-                dir = "ltr";
-            } else if (arabicPattern.test(text)) {
-                detectedLang = "ערבית";
-                dir = "rtl";
-            } else if (englishPattern.test(text)) {
-                // אנגלית ושפות אירופאיות רבות משתמשות באותם תווים, 
-                // זהו זיהוי בסיסי לאנגלית
-                detectedLang = "אנגלית";
-                dir = "ltr";
+        async function startProcess() {
+            const apiKey = localStorage.getItem('openai_key');
+            if (!apiKey) {
+                alert('חובה להזין מפתח API למטה כדי שהזיהוי יעבוד!');
+                return;
             }
 
-            // הצגת התוצאה
-            langDisplay.textContent = detectedLang;
-            textDisplay.textContent = `"${text}"`;
-            textDisplay.style.direction = dir;
-            
-            resultContainer.classList.add('visible');
+            // איפוס
+            audioChunks = [];
+            langDiv.textContent = "...";
+            statusDiv.textContent = "מקליט (2 שניות)...";
+            btn.classList.add('recording');
+            btn.innerHTML = "מקשיב...";
+
+            try {
+                // בקשת גישה למיקרופון
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.start();
+
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    btn.classList.remove('recording');
+                    btn.innerHTML = "<span>הקש להקלטה</span><span style='font-size:0.8rem'>(2 שניות)</span>";
+                    statusDiv.textContent = "מנתח שפה...";
+                    
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // או mp4
+                    await sendToAI(audioBlob, apiKey);
+                };
+
+                // טיימר של 2 שניות בדיוק
+                setTimeout(() => {
+                    if (mediaRecorder.state === "recording") {
+                        mediaRecorder.stop();
+                    }
+                }, 2000); // 2000 מילישניות = 2 שניות
+
+            } catch (err) {
+                console.error(err);
+                alert("לא הצלחתי לגשת למיקרופון. וודא שנתת הרשאה.");
+                btn.classList.remove('recording');
+            }
+        }
+
+        async function sendToAI(audioBlob, key) {
+            const formData = new FormData();
+            formData.append("file", audioBlob, "recording.webm");
+            formData.append("model", "whisper-1");
+            formData.append("response_format", "verbose_json"); // חשוב כדי לקבל את פרטי השפה
+
+            try {
+                const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${key}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error("שגיאה בחיבור לשרת (בדוק את המפתח שלך)");
+                }
+
+                const data = await response.json();
+                
+                // שליפת השפה
+                const detectedCode = data.language;
+                const detectedName = langMap[detectedCode] || detectedCode; // תרגום לעברית אם קיים
+
+                // הצגה
+                langDiv.textContent = detectedName;
+                statusDiv.textContent = `הטקסט שזוהה: "${data.text}"`;
+
+            } catch (error) {
+                statusDiv.textContent = "שגיאה בזיהוי";
+                alert(error.message);
+            }
         }
     </script>
 </body>
