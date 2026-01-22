@@ -2,8 +2,9 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  
+  <link rel="manifest" href="manifest.json">
 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -19,11 +20,6 @@
       --bg: #0b0f14;
       --tile-bg: #121a24;
       --border: rgba(255,255,255,0.10);
-
-      /* זום +30% לעומת 0.5:
-         0.65 = התקרבות (יותר גדול, פחות “מוקטנן”)
-         אם תרצה עוד יותר גדול: 0.70 / 0.75
-      */
       --scale: 0.65;
     }
 
@@ -32,12 +28,10 @@
     body{
       margin:0;
       background: var(--bg);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
       overflow:hidden;
-      /* מניעת בחירת טקסט כדי שירגיש כמו אפליקציה */
       user-select:none;
       -webkit-user-select:none;
-      -webkit-tap-highlight-color: transparent; /* ביטול הבהוב בלחיצה באנדרואיד */
       touch-action: manipulation;
     }
 
@@ -49,8 +43,7 @@
       grid-template-rows: 1fr 1fr;
       gap: var(--gap);
       padding: var(--gap);
-      /* התאמה לאייפונים חדשים שלא יוסתר על ידי הבר למטה */
-      padding-bottom: env(safe-area-inset-bottom); 
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
     .tile{
@@ -61,7 +54,6 @@
       overflow:hidden;
     }
 
-    /* “דף מלא מוקטן” (עם זום) */
     .frameWrap{
       position:absolute;
       inset:0;
@@ -79,142 +71,71 @@
       background:white;
     }
 
-    /* Overlay ללחיצה ארוכה לפני שיש URL */
-    .overlay{
-      position:absolute;
-      inset:0;
-      z-index:10;
-      background: transparent;
-    }
-    .tile.ready .overlay{
-      display:none;
-    }
+    .overlay{ position:absolute; inset:0; z-index:10; background: transparent; }
+    .tile.ready .overlay{ display:none; }
 
-    /* Hotspot קטן לעריכה מחדש בלי כפתורים */
     .hotspot{
-      position:absolute;
-      top:0; right:0;
-      width: 18%;
-      height: 18%;
-      z-index: 20;
-      background: transparent;
-      display:none;
+      position:absolute; top:0; right:0; width: 18%; height: 18%;
+      z-index: 20; background: transparent; display:none;
     }
-    .tile.ready .hotspot{
-      display:block;
+    .tile.ready .hotspot{ display:block; }
+
+    /* כפתור מסך מלא ידני (מופיע רק אם צריך) */
+    #fsBtn {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 30px;
+      border: 1px solid white;
+      z-index: 999999;
+      font-size: 14px;
+      display: none; /* מוסתר כברירת מחדל */
+      cursor: pointer;
     }
 
-    /* Modal להזנת URL */
+    /* Modal Styles */
     .modal{
-      position:fixed;
-      inset:0;
-      background: rgba(0,0,0,0.65);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      z-index: 99999;
-      padding: 16px;
+      position:fixed; inset:0; background: rgba(0,0,0,0.65);
+      display:none; align-items:center; justify-content:center;
+      z-index: 99999; padding: 16px;
     }
     .modal.show{ display:flex; }
     .card{
-      width:min(560px, 100%);
-      background: #0f1620;
-      border:1px solid rgba(255,255,255,0.14);
-      border-radius: 16px;
-      padding: 14px;
-      color: rgba(255,255,255,0.92);
+      width:min(560px, 100%); background: #0f1620;
+      border:1px solid rgba(255,255,255,0.14); border-radius: 16px;
+      padding: 14px; color: rgba(255,255,255,0.92);
       box-shadow: 0 18px 60px rgba(0,0,0,0.55);
     }
-    .title{
-      font-size:14px;
-      margin:0 0 10px 0;
-      opacity:0.95;
-    }
-    .row{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
+    .title{ font-size:14px; margin:0 0 10px 0; opacity:0.95; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     input{
-      flex:1 1 340px;
-      padding:10px 12px;
-      border-radius: 12px;
-      border:1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.06);
-      color: rgba(255,255,255,0.95);
-      outline:none;
-      direction:ltr;
-      font-size:13px;
+      flex:1 1 340px; padding:10px 12px; border-radius: 12px;
+      border:1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.95); outline:none; direction:ltr; font-size:13px;
     }
     .btn{
-      padding:10px 12px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.08);
-      color: rgba(255,255,255,0.95);
-      font-size:13px;
-      cursor:pointer;
+      padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.95);
+      font-size:13px; cursor:pointer;
     }
-    .btn:active{ transform: translateY(1px); }
-    .small{
-      font-size:12px;
-      opacity:0.78;
-      margin-top:10px;
-      line-height:1.35;
-    }
+    .small{ font-size:12px; opacity:0.78; margin-top:10px; line-height:1.35; }
   </style>
 </head>
 <body>
 
+  <button id="fsBtn">לחץ למסך מלא</button>
+
   <div class="grid" id="grid">
-    <div class="tile" data-slot="1">
-      <div class="frameWrap">
-        <iframe id="f1" allowfullscreen allow="fullscreen; autoplay; encrypted-media; picture-in-picture" referrerpolicy="no-referrer"></iframe>
-      </div>
-      <div class="overlay" data-slot="1"></div>
-      <div class="hotspot" data-slot="1"></div>
-    </div>
-
-    <div class="tile" data-slot="2">
-      <div class="frameWrap">
-        <iframe id="f2" allowfullscreen allow="fullscreen; autoplay; encrypted-media; picture-in-picture" referrerpolicy="no-referrer"></iframe>
-      </div>
-      <div class="overlay" data-slot="2"></div>
-      <div class="hotspot" data-slot="2"></div>
-    </div>
-
-    <div class="tile" data-slot="3">
-      <div class="frameWrap">
-        <iframe id="f3" allowfullscreen allow="fullscreen; autoplay; encrypted-media; picture-in-picture" referrerpolicy="no-referrer"></iframe>
-      </div>
-      <div class="overlay" data-slot="3"></div>
-      <div class="hotspot" data-slot="3"></div>
-    </div>
-
-    <div class="tile" data-slot="4">
-      <div class="frameWrap">
-        <iframe id="f4" allowfullscreen allow="fullscreen; autoplay; encrypted-media; picture-in-picture" referrerpolicy="no-referrer"></iframe>
-      </div>
-      <div class="overlay" data-slot="4"></div>
-      <div class="hotspot" data-slot="4"></div>
-    </div>
-
-    <div class="tile" data-slot="5">
-      <div class="frameWrap">
-        <iframe id="f5" allowfullscreen allow="fullscreen; autoplay; encrypted-media; picture-in-picture" referrerpolicy="no-referrer"></iframe>
-      </div>
-      <div class="overlay" data-slot="5"></div>
-      <div class="hotspot" data-slot="5"></div>
-    </div>
-
-    <div class="tile" data-slot="6">
-      <div class="frameWrap">
-        <iframe id="f6" allowfullscreen allow="fullscreen; autoplay; encrypted-media; picture-in-picture" referrerpolicy="no-referrer"></iframe>
-      </div>
-      <div class="overlay" data-slot="6"></div>
-      <div class="hotspot" data-slot="6"></div>
-    </div>
+    <div class="tile" data-slot="1"><div class="frameWrap"><iframe id="f1" allowfullscreen></iframe></div><div class="overlay" data-slot="1"></div><div class="hotspot" data-slot="1"></div></div>
+    <div class="tile" data-slot="2"><div class="frameWrap"><iframe id="f2" allowfullscreen></iframe></div><div class="overlay" data-slot="2"></div><div class="hotspot" data-slot="2"></div></div>
+    <div class="tile" data-slot="3"><div class="frameWrap"><iframe id="f3" allowfullscreen></iframe></div><div class="overlay" data-slot="3"></div><div class="hotspot" data-slot="3"></div></div>
+    <div class="tile" data-slot="4"><div class="frameWrap"><iframe id="f4" allowfullscreen></iframe></div><div class="overlay" data-slot="4"></div><div class="hotspot" data-slot="4"></div></div>
+    <div class="tile" data-slot="5"><div class="frameWrap"><iframe id="f5" allowfullscreen></iframe></div><div class="overlay" data-slot="5"></div><div class="hotspot" data-slot="5"></div></div>
+    <div class="tile" data-slot="6"><div class="frameWrap"><iframe id="f6" allowfullscreen></iframe></div><div class="overlay" data-slot="6"></div><div class="hotspot" data-slot="6"></div></div>
   </div>
 
   <div class="modal" id="modal">
@@ -225,16 +146,32 @@
         <button class="btn" id="okBtn">OK</button>
         <button class="btn" id="cancelBtn">ביטול</button>
       </div>
-      <div class="small">
-        עריכה מחדש אחרי שהוגדר: לחיצה ארוכה 3 שניות על הפינה הימנית-עליונה של אותו חלון.
-      </div>
+      <div class="small">עריכה מחדש: לחיצה ארוכה בפינה ימנית עליונה.</div>
     </div>
   </div>
 
 <script>
 (() => {
-  const HOLD_MS = 3000;
+  /* --- JS Fullscreen Logic --- */
+  const fsBtn = document.getElementById('fsBtn');
+  
+  // בדיקה האם אנחנו כבר במצב אפליקציה
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  
+  if (!isStandalone) {
+    // אם לא באפליקציה, נציג כפתור שבלחיצה עליו הדפדפן ייכנס למסך מלא
+    fsBtn.style.display = 'block';
+    fsBtn.addEventListener('click', () => {
+      document.documentElement.requestFullscreen().catch(e => {
+        console.log(e);
+        alert("נסה להוסיף למסך הבית דרך תפריט הדפדפן");
+      });
+      fsBtn.style.display = 'none'; // הסתרת הכפתור אחרי הלחיצה
+    });
+  }
 
+  /* --- Original App Logic --- */
+  const HOLD_MS = 3000;
   const defaultUrls = {
     1: "https://gurutv.online/ch11.html",
     2: "https://gurutv.online/ch12.html",
@@ -243,22 +180,12 @@
     5: "https://gurutv.online/chi24news.html",
     6: "https://gurutv.online/chcnn.html",
   };
-
-  const frames = {
-    1: document.getElementById('f1'),
-    2: document.getElementById('f2'),
-    3: document.getElementById('f3'),
-    4: document.getElementById('f4'),
-    5: document.getElementById('f5'),
-    6: document.getElementById('f6'),
-  };
-
+  const frames = { 1:document.getElementById('f1'), 2:document.getElementById('f2'), 3:document.getElementById('f3'), 4:document.getElementById('f4'), 5:document.getElementById('f5'), 6:document.getElementById('f6') };
   const modal = document.getElementById('modal');
   const modalTitle = document.getElementById('modalTitle');
   const urlInput = document.getElementById('urlInput');
   const okBtn = document.getElementById('okBtn');
   const cancelBtn = document.getElementById('cancelBtn');
-
   let activeSlot = null;
   let holdTimer = null;
 
@@ -268,26 +195,18 @@
     if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
     return u;
   }
-
-  function tileEl(slot){
-    return document.querySelector(`.tile[data-slot="${slot}"]`);
-  }
-
+  function tileEl(slot){ return document.querySelector(`.tile[data-slot="${slot}"]`); }
   function setSlotUrl(slot, url, save=true){
     const clean = normalizeUrl(url);
-
     if (save){
       if (clean) localStorage.setItem('dash6_url_' + slot, clean);
       else localStorage.removeItem('dash6_url_' + slot);
     }
-
     frames[slot].src = clean || 'about:blank';
-
     const t = tileEl(slot);
     if (clean) t.classList.add('ready');
     else t.classList.remove('ready');
   }
-
   function openModal(slot){
     activeSlot = slot;
     modalTitle.textContent = 'הגדרת קישור לחלון #' + slot;
@@ -295,65 +214,29 @@
     modal.classList.add('show');
     setTimeout(() => urlInput.focus(), 50);
   }
-
-  function closeModal(){
-    modal.classList.remove('show');
-    activeSlot = null;
-    urlInput.value = '';
-  }
-
+  function closeModal(){ modal.classList.remove('show'); activeSlot = null; urlInput.value = ''; }
   function attachHold(el, getSlot){
-    const start = (e) => {
-      // מניעת התנהגות דיפולטיבית כדי לא להפריע ללחיצה
-      // e.preventDefault?.(); 
-      clearTimeout(holdTimer);
-      holdTimer = setTimeout(() => openModal(getSlot()), HOLD_MS);
-    };
+    const start = (e) => { clearTimeout(holdTimer); holdTimer = setTimeout(() => openModal(getSlot()), HOLD_MS); };
     const stop = () => clearTimeout(holdTimer);
-
     el.addEventListener('mousedown', start);
     el.addEventListener('touchstart', start, {passive:false});
-
     el.addEventListener('mouseup', stop);
     el.addEventListener('mouseleave', stop);
     el.addEventListener('touchend', stop);
     el.addEventListener('touchcancel', stop);
-
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
-  // Load URLs: saved -> default
   for (let i=1; i<=6; i++){
     const saved = localStorage.getItem('dash6_url_' + i);
     setSlotUrl(i, saved || defaultUrls[i] || '', false);
   }
-
-  // Long press on overlay (before URL exists)
-  document.querySelectorAll('.overlay').forEach(ov => {
-    attachHold(ov, () => Number(ov.dataset.slot));
-  });
-
-  // Long press on hidden hotspot (after URL exists)
-  document.querySelectorAll('.hotspot').forEach(hs => {
-    attachHold(hs, () => Number(hs.dataset.slot));
-  });
-
-  okBtn.addEventListener('click', () => {
-    if (!activeSlot) return closeModal();
-    setSlotUrl(activeSlot, urlInput.value, true);
-    closeModal();
-  });
-
+  document.querySelectorAll('.overlay').forEach(ov => attachHold(ov, () => Number(ov.dataset.slot)));
+  document.querySelectorAll('.hotspot').forEach(hs => attachHold(hs, () => Number(hs.dataset.slot)));
+  okBtn.addEventListener('click', () => { if (!activeSlot) return closeModal(); setSlotUrl(activeSlot, urlInput.value, true); closeModal(); });
   cancelBtn.addEventListener('click', closeModal);
-
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
-  });
-
-  urlInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') okBtn.click();
-    if (e.key === 'Escape') closeModal();
-  });
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') okBtn.click(); if (e.key === 'Escape') closeModal(); });
 })();
 </script>
 </body>
