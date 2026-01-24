@@ -3,17 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFun Booth</title>
+    <title>PhotoFun Booth Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
     <style>
-        /* --- עיצוב כללי וקרטון --- */
+        /* --- עיצוב כללי --- */
         body {
             margin: 0;
             padding: 0;
             background-color: #f0f8ff;
-            background-image: radial-gradient(#e6e6fa 20%, transparent 20%), radial-gradient(#ffe4e1 20%, transparent 20%);
-            background-size: 50px 50px;
-            background-position: 0 0, 25px 25px;
             font-family: 'Varela Round', sans-serif;
             overflow: hidden;
             height: 100vh;
@@ -25,10 +22,12 @@
             user-select: none;
         }
 
+        /* סגנון כותרות */
         h1, h2, h3 {
             font-family: 'Fredoka One', cursive;
             color: #ff6b6b;
             text-shadow: 2px 2px 0px #fff, 4px 4px 0px #ffd93d;
+            margin: 10px 0;
         }
 
         /* --- מסכים --- */
@@ -43,18 +42,18 @@
             top: 0;
             left: 0;
             transition: opacity 0.5s;
+            background-size: cover;
+            background-position: center;
         }
 
-        .active {
-            display: flex;
-        }
+        .active { display: flex; }
 
         /* --- מצלמה --- */
         #camera-feed {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scaleX(-1); /* מראה */
+            transform: scaleX(-1);
             position: absolute;
             z-index: -1;
         }
@@ -70,13 +69,13 @@
             font-family: 'Fredoka One', cursive;
             cursor: pointer;
             box-shadow: 0 10px 0 #2cb5ac, 0 15px 20px rgba(0,0,0,0.2);
-            transition: transform 0.1s, box-shadow 0.1s;
             animation: bounce 2s infinite;
+            z-index: 10;
         }
 
         .start-btn:active {
             transform: translateY(10px);
-            box-shadow: 0 0 0 #2cb5ac, 0 0 0 rgba(0,0,0,0);
+            box-shadow: 0 0 0 #2cb5ac;
         }
 
         @keyframes bounce {
@@ -92,20 +91,13 @@
             -webkit-text-stroke: 3px #ff6b6b;
             text-shadow: 5px 5px 0 #333;
             font-family: 'Fredoka One', cursive;
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
         }
 
         /* --- תצוגה מקדימה של הסטריפ --- */
         #final-strip {
-            max-height: 80vh;
-            border: 10px solid white;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-height: 75vh;
+            border: 5px solid white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border-radius: 5px;
         }
 
@@ -128,6 +120,7 @@
             margin-bottom: 20px;
             text-align: center;
             font-family: 'Varela Round', sans-serif;
+            box-sizing: border-box;
         }
 
         .dial-pad {
@@ -151,7 +144,7 @@
         .dial-btn:active { background: #ddd; }
 
         .call-btn {
-            background: #25D366; /* צבע ווטסאפ */
+            background: #25D366;
             color: white;
             width: 100%;
             padding: 15px;
@@ -173,28 +166,55 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 30px;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
             border-radius: 20px;
             box-shadow: 0 0 100px rgba(0,0,0,0.5);
             z-index: 999;
             text-align: right;
             border: 5px solid #ff6b6b;
+            max-height: 80vh;
+            overflow-y: auto;
         }
         .admin-input {
             display: block;
             width: 100%;
-            margin: 10px 0;
+            margin: 5px 0 15px 0;
             padding: 10px;
-            font-size: 1.2rem;
+            font-size: 1rem;
+            box-sizing: border-box;
         }
+        
+        /* בחירת רקעים */
+        .bg-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .bg-option {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border: 3px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .bg-option.selected {
+            border: 3px solid #4ecdc4;
+            box-shadow: 0 0 10px #4ecdc4;
+        }
+
         .close-admin {
-            margin-top: 10px;
+            width: 100%;
             background: #ff6b6b;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 10px;
             font-size: 1.2rem;
             cursor: pointer;
+            border-radius: 10px;
         }
 
     </style>
@@ -205,32 +225,35 @@
 
     <div id="screen-start" class="screen active">
         <h1>עמדת צילום</h1>
-        <h2 id="event-title-display">חתונה של...</h2>
+        <h2 id="event-title-display">האירוע שלנו</h2>
+        <div style="flex-grow: 1;"></div>
         <button id="btn-start" class="start-btn">התחל!</button>
-        <p style="margin-top: 20px; opacity: 0.6; font-size: 0.8rem;">(לחיצה ארוכה להגדרות)</p>
+        <div style="flex-grow: 1;"></div>
+        <p style="opacity: 0.5; font-size: 0.8rem;">(לחיצה ארוכה להגדרות)</p>
     </div>
 
     <div id="screen-camera" class="screen">
         <video id="camera-feed" autoplay playsinline muted></video>
         <div id="countdown-display">10</div>
-        <div style="position: absolute; bottom: 20px; color: white; font-size: 2rem; font-family: 'Fredoka One';">
+        <div style="position: absolute; bottom: 20px; color: white; font-size: 2rem; font-family: 'Fredoka One'; text-shadow: 2px 2px 4px black;">
             תמונה <span id="photo-count">1</span> מתוך 3
         </div>
     </div>
 
-    <div id="screen-preview" class="screen" style="background: rgba(0,0,0,0.8);">
-        <h2 style="color: white; margin-bottom: 10px;">איזה יופי!</h2>
+    <div id="screen-preview" class="screen" style="background: rgba(0,0,0,0.9);">
+        <h2 style="color: white;">איזה יופי!</h2>
         <img id="final-strip" src="" alt="Photo Strip">
     </div>
 
-    <div id="screen-phone" class="screen">
+    <div id="screen-phone" class="screen" style="background: #f0f8ff;">
         <div class="phone-mockup">
-            <h3>שלח לווטסאפ</h3>
+            <h3>הכנס מספר לשליחה</h3>
             <div style="background: #eee; padding: 10px; border-radius: 10px; margin-bottom: 15px;">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="40" style="vertical-align: middle;">
-                <span style="font-weight: bold; margin-right: 10px;">שליחת תמונה</span>
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="30" style="vertical-align: middle;">
+                <span style="font-size: 0.9rem;">שליחת התמונה בווטסאפ</span>
             </div>
-            <input type="tel" id="phone-number" class="phone-input" placeholder="הכנס מספר נייד" readonly>
+            
+            <input type="tel" id="phone-number" class="phone-input" placeholder="050xxxxxxx" readonly>
             
             <div class="dial-pad">
                 <button class="dial-btn" onclick="addDigit('1')">1</button>
@@ -248,39 +271,105 @@
             </div>
 
             <button class="call-btn" onclick="shareToWhatsApp()">
-                📞 שלח עכשיו
+                📞 שלח לווטסאפ
             </button>
         </div>
     </div>
 
     <div id="admin-panel" class="admin-modal">
         <h3>הגדרות אירוע</h3>
-        <label>שם האירוע (שורה 1):</label>
-        <input type="text" id="input-event-name" class="admin-input" placeholder="למשל: דני & מאיה">
-        <label>תאריך (שורה 2):</label>
+        
+        <label>שם האירוע:</label>
+        <input type="text" id="input-event-name" class="admin-input" placeholder="למשל: ברית למשה">
+        
+        <label>תאריך:</label>
         <input type="text" id="input-event-date" class="admin-input" placeholder="21.02.2023">
+        
+        <label>בחר רקע לסטריפ:</label>
+        <div class="bg-selector" id="bg-grid">
+            </div>
+
         <button class="close-admin" onclick="saveSettings()">שמור וסגור</button>
     </div>
-
+    
     <script>
+        // --- קונפיגורציה ---
+        const backgroundFiles = ['bg1.jpg', 'bg2.jpg', 'bg3.jpg', 'bg4.jpg', 'bg5.jpg', 'bg6.jpg'];
+        
         // --- משתנים גלובליים ---
         let currentPhotoIndex = 0;
         const totalPhotos = 3;
-        const photos = []; // כאן נשמור את התמונות הגולמיות
+        const photos = [];
         let videoStream = null;
+        
+        // טעינת הגדרות שמורות
         let eventName = localStorage.getItem('eventName') || "האירוע שלנו";
         let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
+        let selectedBg = localStorage.getItem('selectedBg') || null; // שם הקובץ הנבחר
 
         // --- אתחול ---
         document.addEventListener('DOMContentLoaded', () => {
             updateLabels();
             setupLongPress();
+            renderBgSelector();
+            applyMainBackground();
         });
 
         function updateLabels() {
             document.getElementById('event-title-display').innerText = eventName;
             document.getElementById('input-event-name').value = eventName;
             document.getElementById('input-event-date').value = eventDate;
+        }
+
+        function applyMainBackground() {
+            // מעדכן את הרקע הראשי של המסך הראשון אם נבחר רקע
+            /* אופציה: אם אתה רוצה שגם המסך הראשי יקבל את הרקע, בטל את ההערה למטה */
+            // if(selectedBg) {
+            //     document.body.style.backgroundImage = `url('${selectedBg}')`;
+            //     document.body.style.backgroundSize = 'cover';
+            // }
+        }
+
+        // --- ניהול רקעים ---
+        function renderBgSelector() {
+            const grid = document.getElementById('bg-grid');
+            grid.innerHTML = '';
+            
+            // תצוגת "ללא רקע" (ברירת מחדל לבן)
+            const whiteDiv = document.createElement('div');
+            whiteDiv.className = 'bg-option';
+            whiteDiv.style.background = '#fdfbf7';
+            whiteDiv.style.display = 'flex';
+            whiteDiv.style.alignItems = 'center';
+            whiteDiv.style.justifyContent = 'center';
+            whiteDiv.innerText = 'לבן';
+            if(!selectedBg) whiteDiv.classList.add('selected');
+            whiteDiv.onclick = () => selectBackground(null, whiteDiv);
+            grid.appendChild(whiteDiv);
+
+            // תצוגת התמונות
+            backgroundFiles.forEach(file => {
+                const img = document.createElement('img');
+                img.src = file;
+                img.className = 'bg-option';
+                img.alt = file;
+                // בדיקה האם זה הרקע שנבחר בעבר
+                if (selectedBg === file) img.classList.add('selected');
+                
+                img.onclick = () => selectBackground(file, img);
+                
+                // אם התמונה לא קיימת, נסתיר אותה מהבחירה שלא יראה מכוער
+                img.onerror = () => { img.style.display = 'none'; };
+                
+                grid.appendChild(img);
+            });
+        }
+
+        function selectBackground(filename, element) {
+            selectedBg = filename;
+            // עדכון ויזואלי של הבחירה
+            document.querySelectorAll('.bg-option').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
         }
 
         // --- לוגיקת לחיצה ארוכה (Admin) ---
@@ -291,7 +380,7 @@
             const startPress = () => {
                 pressTimer = setTimeout(() => {
                     document.getElementById('admin-panel').style.display = 'block';
-                }, 5000); // 5 שניות
+                }, 4000); 
             };
 
             const cancelPress = () => {
@@ -307,9 +396,17 @@
         function saveSettings() {
             eventName = document.getElementById('input-event-name').value;
             eventDate = document.getElementById('input-event-date').value;
+            
             localStorage.setItem('eventName', eventName);
             localStorage.setItem('eventDate', eventDate);
+            if(selectedBg) {
+                localStorage.setItem('selectedBg', selectedBg);
+            } else {
+                localStorage.removeItem('selectedBg');
+            }
+
             updateLabels();
+            applyMainBackground();
             document.getElementById('admin-panel').style.display = 'none';
         }
 
@@ -324,14 +421,15 @@
             currentPhotoIndex = 0;
             photos.length = 0;
             try {
-                // בקשת גישה למצלמה
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 1280, height: 720 } });
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user", width: {ideal: 1280}, height: {ideal: 720} } 
+                });
                 videoStream = stream;
                 document.getElementById('camera-feed').srcObject = stream;
                 showScreen('screen-camera');
                 runPhotoLoop();
             } catch (err) {
-                alert("לא ניתן לגשת למצלמה. וודא שאתה ב-HTTPS ואישרת הרשאות.");
+                alert("שגיאת מצלמה. וודא HTTPS.");
                 console.error(err);
             }
         });
@@ -359,6 +457,18 @@
         }
 
         function takePicture() {
+            const video = document.getElementById('camera-feed');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            photos.push(canvas); 
+            
             // אפקט פלאש
             const flash = document.createElement('div');
             flash.style.position = 'fixed';
@@ -366,108 +476,101 @@
             flash.style.background = 'white';
             flash.style.zIndex = 9999;
             document.body.appendChild(flash);
-            setTimeout(() => flash.remove(), 200);
+            setTimeout(() => flash.remove(), 150);
 
-            // לכידת תמונה מהוידאו
-            const video = document.getElementById('camera-feed');
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            
-            // אנחנו צריכים להפוך את התמונה (מראה) כדי שזה ייראה טבעי כמו בסלפי
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            photos.push(canvas); // שמירת האלמנט קנבס עצמו
             currentPhotoIndex++;
             runPhotoLoop();
         }
 
         function finishPhotography() {
-            // עצירת המצלמה
-            videoStream.getTracks().forEach(track => track.stop());
-            
-            // יצירת הסטריפ הסופי
+            if(videoStream) videoStream.getTracks().forEach(track => track.stop());
             generateFinalStrip();
         }
 
-        // --- יצירת הסטריפ (עיבוד תמונה) ---
+        // --- יצירת הסטריפ (עם תמיכה ברקע) ---
         function generateFinalStrip() {
             const finalCanvas = document.getElementById('photoCanvas');
             const ctx = finalCanvas.getContext('2d');
 
-            // הגדרות גודל הסטריפ
             const photoWidth = 600; 
-            const photoHeight = 450; // יחס 4:3
-            const padding = 30;
-            const headerHeight = 0; 
-            const footerHeight = 250; // מקום לטקסט למטה
+            const photoHeight = 450; 
+            const padding = 40; // קצת יותר מרווח
+            const footerHeight = 250; 
 
-            // חישוב גובה כולל: (גובה תמונה * 3) + רווחים + פוטר
             const totalHeight = (photoHeight * 3) + (padding * 4) + footerHeight;
             const totalWidth = photoWidth + (padding * 2);
 
             finalCanvas.width = totalWidth;
             finalCanvas.height = totalHeight;
 
-            // רקע "נייר קראפט" או לבן
-            ctx.fillStyle = '#fdfbf7'; // צבע שמנת/לבן
-            ctx.fillRect(0, 0, totalWidth, totalHeight);
+            // פונקציית הציור בפועל
+            const drawContent = () => {
+                photos.forEach((photoCanvas, i) => {
+                    const yPos = padding + (i * (photoHeight + padding));
+                    
+                    // מסגרת לבנה לתמונות אם יש רקע צבעוני
+                    if(selectedBg) {
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(padding - 10, yPos - 10, photoWidth + 20, photoHeight + 20);
+                    }
 
-            // ציור התמונות
-            photos.forEach((photoCanvas, i) => {
-                const yPos = padding + (i * (photoHeight + padding));
+                    // Crop center
+                    const sWidth = photoCanvas.height * (4/3);
+                    const sHeight = photoCanvas.height;
+                    const sx = (photoCanvas.width - sWidth) / 2;
+
+                    ctx.drawImage(photoCanvas, sx, 0, sWidth, sHeight, padding, yPos, photoWidth, photoHeight);
+                });
+
+                // טקסט
+                const footerY = totalHeight - footerHeight + 60;
+                ctx.textAlign = 'center';
                 
-                // ציור מסגרת שחורה דקה סביב התמונה (אופציונלי)
-                // ctx.strokeRect(padding, yPos, photoWidth, photoHeight);
+                // צבע הטקסט תלוי ברקע (פשוט נעשה שחור עם הצללה לבנה לקריאות)
+                ctx.fillStyle = '#333';
+                ctx.shadowColor = "white";
+                ctx.shadowBlur = 0;
+                
+                ctx.font = 'bold 50px "Fredoka One", sans-serif'; 
+                ctx.fillText(eventName, totalWidth / 2, footerY + 50);
 
-                // חיתוך מרכזי של התמונה (Crop to Aspect Ratio)
-                // התמונות מהמצלמה רחבות, אנחנו נחתוך את המרכז
-                const sWidth = photoCanvas.height * (4/3);
-                const sHeight = photoCanvas.height;
-                const sx = (photoCanvas.width - sWidth) / 2;
-                const sy = 0;
+                ctx.font = '35px "Varela Round", sans-serif';
+                ctx.fillText(eventDate, totalWidth / 2, footerY + 110);
 
-                ctx.drawImage(photoCanvas, sx, sy, sWidth, sHeight, padding, yPos, photoWidth, photoHeight);
-            });
+                // הצגה
+                const finalImage = document.getElementById('final-strip');
+                finalImage.src = finalCanvas.toDataURL('image/jpeg', 0.9);
+                showScreen('screen-preview');
+                setTimeout(() => { showScreen('screen-phone'); }, 3000);
+            };
 
-            // ציור הטקסט למטה (Footer)
-            const footerY = totalHeight - footerHeight + 50;
-            
-            ctx.fillStyle = '#333';
-            ctx.textAlign = 'center';
-            
-            // שם האירוע (פונט קליגרפי/מצויר)
-            ctx.font = 'bold 50px "Fredoka One", sans-serif'; 
-            ctx.fillText(eventName, totalWidth / 2, footerY + 50);
-
-            // תאריך
-            ctx.font = '30px "Varela Round", sans-serif';
-            ctx.fillText(eventDate, totalWidth / 2, footerY + 110);
-            
-            // קרדיט קטן
-            ctx.font = '15px sans-serif';
-            ctx.fillStyle = '#aaa';
-            ctx.fillText("D-I הפקות", totalWidth / 2, totalHeight - 20);
-
-            // המרה לתמונה והצגה
-            const finalImage = document.getElementById('final-strip');
-            finalImage.src = finalCanvas.toDataURL('image/jpeg', 0.9);
-
-            showScreen('screen-preview');
-
-            // מעבר למסך טלפון אחרי 3 שניות
-            setTimeout(() => {
-                showScreen('screen-phone');
-            }, 3000);
+            // טעינת תמונת הרקע אם נבחרה
+            if (selectedBg) {
+                const bgImg = new Image();
+                bgImg.crossOrigin = "anonymous"; // למקרה של בעיות טעינה
+                bgImg.src = selectedBg;
+                bgImg.onload = () => {
+                    // מתיחת הרקע על כל הקנבס
+                    ctx.drawImage(bgImg, 0, 0, totalWidth, totalHeight);
+                    drawContent();
+                };
+                bgImg.onerror = () => {
+                    // במקרה של שגיאה בטעינת הרקע - צבע חלק
+                    ctx.fillStyle = '#fdfbf7';
+                    ctx.fillRect(0, 0, totalWidth, totalHeight);
+                    drawContent();
+                };
+            } else {
+                // ללא תמונת רקע
+                ctx.fillStyle = '#fdfbf7';
+                ctx.fillRect(0, 0, totalWidth, totalHeight);
+                drawContent();
+            }
         }
 
         // --- ממשק הטלפון ---
         function addDigit(digit) {
-            const input = document.getElementById('phone-number');
-            input.value += digit;
+            document.getElementById('phone-number').value += digit;
         }
 
         function clearDigit() {
@@ -484,42 +587,45 @@
             const phoneNumber = document.getElementById('phone-number').value;
             const canvas = document.getElementById('photoCanvas');
 
-            // המרה ל-Blob כדי לשתף
             canvas.toBlob(async (blob) => {
                 const file = new File([blob], "photostrip.jpg", { type: "image/jpeg" });
                 
-                // בדיקה אם הדפדפן תומך בשיתוף קבצים
+                // ניסיון ראשון: Web Share API (עובד בניידים)
                 if (navigator.share && navigator.canShare({ files: [file] })) {
                     try {
                         await navigator.share({
                             files: [file],
-                            title: 'תמונה מהאירוע!',
-                            text: `היי! הנה התמונה שלנו מ-${eventName} ❤️`
+                            title: eventName,
+                            text: `מזכרת מ-${eventName} ❤️`
                         });
-                        alert("נשלח בהצלחה!");
+                        alert("השיתוף נפתח! בחר בווטסאפ ושלח.");
                         restart();
                     } catch (error) {
-                        console.log("Sharing failed", error);
+                        console.log("Share cancelled or failed", error);
                     }
                 } else {
-                    // גיבוי למחשב או דפדפנים ישנים - הורדה רגילה + שליחת הודעה
-                    alert("המכשיר לא תומך בשיתוף ישיר. התמונה יורדת למכשיר כעת...");
+                    // fallback למחשב או דפדפנים ישנים
+                    alert("מוריד את התמונה למכשיר...");
                     const link = document.createElement('a');
                     link.download = `photo-${Date.now()}.jpg`;
                     link.href = canvas.toDataURL();
                     link.click();
                     
-                    // ניסיון לפתוח ווטסאפ (רק טקסט)
+                    // כאן הניסיון לפתוח צ'אט עם המספר, אבל זה יהיה בלי תמונה
                     if(phoneNumber) {
+                        // ניקוי המספר
                         let cleanNum = phoneNumber.replace(/\D/g,'');
                         if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
-                        window.location.href = `https://wa.me/${cleanNum}?text=התמונה נשמרה אצלי במכשיר!`;
+                        
+                        // הסבר למשתמש
+                        if(confirm("התמונה ירדה לגלריה. האם לפתוח את הווטסאפ למספר זה כדי שתוכל לצרף אותה ידנית?")) {
+                            window.location.href = `https://wa.me/${cleanNum}`;
+                        }
                     }
                     restart();
                 }
             }, 'image/jpeg');
         }
-
     </script>
 </body>
 </html>
