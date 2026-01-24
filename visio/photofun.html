@@ -521,11 +521,7 @@
             finalCanvas.width = canvasWidth;
             finalCanvas.height = canvasHeight;
 
-            // ✅ שינויים שביקשת:
-            // 1) תמונות קטנות יותר
-            // 2) תמונות מרובעות (1:1)
-            // 3) מרווח עליון גדול כדי לא להסתיר כותרת ברקע
-            // 4) טקסט למטה צבעוני ומחוץ לתמונה
+            // ✅ התאמות הסטריפ (כמו שאישרת)
             const photoSize = 460;      // ריבוע קטן יותר
             const gap = 55;
             const topMargin = 260;      // כדי לא לכסות "פורים שמח" למעלה
@@ -640,45 +636,46 @@
             document.getElementById('phone-number').value = '';
         }
 
+        // ✅ שינוי יחיד שביקשת: פתיחת וואטסאפ ישירות למספר שהוקלד (גם אם לא איש קשר)
         async function shareToWhatsApp() {
-            const phoneNumber = document.getElementById('phone-number').value;
+            const phoneNumber = document.getElementById('phone-number').value.trim();
             const canvas = document.getElementById('photoCanvas');
 
-            canvas.toBlob(async (blob) => {
-                const file = new File([blob], "photostrip.jpg", { type: "image/jpeg" });
-                
-                if (navigator.share && navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({
-                            files: [file],
-                            title: eventName,
-                            text: `מזכרת מ-${eventName} ❤️`
-                        });
-                        alert("השיתוף נפתח! בחר בווטסאפ ושלח.");
-                        restart();
-                    } catch (error) {
-                        console.log("Share error", error);
-                    }
-                } else {
-                    alert("מוריד תמונה...");
-                    const link = document.createElement('a');
-                    link.download = `photo-${Date.now()}.jpg`;
-                    link.href = canvas.toDataURL();
-                    link.click();
-                    
-                    if(phoneNumber) {
-                        let cleanNum = phoneNumber.replace(/\D/g,'');
-                        if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
-                        if(confirm("לפתוח ווטסאפ למספר זה?")) {
-                            window.location.href = `https://wa.me/${cleanNum}`;
-                        }
-                    }
+            if (!phoneNumber) {
+                alert("הכנס מספר טלפון ואז לחץ שלח.");
+                return;
+            }
+
+            // ניקוי מספר והמרה ל-972 אם מתחיל ב-0
+            let cleanNum = phoneNumber.replace(/\D/g,'');
+            if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
+
+            const msg = `היי! מזכרת מ-${eventName} 🎉\nמצרף תמונה עכשיו.`;
+            const waUrl = `https://wa.me/${cleanNum}?text=${encodeURIComponent(msg)}`;
+
+            // מוריד תמונה (כמו שהיה fallback אצלך) ואז פותח וואטסאפ על המספר
+            canvas.toBlob((blob) => {
+                const link = document.createElement('a');
+                link.download = `photo-${Date.now()}.jpg`;
+                link.href = URL.createObjectURL(blob);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+
+                // פתיחת וואטסאפ לצ'אט של המספר שהוקלד
+                window.location.href = waUrl;
+
+                // חזרה לאפליקציה אחרי רגע (כמו זרימה נוחה)
+                setTimeout(() => {
+                    alert("וואטסאפ נפתח על המספר שהקלדת.\nהתמונה ירדה למכשיר — צרף אותה ושלח.");
                     restart();
-                }
-            }, 'image/jpeg');
+                }, 1200);
+
+            }, 'image/jpeg', 0.92);
         }
 
-        // חשיפת פונקציות לכפתורים (כמו שהיה)
+        // חשיפה לכפתורים (כמו שהיה)
         window.addDigit = addDigit;
         window.clearDigit = clearDigit;
         window.restart = restart;
