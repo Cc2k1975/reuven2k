@@ -1,189 +1,688 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PhotoFun Booth HD</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PhotoFun Booth HD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
+    <style>
+        /* --- עיצוב כללי --- */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f8ff;
+            background-image: radial-gradient(#e6e6fa 20%, transparent 20%), radial-gradient(#ffe4e1 20%, transparent 20%);
+            background-size: 50px 50px;
+            background-position: 0 0, 25px 25px;
+            font-family: 'Varela Round', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            user-select: none;
+        }
 
-<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
+        h1, h2, h3 {
+            font-family: 'Fredoka One', cursive;
+            color: #ff6b6b;
+            text-shadow: 2px 2px 0px #fff, 4px 4px 0px #ffd93d;
+            margin: 10px 0;
+        }
 
-<style>
-body{
-    margin:0;
-    height:100vh;
-    overflow:hidden;
-    font-family:'Varela Round',sans-serif;
-}
-.screen{
-    position:absolute;
-    inset:0;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    flex-direction:column;
-}
-.screen.active{display:flex;}
+        /* --- מסכים --- */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: opacity 0.5s;
+        }
 
-#final-strip{
-    width:100vw;
-    height:100vh;
-    object-fit:cover;
-}
+        .active { display: flex; }
 
-#camera-feed{
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    transform:scaleX(-1);
-}
+        /* --- מצלמה --- */
+        #camera-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
+        #camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            transform: scaleX(-1);
+        }
 
-.start-btn{
-    font-family:'Fredoka One';
-    font-size:3rem;
-    padding:20px 60px;
-    border-radius:50px;
-    border:none;
-    background:#4ecdc4;
-    color:white;
-    cursor:pointer;
-}
-</style>
+        /* --- אלמנטי ממשק --- */
+        .start-btn {
+            background-color: #4ecdc4;
+            color: white;
+            border: 4px solid #fff;
+            border-radius: 50px;
+            padding: 20px 60px;
+            font-size: 3rem;
+            font-family: 'Fredoka One', cursive;
+            cursor: pointer;
+            box-shadow: 0 10px 0 #2cb5ac, 0 15px 20px rgba(0,0,0,0.2);
+            animation: bounce 2s infinite;
+            z-index: 10;
+        }
+
+        .start-btn:active {
+            transform: translateY(10px);
+            box-shadow: 0 0 0 #2cb5ac;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-20px);}
+            60% {transform: translateY(-10px);}
+        }
+
+        /* ספירה לאחור */
+        #countdown-container {
+            position: absolute;
+            bottom: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #countdown-display {
+            font-size: 8rem;
+            color: #fff;
+            -webkit-text-stroke: 3px #ff6b6b;
+            text-shadow: 4px 4px 0 #333;
+            font-family: 'Fredoka One', cursive;
+            margin-bottom: 10px;
+        }
+
+        /* --- תצוגה מקדימה של הסטריפ --- */
+        #final-strip {
+            max-height: 85vh; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 5px;
+        }
+
+        /* --- ממשק טלפון --- */
+        .phone-mockup {
+            background: white;
+            border-radius: 30px;
+            padding: 20px;
+            width: 300px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            border: 8px solid #333;
+        }
+
+        .phone-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.5rem;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-family: 'Varela Round', sans-serif;
+            box-sizing: border-box;
+        }
+
+        .dial-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .dial-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 15px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #333;
+        }
+        
+        .dial-btn:active { background: #ddd; }
+
+        .call-btn {
+            background: #25D366;
+            color: white;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* --- מודל הגדרות (Admin) --- */
+        .admin-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 20px;
+            box-shadow: 0 0 100px rgba(0,0,0,0.5);
+            z-index: 999;
+            text-align: right;
+            border: 5px solid #ff6b6b;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .admin-input {
+            display: block;
+            width: 100%;
+            margin: 5px 0 15px 0;
+            padding: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        /* בחירת רקעים */
+        .bg-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .bg-option {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border: 3px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #eee;
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .bg-option.selected {
+            border: 3px solid #4ecdc4;
+            box-shadow: 0 0 10px #4ecdc4;
+        }
+
+        .close-admin {
+            width: 100%;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 10px;
+        }
+
+    </style>
 </head>
-
 <body>
 
-<canvas id="photoCanvas" style="display:none"></canvas>
+    <canvas id="photoCanvas" style="display:none;"></canvas>
 
-<div id="screen-start" class="screen active">
-    <h1 style="font-family:'Fredoka One';font-size:3.5rem">עמדת צילום</h1>
-    <h2 id="event-title-display" style="font-family:'Fredoka One'">מסיבת פורים</h2>
-    <button id="btn-start" class="start-btn">התחל</button>
-</div>
+    <div id="screen-start" class="screen active">
+        <h1>עמדת צילום</h1>
+        <h2 id="event-title-display">האירוע שלנו</h2>
+        <div style="flex-grow: 1;"></div>
+        <button id="btn-start" class="start-btn">התחל!</button>
+        <div style="flex-grow: 1;"></div>
+        <p style="opacity: 0.5; font-size: 0.8rem; background: rgba(255,255,255,0.7); padding: 5px; border-radius: 10px;">(לחיצה ארוכה להגדרות)</p>
+    </div>
 
-<div id="screen-camera" class="screen">
-    <video id="camera-feed" autoplay playsinline muted></video>
-</div>
+    <div id="screen-camera" class="screen">
+        <div id="camera-wrapper">
+            <video id="camera-feed" autoplay playsinline muted></video>
+        </div>
+        <div id="countdown-container">
+            <div id="countdown-display">10</div>
+            <div style="color: white; font-size: 2rem; font-family: 'Fredoka One'; text-shadow: 2px 2px 4px black;">
+                תמונה <span id="photo-count">1</span> מתוך 3
+            </div>
+        </div>
+    </div>
 
-<div id="screen-preview" class="screen">
-    <img id="final-strip">
-</div>
+    <div id="screen-preview" class="screen" style="background: rgba(0,0,0,0.9);">
+        <h2 style="color: white; margin-top: 10px;">מושלם!</h2>
+        <img id="final-strip" src="" alt="Photo Strip">
+    </div>
 
-<script>
-const totalPhotos = 3;
-const photos = [];
-let current = 0;
-let stream = null;
+    <div id="screen-phone" class="screen" style="background: #f0f8ff;">
+        <div class="phone-mockup">
+            <h3>הכנס מספר לשליחה</h3>
+            <div style="background: #eee; padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="30" style="vertical-align: middle;">
+                <span style="font-size: 0.9rem;">שליחת התמונה בווטסאפ</span>
+            </div>
+            
+            <input type="tel" id="phone-number" class="phone-input" placeholder="050xxxxxxx" readonly>
+            
+            <div class="dial-pad">
+                <button class="dial-btn" onclick="addDigit('1')">1</button>
+                <button class="dial-btn" onclick="addDigit('2')">2</button>
+                <button class="dial-btn" onclick="addDigit('3')">3</button>
+                <button class="dial-btn" onclick="addDigit('4')">4</button>
+                <button class="dial-btn" onclick="addDigit('5')">5</button>
+                <button class="dial-btn" onclick="addDigit('6')">6</button>
+                <button class="dial-btn" onclick="addDigit('7')">7</button>
+                <button class="dial-btn" onclick="addDigit('8')">8</button>
+                <button class="dial-btn" onclick="addDigit('9')">9</button>
+                <button class="dial-btn" style="color:red;" onclick="clearDigit()">C</button>
+                <button class="dial-btn" onclick="addDigit('0')">0</button>
+                <button class="dial-btn" onclick="restart()">🏠</button>
+            </div>
 
-let eventName = "מסיבת פורים";
-let eventDate = "24.1.2026";
-let selectedBg = "1.jpg";   // רקע נבחר
+            <button class="call-btn" onclick="shareToWhatsApp()">
+                📞 שלח לווטסאפ
+            </button>
+        </div>
+    </div>
 
-document.getElementById("btn-start").onclick = async()=>{
-    current = 0;
-    photos.length = 0;
-    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
-    document.getElementById("camera-feed").srcObject = stream;
-    show("screen-camera");
-    shoot();
-};
+    <div id="admin-panel" class="admin-modal">
+        <h3>הגדרות אירוע</h3>
+        
+        <label>שם האירוע:</label>
+        <input type="text" id="input-event-name" class="admin-input" placeholder="למשל: ברית למשה">
+        
+        <label>תאריך:</label>
+        <input type="text" id="input-event-date" class="admin-input" placeholder="21.02.2023">
+        
+        <label>בחר רקע לסטריפ:</label>
+        <div style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">* וודא שהקבצים 1.jpg - 6.jpg נמצאים בתיקייה</div>
+        <div class="bg-selector" id="bg-grid"></div>
 
-function shoot(){
-    if(current>=totalPhotos){
-        stream.getTracks().forEach(t=>t.stop());
-        buildStrip();
-        return;
-    }
-    setTimeout(()=>{
-        const v = document.getElementById("camera-feed");
-        const c = document.createElement("canvas");
-        c.width=v.videoWidth;
-        c.height=v.videoHeight;
-        const x=c.getContext("2d");
-        x.translate(c.width,0);
-        x.scale(-1,1);
-        x.drawImage(v,0,0);
-        photos.push(c);
-        current++;
-        shoot();
-    },1500);
-}
+        <button class="close-admin" onclick="saveSettings()">שמור וסגור</button>
+    </div>
+    
+    <script>
+        // --- קונפיגורציה ---
+        const backgroundFiles = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'];
+        
+        // --- משתנים גלובליים ---
+        let currentPhotoIndex = 0;
+        const totalPhotos = 3;
+        const photos = [];
+        let videoStream = null;
+        
+        let eventName = localStorage.getItem('eventName') || "האירוע שלנו";
+        let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
+        let selectedBg = localStorage.getItem('selectedBg') || null;
 
-function show(id){
-    document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
-    document.getElementById(id).classList.add("active");
-}
+        // --- אתחול ---
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLabels();
+            setupLongPress();
+            renderBgSelector();
+        });
 
-function buildStrip(){
-    const canvas=document.getElementById("photoCanvas");
-    const ctx=canvas.getContext("2d");
+        function updateLabels() {
+            document.getElementById('event-title-display').innerText = eventName;
+            document.getElementById('input-event-name').value = eventName;
+            document.getElementById('input-event-date').value = eventDate;
+        }
 
-    const W=900,H=1920;
-    canvas.width=W;
-    canvas.height=H;
+        // --- ניהול רקעים ---
+        function renderBgSelector() {
+            const grid = document.getElementById('bg-grid');
+            grid.innerHTML = '';
+            
+            // תצוגת "ללא רקע" (ברירת מחדל לבן)
+            const whiteDiv = document.createElement('div');
+            whiteDiv.className = 'bg-option';
+            whiteDiv.style.background = '#fdfbf7';
+            whiteDiv.innerText = 'לבן';
+            whiteDiv.style.fontSize = '1rem';
+            if(!selectedBg) whiteDiv.classList.add('selected');
+            whiteDiv.onclick = () => selectBackground(null, whiteDiv);
+            grid.appendChild(whiteDiv);
 
-    const photoSize=460;
-    const gap=55;
-    const top=260;
+            // תצוגת התמונות
+            backgroundFiles.forEach(file => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'bg-option';
+                
+                if (selectedBg === file) wrapper.classList.add('selected');
+                wrapper.onclick = () => selectBackground(file, wrapper);
 
-    const x=(W-photoSize)/2;
-    const y=[top, top+photoSize+gap, top+(photoSize+gap)*2];
+                const img = document.createElement('img');
+                img.src = file;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                
+                img.onerror = () => { 
+                    img.style.display = 'none'; 
+                    wrapper.innerText = file;
+                    wrapper.style.color = 'red';
+                };
 
-    const drawBg=img=>{
-        const s=Math.max(W/img.width,H/img.height);
-        const sw=W/s, sh=H/s;
-        ctx.drawImage(img,(img.width-sw)/2,(img.height-sh)/2,sw,sh,0,0,W,H);
-    };
+                wrapper.appendChild(img);
+                grid.appendChild(wrapper);
+            });
+        }
 
-    const drawPhoto=(p,dx,dy)=>{
-        const s=Math.min(p.width,p.height);
-        ctx.drawImage(p,(p.width-s)/2,(p.height-s)/2,s,s,dx,dy,photoSize,photoSize);
-    };
+        function selectBackground(filename, element) {
+            selectedBg = filename;
+            document.querySelectorAll('.bg-option').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+        }
 
-    const drawText=()=>{
-        const yText=H-140;
-        ctx.textAlign="center";
+        // --- לוגיקת לחיצה ארוכה (Admin) ---
+        function setupLongPress() {
+            const startScreen = document.getElementById('screen-start');
+            let pressTimer;
 
-        const g=ctx.createLinearGradient(0,0,W,0);
-        g.addColorStop(0,"#ff2d2d");
-        g.addColorStop(.5,"#ffd400");
-        g.addColorStop(1,"#00d084");
+            const startPress = () => {
+                pressTimer = setTimeout(() => {
+                    document.getElementById('admin-panel').style.display = 'block';
+                }, 4000); 
+            };
 
-        ctx.font='78px "Fredoka One"';
-        ctx.lineWidth=10;
-        ctx.strokeStyle="white";
-        ctx.fillStyle=g;
-        ctx.strokeText(eventName,W/2,yText);
-        ctx.fillText(eventName,W/2,yText);
+            const cancelPress = () => {
+                clearTimeout(pressTimer);
+            };
 
-        ctx.font='52px "Varela Round"';
-        ctx.fillStyle="#6c63ff";
-        ctx.strokeText(eventDate,W/2,yText+70);
-        ctx.fillText(eventDate,W/2,yText+70);
-    };
+            startScreen.addEventListener('mousedown', startPress);
+            startScreen.addEventListener('mouseup', cancelPress);
+            startScreen.addEventListener('touchstart', startPress);
+            startScreen.addEventListener('touchend', cancelPress);
+        }
 
-    if(selectedBg){
-        const bg=new Image();
-        bg.src=selectedBg;
-        bg.onload=()=>{
-            drawBg(bg);
-            photos.forEach((p,i)=>drawPhoto(p,x,y[i]));
-            drawText();
-            finish();
-        };
-    }else{
-        ctx.fillStyle="#fff";
-        ctx.fillRect(0,0,W,H);
-        photos.forEach((p,i)=>drawPhoto(p,x,y[i]));
-        drawText();
-        finish();
-    }
+        function saveSettings() {
+            eventName = document.getElementById('input-event-name').value;
+            eventDate = document.getElementById('input-event-date').value;
+            
+            localStorage.setItem('eventName', eventName);
+            localStorage.setItem('eventDate', eventDate);
+            if(selectedBg) {
+                localStorage.setItem('selectedBg', selectedBg);
+            } else {
+                localStorage.removeItem('selectedBg');
+            }
 
-    function finish(){
-        document.getElementById("final-strip").src=canvas.toDataURL("image/jpeg",0.92);
-        show("screen-preview");
-    }
-}
-</script>
+            updateLabels();
+            document.getElementById('admin-panel').style.display = 'none';
+        }
 
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // --- התחלת תהליך ---
+        document.getElementById('btn-start').addEventListener('click', async () => {
+            currentPhotoIndex = 0;
+            photos.length = 0;
+            try {
+                const constraints = { 
+                    video: { 
+                        facingMode: "user", 
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 960 } 
+                    } 
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoStream = stream;
+                document.getElementById('camera-feed').srcObject = stream;
+                showScreen('screen-camera');
+                runPhotoLoop();
+            } catch (err) {
+                alert("שגיאת מצלמה. וודא HTTPS.");
+                console.error(err);
+            }
+        });
+
+        function runPhotoLoop() {
+            if (currentPhotoIndex >= totalPhotos) {
+                finishPhotography();
+                return;
+            }
+
+            document.getElementById('photo-count').innerText = currentPhotoIndex + 1;
+            let count = 10;
+            const countdownEl = document.getElementById('countdown-display');
+            countdownEl.innerText = count;
+
+            const interval = setInterval(() => {
+                count--;
+                countdownEl.innerText = count;
+                if (count <= 0) {
+                    clearInterval(interval);
+                    takePicture();
+                }
+            }, 1000);
+        }
+
+        function takePicture() {
+            const video = document.getElementById('camera-feed');
+            const canvas = document.createElement('canvas');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            photos.push(canvas); 
+            
+            // פלאש
+            const flash = document.createElement('div');
+            flash.style.position = 'fixed';
+            flash.style.top = 0; flash.style.left = 0; flash.style.width = '100%'; flash.style.height = '100%';
+            flash.style.background = 'white';
+            flash.style.zIndex = 9999;
+            document.body.appendChild(flash);
+            setTimeout(() => flash.remove(), 150);
+
+            currentPhotoIndex++;
+            runPhotoLoop();
+        }
+
+        function finishPhotography() {
+            if(videoStream) videoStream.getTracks().forEach(track => track.stop());
+            generateFinalStrip();
+        }
+
+        // --- יצירת הסטריפ ---
+        function generateFinalStrip() {
+            const finalCanvas = document.getElementById('photoCanvas');
+            const ctx = finalCanvas.getContext('2d');
+
+            // רזולוציה קבועה
+            const canvasWidth = 900;
+            const canvasHeight = 1920;
+            finalCanvas.width = canvasWidth;
+            finalCanvas.height = canvasHeight;
+
+            // ✅ שינויים שביקשת:
+            // 1) תמונות קטנות יותר
+            // 2) תמונות מרובעות (1:1)
+            // 3) מרווח עליון גדול כדי לא להסתיר כותרת ברקע
+            // 4) טקסט למטה צבעוני ומחוץ לתמונה
+            const photoSize = 460;      // ריבוע קטן יותר
+            const gap = 55;
+            const topMargin = 260;      // כדי לא לכסות "פורים שמח" למעלה
+            const footerArea = 240;     // מקום לטקסט למטה מחוץ לתמונה
+
+            const xPos = (canvasWidth - photoSize) / 2;
+
+            const y1 = topMargin;
+            const y2 = y1 + photoSize + gap;
+            const y3 = y2 + photoSize + gap;
+
+            function drawBgCover(bgImg) {
+                const iw = bgImg.width;
+                const ih = bgImg.height;
+                const scale = Math.max(canvasWidth / iw, canvasHeight / ih);
+                const sw = canvasWidth / scale;
+                const sh = canvasHeight / scale;
+                const sx = (iw - sw) / 2;
+                const sy = (ih - sh) / 2;
+                ctx.drawImage(bgImg, sx, sy, sw, sh, 0, 0, canvasWidth, canvasHeight);
+            }
+
+            function drawSquarePhoto(photoCanvas, dx, dy, size) {
+                const imgW = photoCanvas.width;
+                const imgH = photoCanvas.height;
+                const s = Math.min(imgW, imgH);
+                const sx = (imgW - s) / 2;
+                const sy = (imgH - s) / 2;
+                ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
+            }
+
+            function drawFooterText() {
+                const footerY = canvasHeight - footerArea + 95;
+
+                ctx.textAlign = 'center';
+                ctx.shadowColor = 'rgba(0,0,0,0.35)';
+                ctx.shadowBlur = 10;
+
+                // גרדיאנט צבעוני לשם האירוע
+                const grad = ctx.createLinearGradient(canvasWidth*0.2, 0, canvasWidth*0.8, 0);
+                grad.addColorStop(0, '#ff2d2d');
+                grad.addColorStop(0.33, '#ffd400');
+                grad.addColorStop(0.66, '#00d084');
+                grad.addColorStop(1, '#4d79ff');
+
+                ctx.font = 'bold 78px "Fredoka One", sans-serif';
+                ctx.lineWidth = 10;
+                ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+                ctx.fillStyle = grad;
+                ctx.strokeText(eventName, canvasWidth/2, footerY);
+                ctx.fillText(eventName, canvasWidth/2, footerY);
+
+                // תאריך צבעוני (לא שחור)
+                ctx.font = 'bold 52px "Varela Round", sans-serif';
+                ctx.lineWidth = 8;
+                ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+                ctx.fillStyle = '#7c4dff';
+                ctx.strokeText(eventDate, canvasWidth/2, footerY + 75);
+                ctx.fillText(eventDate, canvasWidth/2, footerY + 75);
+
+                ctx.shadowBlur = 0;
+            }
+
+            function drawContent() {
+                // ציור תמונות מרובעות
+                if (photos[0]) drawSquarePhoto(photos[0], xPos, y1, photoSize);
+                if (photos[1]) drawSquarePhoto(photos[1], xPos, y2, photoSize);
+                if (photos[2]) drawSquarePhoto(photos[2], xPos, y3, photoSize);
+
+                // טקסט צבעוני למטה מחוץ לתמונה
+                drawFooterText();
+
+                const finalImage = document.getElementById('final-strip');
+                finalImage.src = finalCanvas.toDataURL('image/jpeg', 0.9);
+                showScreen('screen-preview');
+                setTimeout(() => { showScreen('screen-phone'); }, 3000);
+            }
+
+            // רקע full screen COVER
+            if (selectedBg) {
+                const bgImg = new Image();
+                bgImg.crossOrigin = "anonymous"; 
+                bgImg.src = selectedBg;
+                bgImg.onload = () => {
+                    drawBgCover(bgImg);
+                    drawContent();
+                };
+                bgImg.onerror = () => {
+                    ctx.fillStyle = '#fdfbf7';
+                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                    drawContent();
+                };
+            } else {
+                ctx.fillStyle = '#fdfbf7';
+                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                drawContent();
+            }
+        }
+
+        // --- ממשק טלפון ---
+        function addDigit(digit) {
+            document.getElementById('phone-number').value += digit;
+        }
+
+        function clearDigit() {
+            const input = document.getElementById('phone-number');
+            input.value = input.value.slice(0, -1);
+        }
+
+        function restart() {
+            showScreen('screen-start');
+            document.getElementById('phone-number').value = '';
+        }
+
+        async function shareToWhatsApp() {
+            const phoneNumber = document.getElementById('phone-number').value;
+            const canvas = document.getElementById('photoCanvas');
+
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], "photostrip.jpg", { type: "image/jpeg" });
+                
+                if (navigator.share && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: eventName,
+                            text: `מזכרת מ-${eventName} ❤️`
+                        });
+                        alert("השיתוף נפתח! בחר בווטסאפ ושלח.");
+                        restart();
+                    } catch (error) {
+                        console.log("Share error", error);
+                    }
+                } else {
+                    alert("מוריד תמונה...");
+                    const link = document.createElement('a');
+                    link.download = `photo-${Date.now()}.jpg`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    
+                    if(phoneNumber) {
+                        let cleanNum = phoneNumber.replace(/\D/g,'');
+                        if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
+                        if(confirm("לפתוח ווטסאפ למספר זה?")) {
+                            window.location.href = `https://wa.me/${cleanNum}`;
+                        }
+                    }
+                    restart();
+                }
+            }, 'image/jpeg');
+        }
+
+        // חשיפת פונקציות לכפתורים (כמו שהיה)
+        window.addDigit = addDigit;
+        window.clearDigit = clearDigit;
+        window.restart = restart;
+        window.shareToWhatsApp = shareToWhatsApp;
+    </script>
 </body>
 </html>
