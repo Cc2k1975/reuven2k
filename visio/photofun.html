@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PhotoFun Booth</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
+    <style>
+        /* --- עיצוב כללי וקרטון --- */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f8ff;
+            background-image: radial-gradient(#e6e6fa 20%, transparent 20%), radial-gradient(#ffe4e1 20%, transparent 20%);
+            background-size: 50px 50px;
+            background-position: 0 0, 25px 25px;
+            font-family: 'Varela Round', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            user-select: none;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Fredoka One', cursive;
+            color: #ff6b6b;
+            text-shadow: 2px 2px 0px #fff, 4px 4px 0px #ffd93d;
+        }
+
+        /* --- מסכים --- */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: opacity 0.5s;
+        }
+
+        .active {
+            display: flex;
+        }
+
+        /* --- מצלמה --- */
+        #camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* מראה */
+            position: absolute;
+            z-index: -1;
+        }
+
+        /* --- כפתור התחלה --- */
+        .start-btn {
+            background-color: #4ecdc4;
+            color: white;
+            border: 4px solid #fff;
+            border-radius: 50px;
+            padding: 20px 60px;
+            font-size: 3rem;
+            font-family: 'Fredoka One', cursive;
+            cursor: pointer;
+            box-shadow: 0 10px 0 #2cb5ac, 0 15px 20px rgba(0,0,0,0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+            animation: bounce 2s infinite;
+        }
+
+        .start-btn:active {
+            transform: translateY(10px);
+            box-shadow: 0 0 0 #2cb5ac, 0 0 0 rgba(0,0,0,0);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-20px);}
+            60% {transform: translateY(-10px);}
+        }
+
+        /* --- ספירה לאחור --- */
+        #countdown-display {
+            font-size: 10rem;
+            color: #fff;
+            -webkit-text-stroke: 3px #ff6b6b;
+            text-shadow: 5px 5px 0 #333;
+            font-family: 'Fredoka One', cursive;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* --- תצוגה מקדימה של הסטריפ --- */
+        #final-strip {
+            max-height: 80vh;
+            border: 10px solid white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 5px;
+        }
+
+        /* --- ממשק טלפון --- */
+        .phone-mockup {
+            background: white;
+            border-radius: 30px;
+            padding: 20px;
+            width: 300px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            border: 8px solid #333;
+        }
+
+        .phone-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.5rem;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-family: 'Varela Round', sans-serif;
+        }
+
+        .dial-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .dial-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 15px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #333;
+        }
+        
+        .dial-btn:active { background: #ddd; }
+
+        .call-btn {
+            background: #25D366; /* צבע ווטסאפ */
+            color: white;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* --- מודל הגדרות (Admin) --- */
+        .admin-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 0 100px rgba(0,0,0,0.5);
+            z-index: 999;
+            text-align: right;
+            border: 5px solid #ff6b6b;
+        }
+        .admin-input {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 10px;
+            font-size: 1.2rem;
+        }
+        .close-admin {
+            margin-top: 10px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="photoCanvas" style="display:none;"></canvas>
+
+    <div id="screen-start" class="screen active">
+        <h1>עמדת צילום</h1>
+        <h2 id="event-title-display">חתונה של...</h2>
+        <button id="btn-start" class="start-btn">התחל!</button>
+        <p style="margin-top: 20px; opacity: 0.6; font-size: 0.8rem;">(לחיצה ארוכה להגדרות)</p>
+    </div>
+
+    <div id="screen-camera" class="screen">
+        <video id="camera-feed" autoplay playsinline muted></video>
+        <div id="countdown-display">10</div>
+        <div style="position: absolute; bottom: 20px; color: white; font-size: 2rem; font-family: 'Fredoka One';">
+            תמונה <span id="photo-count">1</span> מתוך 3
+        </div>
+    </div>
+
+    <div id="screen-preview" class="screen" style="background: rgba(0,0,0,0.8);">
+        <h2 style="color: white; margin-bottom: 10px;">איזה יופי!</h2>
+        <img id="final-strip" src="" alt="Photo Strip">
+    </div>
+
+    <div id="screen-phone" class="screen">
+        <div class="phone-mockup">
+            <h3>שלח לווטסאפ</h3>
+            <div style="background: #eee; padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="40" style="vertical-align: middle;">
+                <span style="font-weight: bold; margin-right: 10px;">שליחת תמונה</span>
+            </div>
+            <input type="tel" id="phone-number" class="phone-input" placeholder="הכנס מספר נייד" readonly>
+            
+            <div class="dial-pad">
+                <button class="dial-btn" onclick="addDigit('1')">1</button>
+                <button class="dial-btn" onclick="addDigit('2')">2</button>
+                <button class="dial-btn" onclick="addDigit('3')">3</button>
+                <button class="dial-btn" onclick="addDigit('4')">4</button>
+                <button class="dial-btn" onclick="addDigit('5')">5</button>
+                <button class="dial-btn" onclick="addDigit('6')">6</button>
+                <button class="dial-btn" onclick="addDigit('7')">7</button>
+                <button class="dial-btn" onclick="addDigit('8')">8</button>
+                <button class="dial-btn" onclick="addDigit('9')">9</button>
+                <button class="dial-btn" style="color:red;" onclick="clearDigit()">C</button>
+                <button class="dial-btn" onclick="addDigit('0')">0</button>
+                <button class="dial-btn" onclick="restart()">🏠</button>
+            </div>
+
+            <button class="call-btn" onclick="shareToWhatsApp()">
+                📞 שלח עכשיו
+            </button>
+        </div>
+    </div>
+
+    <div id="admin-panel" class="admin-modal">
+        <h3>הגדרות אירוע</h3>
+        <label>שם האירוע (שורה 1):</label>
+        <input type="text" id="input-event-name" class="admin-input" placeholder="למשל: דני & מאיה">
+        <label>תאריך (שורה 2):</label>
+        <input type="text" id="input-event-date" class="admin-input" placeholder="21.02.2023">
+        <button class="close-admin" onclick="saveSettings()">שמור וסגור</button>
+    </div>
+
+    <script>
+        // --- משתנים גלובליים ---
+        let currentPhotoIndex = 0;
+        const totalPhotos = 3;
+        const photos = []; // כאן נשמור את התמונות הגולמיות
+        let videoStream = null;
+        let eventName = localStorage.getItem('eventName') || "האירוע שלנו";
+        let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
+
+        // --- אתחול ---
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLabels();
+            setupLongPress();
+        });
+
+        function updateLabels() {
+            document.getElementById('event-title-display').innerText = eventName;
+            document.getElementById('input-event-name').value = eventName;
+            document.getElementById('input-event-date').value = eventDate;
+        }
+
+        // --- לוגיקת לחיצה ארוכה (Admin) ---
+        function setupLongPress() {
+            const startScreen = document.getElementById('screen-start');
+            let pressTimer;
+
+            const startPress = () => {
+                pressTimer = setTimeout(() => {
+                    document.getElementById('admin-panel').style.display = 'block';
+                }, 5000); // 5 שניות
+            };
+
+            const cancelPress = () => {
+                clearTimeout(pressTimer);
+            };
+
+            startScreen.addEventListener('mousedown', startPress);
+            startScreen.addEventListener('mouseup', cancelPress);
+            startScreen.addEventListener('touchstart', startPress);
+            startScreen.addEventListener('touchend', cancelPress);
+        }
+
+        function saveSettings() {
+            eventName = document.getElementById('input-event-name').value;
+            eventDate = document.getElementById('input-event-date').value;
+            localStorage.setItem('eventName', eventName);
+            localStorage.setItem('eventDate', eventDate);
+            updateLabels();
+            document.getElementById('admin-panel').style.display = 'none';
+        }
+
+        // --- מעבר בין מסכים ---
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // --- התחלת תהליך ---
+        document.getElementById('btn-start').addEventListener('click', async () => {
+            currentPhotoIndex = 0;
+            photos.length = 0;
+            try {
+                // בקשת גישה למצלמה
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 1280, height: 720 } });
+                videoStream = stream;
+                document.getElementById('camera-feed').srcObject = stream;
+                showScreen('screen-camera');
+                runPhotoLoop();
+            } catch (err) {
+                alert("לא ניתן לגשת למצלמה. וודא שאתה ב-HTTPS ואישרת הרשאות.");
+                console.error(err);
+            }
+        });
+
+        // --- לולאת הצילום ---
+        function runPhotoLoop() {
+            if (currentPhotoIndex >= totalPhotos) {
+                finishPhotography();
+                return;
+            }
+
+            document.getElementById('photo-count').innerText = currentPhotoIndex + 1;
+            let count = 10;
+            const countdownEl = document.getElementById('countdown-display');
+            countdownEl.innerText = count;
+
+            const interval = setInterval(() => {
+                count--;
+                countdownEl.innerText = count;
+                if (count <= 0) {
+                    clearInterval(interval);
+                    takePicture();
+                }
+            }, 1000);
+        }
+
+        function takePicture() {
+            // אפקט פלאש
+            const flash = document.createElement('div');
+            flash.style.position = 'fixed';
+            flash.style.top = 0; flash.style.left = 0; flash.style.width = '100%'; flash.style.height = '100%';
+            flash.style.background = 'white';
+            flash.style.zIndex = 9999;
+            document.body.appendChild(flash);
+            setTimeout(() => flash.remove(), 200);
+
+            // לכידת תמונה מהוידאו
+            const video = document.getElementById('camera-feed');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // אנחנו צריכים להפוך את התמונה (מראה) כדי שזה ייראה טבעי כמו בסלפי
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            photos.push(canvas); // שמירת האלמנט קנבס עצמו
+            currentPhotoIndex++;
+            runPhotoLoop();
+        }
+
+        function finishPhotography() {
+            // עצירת המצלמה
+            videoStream.getTracks().forEach(track => track.stop());
+            
+            // יצירת הסטריפ הסופי
+            generateFinalStrip();
+        }
+
+        // --- יצירת הסטריפ (עיבוד תמונה) ---
+        function generateFinalStrip() {
+            const finalCanvas = document.getElementById('photoCanvas');
+            const ctx = finalCanvas.getContext('2d');
+
+            // הגדרות גודל הסטריפ
+            const photoWidth = 600; 
+            const photoHeight = 450; // יחס 4:3
+            const padding = 30;
+            const headerHeight = 0; 
+            const footerHeight = 250; // מקום לטקסט למטה
+
+            // חישוב גובה כולל: (גובה תמונה * 3) + רווחים + פוטר
+            const totalHeight = (photoHeight * 3) + (padding * 4) + footerHeight;
+            const totalWidth = photoWidth + (padding * 2);
+
+            finalCanvas.width = totalWidth;
+            finalCanvas.height = totalHeight;
+
+            // רקע "נייר קראפט" או לבן
+            ctx.fillStyle = '#fdfbf7'; // צבע שמנת/לבן
+            ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+            // ציור התמונות
+            photos.forEach((photoCanvas, i) => {
+                const yPos = padding + (i * (photoHeight + padding));
+                
+                // ציור מסגרת שחורה דקה סביב התמונה (אופציונלי)
+                // ctx.strokeRect(padding, yPos, photoWidth, photoHeight);
+
+                // חיתוך מרכזי של התמונה (Crop to Aspect Ratio)
+                // התמונות מהמצלמה רחבות, אנחנו נחתוך את המרכז
+                const sWidth = photoCanvas.height * (4/3);
+                const sHeight = photoCanvas.height;
+                const sx = (photoCanvas.width - sWidth) / 2;
+                const sy = 0;
+
+                ctx.drawImage(photoCanvas, sx, sy, sWidth, sHeight, padding, yPos, photoWidth, photoHeight);
+            });
+
+            // ציור הטקסט למטה (Footer)
+            const footerY = totalHeight - footerHeight + 50;
+            
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'center';
+            
+            // שם האירוע (פונט קליגרפי/מצויר)
+            ctx.font = 'bold 50px "Fredoka One", sans-serif'; 
+            ctx.fillText(eventName, totalWidth / 2, footerY + 50);
+
+            // תאריך
+            ctx.font = '30px "Varela Round", sans-serif';
+            ctx.fillText(eventDate, totalWidth / 2, footerY + 110);
+            
+            // קרדיט קטן
+            ctx.font = '15px sans-serif';
+            ctx.fillStyle = '#aaa';
+            ctx.fillText("D-I הפקות", totalWidth / 2, totalHeight - 20);
+
+            // המרה לתמונה והצגה
+            const finalImage = document.getElementById('final-strip');
+            finalImage.src = finalCanvas.toDataURL('image/jpeg', 0.9);
+
+            showScreen('screen-preview');
+
+            // מעבר למסך טלפון אחרי 3 שניות
+            setTimeout(() => {
+                showScreen('screen-phone');
+            }, 3000);
+        }
+
+        // --- ממשק הטלפון ---
+        function addDigit(digit) {
+            const input = document.getElementById('phone-number');
+            input.value += digit;
+        }
+
+        function clearDigit() {
+            const input = document.getElementById('phone-number');
+            input.value = input.value.slice(0, -1);
+        }
+
+        function restart() {
+            showScreen('screen-start');
+            document.getElementById('phone-number').value = '';
+        }
+
+        async function shareToWhatsApp() {
+            const phoneNumber = document.getElementById('phone-number').value;
+            const canvas = document.getElementById('photoCanvas');
+
+            // המרה ל-Blob כדי לשתף
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], "photostrip.jpg", { type: "image/jpeg" });
+                
+                // בדיקה אם הדפדפן תומך בשיתוף קבצים
+                if (navigator.share && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: 'תמונה מהאירוע!',
+                            text: `היי! הנה התמונה שלנו מ-${eventName} ❤️`
+                        });
+                        alert("נשלח בהצלחה!");
+                        restart();
+                    } catch (error) {
+                        console.log("Sharing failed", error);
+                    }
+                } else {
+                    // גיבוי למחשב או דפדפנים ישנים - הורדה רגילה + שליחת הודעה
+                    alert("המכשיר לא תומך בשיתוף ישיר. התמונה יורדת למכשיר כעת...");
+                    const link = document.createElement('a');
+                    link.download = `photo-${Date.now()}.jpg`;
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    
+                    // ניסיון לפתוח ווטסאפ (רק טקסט)
+                    if(phoneNumber) {
+                        let cleanNum = phoneNumber.replace(/\D/g,'');
+                        if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
+                        window.location.href = `https://wa.me/${cleanNum}?text=התמונה נשמרה אצלי במכשיר!`;
+                    }
+                    restart();
+                }
+            }, 'image/jpeg');
+        }
+
+    </script>
+</body>
+</html>
