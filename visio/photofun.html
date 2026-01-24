@@ -3,14 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFun Booth Pro</title>
+    <title>PhotoFun Booth</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
     <style>
-        /* --- עיצוב כללי --- */
+        /* --- עיצוב כללי וקרטון --- */
         body {
             margin: 0;
             padding: 0;
             background-color: #f0f8ff;
+            /* רקע נקודות פסטל */
+            background-image: radial-gradient(#e6e6fa 20%, transparent 20%), radial-gradient(#ffe4e1 20%, transparent 20%);
+            background-size: 50px 50px;
+            background-position: 0 0, 25px 25px;
             font-family: 'Varela Round', sans-serif;
             overflow: hidden;
             height: 100vh;
@@ -22,7 +26,6 @@
             user-select: none;
         }
 
-        /* סגנון כותרות */
         h1, h2, h3 {
             font-family: 'Fredoka One', cursive;
             color: #ff6b6b;
@@ -42,8 +45,6 @@
             top: 0;
             left: 0;
             transition: opacity 0.5s;
-            background-size: cover;
-            background-position: center;
         }
 
         .active { display: flex; }
@@ -200,6 +201,13 @@
             border: 3px solid #ddd;
             border-radius: 5px;
             cursor: pointer;
+            background-color: #eee;
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
         .bg-option.selected {
             border: 3px solid #4ecdc4;
@@ -229,7 +237,7 @@
         <div style="flex-grow: 1;"></div>
         <button id="btn-start" class="start-btn">התחל!</button>
         <div style="flex-grow: 1;"></div>
-        <p style="opacity: 0.5; font-size: 0.8rem;">(לחיצה ארוכה להגדרות)</p>
+        <p style="opacity: 0.5; font-size: 0.8rem; background: rgba(255,255,255,0.7); padding: 5px; border-radius: 10px;">(לחיצה ארוכה להגדרות)</p>
     </div>
 
     <div id="screen-camera" class="screen">
@@ -286,6 +294,7 @@
         <input type="text" id="input-event-date" class="admin-input" placeholder="21.02.2023">
         
         <label>בחר רקע לסטריפ:</label>
+        <div style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">* וודא שהקבצים 1.jpg - 6.jpg נמצאים בתיקייה</div>
         <div class="bg-selector" id="bg-grid">
             </div>
 
@@ -294,7 +303,8 @@
     
     <script>
         // --- קונפיגורציה ---
-        const backgroundFiles = ['bg1.jpg', 'bg2.jpg', 'bg3.jpg', 'bg4.jpg', 'bg5.jpg', 'bg6.jpg'];
+        // שיניתי את השמות בדיוק כמו שביקשת
+        const backgroundFiles = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'];
         
         // --- משתנים גלובליים ---
         let currentPhotoIndex = 0;
@@ -302,32 +312,21 @@
         const photos = [];
         let videoStream = null;
         
-        // טעינת הגדרות שמורות
         let eventName = localStorage.getItem('eventName') || "האירוע שלנו";
         let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
-        let selectedBg = localStorage.getItem('selectedBg') || null; // שם הקובץ הנבחר
+        let selectedBg = localStorage.getItem('selectedBg') || null;
 
         // --- אתחול ---
         document.addEventListener('DOMContentLoaded', () => {
             updateLabels();
             setupLongPress();
             renderBgSelector();
-            applyMainBackground();
         });
 
         function updateLabels() {
             document.getElementById('event-title-display').innerText = eventName;
             document.getElementById('input-event-name').value = eventName;
             document.getElementById('input-event-date').value = eventDate;
-        }
-
-        function applyMainBackground() {
-            // מעדכן את הרקע הראשי של המסך הראשון אם נבחר רקע
-            /* אופציה: אם אתה רוצה שגם המסך הראשי יקבל את הרקע, בטל את ההערה למטה */
-            // if(selectedBg) {
-            //     document.body.style.backgroundImage = `url('${selectedBg}')`;
-            //     document.body.style.backgroundSize = 'cover';
-            // }
         }
 
         // --- ניהול רקעים ---
@@ -339,29 +338,36 @@
             const whiteDiv = document.createElement('div');
             whiteDiv.className = 'bg-option';
             whiteDiv.style.background = '#fdfbf7';
-            whiteDiv.style.display = 'flex';
-            whiteDiv.style.alignItems = 'center';
-            whiteDiv.style.justifyContent = 'center';
             whiteDiv.innerText = 'לבן';
+            whiteDiv.style.fontSize = '1rem';
             if(!selectedBg) whiteDiv.classList.add('selected');
             whiteDiv.onclick = () => selectBackground(null, whiteDiv);
             grid.appendChild(whiteDiv);
 
             // תצוגת התמונות
             backgroundFiles.forEach(file => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'bg-option';
+                
+                // בדיקה האם זה הרקע שנבחר בעבר
+                if (selectedBg === file) wrapper.classList.add('selected');
+                wrapper.onclick = () => selectBackground(file, wrapper);
+
                 const img = document.createElement('img');
                 img.src = file;
-                img.className = 'bg-option';
-                img.alt = file;
-                // בדיקה האם זה הרקע שנבחר בעבר
-                if (selectedBg === file) img.classList.add('selected');
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
                 
-                img.onclick = () => selectBackground(file, img);
-                
-                // אם התמונה לא קיימת, נסתיר אותה מהבחירה שלא יראה מכוער
-                img.onerror = () => { img.style.display = 'none'; };
-                
-                grid.appendChild(img);
+                // אם התמונה לא נטענת, נציג טקסט במקום להסתיר
+                img.onerror = () => { 
+                    img.style.display = 'none'; 
+                    wrapper.innerText = file;
+                    wrapper.style.color = 'red';
+                };
+
+                wrapper.appendChild(img);
+                grid.appendChild(wrapper);
             });
         }
 
@@ -406,7 +412,6 @@
             }
 
             updateLabels();
-            applyMainBackground();
             document.getElementById('admin-panel').style.display = 'none';
         }
 
@@ -494,7 +499,7 @@
 
             const photoWidth = 600; 
             const photoHeight = 450; 
-            const padding = 40; // קצת יותר מרווח
+            const padding = 40; 
             const footerHeight = 250; 
 
             const totalHeight = (photoHeight * 3) + (padding * 4) + footerHeight;
@@ -526,10 +531,11 @@
                 const footerY = totalHeight - footerHeight + 60;
                 ctx.textAlign = 'center';
                 
-                // צבע הטקסט תלוי ברקע (פשוט נעשה שחור עם הצללה לבנה לקריאות)
+                // צבע הטקסט
                 ctx.fillStyle = '#333';
                 ctx.shadowColor = "white";
-                ctx.shadowBlur = 0;
+                ctx.shadowBlur = 5;
+                ctx.lineWidth = 2;
                 
                 ctx.font = 'bold 50px "Fredoka One", sans-serif'; 
                 ctx.fillText(eventName, totalWidth / 2, footerY + 50);
@@ -547,7 +553,7 @@
             // טעינת תמונת הרקע אם נבחרה
             if (selectedBg) {
                 const bgImg = new Image();
-                bgImg.crossOrigin = "anonymous"; // למקרה של בעיות טעינה
+                bgImg.crossOrigin = "anonymous"; 
                 bgImg.src = selectedBg;
                 bgImg.onload = () => {
                     // מתיחת הרקע על כל הקנבס
@@ -590,7 +596,6 @@
             canvas.toBlob(async (blob) => {
                 const file = new File([blob], "photostrip.jpg", { type: "image/jpeg" });
                 
-                // ניסיון ראשון: Web Share API (עובד בניידים)
                 if (navigator.share && navigator.canShare({ files: [file] })) {
                     try {
                         await navigator.share({
@@ -604,20 +609,16 @@
                         console.log("Share cancelled or failed", error);
                     }
                 } else {
-                    // fallback למחשב או דפדפנים ישנים
                     alert("מוריד את התמונה למכשיר...");
                     const link = document.createElement('a');
                     link.download = `photo-${Date.now()}.jpg`;
                     link.href = canvas.toDataURL();
                     link.click();
                     
-                    // כאן הניסיון לפתוח צ'אט עם המספר, אבל זה יהיה בלי תמונה
                     if(phoneNumber) {
-                        // ניקוי המספר
                         let cleanNum = phoneNumber.replace(/\D/g,'');
                         if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
                         
-                        // הסבר למשתמש
                         if(confirm("התמונה ירדה לגלריה. האם לפתוח את הווטסאפ למספר זה כדי שתוכל לצרף אותה ידנית?")) {
                             window.location.href = `https://wa.me/${cleanNum}`;
                         }
