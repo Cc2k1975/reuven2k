@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFun Booth 4:3</title>
+    <title>PhotoFun Booth Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
     <style>
         /* --- עיצוב כללי --- */
@@ -60,11 +60,11 @@
         #camera-feed {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* מוודא שהוידאו ממלא את המסך בלי עיוות */
+            object-fit: cover; 
             transform: scaleX(-1);
         }
 
-        /* --- כפתור התחלה --- */
+        /* --- אלמנטי ממשק --- */
         .start-btn {
             background-color: #4ecdc4;
             color: white;
@@ -90,18 +90,28 @@
             60% {transform: translateY(-10px);}
         }
 
-        /* --- ספירה לאחור --- */
+        /* ספירה לאחור */
+        #countdown-container {
+            position: absolute;
+            bottom: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+        }
+
         #countdown-display {
-            font-size: 10rem;
+            font-size: 8rem;
             color: #fff;
             -webkit-text-stroke: 3px #ff6b6b;
-            text-shadow: 5px 5px 0 #333;
+            text-shadow: 4px 4px 0 #333;
             font-family: 'Fredoka One', cursive;
+            margin-bottom: 10px;
         }
 
         /* --- תצוגה מקדימה של הסטריפ --- */
         #final-strip {
-            max-height: 85vh; /* קצת יותר גדול שיראו טוב */
+            max-height: 85vh; 
             border: 5px solid white;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border-radius: 5px;
@@ -249,9 +259,11 @@
         <div id="camera-wrapper">
             <video id="camera-feed" autoplay playsinline muted></video>
         </div>
-        <div id="countdown-display">10</div>
-        <div style="position: absolute; bottom: 40px; color: white; font-size: 2rem; font-family: 'Fredoka One'; text-shadow: 2px 2px 4px black; z-index: 5;">
-            תמונה <span id="photo-count">1</span> מתוך 3
+        <div id="countdown-container">
+            <div id="countdown-display">10</div>
+            <div style="color: white; font-size: 2rem; font-family: 'Fredoka One'; text-shadow: 2px 2px 4px black;">
+                תמונה <span id="photo-count">1</span> מתוך 3
+            </div>
         </div>
     </div>
 
@@ -428,12 +440,11 @@
             currentPhotoIndex = 0;
             photos.length = 0;
             try {
-                // ניסיון לבקש רזולוציה שקרובה יותר ל-4:3, אבל לא קריטי אם לא יצליח כי נחתוך בקוד
                 const constraints = { 
                     video: { 
                         facingMode: "user", 
                         width: { ideal: 1280 }, 
-                        height: { ideal: 960 } // יחס 4:3
+                        height: { ideal: 960 } 
                     } 
                 };
                 
@@ -473,8 +484,6 @@
             const video = document.getElementById('camera-feed');
             const canvas = document.createElement('canvas');
             
-            // אנחנו שומרים את הרזולוציה המקורית של הוידאו
-            // החיתוך ל-4:3 יתבצע בשלב יצירת הסטריפ הסופי
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
@@ -503,18 +512,18 @@
             generateFinalStrip();
         }
 
-        // --- יצירת הסטריפ (חיתוך חכם ל-4:3) ---
+        // --- יצירת הסטריפ (חיתוך חכם ל-4:3 והקטנה) ---
         function generateFinalStrip() {
             const finalCanvas = document.getElementById('photoCanvas');
             const ctx = finalCanvas.getContext('2d');
 
-            // --- הגדרות חדשות: יחס 3:4 אנכי (כמו הריבועים ברקע הליצן) ---
-            const photoWidth = 480; 
-            const photoHeight = 640; // יחס 4:3 (אנכי)
+            // --- הגדרות חדשות: הקטנת התמונות ---
+            const photoWidth = 360; // הוקטן מ-480
+            const photoHeight = 480; // הוקטן מ-640 (עדיין יחס 3:4)
             
-            const padding = 40; 
+            // ריווח מותאם כדי למרכז את התמונות הקטנות יותר
+            const padding = 100; // הוגדל מ-40
             const footerHeight = 250; 
-            // התאמה קלה למיקום האנכי
             const topOffset = 20;
 
             const totalHeight = (photoHeight * 3) + (padding * 2) + (topOffset * 2) + footerHeight;
@@ -525,35 +534,30 @@
 
             const drawContent = () => {
                 photos.forEach((photoCanvas, i) => {
-                    const yPos = topOffset + padding + (i * (photoHeight + 20)); // ריווח קטן בין התמונות
+                    // ריווח אנכי מותאם בין התמונות
+                    const yPos = topOffset + padding + (i * (photoHeight + 50)); 
                     
                     // --- לוגיקת חיתוך חכמה (CROP) ל-4:3 ---
-                    // אנחנו רוצים לקחת את מרכז התמונה המקורית ביחס של 3:4
                     const imgW = photoCanvas.width;
                     const imgH = photoCanvas.height;
                     
-                    const targetRatio = photoWidth / photoHeight; // 0.75
+                    const targetRatio = photoWidth / photoHeight; 
                     const imgRatio = imgW / imgH;
 
                     let sx, sy, sWidth, sHeight;
 
                     if (imgRatio > targetRatio) {
-                        // התמונה רחבה מדי (או בטלפון - נמוכה מדי יחסית לרוחב)
-                        // אנחנו לוקחים את כל הגובה וחותכים בצדדים
                         sHeight = imgH;
                         sWidth = imgH * targetRatio;
                         sy = 0;
                         sx = (imgW - sWidth) / 2;
                     } else {
-                        // התמונה ארוכה/גבוהה מדי (כמו ב-16:9 בפורטרט)
-                        // אנחנו לוקחים את כל הרוחב וחותכים למעלה ולמטה (כדי לקבל ריבוע יפה יותר)
                         sWidth = imgW;
                         sHeight = imgW / targetRatio;
                         sx = 0;
                         sy = (imgH - sHeight) / 2;
                     }
 
-                    // ציור החלק החתוך על הקנבס הסופי
                     ctx.drawImage(photoCanvas, sx, sy, sWidth, sHeight, padding, yPos, photoWidth, photoHeight);
                 });
 
