@@ -324,7 +324,6 @@
     
     <script>
         // --- קונפיגורציה ---
-        // ✅ שינוי יחיד: PNG במקום JPG
         const backgroundFiles = ['1.png', '2.png', '3.png', '4.png', '5.png'];
         
         // --- משתנים גלובליים ---
@@ -336,6 +335,20 @@
         let eventName = localStorage.getItem('eventName') || "האירוע שלנו";
         let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
         let selectedBg = localStorage.getItem('selectedBg') || null;
+
+        // ✅ שינוי יחיד שביקשת עכשיו: אחרי פתיחת וואטסאפ, כשחוזרים לדף -> חזרה אוטומטית למסך הראשי
+        const WA_RETURN_FLAG = 'waReturnPending';
+
+        function autoReturnIfNeeded() {
+            if (localStorage.getItem(WA_RETURN_FLAG) === '1') {
+                localStorage.removeItem(WA_RETURN_FLAG);
+                restart(); // מחזיר למסך הראשי ומנקה מספר
+            }
+        }
+        window.addEventListener('pageshow', autoReturnIfNeeded);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) autoReturnIfNeeded();
+        });
 
         // --- אתחול ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -640,8 +653,11 @@
                 if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
 
                 const msg = `תודה שהשתתפתם ב-${eventName} ❤️\nמצורפת מזכרת מהעמדה!`;
-                window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(msg)}`;
 
+                // ✅ זה החלק היחיד שנוסף: מסמן שכשחוזרים מהוואטסאפ לדף, נחזור למסך הראשי
+                localStorage.setItem(WA_RETURN_FLAG, '1');
+
+                window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(msg)}`;
             }, 'image/jpeg', 0.92);
         }
 
