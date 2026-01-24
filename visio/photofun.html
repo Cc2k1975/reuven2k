@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFun Booth</title>
+    <title>PhotoFun Booth 4:3</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
     <style>
-        /* --- עיצוב כללי וקרטון --- */
+        /* --- עיצוב כללי --- */
         body {
             margin: 0;
             padding: 0;
             background-color: #f0f8ff;
-            /* רקע נקודות פסטל */
             background-image: radial-gradient(#e6e6fa 20%, transparent 20%), radial-gradient(#ffe4e1 20%, transparent 20%);
             background-size: 50px 50px;
             background-position: 0 0, 25px 25px;
@@ -50,13 +49,19 @@
         .active { display: flex; }
 
         /* --- מצלמה --- */
+        #camera-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
         #camera-feed {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: cover; /* מוודא שהוידאו ממלא את המסך בלי עיוות */
             transform: scaleX(-1);
-            position: absolute;
-            z-index: -1;
         }
 
         /* --- כפתור התחלה --- */
@@ -96,7 +101,7 @@
 
         /* --- תצוגה מקדימה של הסטריפ --- */
         #final-strip {
-            max-height: 75vh;
+            max-height: 85vh; /* קצת יותר גדול שיראו טוב */
             border: 5px solid white;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             border-radius: 5px;
@@ -241,15 +246,17 @@
     </div>
 
     <div id="screen-camera" class="screen">
-        <video id="camera-feed" autoplay playsinline muted></video>
+        <div id="camera-wrapper">
+            <video id="camera-feed" autoplay playsinline muted></video>
+        </div>
         <div id="countdown-display">10</div>
-        <div style="position: absolute; bottom: 20px; color: white; font-size: 2rem; font-family: 'Fredoka One'; text-shadow: 2px 2px 4px black;">
+        <div style="position: absolute; bottom: 40px; color: white; font-size: 2rem; font-family: 'Fredoka One'; text-shadow: 2px 2px 4px black; z-index: 5;">
             תמונה <span id="photo-count">1</span> מתוך 3
         </div>
     </div>
 
     <div id="screen-preview" class="screen" style="background: rgba(0,0,0,0.9);">
-        <h2 style="color: white;">איזה יופי!</h2>
+        <h2 style="color: white; margin-top: 10px;">מושלם!</h2>
         <img id="final-strip" src="" alt="Photo Strip">
     </div>
 
@@ -348,7 +355,6 @@
                 const wrapper = document.createElement('div');
                 wrapper.className = 'bg-option';
                 
-                // בדיקה האם זה הרקע שנבחר בעבר
                 if (selectedBg === file) wrapper.classList.add('selected');
                 wrapper.onclick = () => selectBackground(file, wrapper);
 
@@ -371,7 +377,6 @@
 
         function selectBackground(filename, element) {
             selectedBg = filename;
-            // עדכון ויזואלי של הבחירה
             document.querySelectorAll('.bg-option').forEach(el => el.classList.remove('selected'));
             element.classList.add('selected');
         }
@@ -413,7 +418,6 @@
             document.getElementById('admin-panel').style.display = 'none';
         }
 
-        // --- מעבר בין מסכים ---
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
@@ -424,9 +428,16 @@
             currentPhotoIndex = 0;
             photos.length = 0;
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: {ideal: 1280}, height: {ideal: 720} } 
-                });
+                // ניסיון לבקש רזולוציה שקרובה יותר ל-4:3, אבל לא קריטי אם לא יצליח כי נחתוך בקוד
+                const constraints = { 
+                    video: { 
+                        facingMode: "user", 
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 960 } // יחס 4:3
+                    } 
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 videoStream = stream;
                 document.getElementById('camera-feed').srcObject = stream;
                 showScreen('screen-camera');
@@ -437,7 +448,6 @@
             }
         });
 
-        // --- לולאת הצילום ---
         function runPhotoLoop() {
             if (currentPhotoIndex >= totalPhotos) {
                 finishPhotography();
@@ -462,6 +472,9 @@
         function takePicture() {
             const video = document.getElementById('camera-feed');
             const canvas = document.createElement('canvas');
+            
+            // אנחנו שומרים את הרזולוציה המקורית של הוידאו
+            // החיתוך ל-4:3 יתבצע בשלב יצירת הסטריפ הסופי
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
@@ -472,7 +485,7 @@
             
             photos.push(canvas); 
             
-            // אפקט פלאש
+            // פלאש
             const flash = document.createElement('div');
             flash.style.position = 'fixed';
             flash.style.top = 0; flash.style.left = 0; flash.style.width = '100%'; flash.style.height = '100%';
@@ -490,43 +503,64 @@
             generateFinalStrip();
         }
 
-        // --- יצירת הסטריפ ---
+        // --- יצירת הסטריפ (חיתוך חכם ל-4:3) ---
         function generateFinalStrip() {
             const finalCanvas = document.getElementById('photoCanvas');
             const ctx = finalCanvas.getContext('2d');
 
-            const photoWidth = 600; 
-            const photoHeight = 450; 
+            // --- הגדרות חדשות: יחס 3:4 אנכי (כמו הריבועים ברקע הליצן) ---
+            const photoWidth = 480; 
+            const photoHeight = 640; // יחס 4:3 (אנכי)
+            
             const padding = 40; 
             const footerHeight = 250; 
+            // התאמה קלה למיקום האנכי
+            const topOffset = 20;
 
-            const totalHeight = (photoHeight * 3) + (padding * 4) + footerHeight;
+            const totalHeight = (photoHeight * 3) + (padding * 2) + (topOffset * 2) + footerHeight;
             const totalWidth = photoWidth + (padding * 2);
 
             finalCanvas.width = totalWidth;
             finalCanvas.height = totalHeight;
 
-            // פונקציית הציור בפועל
             const drawContent = () => {
                 photos.forEach((photoCanvas, i) => {
-                    const yPos = padding + (i * (photoHeight + padding));
+                    const yPos = topOffset + padding + (i * (photoHeight + 20)); // ריווח קטן בין התמונות
                     
-                    // כאן היה הקוד לריבוע הלבן - מחקתי אותו
-                    // התמונות יודבקו ישירות על הרקע
+                    // --- לוגיקת חיתוך חכמה (CROP) ל-4:3 ---
+                    // אנחנו רוצים לקחת את מרכז התמונה המקורית ביחס של 3:4
+                    const imgW = photoCanvas.width;
+                    const imgH = photoCanvas.height;
+                    
+                    const targetRatio = photoWidth / photoHeight; // 0.75
+                    const imgRatio = imgW / imgH;
 
-                    // Crop center
-                    const sWidth = photoCanvas.height * (4/3);
-                    const sHeight = photoCanvas.height;
-                    const sx = (photoCanvas.width - sWidth) / 2;
+                    let sx, sy, sWidth, sHeight;
 
-                    ctx.drawImage(photoCanvas, sx, 0, sWidth, sHeight, padding, yPos, photoWidth, photoHeight);
+                    if (imgRatio > targetRatio) {
+                        // התמונה רחבה מדי (או בטלפון - נמוכה מדי יחסית לרוחב)
+                        // אנחנו לוקחים את כל הגובה וחותכים בצדדים
+                        sHeight = imgH;
+                        sWidth = imgH * targetRatio;
+                        sy = 0;
+                        sx = (imgW - sWidth) / 2;
+                    } else {
+                        // התמונה ארוכה/גבוהה מדי (כמו ב-16:9 בפורטרט)
+                        // אנחנו לוקחים את כל הרוחב וחותכים למעלה ולמטה (כדי לקבל ריבוע יפה יותר)
+                        sWidth = imgW;
+                        sHeight = imgW / targetRatio;
+                        sx = 0;
+                        sy = (imgH - sHeight) / 2;
+                    }
+
+                    // ציור החלק החתוך על הקנבס הסופי
+                    ctx.drawImage(photoCanvas, sx, sy, sWidth, sHeight, padding, yPos, photoWidth, photoHeight);
                 });
 
                 // טקסט
                 const footerY = totalHeight - footerHeight + 60;
                 ctx.textAlign = 'center';
                 
-                // צבע הטקסט עם צל ברור
                 ctx.fillStyle = '#333';
                 ctx.shadowColor = "white";
                 ctx.shadowBlur = 5;
@@ -538,38 +572,34 @@
                 ctx.font = '35px "Varela Round", sans-serif';
                 ctx.fillText(eventDate, totalWidth / 2, footerY + 110);
 
-                // הצגה
                 const finalImage = document.getElementById('final-strip');
                 finalImage.src = finalCanvas.toDataURL('image/jpeg', 0.9);
                 showScreen('screen-preview');
                 setTimeout(() => { showScreen('screen-phone'); }, 3000);
             };
 
-            // טעינת תמונת הרקע אם נבחרה
+            // טעינת רקע
             if (selectedBg) {
                 const bgImg = new Image();
                 bgImg.crossOrigin = "anonymous"; 
                 bgImg.src = selectedBg;
                 bgImg.onload = () => {
-                    // מתיחת הרקע על כל הקנבס
                     ctx.drawImage(bgImg, 0, 0, totalWidth, totalHeight);
                     drawContent();
                 };
                 bgImg.onerror = () => {
-                    // במקרה של שגיאה בטעינת הרקע - צבע חלק
                     ctx.fillStyle = '#fdfbf7';
                     ctx.fillRect(0, 0, totalWidth, totalHeight);
                     drawContent();
                 };
             } else {
-                // ללא תמונת רקע - רקע לבן רגיל
                 ctx.fillStyle = '#fdfbf7';
                 ctx.fillRect(0, 0, totalWidth, totalHeight);
                 drawContent();
             }
         }
 
-        // --- ממשק הטלפון ---
+        // --- ממשק טלפון ---
         function addDigit(digit) {
             document.getElementById('phone-number').value += digit;
         }
@@ -601,10 +631,10 @@
                         alert("השיתוף נפתח! בחר בווטסאפ ושלח.");
                         restart();
                     } catch (error) {
-                        console.log("Share cancelled or failed", error);
+                        console.log("Share error", error);
                     }
                 } else {
-                    alert("מוריד את התמונה למכשיר...");
+                    alert("מוריד תמונה...");
                     const link = document.createElement('a');
                     link.download = `photo-${Date.now()}.jpg`;
                     link.href = canvas.toDataURL();
@@ -613,8 +643,7 @@
                     if(phoneNumber) {
                         let cleanNum = phoneNumber.replace(/\D/g,'');
                         if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
-                        
-                        if(confirm("התמונה ירדה לגלריה. האם לפתוח את הווטסאפ למספר זה כדי שתוכל לצרף אותה ידנית?")) {
+                        if(confirm("לפתוח ווטסאפ למספר זה?")) {
                             window.location.href = `https://wa.me/${cleanNum}`;
                         }
                     }
