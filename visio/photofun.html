@@ -1,225 +1,654 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>PhotoFun Booth HD</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PhotoFun Booth HD</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
+    <style>
+        /* --- עיצוב כללי --- */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f8ff;
+            background-image: radial-gradient(#e6e6fa 20%, transparent 20%), radial-gradient(#ffe4e1 20%, transparent 20%);
+            background-size: 50px 50px;
+            background-position: 0 0, 25px 25px;
+            font-family: 'Varela Round', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            user-select: none;
+        }
 
-<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
+        h1, h2, h3 {
+            font-family: 'Fredoka One', cursive;
+            color: #ff6b6b;
+            text-shadow: 2px 2px 0px #fff, 4px 4px 0px #ffd93d;
+            margin: 10px 0;
+        }
 
-<style>
-body {
-    margin: 0;
-    padding: 0;
-    background-color: #f0f8ff;
-    background-image: radial-gradient(#e6e6fa 20%, transparent 20%), radial-gradient(#ffe4e1 20%, transparent 20%);
-    background-size: 50px 50px;
-    background-position: 0 0, 25px 25px;
-    font-family: 'Varela Round', sans-serif;
-    overflow: hidden;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+        /* --- מסכים --- */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: opacity 0.5s;
+        }
 
-.screen {
-    display: none;
-    position: absolute;
-    inset: 0;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-.screen.active { display: flex; }
+        .active { display: flex; }
 
-h1, h2, h3 {
-    font-family: 'Fredoka One';
-    color: #ff6b6b;
-    text-shadow: 2px 2px 0 #fff, 4px 4px 0 #ffd93d;
-}
+        /* --- מצלמה --- */
+        #camera-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
+        #camera-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+            transform: scaleX(-1);
+        }
 
-.start-btn {
-    background-color: #4ecdc4;
-    color: white;
-    border: 4px solid #fff;
-    border-radius: 50px;
-    padding: 20px 60px;
-    font-size: 3rem;
-    font-family: 'Fredoka One';
-    cursor: pointer;
-    box-shadow: 0 10px 0 #2cb5ac;
-    animation: bounce 2s infinite;
-}
+        /* --- אלמנטי ממשק --- */
+        .start-btn {
+            background-color: #4ecdc4;
+            color: white;
+            border: 4px solid #fff;
+            border-radius: 50px;
+            padding: 20px 60px;
+            font-size: 3rem;
+            font-family: 'Fredoka One', cursive;
+            cursor: pointer;
+            box-shadow: 0 10px 0 #2cb5ac, 0 15px 20px rgba(0,0,0,0.2);
+            animation: bounce 2s infinite;
+            z-index: 10;
+        }
 
-@keyframes bounce {
-    0%,20%,50%,80%,100% {transform: translateY(0);}
-    40% {transform: translateY(-20px);}
-    60% {transform: translateY(-10px);}
-}
+        .start-btn:active {
+            transform: translateY(10px);
+            box-shadow: 0 0 0 #2cb5ac;
+        }
 
-#camera-wrapper {
-    width: 100%;
-    height: 100%;
-}
-#camera-feed {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-}
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-20px);}
+            60% {transform: translateY(-10px);}
+        }
 
-#countdown-container {
-    position: absolute;
-    bottom: 40px;
-    text-align: center;
-}
-#countdown-display {
-    font-size: 8rem;
-    color: #fff;
-    -webkit-text-stroke: 3px #ff6b6b;
-    font-family: 'Fredoka One';
-}
+        /* ספירה לאחור */
+        #countdown-container {
+            position: absolute;
+            bottom: 50px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+        }
 
-#final-strip {
-    max-height: 85vh;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
+        #countdown-display {
+            font-size: 8rem;
+            color: #fff;
+            -webkit-text-stroke: 3px #ff6b6b;
+            text-shadow: 4px 4px 0 #333;
+            font-family: 'Fredoka One', cursive;
+            margin-bottom: 10px;
+        }
 
-.phone-mockup {
-    background: white;
-    border-radius: 30px;
-    padding: 20px;
-    width: 300px;
-    border: 8px solid #333;
-}
+        /* --- תצוגה מקדימה של הסטריפ --- */
+        #final-strip {
+            max-height: 85vh; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 5px;
+        }
 
-.phone-input {
-    width: 100%;
-    padding: 15px;
-    font-size: 1.5rem;
-    direction: ltr;
-    text-align: left;
-    margin-bottom: 15px;
-}
+        /* --- ממשק טלפון --- */
+        .phone-mockup {
+            background: white;
+            border-radius: 30px;
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            border: 8px solid #333;
+            width: 300px;
+        }
 
-.dial-pad {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    direction: ltr;
-}
+        .phone-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.5rem;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: left;
+            direction: ltr;
+            font-family: 'Varela Round', sans-serif;
+            box-sizing: border-box;
+        }
 
-.dial-btn {
-    padding: 15px;
-    border-radius: 50%;
-    font-size: 1.2rem;
-    cursor: pointer;
-}
+        .dial-pad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+            direction: ltr;
+        }
 
-.call-btn {
-    background: #25D366;
-    color: white;
-    width: 100%;
-    padding: 15px;
-    border-radius: 50px;
-    font-size: 1.5rem;
-}
+        .dial-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 15px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #333;
+        }
+        
+        .dial-btn:active { background: #ddd; }
 
-.admin-modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    justify-content: center;
-    align-items: center;
-}
+        .call-btn {
+            background: #25D366;
+            color: white;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
 
-.admin-box {
-    background: white;
-    padding: 20px;
-    border-radius: 20px;
-    width: 90%;
-    max-width: 400px;
-}
-</style>
+        /* --- מודל הגדרות (Admin) --- */
+        .admin-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 20px;
+            box-shadow: 0 0 100px rgba(0,0,0,0.5);
+            z-index: 999;
+            text-align: right;
+            border: 5px solid #ff6b6b;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .admin-input {
+            display: block;
+            width: 100%;
+            margin: 5px 0 15px 0;
+            padding: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        
+        /* בחירת רקעים */
+        .bg-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .bg-option {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+            border: 3px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #eee;
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .bg-option.selected {
+            border: 3px solid #4ecdc4;
+            box-shadow: 0 0 10px #4ecdc4;
+        }
+
+        .close-admin {
+            width: 100%;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 10px;
+        }
+    </style>
 </head>
-
 <body>
 
-<canvas id="photoCanvas" style="display:none"></canvas>
+    <canvas id="photoCanvas" style="display:none;"></canvas>
 
-<!-- START -->
-<div id="screen-start" class="screen active">
-    <h1>עמדת צילום</h1>
-    <h2 id="event-title-display">האירוע שלנו</h2>
-    <button id="btn-start" class="start-btn">התחל!</button>
-    <p style="opacity:.6">(לחיצה ארוכה להגדרות)</p>
-</div>
-
-<!-- CAMERA -->
-<div id="screen-camera" class="screen">
-    <div id="camera-wrapper">
-        <video id="camera-feed" autoplay muted playsinline></video>
+    <div id="screen-start" class="screen active">
+        <h1>עמדת צילום</h1>
+        <h2 id="event-title-display">האירוע שלנו</h2>
+        <div style="flex-grow: 1;"></div>
+        <button id="btn-start" class="start-btn">התחל!</button>
+        <div style="flex-grow: 1;"></div>
+        <p style="opacity: 0.5; font-size: 0.8rem; background: rgba(255,255,255,0.7); padding: 5px; border-radius: 10px;">(לחיצה ארוכה להגדרות)</p>
     </div>
-    <div id="countdown-container">
-        <div id="countdown-display">5</div>
-        <div style="color:white;font-size:2rem">תמונה <span id="photo-count">1</span> מתוך 3</div>
-    </div>
-</div>
 
-<!-- PREVIEW -->
-<div id="screen-preview" class="screen" style="background:black">
-    <img id="final-strip">
-</div>
-
-<!-- PHONE -->
-<div id="screen-phone" class="screen">
-    <div class="phone-mockup">
-        <input id="phone-number" class="phone-input" readonly>
-        <div class="dial-pad">
-            <button class="dial-btn" onclick="addDigit('1')">1</button>
-            <button class="dial-btn" onclick="addDigit('2')">2</button>
-            <button class="dial-btn" onclick="addDigit('3')">3</button>
-            <button class="dial-btn" onclick="addDigit('4')">4</button>
-            <button class="dial-btn" onclick="addDigit('5')">5</button>
-            <button class="dial-btn" onclick="addDigit('6')">6</button>
-            <button class="dial-btn" onclick="addDigit('7')">7</button>
-            <button class="dial-btn" onclick="addDigit('8')">8</button>
-            <button class="dial-btn" onclick="addDigit('9')">9</button>
-            <button class="dial-btn" onclick="clearDigit()">C</button>
-            <button class="dial-btn" onclick="addDigit('0')">0</button>
-            <button class="dial-btn" onclick="restart()">🏠</button>
+    <div id="screen-camera" class="screen">
+        <div id="camera-wrapper">
+            <video id="camera-feed" autoplay playsinline muted></video>
         </div>
-        <button class="call-btn" onclick="shareToWhatsApp()">שלח לווטסאפ</button>
+        <div id="countdown-container">
+            <div id="countdown-display">5</div>
+            <div style="color: white; font-size: 2rem; font-family: 'Fredoka One'; text-shadow: 2px 2px 4px black;">
+                תמונה <span id="photo-count">1</span> מתוך 3
+            </div>
+        </div>
     </div>
-</div>
 
-<!-- ADMIN -->
-<div id="admin-panel" class="admin-modal">
-    <div class="admin-box">
-        <h3>הגדרות</h3>
-        <input id="input-event-name">
-        <button onclick="saveSettings()">סגור</button>
+    <div id="screen-preview" class="screen" style="background: rgba(0,0,0,0.9);">
+        <h2 style="color: white; margin-top: 10px;">מושלם!</h2>
+        <img id="final-strip" src="" alt="Photo Strip">
     </div>
-</div>
 
-<script>
-/* 🔴 זה השינוי היחיד */
-const backgroundFiles = ['1.png','2.png','3.png','4.png','5.png'];
+    <div id="screen-phone" class="screen" style="background: #f0f8ff;">
+        <div class="phone-mockup">
+            <h3>הכנס מספר לשליחה</h3>
+            <div style="background: #eee; padding: 10px; border-radius: 10px; margin-bottom: 15px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="30" style="vertical-align: middle;">
+                <span style="font-size: 0.9rem;">שליחת התמונה בווטסאפ</span>
+            </div>
+            
+            <input type="tel" id="phone-number" class="phone-input" placeholder="050xxxxxxx" readonly>
+            
+            <div class="dial-pad">
+                <button class="dial-btn" onclick="addDigit('1')">1</button>
+                <button class="dial-btn" onclick="addDigit('2')">2</button>
+                <button class="dial-btn" onclick="addDigit('3')">3</button>
 
-/* כל שאר הקוד – כמו שעבד לך */
-let pressTimer;
-document.getElementById('screen-start').addEventListener('touchstart',()=>{
-    pressTimer=setTimeout(()=>document.getElementById('admin-panel').style.display='flex',4000);
-});
-document.getElementById('screen-start').addEventListener('touchend',()=>clearTimeout(pressTimer));
+                <button class="dial-btn" onclick="addDigit('4')">4</button>
+                <button class="dial-btn" onclick="addDigit('5')">5</button>
+                <button class="dial-btn" onclick="addDigit('6')">6</button>
 
-function addDigit(d){ phone.value+=d; }
-function clearDigit(){ phone.value=phone.value.slice(0,-1); }
-function restart(){ location.reload(); }
-function shareToWhatsApp(){ alert('כמו שעבד'); }
-</script>
+                <button class="dial-btn" onclick="addDigit('7')">7</button>
+                <button class="dial-btn" onclick="addDigit('8')">8</button>
+                <button class="dial-btn" onclick="addDigit('9')">9</button>
 
+                <button class="dial-btn" style="color:red;" onclick="clearDigit()">C</button>
+                <button class="dial-btn" onclick="addDigit('0')">0</button>
+                <button class="dial-btn" onclick="restart()">🏠</button>
+            </div>
+
+            <button class="call-btn" onclick="shareToWhatsApp()">
+                📞 שלח לווטסאפ
+            </button>
+        </div>
+    </div>
+
+    <div id="admin-panel" class="admin-modal">
+        <h3>הגדרות אירוע</h3>
+        
+        <label>שם האירוע:</label>
+        <input type="text" id="input-event-name" class="admin-input" placeholder="למשל: ברית למשה">
+        
+        <label>תאריך:</label>
+        <input type="text" id="input-event-date" class="admin-input" placeholder="21.02.2023">
+        
+        <label>בחר רקע לסטריפ:</label>
+        <div style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">* וודא שהקבצים 1.png - 5.png נמצאים בתיקייה</div>
+        <div class="bg-selector" id="bg-grid"></div>
+
+        <button class="close-admin" onclick="saveSettings()">שמור וסגור</button>
+    </div>
+    
+    <script>
+        // --- קונפיגורציה ---
+        // ✅ שינוי יחיד: PNG במקום JPG
+        const backgroundFiles = ['1.png', '2.png', '3.png', '4.png', '5.png'];
+        
+        // --- משתנים גלובליים ---
+        let currentPhotoIndex = 0;
+        const totalPhotos = 3;
+        const photos = [];
+        let videoStream = null;
+        
+        let eventName = localStorage.getItem('eventName') || "האירוע שלנו";
+        let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
+        let selectedBg = localStorage.getItem('selectedBg') || null;
+
+        // --- אתחול ---
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLabels();
+            setupLongPress();
+            renderBgSelector();
+        });
+
+        function updateLabels() {
+            document.getElementById('event-title-display').innerText = eventName;
+            document.getElementById('input-event-name').value = eventName;
+            document.getElementById('input-event-date').value = eventDate;
+        }
+
+        // --- ניהול רקעים ---
+        function renderBgSelector() {
+            const grid = document.getElementById('bg-grid');
+            grid.innerHTML = '';
+            
+            const whiteDiv = document.createElement('div');
+            whiteDiv.className = 'bg-option';
+            whiteDiv.style.background = '#fdfbf7';
+            whiteDiv.innerText = 'לבן';
+            whiteDiv.style.fontSize = '1rem';
+            if(!selectedBg) whiteDiv.classList.add('selected');
+            whiteDiv.onclick = () => selectBackground(null, whiteDiv);
+            grid.appendChild(whiteDiv);
+
+            backgroundFiles.forEach(file => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'bg-option';
+                
+                if (selectedBg === file) wrapper.classList.add('selected');
+                wrapper.onclick = () => selectBackground(file, wrapper);
+
+                const img = document.createElement('img');
+                img.src = file;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                
+                img.onerror = () => { 
+                    img.style.display = 'none'; 
+                    wrapper.innerText = file;
+                    wrapper.style.color = 'red';
+                };
+
+                wrapper.appendChild(img);
+                grid.appendChild(wrapper);
+            });
+        }
+
+        function selectBackground(filename, element) {
+            selectedBg = filename;
+            document.querySelectorAll('.bg-option').forEach(el => el.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        // --- לוגיקת לחיצה ארוכה (Admin) ---
+        function setupLongPress() {
+            const startScreen = document.getElementById('screen-start');
+            let pressTimer;
+
+            const startPress = () => {
+                pressTimer = setTimeout(() => {
+                    document.getElementById('admin-panel').style.display = 'block';
+                }, 4000); 
+            };
+
+            const cancelPress = () => {
+                clearTimeout(pressTimer);
+            };
+
+            startScreen.addEventListener('mousedown', startPress);
+            startScreen.addEventListener('mouseup', cancelPress);
+            startScreen.addEventListener('touchstart', startPress);
+            startScreen.addEventListener('touchend', cancelPress);
+        }
+
+        function saveSettings() {
+            eventName = document.getElementById('input-event-name').value;
+            eventDate = document.getElementById('input-event-date').value;
+            
+            localStorage.setItem('eventName', eventName);
+            localStorage.setItem('eventDate', eventDate);
+            if(selectedBg) localStorage.setItem('selectedBg', selectedBg);
+            else localStorage.removeItem('selectedBg');
+
+            updateLabels();
+            document.getElementById('admin-panel').style.display = 'none';
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // --- התחלת תהליך ---
+        document.getElementById('btn-start').addEventListener('click', async () => {
+            currentPhotoIndex = 0;
+            photos.length = 0;
+            try {
+                const constraints = { 
+                    video: { 
+                        facingMode: "user", 
+                        width: { ideal: 1280 }, 
+                        height: { ideal: 960 } 
+                    } 
+                };
+                
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoStream = stream;
+                document.getElementById('camera-feed').srcObject = stream;
+                showScreen('screen-camera');
+                runPhotoLoop();
+            } catch (err) {
+                alert("שגיאת מצלמה. וודא HTTPS.");
+                console.error(err);
+            }
+        });
+
+        function runPhotoLoop() {
+            if (currentPhotoIndex >= totalPhotos) {
+                finishPhotography();
+                return;
+            }
+
+            document.getElementById('photo-count').innerText = currentPhotoIndex + 1;
+
+            let count = 5;
+            const countdownEl = document.getElementById('countdown-display');
+            countdownEl.innerText = count;
+
+            const interval = setInterval(() => {
+                count--;
+                countdownEl.innerText = count;
+                if (count <= 0) {
+                    clearInterval(interval);
+                    takePicture();
+                }
+            }, 1000);
+        }
+
+        function takePicture() {
+            const video = document.getElementById('camera-feed');
+            const canvas = document.createElement('canvas');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            photos.push(canvas); 
+            
+            const flash = document.createElement('div');
+            flash.style.position = 'fixed';
+            flash.style.top = 0; flash.style.left = 0; flash.style.width = '100%'; flash.style.height = '100%';
+            flash.style.background = 'white';
+            flash.style.zIndex = 9999;
+            document.body.appendChild(flash);
+            setTimeout(() => flash.remove(), 150);
+
+            currentPhotoIndex++;
+            runPhotoLoop();
+        }
+
+        function finishPhotography() {
+            if(videoStream) videoStream.getTracks().forEach(track => track.stop());
+            generateFinalStrip();
+        }
+
+        // --- יצירת הסטריפ ---
+        function generateFinalStrip() {
+            const finalCanvas = document.getElementById('photoCanvas');
+            const ctx = finalCanvas.getContext('2d');
+
+            const canvasWidth = 900;
+            const canvasHeight = 1920;
+            finalCanvas.width = canvasWidth;
+            finalCanvas.height = canvasHeight;
+
+            const photoSize = 460;
+            const gap = 55;
+            const topMargin = 260;
+            const footerArea = 240;
+
+            const xPos = (canvasWidth - photoSize) / 2;
+
+            const y1 = topMargin;
+            const y2 = y1 + photoSize + gap;
+            const y3 = y2 + photoSize + gap;
+
+            function drawBgCover(bgImg) {
+                const iw = bgImg.width, ih = bgImg.height;
+                const scale = Math.max(canvasWidth / iw, canvasHeight / ih);
+                const sw = canvasWidth / scale, sh = canvasHeight / scale;
+                const sx = (iw - sw) / 2, sy = (ih - sh) / 2;
+                ctx.drawImage(bgImg, sx, sy, sw, sh, 0, 0, canvasWidth, canvasHeight);
+            }
+
+            function drawSquarePhoto(photoCanvas, dx, dy, size) {
+                const imgW = photoCanvas.width, imgH = photoCanvas.height;
+                const s = Math.min(imgW, imgH);
+                const sx = (imgW - s) / 2, sy = (imgH - s) / 2;
+                ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
+            }
+
+            function drawFooterText() {
+                const footerY = canvasHeight - footerArea + 95;
+
+                ctx.textAlign = 'center';
+                ctx.shadowColor = 'rgba(0,0,0,0.35)';
+                ctx.shadowBlur = 10;
+
+                const grad = ctx.createLinearGradient(canvasWidth*0.2, 0, canvasWidth*0.8, 0);
+                grad.addColorStop(0, '#ff2d2d');
+                grad.addColorStop(0.33, '#ffd400');
+                grad.addColorStop(0.66, '#00d084');
+                grad.addColorStop(1, '#4d79ff');
+
+                ctx.font = 'bold 78px "Fredoka One", sans-serif';
+                ctx.lineWidth = 10;
+                ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+                ctx.fillStyle = grad;
+                ctx.strokeText(eventName, canvasWidth/2, footerY);
+                ctx.fillText(eventName, canvasWidth/2, footerY);
+
+                ctx.font = 'bold 52px "Varela Round", sans-serif';
+                ctx.lineWidth = 8;
+                ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+                ctx.fillStyle = '#7c4dff';
+                ctx.strokeText(eventDate, canvasWidth/2, footerY + 75);
+                ctx.fillText(eventDate, canvasWidth/2, footerY + 75);
+
+                ctx.shadowBlur = 0;
+            }
+
+            function drawContent() {
+                if (photos[0]) drawSquarePhoto(photos[0], xPos, y1, photoSize);
+                if (photos[1]) drawSquarePhoto(photos[1], xPos, y2, photoSize);
+                if (photos[2]) drawSquarePhoto(photos[2], xPos, y3, photoSize);
+
+                drawFooterText();
+
+                const finalImage = document.getElementById('final-strip');
+                finalImage.src = finalCanvas.toDataURL('image/jpeg', 0.9);
+                showScreen('screen-preview');
+                setTimeout(() => { showScreen('screen-phone'); }, 3000);
+            }
+
+            if (selectedBg) {
+                const bgImg = new Image();
+                bgImg.crossOrigin = "anonymous"; 
+                bgImg.src = selectedBg;
+                bgImg.onload = () => { drawBgCover(bgImg); drawContent(); };
+                bgImg.onerror = () => { ctx.fillStyle = '#fdfbf7'; ctx.fillRect(0,0,canvasWidth,canvasHeight); drawContent(); };
+            } else {
+                ctx.fillStyle = '#fdfbf7';
+                ctx.fillRect(0,0,canvasWidth,canvasHeight);
+                drawContent();
+            }
+        }
+
+        // --- ממשק טלפון ---
+        function addDigit(digit) {
+            document.getElementById('phone-number').value += digit;
+        }
+
+        function clearDigit() {
+            const input = document.getElementById('phone-number');
+            input.value = input.value.slice(0, -1);
+        }
+
+        function restart() {
+            showScreen('screen-start');
+            document.getElementById('phone-number').value = '';
+        }
+
+        // הורדה ואז פתיחת וואטסאפ למספר עם הודעה
+        async function shareToWhatsApp() {
+            const phoneNumber = document.getElementById('phone-number').value.trim();
+            const canvas = document.getElementById('photoCanvas');
+
+            if (!phoneNumber) {
+                alert("הכנס מספר טלפון ואז לחץ שלח.");
+                return;
+            }
+
+            canvas.toBlob((blob) => {
+                const link = document.createElement('a');
+                link.download = `photostrip-${Date.now()}.jpg`;
+                link.href = URL.createObjectURL(blob);
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(() => URL.revokeObjectURL(link.href), 2000);
+
+                let cleanNum = phoneNumber.replace(/\D/g,'');
+                if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
+
+                const msg = `תודה שהשתתפתם ב-${eventName} ❤️\nמצורפת מזכרת מהעמדה!`;
+                window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(msg)}`;
+
+            }, 'image/jpeg', 0.92);
+        }
+
+        window.addDigit = addDigit;
+        window.clearDigit = clearDigit;
+        window.restart = restart;
+        window.shareToWhatsApp = shareToWhatsApp;
+    </script>
 </body>
 </html>
