@@ -282,6 +282,8 @@
             opacity: 0.8;
             margin-top: 6px;
             min-height: 22px;
+            word-break: break-all; 
+            color: #d63031;
         }
         .qr-close-btn {
             width: 100%;
@@ -293,52 +295,6 @@
             cursor: pointer;
             border-radius: 12px;
             margin-top: 10px;
-        }
-
-        /* =========================================================
-           ✅ DEBUG OVERLAY (רק לנושא QR) - לא משנה עיצוב קיים
-           ========================================================= */
-        #debugOverlay{
-            display:none;
-            position:fixed;
-            inset:0;
-            background:rgba(0,0,0,0.75);
-            z-index:2000;
-            padding:12px;
-            box-sizing:border-box;
-        }
-        #debugBox{
-            background:#fff;
-            border-radius:14px;
-            padding:12px;
-            max-width:520px;
-            margin:0 auto;
-            height:85vh;
-            overflow:auto;
-            direction:ltr;
-            text-align:left;
-            font-family:monospace;
-            font-size:12px;
-            white-space:pre-wrap;
-            word-break:break-word;
-            border:4px solid #ff6b6b;
-            box-sizing:border-box;
-        }
-        #debugBtns{
-            display:flex;
-            gap:8px;
-            margin-top:10px;
-            max-width:520px;
-            margin-left:auto;
-            margin-right:auto;
-        }
-        .debugBtn{
-            flex:1;
-            padding:10px;
-            border:none;
-            border-radius:10px;
-            cursor:pointer;
-            font-size:14px;
         }
     </style>
 </head>
@@ -404,7 +360,6 @@
                 📞 שלח לווטסאפ
             </button>
 
-            <!-- ✅ חדש: כפתור QR (בלי לשנות את WhatsApp) -->
             <button class="call-btn" style="background:#4d79ff; margin-top: 10px;" onclick="openQR()">
                 📷 הצג QR
             </button>
@@ -451,33 +406,22 @@
         <button class="close-admin" onclick="saveSettings()">שמור וסגור</button>
     </div>
 
-    <!-- ✅ חדש: מודל QR -->
     <div id="qr-modal" class="qr-modal" onclick="closeQRByBackdrop(event)">
         <div class="qr-box">
             <div class="qr-title">סרוק והורד</div>
             <canvas id="qrCanvas" width="260" height="260"></canvas>
-            <div id="qrStatus">טוען QR...</div>
+            <div id="qrStatus" style="color:#333;">טוען QR...</div>
             <button class="qr-close-btn" onclick="closeQR()">סגור</button>
         </div>
     </div>
-
-    <!-- ✅ DEBUG OVERLAY (רק לנושא QR) -->
-    <div id="debugOverlay">
-        <div id="debugBox"></div>
-        <div id="debugBtns">
-            <button class="debugBtn" style="background:#4ecdc4;color:#fff;" onclick="copyDebug()">Copy</button>
-            <button class="debugBtn" style="background:#ff6b6b;color:#fff;" onclick="closeDebug()">Close</button>
-        </div>
-    </div>
     
-    <!-- ✅ חדש: ספריית QR קטנה -->
     <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
 
     <script>
         // --- קונפיגורציה ---
         const backgroundFiles = ['1.png', '2.png', '3.png', '4.png', '5.png', '6.png', '7.png', '8.png', '9.png'];
 
-        // ✅ QR/Drive: הנתונים שלך (קבועים)
+        // הנתונים שלך
         const DRIVE_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxhaH5GyQyA5XViX40h8xtSTMLFpIotWoH8DRf2APhhux885UffhQN-I_2ylbmIF0Nsvg/exec';
         const DRIVE_FOLDER_ID = '1HJW2jY9p9B1ibx6lPBPVhHeqV1GKyoeP';
         
@@ -491,15 +435,14 @@
         let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
         let selectedBg = localStorage.getItem('selectedBg') || null;
 
-        const FRAME_STYLE_KEY = 'photoFrameStyle'; // 'framed' | 'plain'
+        const FRAME_STYLE_KEY = 'photoFrameStyle';
         let photoFrameStyle = localStorage.getItem(FRAME_STYLE_KEY) || 'framed';
 
-        const PHOTO_MODE_KEY = 'photoMode'; // 'multipic' | 'onepic'
+        const PHOTO_MODE_KEY = 'photoMode'; 
         let photoMode = localStorage.getItem(PHOTO_MODE_KEY) || 'multipic';
 
         const WA_RETURN_FLAG = 'waReturnPending';
 
-        // ✅ חדש: שמירת ה-JPEG האחרון להעלאה/QR
         let lastFinalJpegDataUrl = null;
         let lastUploadedDownloadUrl = null;
 
@@ -917,7 +860,6 @@
                 const jpegDataUrl = finalCanvas.toDataURL('image/jpeg', 0.9);
                 finalImage.src = jpegDataUrl;
 
-                // ✅ חדש: נשמור את ה-JPEG האחרון כדי שה-QR יוכל להעלות אותו ל-Drive
                 lastFinalJpegDataUrl = jpegDataUrl;
                 lastUploadedDownloadUrl = null;
 
@@ -977,70 +919,11 @@
             }, 'image/jpeg', 0.92);
         }
 
-        // =========================================================
-        // ✅ QR (חדש) — עם דיבאג מפורט (רק לנושא QR)
-        // =========================================================
-
-        // ---- DEBUG HELPERS ----
-        let __debugText = '';
-        function showDebug(text) {
-            __debugText = String(text || '');
-            const overlay = document.getElementById('debugOverlay');
-            const box = document.getElementById('debugBox');
-            if (box) box.textContent = __debugText;
-            if (overlay) overlay.style.display = 'block';
-        }
-        function closeDebug() {
-            const overlay = document.getElementById('debugOverlay');
-            if (overlay) overlay.style.display = 'none';
-        }
-        function copyDebug() {
-            (navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(__debugText) : Promise.reject())
-            .then(() => alert('הועתק ללוח'))
-            .catch(() => alert('לא הצלחתי להעתיק אוטומטית. תסמן ידנית ותעתיק.'));
-        }
-
-        async function debugFetch(url, options) {
-            const lines = [];
-            lines.push('=== DEBUG FETCH ===');
-            lines.push('URL: ' + url);
-            lines.push('Method: ' + (options && options.method ? options.method : 'GET'));
-            lines.push('Time: ' + new Date().toISOString());
-            lines.push('---');
-
-            try {
-                const res = await fetch(url, options);
-                lines.push('HTTP Status: ' + res.status + ' ' + res.statusText);
-                lines.push('Response URL: ' + res.url);
-
-                const text = await res.text();
-                lines.push('--- Response (raw) ---');
-                lines.push(text.slice(0, 6000));
-
-                let json = null;
-                try {
-                    json = JSON.parse(text);
-                    lines.push('--- Parsed JSON ---');
-                    lines.push(JSON.stringify(json, null, 2));
-                } catch (e) {
-                    lines.push('--- JSON Parse ---');
-                    lines.push('Not JSON (probably HTML / redirect / error page)');
-                }
-
-                return { res, text, json, debug: lines.join('\n') };
-            } catch (err) {
-                lines.push('--- FETCH ERROR ---');
-                lines.push(String(err && err.stack ? err.stack : err));
-                lines.push('Tip: אם כתוב "Failed to fetch" זה בדרך כלל CORS / רשת / הרשאות Apps Script');
-                return { res: null, text: null, json: null, debug: lines.join('\n') };
-            }
-        }
-
+        // --- התיקון שהוכנס ---
         function openQR() {
             document.getElementById('qr-modal').style.display = 'flex';
             document.getElementById('qrStatus').innerText = 'טוען QR...';
 
-            // אם כבר העלינו פעם אחת לתמונה הזו — נשתמש בלינק הקיים
             if (lastUploadedDownloadUrl) {
                 renderQR(lastUploadedDownloadUrl);
                 document.getElementById('qrStatus').innerText = 'סרוק והורד 👍';
@@ -1052,7 +935,6 @@
                 return;
             }
 
-            // העלאה ל-Drive דרך Apps Script, ואז QR ללינק הורדה ישירה
             uploadToDrive(lastFinalJpegDataUrl)
                 .then((downloadUrl) => {
                     lastUploadedDownloadUrl = downloadUrl;
@@ -1061,8 +943,7 @@
                 })
                 .catch((err) => {
                     console.error(err);
-                    document.getElementById('qrStatus').innerText = 'שגיאה ביצירת QR.';
-                    showDebug(String(err && err.stack ? err.stack : err));
+                    document.getElementById('qrStatus').innerText = 'שגיאה: ' + (err.message || err);
                 });
         }
 
@@ -1093,48 +974,29 @@
                 dataUrl: jpegDataUrl
             };
 
-            // ✅ דיבאג: נשתמש ב-debugFetch כדי לראות בדיוק מה חוזר מהשרת
-            const r = await debugFetch(DRIVE_WEBAPP_URL, {
+            // שינוי ה-Header ל-text/plain כדי למנוע חסימת CORS (Failed to fetch)
+            const res = await fetch(DRIVE_WEBAPP_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(payload)
             });
 
-            // אם בכלל לא הגיע Response (למשל Failed to fetch)
-            if (!r.res) {
-                showDebug(r.debug);
-                throw new Error('QR Upload: No response (Failed to fetch / CORS / network)');
+            const data = await res.json();
+
+            if (!data || data.ok !== true || !data.downloadUrl) {
+                throw new Error(data && data.error ? data.error : 'Upload failed');
             }
 
-            // סטטוס לא OK
-            if (!r.res.ok) {
-                showDebug(r.debug);
-                throw new Error(`QR Upload: HTTP ${r.res.status}`);
-            }
-
-            // חייב JSON תקין עם ok=true ו-downloadUrl
-            if (!r.json || r.json.ok !== true || !r.json.downloadUrl) {
-                showDebug(r.debug);
-                const msg = (r.json && (r.json.error || r.json.message)) ? (r.json.error || r.json.message) : 'Bad JSON response';
-                throw new Error('QR Upload: ' + msg);
-            }
-
-            return r.json.downloadUrl;
+            return data.downloadUrl;
         }
 
         window.addDigit = addDigit;
         window.clearDigit = clearDigit;
         window.restart = restart;
         window.shareToWhatsApp = shareToWhatsApp;
-
-        // ✅ חדש
         window.openQR = openQR;
         window.closeQR = closeQR;
         window.closeQRByBackdrop = closeQRByBackdrop;
-
-        // ✅ דיבאג
-        window.closeDebug = closeDebug;
-        window.copyDebug = copyDebug;
     </script>
 </body>
 </html>
