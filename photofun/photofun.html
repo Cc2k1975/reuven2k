@@ -49,7 +49,7 @@
 
         .active { display: flex; }
 
-        /* --- שומר מסך (חדש) --- */
+        /* --- שומר מסך --- */
         #screen-saver {
             z-index: 2000;
             background: #000;
@@ -423,7 +423,7 @@
                 <button class="dial-btn" onclick="restart()">🏠</button>
             </div>
 
-            <button class="call-btn" onclick="shareToWhatsApp()">
+            <button id="btn-whatsapp" class="call-btn" onclick="shareToWhatsApp()">
                 📞 שלח לווטסאפ
             </button>
 
@@ -789,7 +789,7 @@
             generateFinalStrip();
         }
 
-        // --- חזרה ללוגיקה המקורית והמדויקת של הציור ---
+        // --- ציור ---
         function generateFinalStrip() {
             const finalCanvas = document.getElementById('photoCanvas');
             const ctx = finalCanvas.getContext('2d');
@@ -948,6 +948,8 @@
                 if(sessionPhotos.length > 20) sessionPhotos.shift();
 
                 playSound('success');
+                // איפוס כפתור הווטסאפ
+                document.getElementById('btn-whatsapp').innerText = '📞 שלח לווטסאפ';
 
                 showScreen('screen-preview');
                 setTimeout(() => { showScreen('screen-phone'); }, 3000);
@@ -1000,16 +1002,40 @@
             return data.downloadUrl;
         }
 
+        // ✅ הפונקציה המעודכנת ששולחת קישור
         async function shareToWhatsApp() {
             const num = document.getElementById('phone-number').value.trim();
-            if (!num) return alert("הכנס מספר");
-            const blob = await (await fetch(lastFinalJpegDataUrl)).blob();
-            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `p-${Date.now()}.jpg`;
-            document.body.appendChild(link); link.click(); link.remove();
+            if (!num) return alert("הכנס מספר טלפון");
+
+            const btn = document.getElementById('btn-whatsapp');
+            const originalText = btn.innerText;
+            btn.innerText = '⏳ מכין קישור...';
+
+            let downloadLink = lastUploadedDownloadUrl;
+
+            // אם אין קישור קיים, מעלים לדרייב עכשיו
+            if (!downloadLink) {
+                try {
+                    downloadLink = await uploadToDrive(lastFinalJpegDataUrl);
+                    lastUploadedDownloadUrl = downloadLink;
+                } catch (e) {
+                    alert("שגיאה בהעלאת התמונה. נסה שוב.");
+                    btn.innerText = originalText;
+                    return;
+                }
+            }
             
-            let clean = num.replace(/\D/g,''); if (clean.startsWith('0')) clean = '972' + clean.substring(1);
+            // יצירת ההודעה עם הקישור
+            let clean = num.replace(/\D/g,''); 
+            if (clean.startsWith('0')) clean = '972' + clean.substring(1);
+            
+            const msg = `תודה שהייתם ב-${eventName}! ❤️\nהנה התמונה שלכם:\n${downloadLink}`;
+
             localStorage.setItem(WA_RETURN_FLAG, '1');
-            window.location.href = `https://wa.me/${clean}?text=${encodeURIComponent(`תודה שהייתם ב-${eventName}! ❤️`)}`;
+            window.location.href = `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
+            
+            // החזרת הכפתור למצב רגיל (למרות שהדף עובר לווצאפ, ליתר ביטחון)
+            setTimeout(() => btn.innerText = originalText, 2000);
         }
 
         window.addDigit = addDigit; window.clearDigit = clearDigit; window.restart = restart;
