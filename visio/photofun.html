@@ -240,6 +240,62 @@
             cursor: pointer;
             border-radius: 10px;
         }
+
+        /* --- QR מודל (חדש) --- */
+        .qr-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 1500;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .qr-box {
+            background: white;
+            border-radius: 20px;
+            padding: 18px;
+            width: 90%;
+            max-width: 360px;
+            box-shadow: 0 20px 80px rgba(0,0,0,0.35);
+            border: 5px solid #4ecdc4;
+            text-align: center;
+        }
+        .qr-title {
+            font-family: 'Fredoka One', cursive;
+            color: #ff6b6b;
+            text-shadow: 2px 2px 0px #fff, 4px 4px 0px #ffd93d;
+            margin: 0 0 10px 0;
+            font-size: 1.6rem;
+        }
+        #qrCanvas {
+            width: 260px;
+            height: 260px;
+            margin: 10px auto 8px auto;
+            display: block;
+            border-radius: 12px;
+            background: #fff;
+        }
+        #qrStatus {
+            font-size: 0.95rem;
+            opacity: 0.8;
+            margin-top: 6px;
+            min-height: 22px;
+            word-break: break-all; 
+            color: #d63031;
+        }
+        .qr-close-btn {
+            width: 100%;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -303,6 +359,10 @@
             <button class="call-btn" onclick="shareToWhatsApp()">
                 📞 שלח לווטסאפ
             </button>
+
+            <button class="call-btn" style="background:#4d79ff; margin-top: 10px;" onclick="openQR()">
+                📷 הצג QR
+            </button>
         </div>
     </div>
 
@@ -345,10 +405,25 @@
 
         <button class="close-admin" onclick="saveSettings()">שמור וסגור</button>
     </div>
+
+    <div id="qr-modal" class="qr-modal" onclick="closeQRByBackdrop(event)">
+        <div class="qr-box">
+            <div class="qr-title">סרוק והורד</div>
+            <canvas id="qrCanvas" width="260" height="260"></canvas>
+            <div id="qrStatus" style="color:#333;">טוען QR...</div>
+            <button class="qr-close-btn" onclick="closeQR()">סגור</button>
+        </div>
+    </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+
     <script>
         // --- קונפיגורציה ---
         const backgroundFiles = ['1.png', '2.png', '3.png', '4.png', '5.png', '6.png', '7.png', '8.png', '9.png'];
+
+        // הנתונים שלך
+        const DRIVE_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxhaH5GyQyA5XViX40h8xtSTMLFpIotWoH8DRf2APhhux885UffhQN-I_2ylbmIF0Nsvg/exec';
+        const DRIVE_FOLDER_ID = '1HJW2jY9p9B1ibx6lPBPVhHeqV1GKyoeP';
         
         // --- משתנים גלובליים ---
         let currentPhotoIndex = 0;
@@ -360,13 +435,16 @@
         let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
         let selectedBg = localStorage.getItem('selectedBg') || null;
 
-        const FRAME_STYLE_KEY = 'photoFrameStyle'; // 'framed' | 'plain'
+        const FRAME_STYLE_KEY = 'photoFrameStyle';
         let photoFrameStyle = localStorage.getItem(FRAME_STYLE_KEY) || 'framed';
 
-        const PHOTO_MODE_KEY = 'photoMode'; // 'multipic' | 'onepic'
+        const PHOTO_MODE_KEY = 'photoMode'; 
         let photoMode = localStorage.getItem(PHOTO_MODE_KEY) || 'multipic';
 
         const WA_RETURN_FLAG = 'waReturnPending';
+
+        let lastFinalJpegDataUrl = null;
+        let lastUploadedDownloadUrl = null;
 
         function autoReturnIfNeeded() {
             if (localStorage.getItem(WA_RETURN_FLAG) === '1') {
@@ -663,42 +741,34 @@
                 ctx.closePath();
             }
 
-            // ✅ כאן בדיוק הבקשה שלך:
-            // framed = נשאר אותו דבר
-            // plain = "קצוות רכים" (Feather) שמשתלב עם הרקע כמו בתמונה ששלחת
             function drawSquarePhoto(photoCanvas, dx, dy, size) {
                 const imgW = photoCanvas.width, imgH = photoCanvas.height;
                 const s = Math.min(imgW, imgH);
                 const sx = (imgW - s) / 2, sy = (imgH - s) / 2;
 
                 if (photoFrameStyle === 'plain') {
-                    // --- plain עם קצוות רכים ---
                     const temp = document.createElement('canvas');
                     temp.width = size;
                     temp.height = size;
                     const tctx = temp.getContext('2d');
 
-                    // ציור התמונה לתוך קנבס זמני
                     tctx.drawImage(photoCanvas, sx, sy, s, s, 0, 0, size, size);
 
-                    // מסיכת שקיפות רכה מסביב (Feather)
                     tctx.globalCompositeOperation = 'destination-in';
                     const g = tctx.createRadialGradient(
-                        size / 2, size / 2, size * 0.40,   // פנימי (אטום)
-                        size / 2, size / 2, size * 0.52    // חיצוני (שקוף)
+                        size / 2, size / 2, size * 0.40,
+                        size / 2, size / 2, size * 0.52
                     );
                     g.addColorStop(0, 'rgba(0,0,0,1)');
                     g.addColorStop(1, 'rgba(0,0,0,0)');
                     tctx.fillStyle = g;
                     tctx.fillRect(0, 0, size, size);
 
-                    // החזרה למצב רגיל וציור לתוצאה
                     tctx.globalCompositeOperation = 'source-over';
                     ctx.drawImage(temp, dx, dy, size, size);
                     return;
                 }
 
-                // --- framed (כמו שיש לך עכשיו, בלי שינוי) ---
                 const radius = 28;
                 const pad = 14;
                 const fx = dx - pad;
@@ -787,7 +857,12 @@
                 drawFooterText();
 
                 const finalImage = document.getElementById('final-strip');
-                finalImage.src = finalCanvas.toDataURL('image/jpeg', 0.9);
+                const jpegDataUrl = finalCanvas.toDataURL('image/jpeg', 0.9);
+                finalImage.src = jpegDataUrl;
+
+                lastFinalJpegDataUrl = jpegDataUrl;
+                lastUploadedDownloadUrl = null;
+
                 showScreen('screen-preview');
                 setTimeout(() => { showScreen('screen-phone'); }, 3000);
             }
@@ -844,10 +919,84 @@
             }, 'image/jpeg', 0.92);
         }
 
+        // --- התיקון שהוכנס ---
+        function openQR() {
+            document.getElementById('qr-modal').style.display = 'flex';
+            document.getElementById('qrStatus').innerText = 'טוען QR...';
+
+            if (lastUploadedDownloadUrl) {
+                renderQR(lastUploadedDownloadUrl);
+                document.getElementById('qrStatus').innerText = 'סרוק והורד 👍';
+                return;
+            }
+
+            if (!lastFinalJpegDataUrl) {
+                document.getElementById('qrStatus').innerText = 'אין תמונה להעלאה.';
+                return;
+            }
+
+            uploadToDrive(lastFinalJpegDataUrl)
+                .then((downloadUrl) => {
+                    lastUploadedDownloadUrl = downloadUrl;
+                    renderQR(downloadUrl);
+                    document.getElementById('qrStatus').innerText = 'סרוק והורד 👍';
+                })
+                .catch((err) => {
+                    console.error(err);
+                    document.getElementById('qrStatus').innerText = 'שגיאה: ' + (err.message || err);
+                });
+        }
+
+        function closeQR() {
+            document.getElementById('qr-modal').style.display = 'none';
+        }
+
+        function closeQRByBackdrop(e) {
+            if (e.target && e.target.id === 'qr-modal') closeQR();
+        }
+
+        function renderQR(url) {
+            const qr = new QRious({
+                element: document.getElementById('qrCanvas'),
+                value: url,
+                size: 260,
+                level: 'H'
+            });
+            return qr;
+        }
+
+        async function uploadToDrive(jpegDataUrl) {
+            const filename = `photostrip-${Date.now()}.jpg`;
+
+            const payload = {
+                folderId: DRIVE_FOLDER_ID,
+                filename: filename,
+                dataUrl: jpegDataUrl
+            };
+
+            // שינוי ה-Header ל-text/plain כדי למנוע חסימת CORS (Failed to fetch)
+            const res = await fetch(DRIVE_WEBAPP_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (!data || data.ok !== true || !data.downloadUrl) {
+                throw new Error(data && data.error ? data.error : 'Upload failed');
+            }
+
+            return data.downloadUrl;
+        }
+
         window.addDigit = addDigit;
         window.clearDigit = clearDigit;
         window.restart = restart;
         window.shareToWhatsApp = shareToWhatsApp;
+        window.openQR = openQR;
+        window.closeQR = closeQR;
+        window.closeQRByBackdrop = closeQRByBackdrop;
     </script>
 </body>
 </html>
