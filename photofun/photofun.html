@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>PhotoFun Booth Pro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
     <style>
         /* --- עיצוב כללי --- */
         body {
@@ -364,7 +364,7 @@
 
     <div id="screen-start" class="screen active">
         <h1>עמדת צילום</h1>
-        <h2 id="event-title-display">האירוע שלנו</h2>
+        <h2 id="event-title-display">קבלת שבת במשפחת שיין</h2>
         <div style="flex-grow: 1;"></div>
         <button id="btn-start" class="start-btn">התחל!</button>
         <div style="flex-grow: 1;"></div>
@@ -478,7 +478,8 @@
         const photos = [];
         let videoStream = null;
         
-        let eventName = localStorage.getItem('eventName') || "האירוע שלנו";
+        // ✅ שם האירוע המעודכן
+        let eventName = localStorage.getItem('eventName') || "קבלת שבת במשפחת שיין";
         let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
         let selectedBg = localStorage.getItem('selectedBg') || null;
 
@@ -492,16 +493,13 @@
         let lastFinalJpegDataUrl = null;
         let lastUploadedDownloadUrl = null;
 
-        // ✅ משתנה לפילטרים
         let currentFilter = 'none';
 
-        // ✅ משתנים לשומר מסך
         let idleTime = 0;
         let screensaverInterval = null;
         let slideshowInterval = null;
         const sessionPhotos = [];
 
-        // --- סאונד ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
         function playSound(type) {
@@ -889,30 +887,29 @@
                 const footerY = canvasHeight - footerArea + 95;
 
                 ctx.textAlign = 'center';
-                ctx.shadowColor = 'rgba(0,0,0,0.35)';
-                ctx.shadowBlur = 10;
+                
+                // ✅ עיצוב חדש ויוקרתי (בלי מקושקש)
+                ctx.shadowColor = 'rgba(0,0,0,0.15)';
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetY = 3;
 
-                const grad = ctx.createLinearGradient(canvasWidth*0.2, 0, canvasWidth*0.8, 0);
-                grad.addColorStop(0, '#ff2d2d');
-                grad.addColorStop(0.33, '#ffd400');
-                grad.addColorStop(0.66, '#00d084');
-                grad.addColorStop(1, '#4d79ff');
+                // צבע ראשי: כחול עמוק (Navy/Royal Blue)
+                ctx.fillStyle = '#2c3e50'; 
+                
+                ctx.font = 'bold 70px "Rubik", "Varela Round", sans-serif'; 
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#ffffff'; // קו לבן נקי מסביב
 
-                ctx.font = 'bold 78px "Fredoka One", sans-serif';
-                ctx.lineWidth = 10;
-                ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-                ctx.fillStyle = grad;
+                // ציור הטקסט (קודם מסגרת, אח"כ מילוי)
                 ctx.strokeText(eventName, canvasWidth/2, footerY);
                 ctx.fillText(eventName, canvasWidth/2, footerY);
 
-                ctx.font = 'bold 52px "Varela Round", sans-serif';
-                ctx.lineWidth = 8;
-                ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-                ctx.fillStyle = '#7c4dff';
-                ctx.strokeText(eventDate, canvasWidth/2, footerY + 75);
-                ctx.fillText(eventDate, canvasWidth/2, footerY + 75);
-
+                // תאריך - קטן יותר, אפור כהה
+                ctx.font = 'bold 45px "Varela Round", sans-serif';
+                ctx.fillStyle = '#555';
                 ctx.shadowBlur = 0;
+                ctx.lineWidth = 0;
+                ctx.fillText(eventDate, canvasWidth/2, footerY + 75);
             }
 
             function drawContent() {
@@ -948,7 +945,6 @@
                 if(sessionPhotos.length > 20) sessionPhotos.shift();
 
                 playSound('success');
-                // איפוס כפתור הווטסאפ
                 document.getElementById('btn-whatsapp').innerText = '📞 שלח לווטסאפ';
 
                 showScreen('screen-preview');
@@ -1002,7 +998,6 @@
             return data.downloadUrl;
         }
 
-        // ✅ הפונקציה המעודכנת ששולחת קישור
         async function shareToWhatsApp() {
             const num = document.getElementById('phone-number').value.trim();
             if (!num) return alert("הכנס מספר טלפון");
@@ -1013,7 +1008,6 @@
 
             let downloadLink = lastUploadedDownloadUrl;
 
-            // אם אין קישור קיים, מעלים לדרייב עכשיו
             if (!downloadLink) {
                 try {
                     downloadLink = await uploadToDrive(lastFinalJpegDataUrl);
@@ -1025,16 +1019,15 @@
                 }
             }
             
-            // יצירת ההודעה עם הקישור
             let clean = num.replace(/\D/g,''); 
             if (clean.startsWith('0')) clean = '972' + clean.substring(1);
             
-            const msg = `תודה שהייתם ב-${eventName}! ❤️\nהנה התמונה שלכם:\n${downloadLink}`;
+            // ✅ הטקסט המעודכן לווטסאפ
+            const msg = `תודה שהשתתפתם ב-${eventName}! ❤️\nהנה התמונה שלכם:\n${downloadLink}`;
 
             localStorage.setItem(WA_RETURN_FLAG, '1');
             window.location.href = `https://wa.me/${clean}?text=${encodeURIComponent(msg)}`;
             
-            // החזרת הכפתור למצב רגיל (למרות שהדף עובר לווצאפ, ליתר ביטחון)
             setTimeout(() => btn.innerText = originalText, 2000);
         }
 
