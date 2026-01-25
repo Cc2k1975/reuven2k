@@ -314,6 +314,19 @@
         
         <label>תאריך:</label>
         <input type="text" id="input-event-date" class="admin-input" placeholder="21.02.2023">
+
+        <!-- ✅ חדש: בחירת סגנון תמונות (עם מסגרת / בלי מסגרת) -->
+        <label>סגנון תמונות:</label>
+        <div style="display:flex; gap:10px; margin: 8px 0 15px 0;">
+            <button id="btn-style-framed" type="button"
+                style="flex:1; padding:10px; border-radius:12px; cursor:pointer; font-size:1rem; font-family:'Varela Round', sans-serif;">
+                עם מסגרת
+            </button>
+            <button id="btn-style-plain" type="button"
+                style="flex:1; padding:10px; border-radius:12px; cursor:pointer; font-size:1rem; font-family:'Varela Round', sans-serif;">
+                בלי מסגרת
+            </button>
+        </div>
         
         <label>בחר רקע לסטריפ:</label>
         <div style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">* וודא שהקבצים 1.png - 9.png נמצאים בתיקייה</div>
@@ -337,6 +350,10 @@
         let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
         let selectedBg = localStorage.getItem('selectedBg') || null;
 
+        // ✅ חדש: שמירת בחירת מסגרת
+        const FRAME_STYLE_KEY = 'photoFrameStyle'; // 'framed' | 'plain'
+        let photoFrameStyle = localStorage.getItem(FRAME_STYLE_KEY) || 'framed';
+
         // ✅ חזרה אוטומטית למסך ראשי אחרי וואטסאפ (כמו שכבר עבד אצלך)
         const WA_RETURN_FLAG = 'waReturnPending';
 
@@ -356,12 +373,51 @@
             updateLabels();
             setupLongPress();
             renderBgSelector();
+            setupFrameStyleButtons(); // ✅ חדש
         });
 
         function updateLabels() {
             document.getElementById('event-title-display').innerText = eventName;
             document.getElementById('input-event-name').value = eventName;
             document.getElementById('input-event-date').value = eventDate;
+        }
+
+        // ✅ חדש: UI לבחירת סגנון מסגרת
+        function setupFrameStyleButtons() {
+            const btnFramed = document.getElementById('btn-style-framed');
+            const btnPlain = document.getElementById('btn-style-plain');
+
+            function applyVisual() {
+                if (photoFrameStyle === 'framed') {
+                    btnFramed.style.background = '#4ecdc4';
+                    btnFramed.style.color = '#fff';
+                    btnFramed.style.border = '3px solid #2cb5ac';
+
+                    btnPlain.style.background = '#f0f0f0';
+                    btnPlain.style.color = '#333';
+                    btnPlain.style.border = '2px solid #ddd';
+                } else {
+                    btnPlain.style.background = '#4ecdc4';
+                    btnPlain.style.color = '#fff';
+                    btnPlain.style.border = '3px solid #2cb5ac';
+
+                    btnFramed.style.background = '#f0f0f0';
+                    btnFramed.style.color = '#333';
+                    btnFramed.style.border = '2px solid #ddd';
+                }
+            }
+
+            btnFramed.addEventListener('click', () => {
+                photoFrameStyle = 'framed';
+                applyVisual();
+            });
+
+            btnPlain.addEventListener('click', () => {
+                photoFrameStyle = 'plain';
+                applyVisual();
+            });
+
+            applyVisual();
         }
 
         // --- ניהול רקעים ---
@@ -437,6 +493,9 @@
             localStorage.setItem('eventDate', eventDate);
             if(selectedBg) localStorage.setItem('selectedBg', selectedBg);
             else localStorage.removeItem('selectedBg');
+
+            // ✅ חדש: שמירת בחירת מסגרת
+            localStorage.setItem(FRAME_STYLE_KEY, photoFrameStyle);
 
             updateLabels();
             document.getElementById('admin-panel').style.display = 'none';
@@ -553,7 +612,6 @@
                 ctx.drawImage(bgImg, sx, sy, sw, sh, 0, 0, canvasWidth, canvasHeight);
             }
 
-            // ✅ שדרוג ויזואלי בלבד: מסגרת + הצללה + פינות עגולות לתמונות (בלי שינוי לוגיקה/מיקומים/גדלים)
             function roundedRectPath(x, y, w, h, r) {
                 const rr = Math.min(r, w / 2, h / 2);
                 ctx.beginPath();
@@ -565,19 +623,25 @@
                 ctx.closePath();
             }
 
+            // ✅ כאן הבחירה: framed = כמו החדש / plain = כמו הישן (בלי מסגרת)
             function drawSquarePhoto(photoCanvas, dx, dy, size) {
                 const imgW = photoCanvas.width, imgH = photoCanvas.height;
                 const s = Math.min(imgW, imgH);
                 const sx = (imgW - s) / 2, sy = (imgH - s) / 2;
 
-                // פרמטרים (ויזואלי בלבד)
-                const radius = 28;   // פינות עגולות
-                const pad = 14;      // מסגרת מסביב
+                if (photoFrameStyle === 'plain') {
+                    // כמו שהיה מקודם בדיוק (תמונה מרובעת בלי מסגרת)
+                    ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
+                    return;
+                }
+
+                // framed (כמו שעכשיו): מסגרת + צל + פינות עגולות
+                const radius = 28;
+                const pad = 14;
                 const fx = dx - pad;
                 const fy = dy - pad;
                 const fs = size + pad * 2;
 
-                // מסגרת עם צל
                 ctx.save();
                 ctx.shadowColor = 'rgba(0,0,0,0.28)';
                 ctx.shadowBlur = 18;
@@ -588,7 +652,6 @@
                 roundedRectPath(fx, fy, fs, fs, radius + 10);
                 ctx.fill();
 
-                // קו מסגרת עדין
                 ctx.shadowColor = 'transparent';
                 ctx.lineWidth = 6;
                 ctx.strokeStyle = 'rgba(255,255,255,0.98)';
@@ -596,19 +659,15 @@
                 ctx.stroke();
                 ctx.restore();
 
-                // קליפ לתמונה עצמה עם פינות עגולות
                 ctx.save();
                 roundedRectPath(dx, dy, size, size, radius);
                 ctx.clip();
-
                 ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
 
-                // היילייט פנימי עדין (נראה "משתלב" עם הרקע)
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = 'rgba(255,255,255,0.35)';
                 roundedRectPath(dx + 2, dy + 2, size - 4, size - 4, Math.max(2, radius - 2));
                 ctx.stroke();
-
                 ctx.restore();
             }
 
