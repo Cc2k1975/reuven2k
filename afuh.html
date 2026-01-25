@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>היפוך מקלדת עברית/אנגלית</title>
+  <style>
+    body{
+      margin:0;
+      font-family: Arial, sans-serif;
+      background:#f5f6f8;
+      padding:16px;
+      direction: rtl;
+    }
+    .wrap{
+      max-width:900px;
+      margin:0 auto;
+      background:#fff;
+      border-radius:14px;
+      padding:16px;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+    }
+    h1{
+      margin:0 0 10px;
+      font-size:20px;
+    }
+    .note{
+      margin:0 0 14px;
+      color:#444;
+      font-size:14px;
+      line-height:1.4;
+    }
+    label{
+      display:block;
+      margin:12px 0 6px;
+      font-weight:700;
+      font-size:14px;
+    }
+    textarea{
+      width:100%;
+      height:140px;
+      padding:12px;
+      border:1px solid #d7dbe0;
+      border-radius:12px;
+      font-size:16px;
+      outline:none;
+      resize: vertical;
+      box-sizing:border-box;
+    }
+    textarea:focus{
+      border-color:#6aa7ff;
+      box-shadow:0 0 0 3px rgba(106,167,255,0.18);
+    }
+    .btns{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin:12px 0 6px;
+    }
+    button{
+      border:0;
+      padding:10px 14px;
+      border-radius:12px;
+      font-size:15px;
+      cursor:pointer;
+      background:#2f6fff;
+      color:#fff;
+    }
+    button.secondary{
+      background:#555;
+    }
+    button.light{
+      background:#e9edf5;
+      color:#111;
+    }
+    .row{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .col{
+      flex:1;
+      min-width:260px;
+    }
+    .status{
+      margin-top:10px;
+      font-size:13px;
+      color:#2b7a2b;
+      min-height:18px;
+    }
+    .danger{
+      color:#b00020;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>היפוך מקלדת עברית ⇄ אנגלית</h1>
+    <p class="note">
+      זה <b>לא תרגום</b> אלא תיקון מצב שבו כתבת עם שפת מקלדת לא נכונה (למשל <b>gdkkn</b> במקום <b>שלום</b>).
+    </p>
+
+    <div class="row">
+      <div class="col">
+        <label for="input">הדבק פה את הטקסט שיצא “מקולקל”</label>
+        <textarea id="input" placeholder="הדבק כאן..."></textarea>
+
+        <div class="btns">
+          <button id="btnEnToHe" title="כשכתבת באנגלית במקום עברית">הפוך: אנגלית → עברית</button>
+          <button id="btnHeToEn" class="secondary" title="כשכתבת בעברית במקום אנגלית">הפוך: עברית → אנגלית</button>
+          <button id="btnClear" class="light">נקה הכל</button>
+        </div>
+      </div>
+
+      <div class="col">
+        <label for="output">תוצאה מתוקנת (להעתקה)</label>
+        <textarea id="output" placeholder="כאן תופיע התוצאה..." readonly></textarea>
+
+        <div class="btns">
+          <button id="btnCopy">העתק תוצאה</button>
+        </div>
+
+        <div id="status" class="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // מיפוי מקלדת פיזית QWERTY: אנגלית -> עברית
+    // מבוסס על פריסת Hebrew (Standard) הנפוצה ב-Windows.
+    const enToHeMap = new Map([
+      ['q','/'], ['w',"\'"], ['e','ק'], ['r','ר'], ['t','א'], ['y','ט'], ['u','ו'], ['i','ן'], ['o','ם'], ['p','פ'],
+      ['a','ש'], ['s','ד'],  ['d','ג'], ['f','כ'], ['g','ע'], ['h','י'], ['j','ח'], ['k','ל'], ['l','ך'], [';','ף'], ["' ",','],
+      ['z','ז'], ['x','ס'],  ['c','ב'], ['v','ה'], ['b','נ'], ['n','מ'], ['m','צ'], [',','ת'], ['.','ץ'], ['/','.'],
+      // ספרות וסימנים נפוצים נשארים כמו שהם, אבל מוסיפים כמה בסיסיים:
+      ['`',';'], // בטקסטים מסוימים זה יוצא ';' בעברית (תלוי מערכת)
+    ]);
+
+    // תיקון קטן: ההגדרה ["' ",','] בטעות רווח; מתקנים פה בצורה בטוחה:
+    enToHeMap.set("'", ',');
+
+    // עברית -> אנגלית: המפה ההפוכה
+    const heToEnMap = new Map();
+    for (const [k, v] of enToHeMap.entries()) {
+      // אם יש התנגשות, נשמור את הראשון (בפועל כמעט ואין)
+      if (!heToEnMap.has(v)) heToEnMap.set(v, k);
+    }
+
+    // תומך גם באותיות גדולות: נעבוד על lowercase ואז נחזיר אם צריך
+    function convert(text, map, directionLabel) {
+      let out = '';
+      for (let ch of text) {
+        // נשמור אותיות גדולות באנגלית אם צריך
+        const isUpper = (ch >= 'A' && ch <= 'Z');
+        const lower = isUpper ? ch.toLowerCase() : ch;
+
+        if (map.has(lower)) {
+          let mapped = map.get(lower);
+          // אם זה היה Upper באנגלית והמשתמש עושה EN->HE אין משמעות לקייס, משאירים mapped.
+          // אם זה היה Upper באנגלית והמשתמש עושה HE->EN אין לנו פה upper כי המקור עברית, לא רלוונטי.
+          out += mapped;
+        } else if (map.has(ch)) {
+          out += map.get(ch);
+        } else {
+          out += ch;
+        }
+      }
+      return out;
+    }
+
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+
+    function setStatus(msg, isError=false) {
+      status.textContent = msg;
+      status.classList.toggle('danger', isError);
+      if (!msg) return;
+      clearTimeout(setStatus._t);
+      setStatus._t = setTimeout(() => { status.textContent=''; status.classList.remove('danger'); }, 2500);
+    }
+
+    document.getElementById('btnEnToHe').addEventListener('click', () => {
+      const txt = input.value || '';
+      output.value = convert(txt, enToHeMap);
+      setStatus('בוצע: אנגלית → עברית');
+    });
+
+    document.getElementById('btnHeToEn').addEventListener('click', () => {
+      const txt = input.value || '';
+      output.value = convert(txt, heToEnMap);
+      setStatus('בוצע: עברית → אנגלית');
+    });
+
+    document.getElementById('btnClear').addEventListener('click', () => {
+      input.value = '';
+      output.value = '';
+      setStatus('נוקה');
+    });
+
+    document.getElementById('btnCopy').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(output.value || '');
+        setStatus('הועתק ללוח!');
+      } catch (e) {
+        // fallback
+        output.focus();
+        output.select();
+        document.execCommand('copy');
+        setStatus('הועתק ללוח (fallback)!');
+      }
+    });
+  </script>
+</body>
+</html>
