@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFun Booth HD</title>
+    <title>PhotoFun Booth Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&display=swap" rel="stylesheet">
     <style>
         /* --- עיצוב כללי --- */
@@ -44,9 +44,32 @@
             top: 0;
             left: 0;
             transition: opacity 0.5s;
+            z-index: 10;
+            background: rgba(240, 248, 255, 0.95);
         }
 
         .active { display: flex; }
+
+        /* --- שומר מסך (חדש) --- */
+        #screen-saver {
+            z-index: 2000;
+            background: #000;
+            display: none; /* JS will toggle flex */
+        }
+        #saver-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            animation: fadeIn 1s;
+        }
+        .saver-text {
+            position: absolute;
+            bottom: 50px;
+            color: white;
+            font-size: 2rem;
+            text-shadow: 0 0 10px black;
+            animation: pulse 2s infinite;
+        }
 
         /* --- מצלמה --- */
         #camera-wrapper {
@@ -55,6 +78,7 @@
             height: 100%;
             overflow: hidden;
             z-index: -1;
+            background: black;
         }
         
         #camera-feed {
@@ -62,7 +86,32 @@
             height: 100%;
             object-fit: cover; 
             transform: scaleX(-1);
+            transition: filter 0.3s; /* Smooth filter transition */
         }
+
+        /* --- פילטרים (חדש) --- */
+        .filter-controls {
+            position: absolute;
+            bottom: 120px; /* מעל הספירה לאחור */
+            display: flex;
+            gap: 15px;
+            z-index: 20;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 30px;
+        }
+        .filter-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .filter-btn:active { transform: scale(0.9); }
+        .f-normal { background: linear-gradient(45deg, #ff9a9e, #fad0c4); }
+        .f-bw { background: linear-gradient(45deg, #333, #999); }
+        .f-sepia { background: linear-gradient(45deg, #704214, #d2b48c); }
 
         /* --- אלמנטי ממשק --- */
         .start-btn {
@@ -89,15 +138,22 @@
             40% {transform: translateY(-20px);}
             60% {transform: translateY(-10px);}
         }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         /* ספירה לאחור */
         #countdown-container {
             position: absolute;
-            bottom: 50px;
+            bottom: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
             z-index: 10;
+            width: 100%;
         }
 
         #countdown-display {
@@ -106,7 +162,7 @@
             -webkit-text-stroke: 3px #ff6b6b;
             text-shadow: 4px 4px 0 #333;
             font-family: 'Fredoka One', cursive;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
 
         /* --- תצוגה מקדימה של הסטריפ --- */
@@ -188,7 +244,7 @@
             max-width: 400px;
             border-radius: 20px;
             box-shadow: 0 0 100px rgba(0,0,0,0.5);
-            z-index: 999;
+            z-index: 3000;
             text-align: right;
             border: 5px solid #ff6b6b;
             max-height: 80vh;
@@ -241,13 +297,13 @@
             border-radius: 10px;
         }
 
-        /* --- QR מודל (חדש) --- */
+        /* --- QR מודל --- */
         .qr-modal {
             display: none;
             position: fixed;
             inset: 0;
             background: rgba(0,0,0,0.6);
-            z-index: 1500;
+            z-index: 2500;
             align-items: center;
             justify-content: center;
             padding: 20px;
@@ -302,6 +358,11 @@
 
     <canvas id="photoCanvas" style="display:none;"></canvas>
 
+    <div id="screen-saver" class="screen" onclick="resetIdleTimer(true)">
+        <img id="saver-img" src="" alt="Slideshow">
+        <h2 class="saver-text">גע במסך כדי להתחיל!</h2>
+    </div>
+
     <div id="screen-start" class="screen active">
         <h1>עמדת צילום</h1>
         <h2 id="event-title-display">האירוע שלנו</h2>
@@ -311,10 +372,17 @@
         <p style="opacity: 0.5; font-size: 0.8rem; background: rgba(255,255,255,0.7); padding: 5px; border-radius: 10px;">(לחיצה ארוכה להגדרות)</p>
     </div>
 
-    <div id="screen-camera" class="screen">
+    <div id="screen-camera" class="screen" style="background:black;">
         <div id="camera-wrapper">
             <video id="camera-feed" autoplay playsinline muted></video>
         </div>
+
+        <div class="filter-controls">
+            <div class="filter-btn f-normal" onclick="setFilter('none')" title="רגיל"></div>
+            <div class="filter-btn f-bw" onclick="setFilter('grayscale(100%) contrast(1.2)')" title="שחור לבן"></div>
+            <div class="filter-btn f-sepia" onclick="setFilter('sepia(80%) contrast(1.1)')" title="רטרו"></div>
+        </div>
+
         <div id="countdown-container">
             <div id="countdown-display">5</div>
             <div style="color: white; font-size: 2rem; font-family: 'Fredoka One'; text-shadow: 2px 2px 4px black;">
@@ -368,41 +436,23 @@
 
     <div id="admin-panel" class="admin-modal">
         <h3>הגדרות אירוע</h3>
-        
         <label>שם האירוע:</label>
         <input type="text" id="input-event-name" class="admin-input" placeholder="למשל: ברית למשה">
-        
         <label>תאריך:</label>
         <input type="text" id="input-event-date" class="admin-input" placeholder="21.02.2023">
-
         <label>סגנון תמונות:</label>
         <div style="display:flex; gap:10px; margin: 8px 0 15px 0;">
-            <button id="btn-style-framed" type="button"
-                style="flex:1; padding:10px; border-radius:12px; cursor:pointer; font-size:1rem; font-family:'Varela Round', sans-serif;">
-                עם מסגרת
-            </button>
-            <button id="btn-style-plain" type="button"
-                style="flex:1; padding:10px; border-radius:12px; cursor:pointer; font-size:1rem; font-family:'Varela Round', sans-serif;">
-                בלי מסגרת
-            </button>
+            <button id="btn-style-framed" type="button" style="flex:1; padding:10px; border-radius:12px; cursor:pointer;">עם מסגרת</button>
+            <button id="btn-style-plain" type="button" style="flex:1; padding:10px; border-radius:12px; cursor:pointer;">בלי מסגרת</button>
         </div>
-
         <label>כמות תמונות בסטריפ:</label>
         <div style="display:flex; gap:10px; margin: 8px 0 15px 0;">
-            <button id="btn-mode-multipic" type="button"
-                style="flex:1; padding:10px; border-radius:12px; cursor:pointer; font-size:1rem; font-family:'Varela Round', sans-serif;">
-                multipic
-            </button>
-            <button id="btn-mode-onepic" type="button"
-                style="flex:1; padding:10px; border-radius:12px; cursor:pointer; font-size:1rem; font-family:'Varela Round', sans-serif;">
-                onepic
-            </button>
+            <button id="btn-mode-multipic" type="button" style="flex:1; padding:10px; border-radius:12px; cursor:pointer;">multipic</button>
+            <button id="btn-mode-onepic" type="button" style="flex:1; padding:10px; border-radius:12px; cursor:pointer;">onepic</button>
         </div>
-        
         <label>בחר רקע לסטריפ:</label>
         <div style="font-size: 0.8rem; color: #666; margin-bottom: 5px;">* וודא שהקבצים 1.png - 9.png נמצאים בתיקייה</div>
         <div class="bg-selector" id="bg-grid"></div>
-
         <button class="close-admin" onclick="saveSettings()">שמור וסגור</button>
     </div>
 
@@ -420,8 +470,6 @@
     <script>
         // --- קונפיגורציה ---
         const backgroundFiles = ['1.png', '2.png', '3.png', '4.png', '5.png', '6.png', '7.png', '8.png', '9.png'];
-
-        // הנתונים שלך
         const DRIVE_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxhaH5GyQyA5XViX40h8xtSTMLFpIotWoH8DRf2APhhux885UffhQN-I_2ylbmIF0Nsvg/exec';
         const DRIVE_FOLDER_ID = '1HJW2jY9p9B1ibx6lPBPVhHeqV1GKyoeP';
         
@@ -442,9 +490,116 @@
         let photoMode = localStorage.getItem(PHOTO_MODE_KEY) || 'multipic';
 
         const WA_RETURN_FLAG = 'waReturnPending';
-
         let lastFinalJpegDataUrl = null;
         let lastUploadedDownloadUrl = null;
+
+        // ✅ משתנה לפילטרים
+        let currentFilter = 'none';
+
+        // ✅ משתנים לשומר מסך
+        let idleTime = 0;
+        let screensaverInterval = null;
+        let slideshowInterval = null;
+        const sessionPhotos = []; // שומר את כל הסטריפים שנוצרו בסשן הזה
+
+        // --- סאונד ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'beep') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } 
+            else if (type === 'shutter') {
+                // סאונד דמוי תריס (רעש)
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            }
+            else if (type === 'success') {
+                // אקורד ניצחון
+                const now = audioCtx.currentTime;
+                const o1 = audioCtx.createOscillator();
+                const o2 = audioCtx.createOscillator();
+                const g1 = audioCtx.createGain();
+                
+                o1.connect(g1); o2.connect(g1); g1.connect(audioCtx.destination);
+                o1.frequency.value = 523.25; // C
+                o2.frequency.value = 659.25; // E
+                g1.gain.setValueAtTime(0.2, now);
+                g1.gain.exponentialRampToValueAtTime(0.01, now + 1);
+                o1.start(now); o2.start(now);
+                o1.stop(now + 1); o2.stop(now + 1);
+            }
+        }
+
+        // --- לוגיקת שומר מסך ---
+        function resetIdleTimer(forceStart = false) {
+            idleTime = 0;
+            // אם אנחנו בשומר המסך - נצא ממנו
+            const saver = document.getElementById('screen-saver');
+            if (saver.style.display === 'flex' || forceStart) {
+                saver.style.display = 'none';
+                if(slideshowInterval) clearInterval(slideshowInterval);
+                // חזרה למסך התחלה אם היינו בשומר מסך
+                if (!forceStart) showScreen('screen-start');
+            }
+        }
+
+        function startScreensaver() {
+            if (sessionPhotos.length === 0) return; // אם אין תמונות, אין שומר מסך
+            
+            // סגור מצלמה אם פתוחה
+            if(videoStream) {
+                videoStream.getTracks().forEach(t => t.stop());
+                videoStream = null;
+            }
+
+            const saver = document.getElementById('screen-saver');
+            saver.style.display = 'flex';
+            
+            let idx = 0;
+            const imgEl = document.getElementById('saver-img');
+            
+            // הצג תמונה ראשונה
+            imgEl.src = sessionPhotos[Math.floor(Math.random() * sessionPhotos.length)];
+
+            slideshowInterval = setInterval(() => {
+                const randomImg = sessionPhotos[Math.floor(Math.random() * sessionPhotos.length)];
+                imgEl.style.opacity = 0;
+                setTimeout(() => {
+                    imgEl.src = randomImg;
+                    imgEl.style.opacity = 1;
+                }, 500);
+            }, 4000);
+        }
+
+        // מעקב אחרי פעילות
+        setInterval(() => {
+            idleTime++;
+            if (idleTime > 60) { // 60 שניות המתנה
+                 const saver = document.getElementById('screen-saver');
+                 if(saver.style.display !== 'flex') startScreensaver();
+            }
+        }, 1000);
+
+        document.addEventListener('click', () => resetIdleTimer());
+        document.addEventListener('touchstart', () => resetIdleTimer());
+
+        // -------------------------
 
         function autoReturnIfNeeded() {
             if (localStorage.getItem(WA_RETURN_FLAG) === '1') {
@@ -465,6 +620,12 @@
             setupPhotoModeButtons();
         });
 
+        // ✅ פונקציה להגדרת פילטר
+        function setFilter(filterVal) {
+            currentFilter = filterVal;
+            document.getElementById('camera-feed').style.filter = filterVal;
+        }
+
         function updateLabels() {
             document.getElementById('event-title-display').innerText = eventName;
             document.getElementById('input-event-name').value = eventName;
@@ -474,74 +635,24 @@
         function setupFrameStyleButtons() {
             const btnFramed = document.getElementById('btn-style-framed');
             const btnPlain = document.getElementById('btn-style-plain');
-
             function applyVisual() {
-                if (photoFrameStyle === 'framed') {
-                    btnFramed.style.background = '#4ecdc4';
-                    btnFramed.style.color = '#fff';
-                    btnFramed.style.border = '3px solid #2cb5ac';
-
-                    btnPlain.style.background = '#f0f0f0';
-                    btnPlain.style.color = '#333';
-                    btnPlain.style.border = '2px solid #ddd';
-                } else {
-                    btnPlain.style.background = '#4ecdc4';
-                    btnPlain.style.color = '#fff';
-                    btnPlain.style.border = '3px solid #2cb5ac';
-
-                    btnFramed.style.background = '#f0f0f0';
-                    btnFramed.style.color = '#333';
-                    btnFramed.style.border = '2px solid #ddd';
-                }
+                btnFramed.style.background = photoFrameStyle === 'framed' ? '#4ecdc4' : '#f0f0f0';
+                btnPlain.style.background = photoFrameStyle === 'plain' ? '#4ecdc4' : '#f0f0f0';
             }
-
-            btnFramed.addEventListener('click', () => {
-                photoFrameStyle = 'framed';
-                applyVisual();
-            });
-
-            btnPlain.addEventListener('click', () => {
-                photoFrameStyle = 'plain';
-                applyVisual();
-            });
-
+            btnFramed.onclick = () => { photoFrameStyle = 'framed'; applyVisual(); };
+            btnPlain.onclick = () => { photoFrameStyle = 'plain'; applyVisual(); };
             applyVisual();
         }
 
         function setupPhotoModeButtons() {
             const btnMulti = document.getElementById('btn-mode-multipic');
             const btnOne = document.getElementById('btn-mode-onepic');
-
             function applyVisual() {
-                if (photoMode === 'multipic') {
-                    btnMulti.style.background = '#4ecdc4';
-                    btnMulti.style.color = '#fff';
-                    btnMulti.style.border = '3px solid #2cb5ac';
-
-                    btnOne.style.background = '#f0f0f0';
-                    btnOne.style.color = '#333';
-                    btnOne.style.border = '2px solid #ddd';
-                } else {
-                    btnOne.style.background = '#4ecdc4';
-                    btnOne.style.color = '#fff';
-                    btnOne.style.border = '3px solid #2cb5ac';
-
-                    btnMulti.style.background = '#f0f0f0';
-                    btnMulti.style.color = '#333';
-                    btnMulti.style.border = '2px solid #ddd';
-                }
+                btnMulti.style.background = photoMode === 'multipic' ? '#4ecdc4' : '#f0f0f0';
+                btnOne.style.background = photoMode === 'onepic' ? '#4ecdc4' : '#f0f0f0';
             }
-
-            btnMulti.addEventListener('click', () => {
-                photoMode = 'multipic';
-                applyVisual();
-            });
-
-            btnOne.addEventListener('click', () => {
-                photoMode = 'onepic';
-                applyVisual();
-            });
-
+            btnMulti.onclick = () => { photoMode = 'multipic'; applyVisual(); };
+            btnOne.onclick = () => { photoMode = 'onepic'; applyVisual(); };
             applyVisual();
         }
 
@@ -553,7 +664,6 @@
             whiteDiv.className = 'bg-option';
             whiteDiv.style.background = '#fdfbf7';
             whiteDiv.innerText = 'לבן';
-            whiteDiv.style.fontSize = '1rem';
             if(!selectedBg) whiteDiv.classList.add('selected');
             whiteDiv.onclick = () => selectBackground(null, whiteDiv);
             grid.appendChild(whiteDiv);
@@ -561,22 +671,12 @@
             backgroundFiles.forEach(file => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'bg-option';
-                
                 if (selectedBg === file) wrapper.classList.add('selected');
                 wrapper.onclick = () => selectBackground(file, wrapper);
-
+                
                 const img = document.createElement('img');
                 img.src = file;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'cover';
-                
-                img.onerror = () => { 
-                    img.style.display = 'none'; 
-                    wrapper.innerText = file;
-                    wrapper.style.color = 'red';
-                };
-
+                img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'cover';
                 wrapper.appendChild(img);
                 grid.appendChild(wrapper);
             });
@@ -591,17 +691,8 @@
         function setupLongPress() {
             const startScreen = document.getElementById('screen-start');
             let pressTimer;
-
-            const startPress = () => {
-                pressTimer = setTimeout(() => {
-                    document.getElementById('admin-panel').style.display = 'block';
-                }, 4000); 
-            };
-
-            const cancelPress = () => {
-                clearTimeout(pressTimer);
-            };
-
+            const startPress = () => { pressTimer = setTimeout(() => { document.getElementById('admin-panel').style.display = 'block'; }, 4000); };
+            const cancelPress = () => { clearTimeout(pressTimer); };
             startScreen.addEventListener('mousedown', startPress);
             startScreen.addEventListener('mouseup', cancelPress);
             startScreen.addEventListener('touchstart', startPress);
@@ -611,15 +702,11 @@
         function saveSettings() {
             eventName = document.getElementById('input-event-name').value;
             eventDate = document.getElementById('input-event-date').value;
-            
             localStorage.setItem('eventName', eventName);
             localStorage.setItem('eventDate', eventDate);
-            if(selectedBg) localStorage.setItem('selectedBg', selectedBg);
-            else localStorage.removeItem('selectedBg');
-
+            if(selectedBg) localStorage.setItem('selectedBg', selectedBg); else localStorage.removeItem('selectedBg');
             localStorage.setItem(FRAME_STYLE_KEY, photoFrameStyle);
             localStorage.setItem(PHOTO_MODE_KEY, photoMode);
-
             updateLabels();
             document.getElementById('admin-panel').style.display = 'none';
         }
@@ -632,27 +719,20 @@
         document.getElementById('btn-start').addEventListener('click', async () => {
             currentPhotoIndex = 0;
             photos.length = 0;
-
             totalPhotos = (photoMode === 'onepic') ? 1 : 3;
             document.getElementById('total-photos').innerText = totalPhotos;
 
+            // איפוס פילטר בהתחלה
+            setFilter('none');
+
             try {
-                const constraints = { 
-                    video: { 
-                        facingMode: "user", 
-                        width: { ideal: 1280 }, 
-                        height: { ideal: 960 } 
-                    } 
-                };
-                
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } } });
                 videoStream = stream;
                 document.getElementById('camera-feed').srcObject = stream;
                 showScreen('screen-camera');
                 runPhotoLoop();
             } catch (err) {
-                alert("שגיאת מצלמה. וודא HTTPS.");
-                console.error(err);
+                alert("שגיאת מצלמה.");
             }
         });
 
@@ -661,16 +741,18 @@
                 finishPhotography();
                 return;
             }
-
             document.getElementById('photo-count').innerText = currentPhotoIndex + 1;
-
             let count = 5;
             const countdownEl = document.getElementById('countdown-display');
             countdownEl.innerText = count;
 
             const interval = setInterval(() => {
+                // ✅ סאונד ביפ
+                if (count > 0) playSound('beep');
+                
                 count--;
-                countdownEl.innerText = count;
+                countdownEl.innerText = count > 0 ? count : ''; 
+                
                 if (count <= 0) {
                     clearInterval(interval);
                     takePicture();
@@ -681,15 +763,22 @@
         function takePicture() {
             const video = document.getElementById('camera-feed');
             const canvas = document.createElement('canvas');
-            
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             
+            // ✅ סאונד צילום
+            playSound('shutter');
+
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
+            // ✅ החלת הפילטר על התמונה שנתפסה
+            if (currentFilter !== 'none') {
+                ctx.filter = currentFilter;
+            }
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             photos.push(canvas); 
             
             const flash = document.createElement('div');
@@ -701,7 +790,7 @@
             setTimeout(() => flash.remove(), 150);
 
             currentPhotoIndex++;
-            runPhotoLoop();
+            setTimeout(() => runPhotoLoop(), 1000); // השהייה קטנה
         }
 
         function finishPhotography() {
@@ -712,291 +801,151 @@
         function generateFinalStrip() {
             const finalCanvas = document.getElementById('photoCanvas');
             const ctx = finalCanvas.getContext('2d');
-
-            const canvasWidth = 900;
-            const canvasHeight = 1920;
-            finalCanvas.width = canvasWidth;
-            finalCanvas.height = canvasHeight;
-
-            const gap = 55;
-            const topMargin = 260;
-            const footerArea = 240;
+            finalCanvas.width = 900;
+            finalCanvas.height = 1920;
+            const canvasWidth = 900, canvasHeight = 1920;
+            const gap = 55, topMargin = 260, footerArea = 240;
 
             function drawBgCover(bgImg) {
-                const iw = bgImg.width, ih = bgImg.height;
-                const scale = Math.max(canvasWidth / iw, canvasHeight / ih);
-                const sw = canvasWidth / scale, sh = canvasHeight / scale;
-                const sx = (iw - sw) / 2, sy = (ih - sh) / 2;
-                ctx.drawImage(bgImg, sx, sy, sw, sh, 0, 0, canvasWidth, canvasHeight);
+                const scale = Math.max(canvasWidth / bgImg.width, canvasHeight / bgImg.height);
+                ctx.drawImage(bgImg, (bgImg.width - canvasWidth/scale)/2 * -1, 0, canvasWidth, canvasHeight);
             }
 
-            function roundedRectPath(x, y, w, h, r) {
-                const rr = Math.min(r, w / 2, h / 2);
-                ctx.beginPath();
-                ctx.moveTo(x + rr, y);
-                ctx.arcTo(x + w, y,     x + w, y + h, rr);
-                ctx.arcTo(x + w, y + h, x,     y + h, rr);
-                ctx.arcTo(x,     y + h, x,     y,     rr);
-                ctx.arcTo(x,     y,     x + w, y,     rr);
-                ctx.closePath();
+            function roundedRect(x, y, w, h, r) {
+                ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.closePath();
             }
 
             function drawSquarePhoto(photoCanvas, dx, dy, size) {
-                const imgW = photoCanvas.width, imgH = photoCanvas.height;
-                const s = Math.min(imgW, imgH);
-                const sx = (imgW - s) / 2, sy = (imgH - s) / 2;
+                const s = Math.min(photoCanvas.width, photoCanvas.height);
+                const sx = (photoCanvas.width - s) / 2, sy = (photoCanvas.height - s) / 2;
 
                 if (photoFrameStyle === 'plain') {
-                    const temp = document.createElement('canvas');
-                    temp.width = size;
-                    temp.height = size;
-                    const tctx = temp.getContext('2d');
-
-                    tctx.drawImage(photoCanvas, sx, sy, s, s, 0, 0, size, size);
-
-                    tctx.globalCompositeOperation = 'destination-in';
-                    const g = tctx.createRadialGradient(
-                        size / 2, size / 2, size * 0.40,
-                        size / 2, size / 2, size * 0.52
-                    );
-                    g.addColorStop(0, 'rgba(0,0,0,1)');
-                    g.addColorStop(1, 'rgba(0,0,0,0)');
-                    tctx.fillStyle = g;
-                    tctx.fillRect(0, 0, size, size);
-
-                    tctx.globalCompositeOperation = 'source-over';
-                    ctx.drawImage(temp, dx, dy, size, size);
-                    return;
+                   ctx.save();
+                   ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
+                   // Vignette
+                   const g = ctx.createRadialGradient(dx+size/2, dy+size/2, size*0.4, dx+size/2, dy+size/2, size*0.55);
+                   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.3)');
+                   ctx.fillStyle = g; ctx.fillRect(dx,dy,size,size);
+                   ctx.restore();
+                   return;
                 }
 
-                const radius = 28;
-                const pad = 14;
-                const fx = dx - pad;
-                const fy = dy - pad;
-                const fs = size + pad * 2;
-
+                // Framed style
+                const pad = 14, radius = 28;
                 ctx.save();
-                ctx.shadowColor = 'rgba(0,0,0,0.28)';
-                ctx.shadowBlur = 18;
-                ctx.shadowOffsetX = 0;
-                ctx.shadowOffsetY = 10;
-
-                ctx.fillStyle = 'rgba(255,255,255,0.93)';
-                roundedRectPath(fx, fy, fs, fs, radius + 10);
-                ctx.fill();
-
+                ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 10;
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.roundRect(dx-pad, dy-pad, size+pad*2, size+pad*2, radius+10); ctx.fill();
                 ctx.shadowColor = 'transparent';
-                ctx.lineWidth = 6;
-                ctx.strokeStyle = 'rgba(255,255,255,0.98)';
-                roundedRectPath(fx, fy, fs, fs, radius + 10);
-                ctx.stroke();
-                ctx.restore();
-
-                ctx.save();
-                roundedRectPath(dx, dy, size, size, radius);
-                ctx.clip();
+                
+                ctx.beginPath(); ctx.roundRect(dx, dy, size, size, radius); ctx.clip();
                 ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
-
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-                roundedRectPath(dx + 2, dy + 2, size - 4, size - 4, Math.max(2, radius - 2));
-                ctx.stroke();
                 ctx.restore();
             }
 
-            function drawFooterText() {
+            function drawFooter() {
                 const footerY = canvasHeight - footerArea + 95;
-
                 ctx.textAlign = 'center';
-                ctx.shadowColor = 'rgba(0,0,0,0.35)';
-                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(0,0,0,0.3)'; ctx.shadowBlur = 10;
+                const grad = ctx.createLinearGradient(180, 0, 720, 0);
+                grad.addColorStop(0, '#ff2d2d'); grad.addColorStop(1, '#4d79ff');
+                
+                ctx.font = 'bold 78px "Fredoka One"';
+                ctx.lineWidth = 10; ctx.strokeStyle = '#fff'; ctx.fillStyle = grad;
+                ctx.strokeText(eventName, 450, footerY); ctx.fillText(eventName, 450, footerY);
 
-                const grad = ctx.createLinearGradient(canvasWidth*0.2, 0, canvasWidth*0.8, 0);
-                grad.addColorStop(0, '#ff2d2d');
-                grad.addColorStop(0.33, '#ffd400');
-                grad.addColorStop(0.66, '#00d084');
-                grad.addColorStop(1, '#4d79ff');
-
-                ctx.font = 'bold 78px "Fredoka One", sans-serif';
-                ctx.lineWidth = 10;
-                ctx.strokeStyle = 'rgba(255,255,255,0.95)';
-                ctx.fillStyle = grad;
-                ctx.strokeText(eventName, canvasWidth/2, footerY);
-                ctx.fillText(eventName, canvasWidth/2, footerY);
-
-                ctx.font = 'bold 52px "Varela Round", sans-serif';
-                ctx.lineWidth = 8;
-                ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+                ctx.font = 'bold 52px "Varela Round"';
                 ctx.fillStyle = '#7c4dff';
-                ctx.strokeText(eventDate, canvasWidth/2, footerY + 75);
-                ctx.fillText(eventDate, canvasWidth/2, footerY + 75);
-
+                ctx.strokeText(eventDate, 450, footerY + 75); ctx.fillText(eventDate, 450, footerY + 75);
                 ctx.shadowBlur = 0;
             }
 
-            function drawContent() {
+            const finishDraw = () => {
                 if (photoMode === 'onepic') {
-                    const photoSize = 720;
-                    const xPos = (canvasWidth - photoSize) / 2;
-                    const usableHeight = canvasHeight - footerArea;
-                    const yPos = (usableHeight - photoSize) / 2;
-                    if (photos[0]) drawSquarePhoto(photos[0], xPos, yPos, photoSize);
+                    if (photos[0]) drawSquarePhoto(photos[0], (900-720)/2, (1920-240-720)/2, 720);
                 } else {
-                    const photoSize = 460;
-                    const xPos = (canvasWidth - photoSize) / 2;
-
-                    const y1 = topMargin;
-                    const y2 = y1 + photoSize + gap;
-                    const y3 = y2 + photoSize + gap;
-
-                    if (photos[0]) drawSquarePhoto(photos[0], xPos, y1, photoSize);
-                    if (photos[1]) drawSquarePhoto(photos[1], xPos, y2, photoSize);
-                    if (photos[2]) drawSquarePhoto(photos[2], xPos, y3, photoSize);
+                    const size = 460, x = (900-size)/2;
+                    if(photos[0]) drawSquarePhoto(photos[0], x, topMargin, size);
+                    if(photos[1]) drawSquarePhoto(photos[1], x, topMargin+size+gap, size);
+                    if(photos[2]) drawSquarePhoto(photos[2], x, topMargin+(size+gap)*2, size);
                 }
+                drawFooter();
 
-                drawFooterText();
-
-                const finalImage = document.getElementById('final-strip');
-                const jpegDataUrl = finalCanvas.toDataURL('image/jpeg', 0.9);
-                finalImage.src = jpegDataUrl;
-
-                lastFinalJpegDataUrl = jpegDataUrl;
+                const jpeg = finalCanvas.toDataURL('image/jpeg', 0.9);
+                document.getElementById('final-strip').src = jpeg;
+                lastFinalJpegDataUrl = jpeg;
                 lastUploadedDownloadUrl = null;
+                
+                // ✅ הוספה לשומר מסך
+                sessionPhotos.push(jpeg);
+                if(sessionPhotos.length > 20) sessionPhotos.shift(); // שמור רק 20 אחרונות
+
+                // ✅ סאונד הצלחה
+                playSound('success');
 
                 showScreen('screen-preview');
-                setTimeout(() => { showScreen('screen-phone'); }, 3000);
-            }
+                setTimeout(() => showScreen('screen-phone'), 3000);
+            };
 
             if (selectedBg) {
-                const bgImg = new Image();
-                bgImg.crossOrigin = "anonymous"; 
-                bgImg.src = selectedBg;
-                bgImg.onload = () => { drawBgCover(bgImg); drawContent(); };
-                bgImg.onerror = () => { ctx.fillStyle = '#fdfbf7'; ctx.fillRect(0,0,canvasWidth,canvasHeight); drawContent(); };
+                const img = new Image(); img.crossOrigin = "anonymous"; img.src = selectedBg;
+                img.onload = () => { drawBgCover(img); finishDraw(); };
+                img.onerror = () => { ctx.fillStyle = '#fdfbf7'; ctx.fillRect(0,0,900,1920); finishDraw(); };
             } else {
-                ctx.fillStyle = '#fdfbf7';
-                ctx.fillRect(0,0,canvasWidth,canvasHeight);
-                drawContent();
+                ctx.fillStyle = '#fdfbf7'; ctx.fillRect(0,0,900,1920); finishDraw();
             }
         }
 
-        function addDigit(digit) { document.getElementById('phone-number').value += digit; }
-        function clearDigit() {
-            const input = document.getElementById('phone-number');
-            input.value = input.value.slice(0, -1);
+        function addDigit(d) { document.getElementById('phone-number').value += d; resetIdleTimer(); }
+        function clearDigit() { 
+            const inp = document.getElementById('phone-number'); 
+            inp.value = inp.value.slice(0, -1); 
+            resetIdleTimer();
         }
-        function restart() {
-            showScreen('screen-start');
-            document.getElementById('phone-number').value = '';
-        }
+        function restart() { showScreen('screen-start'); document.getElementById('phone-number').value = ''; }
 
-        async function shareToWhatsApp() {
-            const phoneNumber = document.getElementById('phone-number').value.trim();
-            const canvas = document.getElementById('photoCanvas');
-
-            if (!phoneNumber) {
-                alert("הכנס מספר טלפון ואז לחץ שלח.");
-                return;
-            }
-
-            canvas.toBlob((blob) => {
-                const link = document.createElement('a');
-                link.download = `photostrip-${Date.now()}.jpg`;
-                link.href = URL.createObjectURL(blob);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                setTimeout(() => URL.revokeObjectURL(link.href), 2000);
-
-                let cleanNum = phoneNumber.replace(/\D/g,'');
-                if (cleanNum.startsWith('0')) cleanNum = '972' + cleanNum.substring(1);
-
-                const msg = `תודה שהשתתפתם ב-${eventName} ❤️\nמצורפת מזכרת מהעמדה!`;
-
-                localStorage.setItem(WA_RETURN_FLAG, '1');
-
-                window.location.href = `https://wa.me/${cleanNum}?text=${encodeURIComponent(msg)}`;
-            }, 'image/jpeg', 0.92);
-        }
-
-        // --- התיקון שהוכנס ---
         function openQR() {
             document.getElementById('qr-modal').style.display = 'flex';
             document.getElementById('qrStatus').innerText = 'טוען QR...';
-
-            if (lastUploadedDownloadUrl) {
-                renderQR(lastUploadedDownloadUrl);
-                document.getElementById('qrStatus').innerText = 'סרוק והורד 👍';
-                return;
-            }
-
-            if (!lastFinalJpegDataUrl) {
-                document.getElementById('qrStatus').innerText = 'אין תמונה להעלאה.';
-                return;
-            }
-
+            if (lastUploadedDownloadUrl) { renderQR(lastUploadedDownloadUrl); document.getElementById('qrStatus').innerText = 'סרוק והורד 👍'; return; }
+            if (!lastFinalJpegDataUrl) { document.getElementById('qrStatus').innerText = 'אין תמונה.'; return; }
+            
             uploadToDrive(lastFinalJpegDataUrl)
-                .then((downloadUrl) => {
-                    lastUploadedDownloadUrl = downloadUrl;
-                    renderQR(downloadUrl);
-                    document.getElementById('qrStatus').innerText = 'סרוק והורד 👍';
-                })
-                .catch((err) => {
-                    console.error(err);
-                    document.getElementById('qrStatus').innerText = 'שגיאה: ' + (err.message || err);
-                });
+                .then(url => { lastUploadedDownloadUrl = url; renderQR(url); document.getElementById('qrStatus').innerText = 'סרוק והורד 👍'; })
+                .catch(err => { document.getElementById('qrStatus').innerText = 'שגיאה: ' + (err.message || err); });
         }
+        function closeQR() { document.getElementById('qr-modal').style.display = 'none'; resetIdleTimer(); }
+        function closeQRByBackdrop(e) { if (e.target.id === 'qr-modal') closeQR(); }
 
-        function closeQR() {
-            document.getElementById('qr-modal').style.display = 'none';
-        }
+        function renderQR(url) { new QRious({ element: document.getElementById('qrCanvas'), value: url, size: 260, level: 'H' }); }
 
-        function closeQRByBackdrop(e) {
-            if (e.target && e.target.id === 'qr-modal') closeQR();
-        }
-
-        function renderQR(url) {
-            const qr = new QRious({
-                element: document.getElementById('qrCanvas'),
-                value: url,
-                size: 260,
-                level: 'H'
-            });
-            return qr;
-        }
-
-        async function uploadToDrive(jpegDataUrl) {
-            const filename = `photostrip-${Date.now()}.jpg`;
-
-            const payload = {
-                folderId: DRIVE_FOLDER_ID,
-                filename: filename,
-                dataUrl: jpegDataUrl
-            };
-
-            // שינוי ה-Header ל-text/plain כדי למנוע חסימת CORS (Failed to fetch)
+        async function uploadToDrive(dataUrl) {
             const res = await fetch(DRIVE_WEBAPP_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ folderId: DRIVE_FOLDER_ID, filename: `photostrip-${Date.now()}.jpg`, dataUrl: dataUrl })
             });
-
             const data = await res.json();
-
-            if (!data || data.ok !== true || !data.downloadUrl) {
-                throw new Error(data && data.error ? data.error : 'Upload failed');
-            }
-
+            if (!data.downloadUrl) throw new Error(data.error || 'Upload failed');
             return data.downloadUrl;
         }
 
-        window.addDigit = addDigit;
-        window.clearDigit = clearDigit;
-        window.restart = restart;
-        window.shareToWhatsApp = shareToWhatsApp;
-        window.openQR = openQR;
-        window.closeQR = closeQR;
-        window.closeQRByBackdrop = closeQRByBackdrop;
+        async function shareToWhatsApp() {
+            const num = document.getElementById('phone-number').value.trim();
+            if (!num) return alert("הכנס מספר");
+            const blob = await (await fetch(lastFinalJpegDataUrl)).blob();
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `p-${Date.now()}.jpg`;
+            document.body.appendChild(link); link.click(); link.remove();
+            
+            let clean = num.replace(/\D/g,''); if (clean.startsWith('0')) clean = '972' + clean.substring(1);
+            localStorage.setItem(WA_RETURN_FLAG, '1');
+            window.location.href = `https://wa.me/${clean}?text=${encodeURIComponent(`תודה שהייתם ב-${eventName}! ❤️`)}`;
+        }
+
+        window.addDigit = addDigit; window.clearDigit = clearDigit; window.restart = restart;
+        window.shareToWhatsApp = shareToWhatsApp; window.openQR = openQR; window.closeQR = closeQR;
+        window.closeQRByBackdrop = closeQRByBackdrop; window.setFilter = setFilter;
+        window.resetIdleTimer = resetIdleTimer;
     </script>
 </body>
 </html>
