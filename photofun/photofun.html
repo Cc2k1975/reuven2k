@@ -262,7 +262,7 @@
         <div id="countdown-container">
             <div id="countdown-display">5</div>
             <div style="color: white; font-size: 2rem; font-family: 'Fredoka One'; text-shadow: 2px 2px 4px black;">
-                תמונה <span id="photo-count">1</span> מתוך 3
+                תמונה <span id="photo-count">1</span> מתוך <span id="total-photos">3</span>
             </div>
         </div>
     </div>
@@ -315,7 +315,7 @@
         <label>תאריך:</label>
         <input type="text" id="input-event-date" class="admin-input" placeholder="21.02.2023">
 
-        <!-- ✅ חדש: בחירת סגנון תמונות (עם מסגרת / בלי מסגרת) -->
+        <!-- ✅ בחירת סגנון תמונות (עם מסגרת / בלי מסגרת) -->
         <label>סגנון תמונות:</label>
         <div style="display:flex; gap:10px; margin: 8px 0 15px 0;">
             <button id="btn-style-framed" type="button"
@@ -325,6 +325,19 @@
             <button id="btn-style-plain" type="button"
                 style="flex:1; padding:10px; border-radius:12px; cursor:pointer; font-size:1rem; font-family:'Varela Round', sans-serif;">
                 בלי מסגרת
+            </button>
+        </div>
+
+        <!-- ✅ חדש: multipic / onepic -->
+        <label>כמות תמונות בסטריפ:</label>
+        <div style="display:flex; gap:10px; margin: 8px 0 15px 0;">
+            <button id="btn-mode-multipic" type="button"
+                style="flex:1; padding:10px; border-radius:12px; cursor:pointer; font-size:1rem; font-family:'Varela Round', sans-serif;">
+                multipic
+            </button>
+            <button id="btn-mode-onepic" type="button"
+                style="flex:1; padding:10px; border-radius:12px; cursor:pointer; font-size:1rem; font-family:'Varela Round', sans-serif;">
+                onepic
             </button>
         </div>
         
@@ -342,7 +355,7 @@
         
         // --- משתנים גלובליים ---
         let currentPhotoIndex = 0;
-        const totalPhotos = 3;
+        let totalPhotos = 3; // ✅ משתנה (במקום const) כדי לאפשר onepic
         const photos = [];
         let videoStream = null;
         
@@ -350,9 +363,13 @@
         let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
         let selectedBg = localStorage.getItem('selectedBg') || null;
 
-        // ✅ חדש: שמירת בחירת מסגרת
+        // ✅ שמירת בחירת מסגרת
         const FRAME_STYLE_KEY = 'photoFrameStyle'; // 'framed' | 'plain'
         let photoFrameStyle = localStorage.getItem(FRAME_STYLE_KEY) || 'framed';
+
+        // ✅ חדש: שמירת מצב multipic/onepic
+        const PHOTO_MODE_KEY = 'photoMode'; // 'multipic' | 'onepic'
+        let photoMode = localStorage.getItem(PHOTO_MODE_KEY) || 'multipic';
 
         // ✅ חזרה אוטומטית למסך ראשי אחרי וואטסאפ (כמו שכבר עבד אצלך)
         const WA_RETURN_FLAG = 'waReturnPending';
@@ -373,7 +390,8 @@
             updateLabels();
             setupLongPress();
             renderBgSelector();
-            setupFrameStyleButtons(); // ✅ חדש
+            setupFrameStyleButtons();
+            setupPhotoModeButtons(); // ✅ חדש
         });
 
         function updateLabels() {
@@ -382,7 +400,7 @@
             document.getElementById('input-event-date').value = eventDate;
         }
 
-        // ✅ חדש: UI לבחירת סגנון מסגרת
+        // ✅ UI לבחירת סגנון מסגרת
         function setupFrameStyleButtons() {
             const btnFramed = document.getElementById('btn-style-framed');
             const btnPlain = document.getElementById('btn-style-plain');
@@ -414,6 +432,44 @@
 
             btnPlain.addEventListener('click', () => {
                 photoFrameStyle = 'plain';
+                applyVisual();
+            });
+
+            applyVisual();
+        }
+
+        // ✅ חדש: UI לבחירת multipic/onepic
+        function setupPhotoModeButtons() {
+            const btnMulti = document.getElementById('btn-mode-multipic');
+            const btnOne = document.getElementById('btn-mode-onepic');
+
+            function applyVisual() {
+                if (photoMode === 'multipic') {
+                    btnMulti.style.background = '#4ecdc4';
+                    btnMulti.style.color = '#fff';
+                    btnMulti.style.border = '3px solid #2cb5ac';
+
+                    btnOne.style.background = '#f0f0f0';
+                    btnOne.style.color = '#333';
+                    btnOne.style.border = '2px solid #ddd';
+                } else {
+                    btnOne.style.background = '#4ecdc4';
+                    btnOne.style.color = '#fff';
+                    btnOne.style.border = '3px solid #2cb5ac';
+
+                    btnMulti.style.background = '#f0f0f0';
+                    btnMulti.style.color = '#333';
+                    btnMulti.style.border = '2px solid #ddd';
+                }
+            }
+
+            btnMulti.addEventListener('click', () => {
+                photoMode = 'multipic';
+                applyVisual();
+            });
+
+            btnOne.addEventListener('click', () => {
+                photoMode = 'onepic';
                 applyVisual();
             });
 
@@ -494,8 +550,11 @@
             if(selectedBg) localStorage.setItem('selectedBg', selectedBg);
             else localStorage.removeItem('selectedBg');
 
-            // ✅ חדש: שמירת בחירת מסגרת
+            // ✅ שמירת בחירת מסגרת
             localStorage.setItem(FRAME_STYLE_KEY, photoFrameStyle);
+
+            // ✅ שמירת מצב multipic/onepic
+            localStorage.setItem(PHOTO_MODE_KEY, photoMode);
 
             updateLabels();
             document.getElementById('admin-panel').style.display = 'none';
@@ -510,6 +569,11 @@
         document.getElementById('btn-start').addEventListener('click', async () => {
             currentPhotoIndex = 0;
             photos.length = 0;
+
+            // ✅ multipic = בדיוק כמו עד עכשיו / onepic = תמונה אחת
+            totalPhotos = (photoMode === 'onepic') ? 1 : 3;
+            document.getElementById('total-photos').innerText = totalPhotos;
+
             try {
                 const constraints = { 
                     video: { 
@@ -593,16 +657,9 @@
             finalCanvas.width = canvasWidth;
             finalCanvas.height = canvasHeight;
 
-            const photoSize = 460;
             const gap = 55;
             const topMargin = 260;
             const footerArea = 240;
-
-            const xPos = (canvasWidth - photoSize) / 2;
-
-            const y1 = topMargin;
-            const y2 = y1 + photoSize + gap;
-            const y3 = y2 + photoSize + gap;
 
             function drawBgCover(bgImg) {
                 const iw = bgImg.width, ih = bgImg.height;
@@ -623,19 +680,17 @@
                 ctx.closePath();
             }
 
-            // ✅ כאן הבחירה: framed = כמו החדש / plain = כמו הישן (בלי מסגרת)
+            // ✅ framed = כמו החדש / plain = כמו הישן
             function drawSquarePhoto(photoCanvas, dx, dy, size) {
                 const imgW = photoCanvas.width, imgH = photoCanvas.height;
                 const s = Math.min(imgW, imgH);
                 const sx = (imgW - s) / 2, sy = (imgH - s) / 2;
 
                 if (photoFrameStyle === 'plain') {
-                    // כמו שהיה מקודם בדיוק (תמונה מרובעת בלי מסגרת)
                     ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
                     return;
                 }
 
-                // framed (כמו שעכשיו): מסגרת + צל + פינות עגולות
                 const radius = 28;
                 const pad = 14;
                 const fx = dx - pad;
@@ -702,9 +757,26 @@
             }
 
             function drawContent() {
-                if (photos[0]) drawSquarePhoto(photos[0], xPos, y1, photoSize);
-                if (photos[1]) drawSquarePhoto(photos[1], xPos, y2, photoSize);
-                if (photos[2]) drawSquarePhoto(photos[2], xPos, y3, photoSize);
+                if (photoMode === 'onepic') {
+                    // ✅ תמונה אחת גדולה ובדיוק באמצע (באזור העליון לפני הפוטר)
+                    const photoSize = 720;
+                    const xPos = (canvasWidth - photoSize) / 2;
+                    const usableHeight = canvasHeight - footerArea;
+                    const yPos = (usableHeight - photoSize) / 2;
+                    if (photos[0]) drawSquarePhoto(photos[0], xPos, yPos, photoSize);
+                } else {
+                    // ✅ multipic = בדיוק כמו עד עכשיו (3 תמונות)
+                    const photoSize = 460;
+                    const xPos = (canvasWidth - photoSize) / 2;
+
+                    const y1 = topMargin;
+                    const y2 = y1 + photoSize + gap;
+                    const y3 = y2 + photoSize + gap;
+
+                    if (photos[0]) drawSquarePhoto(photos[0], xPos, y1, photoSize);
+                    if (photos[1]) drawSquarePhoto(photos[1], xPos, y2, photoSize);
+                    if (photos[2]) drawSquarePhoto(photos[2], xPos, y3, photoSize);
+                }
 
                 drawFooterText();
 
