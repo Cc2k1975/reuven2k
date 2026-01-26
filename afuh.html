@@ -1,82 +1,182 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מתקן מקלדת הפוכה</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 40px 20px; }
-        .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
-        h2 { color: #1a73e8; text-align: center; margin-top: 0; }
-        textarea { width: 100%; height: 130px; margin: 10px 0; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; box-sizing: border-box; font-size: 16px; transition: border-color 0.3s; }
-        textarea:focus { border-color: #1a73e8; outline: none; }
-        .buttons { display: flex; gap: 10px; margin: 10px 0; }
-        button { flex: 1; padding: 12px; background-color: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; }
-        button:hover { background-color: #1557b0; }
-        button.copy { background-color: #34a853; }
-        button.copy:hover { background-color: #2d8e47; }
-        .label { font-weight: bold; color: #555; margin-top: 15px; display: block; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>מתקן מקלדת הפוכה</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 650px;
+    }
+    h2 { color: #1a73e8; text-align: center; margin-top: 0; }
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin: 10px 0;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 16px;
+      transition: border-color 0.3s;
+      resize: vertical;
+    }
+    textarea:focus { border-color: #1a73e8; outline: none; }
+    .hint {
+      color: #666;
+      font-size: 14px;
+      margin-top: 6px;
+      line-height: 1.35;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #2d8e47;
+      min-height: 18px;
+    }
+    .status.error { color: #d93025; }
+  </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>תיקון מקלדת עברית/אנגלית</h2>
-    
-    <span class="label"></span>
-    <textarea id="input" placeholder=""></textarea>
-    
-    <div class="buttons">
-        <button onclick="convertText()">תקן טקסט</button>
-        <button class="copy" onclick="copyResult()">העתק תוצאה</button>
-    </div>
-    
-    <span class="label"></span>
-    <textarea id="output" placeholder="" readonly></textarea>
+  <h2>תיקון מקלדת עברית/אנגלית</h2>
+
+  <textarea id="input" placeholder="הדבק כאן טקסט שנכתב בשפה הלא נכונה…"></textarea>
+  <div class="hint">
+    ✅ הדבק (Ctrl+V) – יתוקן ויועתק אוטומטית<br>
+    ✅ או לחץ בתוך התיבה – יתוקן ויועתק מיד
+  </div>
+
+  <div id="status" class="status"></div>
 </div>
 
 <script>
-    // מיפוי מדויק לפי פריסת מקלדת סטנדרטית
-    const map = {
-        'q': '/', 'w': '\'', 'e': 'ק', 'r': 'ר', 't': 'א', 'y': 'ט', 'u': 'ו', 'i': 'ן', 'o': 'ם', 'p': 'פ',
-        'a': 'ש', 's': 'ד', 'd': 'ג', 'f': 'כ', 'g': 'ע', 'h': 'י', 'j': 'ח', 'k': 'ל', 'l': 'ך', ';': 'ף',
-        '\'': ',', 'z': 'ז', 'x': 'ס', 'c': 'ב', 'v': 'ה', 'b': 'נ', 'n': 'מ', 'm': 'צ', ',': 'ת', '.': 'ץ', '/': '.',
-        '[': ']', ']': '[', '(': ')', ')': '(', '-': '-', '=': '='
-    };
+  // מיפוי לפי פריסת מקלדת סטנדרטית (אנגלית -> עברית)
+  const map = {
+    'q': '/', 'w': '\'', 'e': 'ק', 'r': 'ר', 't': 'א', 'y': 'ט', 'u': 'ו', 'i': 'ן', 'o': 'ם', 'p': 'פ',
+    'a': 'ש', 's': 'ד', 'd': 'ג', 'f': 'כ', 'g': 'ע', 'h': 'י', 'j': 'ח', 'k': 'ל', 'l': 'ך', ';': 'ף',
+    '\'': ',', 'z': 'ז', 'x': 'ס', 'c': 'ב', 'v': 'ה', 'b': 'נ', 'n': 'מ', 'm': 'צ', ',': 'ת', '.': 'ץ', '/': '.',
+    '[': ']', ']': '[', '(': ')', ')': '(', '-': '-', '=': '='
+  };
 
-    const reverseMap = {};
-    for (let key in map) {
-        reverseMap[map[key]] = key;
+  // עברית -> אנגלית (הפוך)
+  const reverseMap = {};
+  for (const key in map) reverseMap[map[key]] = key;
+
+  const inputEl = document.getElementById('input');
+  const statusEl = document.getElementById('status');
+
+  function convertString(str) {
+    let result = "";
+    for (const char of str) {
+      const lower = char.toLowerCase();
+
+      if (map[lower]) {
+        result += map[lower];
+      } else if (reverseMap[char]) {
+        result += reverseMap[char];
+      } else {
+        result += char;
+      }
+    }
+    return result;
+  }
+
+  function setStatus(msg, isError = false) {
+    statusEl.textContent = msg;
+    statusEl.classList.toggle('error', !!isError);
+    if (!msg) return;
+    // ניקוי אוטומטי אחרי רגע
+    clearTimeout(setStatus._t);
+    setStatus._t = setTimeout(() => {
+      statusEl.textContent = "";
+      statusEl.classList.remove('error');
+    }, 1800);
+  }
+
+  async function copyToClipboard(text) {
+    // ניסיון מודרני
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // גיבוי (execCommand) – עובד בהרבה דפדפנים למרות שהוא מיושן
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-1000px';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch (e2) {
+        return false;
+      }
+    }
+  }
+
+  async function fixAndCopy() {
+    const original = inputEl.value || "";
+    if (!original.trim()) {
+      setStatus("אין טקסט לתקן.", true);
+      return;
     }
 
-    function convertText() {
-        const input = document.getElementById('input').value;
-        let result = "";
+    const fixed = convertString(original);
 
-        for (let char of input) {
-            let lowerChar = char.toLowerCase();
-            
-            if (map[lowerChar]) {
-                result += map[lowerChar];
-            } else if (reverseMap[char]) {
-                result += reverseMap[char];
-            } else {
-                result += char;
-            }
-        }
-        document.getElementById('output').value = result;
-    }
+    // מחזיר לתוך אותו תא (כמו שביקשת)
+    inputEl.value = fixed;
 
-    function copyResult() {
-        const outputField = document.getElementById('output');
-        
-        // העתקה ישירה של הערך ללוח
-        navigator.clipboard.writeText(outputField.value).catch(err => {
-            // גיבוי לדפדפנים ישנים מאוד
-            outputField.select();
-            document.execCommand('copy');
-        });
+    // מסמן הכל לנוחות
+    inputEl.focus();
+    inputEl.select();
+
+    const ok = await copyToClipboard(fixed);
+    if (ok) setStatus("תוקן והועתק ללוח ✅");
+    else setStatus("תוקן, אבל ההעתקה נחסמה בדפדפן. סמן והעתק ידנית (Ctrl+C).", true);
+  }
+
+  // 1) לחיצה בתוך אותו תא => תיקון+העתקה
+  inputEl.addEventListener('click', () => {
+    // אם ריק – לא עושה כלום
+    if (!inputEl.value.trim()) return;
+    fixAndCopy();
+  });
+
+  // 2) הדבקה => תיקון+העתקה מיד אחרי שהטקסט נכנס
+  inputEl.addEventListener('paste', () => {
+    // מחכים "טיק" כדי שהטקסט באמת יופיע בתיבה
+    setTimeout(() => {
+      if (!inputEl.value.trim()) return;
+      fixAndCopy();
+    }, 0);
+  });
+
+  // בונוס: Enter בתוך התיבה גם מפעיל תיקון+העתקה (נוח)
+  inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      fixAndCopy();
     }
+  });
 </script>
 
 </body>
