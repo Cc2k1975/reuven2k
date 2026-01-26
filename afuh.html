@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>מתקן מקלדת הפוכה</title>
   <style>
     body {
@@ -24,7 +24,7 @@
     h2 { color: #1a73e8; text-align: center; margin-top: 0; }
     textarea {
       width: 100%;
-      height: 150px;
+      height: 160px;
       margin: 10px 0;
       padding: 12px;
       border: 2px solid #e0e0e0;
@@ -35,20 +35,43 @@
       resize: vertical;
     }
     textarea:focus { border-color: #1a73e8; outline: none; }
-    .hint {
-      color: #666;
-      font-size: 14px;
-      margin-top: 6px;
-      line-height: 1.35;
-    }
+    .hint { color:#666; font-size:14px; line-height:1.35; }
     .status {
       margin-top: 10px;
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 700;
       color: #2d8e47;
       min-height: 18px;
+      user-select: none;
     }
     .status.error { color: #d93025; }
+    .toast {
+      position: fixed;
+      inset-inline: 0;
+      bottom: 18px;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+    }
+    .toast > div {
+      background: rgba(0,0,0,0.82);
+      color: #fff;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      max-width: 92vw;
+      text-align: center;
+      pointer-events: auto;
+    }
+    .toast button {
+      margin-inline-start: 10px;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 800;
+    }
   </style>
 </head>
 <body>
@@ -57,12 +80,21 @@
   <h2>תיקון מקלדת עברית/אנגלית</h2>
 
   <textarea id="input" placeholder="הדבק כאן טקסט שנכתב בשפה הלא נכונה…"></textarea>
+
   <div class="hint">
-    ✅ הדבק (Ctrl+V) – יתוקן ויועתק אוטומטית<br>
-    ✅ או לחץ בתוך התיבה – יתוקן ויועתק מיד
+    ✅ הדבק (Ctrl+V) – יתוקן וינסה להעתיק מיד<br>
+    ✅ קליק בתוך התיבה – יתוקן וינסה להעתיק מיד<br>
+    ⛔ אם הדפדפן חוסם העתקה אוטומטית: הטקסט כבר מסומן, תלחץ Ctrl+C וזהו.
   </div>
 
   <div id="status" class="status"></div>
+</div>
+
+<div class="toast" id="toast" style="display:none;">
+  <div>
+    הדפדפן חסם העתקה אוטומטית. הטקסט מסומן — לחץ <b>Ctrl+C</b> עכשיו.
+    <button id="closeToast" type="button">הבנתי</button>
+  </div>
 </div>
 
 <script>
@@ -74,66 +106,63 @@
     '[': ']', ']': '[', '(': ')', ')': '(', '-': '-', '=': '='
   };
 
-  // עברית -> אנגלית (הפוך)
+  // עברית -> אנגלית
   const reverseMap = {};
   for (const key in map) reverseMap[map[key]] = key;
 
   const inputEl = document.getElementById('input');
   const statusEl = document.getElementById('status');
-
-  function convertString(str) {
-    let result = "";
-    for (const char of str) {
-      const lower = char.toLowerCase();
-
-      if (map[lower]) {
-        result += map[lower];
-      } else if (reverseMap[char]) {
-        result += reverseMap[char];
-      } else {
-        result += char;
-      }
-    }
-    return result;
-  }
+  const toastEl = document.getElementById('toast');
+  const closeToastBtn = document.getElementById('closeToast');
 
   function setStatus(msg, isError = false) {
     statusEl.textContent = msg;
     statusEl.classList.toggle('error', !!isError);
-    if (!msg) return;
-    // ניקוי אוטומטי אחרי רגע
     clearTimeout(setStatus._t);
-    setStatus._t = setTimeout(() => {
-      statusEl.textContent = "";
-      statusEl.classList.remove('error');
-    }, 1800);
-  }
-
-  async function copyToClipboard(text) {
-    // ניסיון מודרני
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (e) {
-      // גיבוי (execCommand) – עובד בהרבה דפדפנים למרות שהוא מיושן
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.position = 'fixed';
-        ta.style.top = '-1000px';
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand('copy');
-        document.body.removeChild(ta);
-        return ok;
-      } catch (e2) {
-        return false;
-      }
+    if (msg) {
+      setStatus._t = setTimeout(() => {
+        statusEl.textContent = "";
+        statusEl.classList.remove('error');
+      }, 2000);
     }
   }
 
-  async function fixAndCopy() {
+  function showToast(show) {
+    toastEl.style.display = show ? 'flex' : 'none';
+  }
+
+  closeToastBtn.addEventListener('click', () => showToast(false));
+
+  function convertString(str) {
+    let result = "";
+    for (const ch of str) {
+      const lower = ch.toLowerCase();
+      if (map[lower]) result += map[lower];
+      else if (reverseMap[ch]) result += reverseMap[ch];
+      else result += ch;
+    }
+    return result;
+  }
+
+  // ניסיון העתקה "חזקה": קודם execCommand (סינכרוני), ואז clipboard API (אם מותר)
+  function tryCopyNow(text) {
+    // 1) execCommand (הכי סיכוי לעבוד גם בקובץ מקומי)
+    try {
+      inputEl.focus();
+      inputEl.select();
+      const ok = document.execCommand('copy');
+      if (ok) return Promise.resolve(true);
+    } catch (e) { /* ממשיכים */ }
+
+    // 2) Clipboard API (דורש HTTPS/localhost + הרשאות)
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+    }
+
+    return Promise.resolve(false);
+  }
+
+  function fixAndCopy_SYNC_TRIGGER() {
     const original = inputEl.value || "";
     if (!original.trim()) {
       setStatus("אין טקסט לתקן.", true);
@@ -141,40 +170,45 @@
     }
 
     const fixed = convertString(original);
-
-    // מחזיר לתוך אותו תא (כמו שביקשת)
     inputEl.value = fixed;
 
-    // מסמן הכל לנוחות
+    // חשוב: מסמן הכל לפני ההעתקה (כדי ש-execCommand יעבוד)
     inputEl.focus();
     inputEl.select();
 
-    const ok = await copyToClipboard(fixed);
-    if (ok) setStatus("תוקן והועתק ללוח ✅");
-    else setStatus("תוקן, אבל ההעתקה נחסמה בדפדפן. סמן והעתק ידנית (Ctrl+C).", true);
+    // מנסה להעתיק
+    tryCopyNow(fixed).then((ok) => {
+      if (ok) {
+        setStatus("תוקן והועתק ללוח ✅");
+        showToast(false);
+      } else {
+        // כאן אין 100% אוטומטי כי הדפדפן חוסם — אבל הטקסט כבר מסומן
+        setStatus("תוקן. הדפדפן חסם העתקה אוטומטית.", true);
+        showToast(true);
+      }
+    });
   }
 
-  // 1) לחיצה בתוך אותו תא => תיקון+העתקה
+  // לחיצה בתוך אותו תא
   inputEl.addEventListener('click', () => {
-    // אם ריק – לא עושה כלום
     if (!inputEl.value.trim()) return;
-    fixAndCopy();
+    // טריגר סינכרוני (בלי await)
+    fixAndCopy_SYNC_TRIGGER();
   });
 
-  // 2) הדבקה => תיקון+העתקה מיד אחרי שהטקסט נכנס
+  // הדבקה (אחרי שהטקסט נכנס לתיבה)
   inputEl.addEventListener('paste', () => {
-    // מחכים "טיק" כדי שהטקסט באמת יופיע בתיבה
     setTimeout(() => {
       if (!inputEl.value.trim()) return;
-      fixAndCopy();
+      fixAndCopy_SYNC_TRIGGER();
     }, 0);
   });
 
-  // בונוס: Enter בתוך התיבה גם מפעיל תיקון+העתקה (נוח)
+  // Enter מפעיל גם
   inputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      fixAndCopy();
+      fixAndCopy_SYNC_TRIGGER();
     }
   });
 </script>
