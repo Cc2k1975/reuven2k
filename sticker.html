@@ -3,31 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sticker Fix - Reuven</title>
+    <title>Sticker Maker PRO - Reuven</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #121212; color: white; padding: 20px; }
-        .card { max-width: 400px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; border: 2px solid #333; }
-        #preview { max-width: 250px; display: none; margin: 20px auto; border: 1px solid #25D366; background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAAAAVBMVEUAAAD///8fHx8fHx8fHx8fHx8fHx8G9asJAAAAAnRSTlMAAHaTzTgAAAA0SURBVAjXYxCEAgY4YGCAASYoYICBBhZgxAsLpLBgA0Y8sEAKCzYAm8nCAtIBY8AEE7BgAgALtgNR7s6vYAAAAABJRU5ErkJggg=='); }
-        .btn { background: #25D366; color: white; padding: 15px; border: none; border-radius: 50px; width: 100%; font-weight: bold; cursor: pointer; font-size: 18px; }
-        .btn-share { background: #34b7f1; display: none; margin-top: 10px; }
-        .loader { display: none; border: 4px solid #333; border-top: 4px solid #25D366; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 10px auto; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; text-align: center; background: #121212; color: white; padding: 20px; margin: 0; }
+        .card { max-width: 450px; margin: 20px auto; background: #1e1e1e; padding: 25px; border-radius: 25px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h2 { color: #25D366; margin-bottom: 5px; }
+        p { color: #aaa; font-size: 14px; margin-bottom: 20px; }
+        #preview { max-width: 250px; height: 250px; object-fit: contain; border-radius: 15px; display: none; margin: 20px auto; border: 2px solid #25D366; background-image: radial-gradient(#333 10%, transparent 10%); background-size: 20px 20px; }
+        .btn { background: #25D366; color: white; padding: 15px 25px; border: none; border-radius: 50px; font-size: 18px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.2s; }
+        .btn:active { transform: scale(0.98); }
+        .btn-share { background: #34b7f1; display: none; margin-top: 15px; }
+        #status { margin-top: 15px; font-size: 14px; color: #bbb; min-height: 20px; }
+        .loader { display: none; margin: 15px auto; border: 4px solid #333; border-top: 4px solid #25D366; border-radius: 50%; width: 35px; height: 35px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>מתקן המדבקות 🛠️</h2>
+        <h2>מכין מדבקות VIP ⚡</h2>
+        <p>הסרת רקע + מסגרת למניעת רקע שחור</p>
+        
         <input type="file" id="upload" accept="image/*" style="display:none">
-        <button class="btn" onclick="document.getElementById('upload').click()">📷 בחר תמונה</button>
+        <button class="btn" id="uploadBtn" onclick="document.getElementById('upload').click()">📷 בחר תמונה</button>
+
         <div id="loader" class="loader"></div>
         <div id="status"></div>
+        
         <img id="preview" src="">
         <button id="shareBtn" class="btn btn-share">📤 שלח לוואטסאפ</button>
     </div>
 
     <script>
-        const API_KEY = 'XUSmeRUomq1rf8ZL2yuLMzwC';
+        const API_KEY = 'XUSmeRUomq1rf8ZL2yuLMzwC'; 
         const upload = document.getElementById('upload');
         const preview = document.getElementById('preview');
         const shareBtn = document.getElementById('shareBtn');
@@ -38,9 +46,11 @@
             const file = e.target.files[0];
             if (!file) return;
 
-            status.innerText = "מעבד...";
+            status.innerText = "מנקה רקע ומכין מדבקה...";
             loader.style.display = "block";
-            
+            shareBtn.style.display = "none";
+            preview.style.display = "none";
+
             const formData = new FormData();
             formData.append('image_file', file);
             formData.append('size', 'auto');
@@ -54,39 +64,64 @@
 
                 if (response.ok) {
                     const blob = await response.blob();
-                    const webpBlob = await processToSticker(blob);
-                    const url = URL.createObjectURL(webpBlob);
+                    // כאן אנחנו מעבדים את המדבקה עם מסגרת ושקיפות
+                    const stickerBlob = await createFinalSticker(blob);
                     
+                    const url = URL.createObjectURL(stickerBlob);
                     preview.src = url;
                     preview.style.display = 'block';
+                    status.innerText = "מוכן! שלח לצ'אט והוסף למדבקות";
                     shareBtn.style.display = 'block';
-                    status.innerText = "מוכן לשיתוף!";
+                } else {
+                    status.innerText = "שגיאה ב-API. בדוק יתרה.";
                 }
-            } catch (e) { status.innerText = "שגיאה"; }
-            loader.style.display = "none";
+            } catch (error) {
+                status.innerText = "בעיית חיבור";
+            } finally {
+                loader.style.display = "none";
+            }
         });
 
-        async function processToSticker(blob) {
+        async function createFinalSticker(blob) {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    canvas.width = 512;
-                    canvas.height = 512;
+                    const size = 512;
+                    canvas.width = size;
+                    canvas.height = size;
                     const ctx = canvas.getContext('2d');
                     
-                    // ניקוי מוחלט של הקנבס לשקיפות
-                    ctx.clearRect(0, 0, 512, 512);
+                    ctx.clearRect(0, 0, size, size);
                     
-                    const ratio = Math.min(512 / img.width, 512 / img.height);
-                    const w = img.width * ratio;
-                    const h = img.height * ratio;
-                    const x = (512 - w) / 2;
-                    const y = (512 - h) / 2;
+                    const scale = Math.min((size - 40) / img.width, (size - 40) / img.height);
+                    const w = img.width * scale;
+                    const h = img.height * scale;
+                    const x = (size - w) / 2;
+                    const y = (size - h) / 2;
+
+                    // הוספת צל קטן ומסגרת לבנה - זה מה שמונע את הרקע השחור באנדרואיד
+                    ctx.shadowColor = "rgba(0,0,0,0.3)";
+                    ctx.shadowBlur = 10;
                     
+                    // ציור מסגרת לבנה (Stroke)
+                    ctx.strokeStyle = "white";
+                    ctx.lineWidth = 12;
+                    ctx.lineJoin = "round";
+                    
+                    // שלב 1: ציור הצללית הלבנה
+                    const dArr = [-2,-1,1,2]; 
+                    for(let i=0; i<dArr.length; i++) {
+                        for(let j=0; j<dArr.length; j++) {
+                            ctx.drawImage(img, x + dArr[i], y + dArr[j], w, h);
+                        }
+                    }
+                    
+                    // שלב 2: ציור הדמות המקורית מעל
+                    ctx.shadowBlur = 0;
                     ctx.drawImage(img, x, y, w, h);
                     
-                    // המרה ל-WebP עם איכות גבוהה לשמירה על שקיפות
+                    // המרה ל-WebP שוואטסאפ אוהבת
                     canvas.toBlob((b) => resolve(b), 'image/webp', 0.9);
                 };
                 img.src = URL.createObjectURL(blob);
@@ -96,11 +131,17 @@
         shareBtn.addEventListener('click', async () => {
             const res = await fetch(preview.src);
             const blob = await res.blob();
-            // שינוי שם הקובץ ל-sticker.webp הוא קריטי
             const file = new File([blob], 'sticker.webp', { type: 'image/webp' });
 
             if (navigator.share) {
-                await navigator.share({ files: [file] });
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'My Sticker'
+                    });
+                } catch (e) { console.log("Share failed"); }
+            } else {
+                alert("הדפדפן לא תומך בשיתוף. השתמש בכרום.");
             }
         });
     </script>
