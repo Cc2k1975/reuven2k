@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>רדאר טיסות VIP</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #1a1a2e; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { width: 90%; max-width: 1000px; background: #16213e; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #0f3460; }
+        h1 { text-align: center; color: #4ecca3; margin-top: 0; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 15px; border-radius: 10px; border: none; background: #0f3460; color: white; font-size: 16px; outline: none; }
+        button { padding: 15px 25px; background: #4ecca3; color: #1a1a2e; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #45b393; transform: translateY(-2px); }
+        #map { height: 500px; width: 100%; border-radius: 15px; border: 2px solid #0f3460; }
+        .status-bar { margin-top: 15px; padding: 10px; border-radius: 8px; font-size: 14px; text-align: center; background: rgba(78, 204, 163, 0.1); color: #4ecca3; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>✈️ רדאר מטוסים בזמן אמת</h1>
+    
+    <div class="controls">
+        <input type="text" id="icaoInput" placeholder="הכנס קוד מטוס (למשל: 4b1a1a או 3c6645)">
+        <button onclick="startTracking()">התחל מעקב</button>
+    </div>
+
+    <div id="map"></div>
+    <div id="statusBar" class="status-bar">המתנה להזנת קוד...</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // 1. אתחול המפה עם עיצוב כהה (Dark Mode)
+    const map = L.map('map').setView([32.0853, 34.7818], 4);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let marker;
+    let trackInterval;
+
+    async function fetchFlightData(icao) {
+        // שימוש ב-Proxy כדי לעקוף שגיאות חיבור (CORS)
+        const proxy = "https://api.allorigins.win/get?url=";
+        const targetUrl = encodeURIComponent(`https://opensky-network.org/api/states/all?icao24=${icao}`);
+        
+        const response = await fetch(proxy + targetUrl);
+        const jsonWrapper = await response.json();
+        return JSON.parse(jsonWrapper.contents); // ה-Proxy עוטף את התוצאה ב-JSON משלו
+    }
+
+    async function updatePlane() {
+        const icao = document.getElementById('icaoInput').value.trim().toLowerCase();
+        const statusBar = document.getElementById('statusBar');
+
+        try {
+            const data = await fetchFlightData(icao);
+
+            if (data.states && data.states.length > 0) {
+                const flight = data.states[0];
+                const lat = flight[6];
+                const lon = flight[5];
+                const alt = Math.round(flight[7]); // גובה במטרים
+                const speed = Math.round(flight[9] * 3.6); // קמ"ש
+
+                const pos = [lat, lon];
+
+                if (!marker) {
+                    marker = L.marker(pos).addTo(map);
+                    map.flyTo(pos, 10); // מעבר חלק למטוס
+                } else {
+                    marker.setLatLng(pos);
+                }
+
+                marker.bindPopup(`<b>מטוס: ${icao.toUpperCase()}</b><br>גובה: ${alt} מ'<br>מהירות: ${speed} קמ"ש`).openPopup();
+                statusBar.innerText = `מעדכן בזמן אמת... (עדכון אחרון: ${new Date().toLocaleTimeString()})`;
+            } else {
+                statusBar.innerText = "המטוס לא באוויר כרגע. מחפש שוב עוד 10 שניות...";
+            }
+        } catch (err) {
+            console.error(err);
+            statusBar.innerText = "שגיאת חיבור. מנסה להתחבר מחדש...";
+        }
+    }
+
+    function startTracking() {
+        const icao = document.getElementById('icaoInput').value.trim();
+        if (!icao) return alert("שים לב: צריך להכניס קוד מטוס");
+
+        if (marker) { map.removeLayer(marker); marker = null; }
+        if (trackInterval) clearInterval(trackInterval);
+
+        document.getElementById('statusBar').innerText = "מתחבר ללוויין...";
+        updatePlane(); // הפעלה ראשונה
+        trackInterval = setInterval(updatePlane, 10000); // עדכון כל 10 שניות
+    }
+</script>
+
+</body>
+</html>
