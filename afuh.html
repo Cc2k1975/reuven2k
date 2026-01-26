@@ -3,40 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מתקן מקלדת - עברית/אנגלית</title>
+    <title>מתקן מקלדת הפוכה</title>
     <style>
-        body { font-family: sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
-        h2 { color: #333; text-align: center; }
-        textarea { width: 100%; height: 120px; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 16px; resize: vertical; }
-        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 18px; font-weight: bold; }
-        button:hover { background-color: #0056b3; }
-        .label { font-weight: bold; margin-top: 10px; display: block; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 40px 20px; }
+        .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 650px; }
+        h2 { color: #1a73e8; text-align: center; margin-top: 0; }
+        textarea { width: 100%; height: 130px; margin: 10px 0; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; box-sizing: border-box; font-size: 16px; transition: border-color 0.3s; }
+        textarea:focus { border-color: #1a73e8; outline: none; }
+        .buttons { display: flex; gap: 10px; margin: 10px 0; }
+        button { flex: 1; padding: 12px; background-color: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 600; }
+        button:hover { background-color: #1557b0; }
+        button.copy { background-color: #34a853; }
+        button.copy:hover { background-color: #2d8e47; }
+        .label { font-weight: bold; color: #555; margin-top: 15px; display: block; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>מתקן מקלדת הפוכה</h2>
+    <h2>תיקון מקלדת עברית/אנגלית</h2>
     
-    <span class="label">הדבק כאן את הטקסט המבולבל:</span>
-    <textarea id="input" placeholder="לדוגמה: xkuo..."></textarea>
+    <span class="label">הדבק טקסט מבולבל:</span>
+    <textarea id="input" placeholder="לדוגמה: xkuo kfho..."></textarea>
     
-    <button onclick="convertText()">תקן לי את הטקסט!</button>
+    <div class="buttons">
+        <button onclick="convertText()">תקן טקסט</button>
+        <button class="copy" onclick="copyResult()">העתק תוצאה</button>
+    </div>
     
-    <span class="label">הטקסט המתוקן:</span>
-    <textarea id="output" placeholder="כאן תופיע התוצאה..." readonly></textarea>
+    <span class="label">התוצאה המתוקנת:</span>
+    <textarea id="output" placeholder="התיקון יופיע כאן..." readonly></textarea>
 </div>
 
 <script>
-    const engToHeb = {
+    // מיפוי מדויק לפי פריסת מקלדת סטנדרטית
+    const map = {
         'q': '/', 'w': '\'', 'e': 'ק', 'r': 'ר', 't': 'א', 'y': 'ט', 'u': 'ו', 'i': 'ן', 'o': 'ם', 'p': 'פ',
         'a': 'ש', 's': 'ד', 'd': 'ג', 'f': 'כ', 'g': 'ע', 'h': 'י', 'j': 'ח', 'k': 'ל', 'l': 'ך', ';': 'ף',
-        '\'': ',', 'z': 'ז', 'x': 'ס', 'c': 'ב', 'v': 'ה', 'b': 'נ', 'm': 'צ', ',': 'ת', '.': 'ץ', '/': '.',
-        ' ': ' '
+        '\'': ',', 'z': 'ז', 'x': 'ס', 'c': 'ב', 'v': 'ה', 'b': 'נ', 'n': 'מ', 'm': 'צ', ',': 'ת', '.': 'ץ', '/': '.',
+        // הוספת סימני פיסוק נפוצים שמשתנים
+        '[': ']', ']': '[', '(': ')', ')': '(', '-': '-', '=': '='
     };
 
-    const hebToEng = Object.fromEntries(Object.entries(engToHeb).map(([k, v]) => [v, k]));
+    // יצירת מפה הפוכה באופן אוטומטי
+    const reverseMap = {};
+    for (let key in map) {
+        reverseMap[map[key]] = key;
+    }
 
     function convertText() {
         const input = document.getElementById('input').value;
@@ -44,18 +57,23 @@
 
         for (let char of input) {
             let lowerChar = char.toLowerCase();
-            if (engToHeb[lowerChar]) {
-                // אם זה באנגלית - הפוך לעברית
-                result += engToHeb[lowerChar];
-            } else if (hebToEng[char]) {
-                // אם זה בעברית - הפוך לאנגלית
-                result += hebToEng[char];
+            
+            if (map[lowerChar]) {
+                result += map[lowerChar];
+            } else if (reverseMap[char]) {
+                result += reverseMap[char];
             } else {
-                // תו אחר (מספר, סימן פיסוק שלא משתנה וכו')
-                result += char;
+                result += char; // שמירה על רווחים, מספרים ותווים שאינם במפה
             }
         }
         document.getElementById('output').value = result;
+    }
+
+    function copyResult() {
+        const output = document.getElementById('output');
+        output.select();
+        document.execCommand('copy');
+        alert('הטקסט הועתק!');
     }
 </script>
 
