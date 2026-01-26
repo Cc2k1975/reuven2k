@@ -3,147 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מנתח עוקבים - ראובן</title>
+    <title>InstaScan - ראובן</title>
     <style>
         body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
         .card { max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; border: 1px solid #333; }
-        h2 { color: #E1306C; }
-        .steps { text-align: right; font-size: 14px; background: #222; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
-        input[type="file"] { display: none; }
-        .btn { background: #E1306C; color: white; padding: 12px 20px; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; width: 100%; margin: 10px 0; font-size: 16px; }
-        .btn-second { background: #444; }
-        #results { margin-top: 20px; text-align: right; }
-        .unfollowed-item { background: #ff4d4d22; border-right: 4px solid #ff4d4d; padding: 10px; margin: 5px 0; border-radius: 5px; }
-        .status-badge { font-size: 12px; background: #333; padding: 3px 8px; border-radius: 10px; color: #aaa; }
+        .bookmark-btn { display: inline-block; padding: 10px 20px; background: #E1306C; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; cursor: move; margin: 20px 0; border: 2px dashed white; }
+        .results { margin-top: 20px; text-align: right; }
+        .unfollowed { color: #ff4d4d; border-right: 3px solid #ff4d4d; padding-right: 10px; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>מי הוריד לי עוקב? 🕵️‍♂️</h2>
+        <h2>סורק עוקבים חצי-אוטומטי 🚀</h2>
         
-        <div class="steps">
-            <strong>איך זה עובד?</strong><br>
-            1. באינסטגרם: הגדרות > מרכז החשבונות > המידע וההרשאות שלך > הורד את המידע שלך.<br>
-            2. בחר "הורדה חלקית" ואז רק את "עוקבים ונעקבים".<br>
-            3. בחר פורמט **JSON** (חשוב!) וטווח זמן "כל הזמן".<br>
-            4. כשהקובץ מוכן, העלה כאן את הקובץ <code>followers.json</code>.
+        <p>בלי להוריד קבצים ובלי סיסמאות!</p>
+        
+        <div style="background: #222; padding: 15px; border-radius: 10px; font-size: 14px;">
+            <strong>הוראות הפעלה:</strong><br>
+            1. גרור את הכפתור הוורוד למעלה לסרגל הסימניות שלך.<br>
+            2. כנס לאינסטגרם לדף ה"עוקבים" שלך.<br>
+            3. לחץ על הסימניה שגררת.
         </div>
 
-        <div id="storage-info" class="status-badge">טרם נשמר גיבוי קודם</div>
+        <a class="bookmark-btn" href="javascript:(function(){
+            let users = Array.from(document.querySelectorAll('span._ap35')).map(u => u.innerText).filter(u => u && !u.includes(' '));
+            if(users.length === 0) { alert('נא לפתוח את רשימת העוקבים קודם!'); return; }
+            window.location.href = 'https://reuven2k.com/insta.html?data=' + btoa(JSON.stringify(users));
+        })()">גרור אותי לסרגל הסימניות</a>
 
-        <button class="btn" onclick="document.getElementById('fileInput').click()">📁 העלה קובץ followers.json</button>
-        <input type="file" id="fileInput" accept=".json">
-
-        <div id="results"></div>
-        
-        <button class="btn btn-second" id="clearBtn" style="display:none" onclick="clearBackup()">🗑️ מחק גיבוי ישן והתחל מחדש</button>
+        <div id="display"></div>
     </div>
 
     <script>
-        const fileInput = document.getElementById('fileInput');
-        const resultsDiv = document.getElementById('results');
-        const storageInfo = document.getElementById('storage-info');
-        const clearBtn = document.getElementById('clearBtn');
+        // בדיקת נתונים שהגיעו מהסימניה
+        const urlParams = new URLSearchParams(window.location.search);
+        const incomingData = urlParams.get('data');
 
-        // בדיקה אם יש גיבוי קיים
-        updateStatus();
-
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    // אינסטגרם שומרת את זה במבנה של מערך תחת מפתח מסוים
-                    const currentFollowers = extractFollowers(data);
-                    
-                    processFollowers(currentFollowers);
-                } catch (err) {
-                    alert("שגיאה בקריאת הקובץ. וודא שהעלית קובץ JSON תקין מאינסטגרם.");
-                }
-            };
-            reader.readAsText(file);
-        });
-
-        function extractFollowers(data) {
-            // המבנה של אינסטגרם ב-JSON: בד"כ מערך של אובייקטים עם string_list_data
-            let list = [];
-            if (Array.isArray(data)) {
-                list = data;
-            } else if (data.relationships_followers) {
-                list = data.relationships_followers;
-            }
-
-            return list.map(item => {
-                return item.string_list_data[0].value;
-            });
-        }
-
-        function processFollowers(currentList) {
-            const lastBackup = JSON.parse(localStorage.getItem('followers_backup'));
+        if (incomingData) {
+            const currentFollowers = JSON.parse(atob(incomingData));
+            const lastBackup = JSON.parse(localStorage.getItem('insta_backup'));
 
             if (!lastBackup) {
-                // פעם ראשונה - שומרים גיבוי
-                localStorage.setItem('followers_backup', JSON.stringify(currentList));
-                localStorage.setItem('backup_date', new Date().toLocaleString());
-                resultsDiv.innerHTML = `<div style="color:#25D366">✅ הגיבוי נשמר בהצלחה! (${currentList.length} עוקבים).<br>בפעם הבאה שתעלה קובץ, אגיד לך מי עזב.</div>`;
+                localStorage.setItem('insta_backup', JSON.stringify(currentFollowers));
+                document.getElementById('display').innerHTML = `<h3>✅ גיבוי ראשון נשמר!</h3><p>נסרקנו ${currentFollowers.length} עוקבים. חזור בעוד שבוע לבדיקה.</p>`;
             } else {
-                // פעם שנייה - בודקים דלתא (מי היה בגיבוי ולא נמצא עכשיו)
-                const unfollowed = lastBackup.filter(user => !currentList.includes(user));
-                const newFollowers = currentList.filter(user => !lastBackup.includes(user));
-
-                displayResults(unfollowed, newFollowers);
-                
-                // עדכון הגיבוי לחדש ביותר
-                if (confirm("האם לעדכן את הגיבוי לרשימה הנוכחית?")) {
-                    localStorage.setItem('followers_backup', JSON.stringify(currentList));
-                    localStorage.setItem('backup_date', new Date().toLocaleString());
+                const unfollowed = lastBackup.filter(x => !currentFollowers.includes(x));
+                let html = `<h3>תוצאות סריקה:</h3>`;
+                if (unfollowed.length > 0) {
+                    html += `<p class="unfollowed">הורידו עוקב (${unfollowed.length}):<br>${unfollowed.join(', ')}</p>`;
+                } else {
+                    html += `<p style="color:#25d366">אף אחד לא הוריד עוקב! 🎉</p>`;
                 }
+                document.getElementById('display').innerHTML = html;
+                
+                // עדכון הגיבוי
+                localStorage.setItem('insta_backup', JSON.stringify(currentFollowers));
             }
-            updateStatus();
-        }
-
-        function displayResults(unfollowed, newFollowers) {
-            let html = `<h3>תוצאות הבדיקה:</h3>`;
-            
-            if (unfollowed.length === 0) {
-                html += `<p style="color:#25D366">מדהים! אף אחד לא הוריד עוקב.</p>`;
-            } else {
-                html += `<h4>הורידו עוקב (${unfollowed.length}):</h4>`;
-                unfollowed.forEach(user => {
-                    html += `<div class="unfollowed-item">@${user}</div>`;
-                });
-            }
-
-            if (newFollowers.length > 0) {
-                html += `<h4>עוקבים חדשים (${newFollowers.length}):</h4>`;
-                newFollowers.forEach(user => {
-                    html += `<div style="color:#25D366; font-size:14px;">+ @${user}</div>`;
-                });
-            }
-
-            resultsDiv.innerHTML = html;
-        }
-
-        function updateStatus() {
-            const date = localStorage.getItem('backup_date');
-            if (date) {
-                storageInfo.innerText = "גיבוי אחרון: " + date;
-                clearBtn.style.display = "block";
-            } else {
-                storageInfo.innerText = "טרם נשמר גיבוי קודם";
-                clearBtn.style.display = "none";
-            }
-        }
-
-        function clearBackup() {
-            if (confirm("בטוח שברצונך למחוק את הגיבוי?")) {
-                localStorage.clear();
-                location.reload();
-            }
+            // ניקוי ה-URL
+            window.history.replaceState({}, document.title, window.location.pathname);
         }
     </script>
 </body>
