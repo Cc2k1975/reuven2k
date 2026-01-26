@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מכין מדבקות VIP</title>
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@latest/dist/index.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #121212; color: white; padding: 20px; }
+        .container { max-width: 400px; margin: auto; background: #1e1e1e; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #preview { max-width: 100%; border-radius: 10px; display: none; margin: 20px auto; border: 2px dashed #25D366; }
+        .btn { background: #25D366; color: white; padding: 15px 25px; border: none; border-radius: 50px; font-size: 18px; cursor: pointer; width: 100%; margin-top: 10px; font-weight: bold; }
+        .btn:disabled { background: #555; cursor: not-allowed; }
+        #status { margin-top: 15px; font-size: 14px; color: #aaa; }
+        .loader { display: none; margin: 10px auto; border: 4px solid #f3f3f3; border-top: 4px solid #25D366; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>מכין מדבקות בקליק ⚡</h2>
+        <p>מעלים תמונה -> הרקע נעלם -> שולחים</p>
+        
+        <input type="file" id="upload" accept="image/*" style="display:none">
+        <button class="btn" onclick="document.getElementById('upload').click()">📷 בחר תמונה</button>
+
+        <div id="loader" class="loader"></div>
+        <div id="status"></div>
+        
+        <img id="preview" src="">
+        <button id="shareBtn" class="btn" style="display:none">📤 שלח למדבקות וואטסאפ</button>
+    </div>
+
+    <script>
+        const upload = document.getElementById('upload');
+        const preview = document.getElementById('preview');
+        const shareBtn = document.getElementById('shareBtn');
+        const status = document.getElementById('status');
+        const loader = document.getElementById('loader');
+
+        upload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // הצגת מצב טעינה
+            status.innerText = "מסיר רקע... זה לוקח כמה שניות (פעם ראשונה הכי ארוכה)";
+            loader.style.display = "block";
+            shareBtn.style.display = "none";
+            preview.style.display = "none";
+
+            try {
+                // הסרת הרקע באמצעות הספרייה
+                const blob = await imglyRemoveBackground(file);
+                
+                // יצירת URL לתצוגה
+                const url = URL.createObjectURL(blob);
+                preview.src = url;
+                preview.style.display = 'block';
+                status.innerText = "מוכן! שלח לחבר";
+                shareBtn.style.display = 'block';
+            } catch (error) {
+                console.error(error);
+                status.innerText = "אופס, היתה שגיאה בהסרת הרקע.";
+            } finally {
+                loader.style.display = "none";
+            }
+        });
+
+        shareBtn.addEventListener('click', async () => {
+            const response = await fetch(preview.src);
+            const blob = await response.blob();
+            const file = new File([blob], 'sticker.png', { type: 'image/png' });
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'מדבקה חדשה',
+                    });
+                } catch (err) {
+                    console.log("שיתוף בוטל");
+                }
+            } else {
+                alert("הדפדפן שלך לא תומך בשיתוף קבצים. נסה דרך כרום באנדרואיד.");
+            }
+        });
+    </script>
+</body>
+</html>
