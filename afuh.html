@@ -21,14 +21,10 @@
       width: 100%;
       max-width: 650px;
     }
-    h2 {
-      color: #1a73e8;
-      text-align: center;
-      margin-top: 0;
-    }
+    h2 { color: #1a73e8; text-align: center; margin-top: 0; }
     textarea {
       width: 100%;
-      height: 160px;
+      height: 170px;
       margin: 12px 0;
       padding: 12px;
       border: 2px solid #e0e0e0;
@@ -37,29 +33,47 @@
       box-sizing: border-box;
       resize: vertical;
     }
-    textarea:focus {
-      border-color: #1a73e8;
-      outline: none;
+    textarea:focus { border-color: #1a73e8; outline: none; }
+
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
     }
     button {
-      width: 100%;
-      padding: 14px;
-      margin-top: 10px;
+      flex: 1;
+      min-width: 140px;
+      padding: 12px;
       background-color: #1a73e8;
       color: white;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
-      font-weight: bold;
       cursor: pointer;
+      font-size: 16px;
+      font-weight: 700;
     }
-    button:hover {
-      background-color: #1557b0;
-    }
-    .hint {
-      color: #666;
+    button:hover { background-color: #1557b0; }
+    button.copy { background-color: #34a853; }
+    button.copy:hover { background-color: #2d8e47; }
+    button.rev { background-color: #6c757d; }
+    button.rev:hover { background-color: #545b62; }
+
+    .status {
+      margin-top: 10px;
       font-size: 14px;
-      margin-top: 8px;
+      font-weight: 700;
+      min-height: 18px;
+      color: #2d8e47;
+      user-select: none;
+    }
+    .status.warn { color: #d93025; }
+    .hint {
+      color:#666;
+      font-size:14px;
+      margin-top: 6px;
+      line-height:1.35;
+      user-select:none;
     }
   </style>
 </head>
@@ -70,15 +84,20 @@
 
   <textarea id="input" placeholder="הדבק כאן טקסט שנכתב בשפה הלא נכונה…"></textarea>
 
-  <button onclick="copyText()">העתק טקסט מתוקן</button>
+  <div class="buttons">
+    <button type="button" id="btnFix">תקן (אנגלית→עברית)</button>
+    <button type="button" class="rev" id="btnReverse">עברית→אנגלית</button>
+    <button type="button" class="copy" id="btnCopy">העתק</button>
+  </div>
 
+  <div id="status" class="status"></div>
   <div class="hint">
-    הדבקה / קליק / Enter → תיקון מיידי<br>
-    לחיצה על הכפתור → העתקה נקייה
+    טיפ: בהדבקה/קליק זה מתקן אוטומטית רק אנגלית→עברית כדי לא להרוס עברית תקינה.
   </div>
 </div>
 
 <script>
+  // אנגלית -> עברית (פריסת מקלדת)
   const map = {
     'q': '/', 'w': '\'', 'e': 'ק', 'r': 'ר', 't': 'א', 'y': 'ט', 'u': 'ו', 'i': 'ן', 'o': 'ם', 'p': 'פ',
     'a': 'ש', 's': 'ד', 'd': 'ג', 'f': 'כ', 'g': 'ע', 'h': 'י', 'j': 'ח', 'k': 'ל', 'l': 'ך', ';': 'ף',
@@ -87,38 +106,115 @@
     '[': ']', ']': '[', '(': ')', ')': '(', '-': '-', '=': '='
   };
 
+  // עברית -> אנגלית
   const reverseMap = {};
   for (const k in map) reverseMap[map[k]] = k;
 
   const inputEl = document.getElementById('input');
+  const statusEl = document.getElementById('status');
+  const btnFix = document.getElementById('btnFix');
+  const btnReverse = document.getElementById('btnReverse');
+  const btnCopy = document.getElementById('btnCopy');
 
-  function convert(str) {
+  function setStatus(msg, kind = "") {
+    statusEl.textContent = msg || "";
+    statusEl.classList.toggle('warn', kind === 'warn');
+    clearTimeout(setStatus._t);
+    if (msg) setStatus._t = setTimeout(() => { statusEl.textContent = ""; statusEl.classList.remove('warn'); }, 1800);
+  }
+
+  function countHebrew(s) {
+    // א-ת כולל סופיות
+    const m = s.match(/[\u0590-\u05FF]/g);
+    return m ? m.length : 0;
+  }
+  function countLatin(s) {
+    const m = s.match(/[A-Za-z]/g);
+    return m ? m.length : 0;
+  }
+
+  function convertEngToHeb(str) {
     let out = '';
     for (const ch of str) {
       const low = ch.toLowerCase();
-      if (map[low]) out += map[low];
-      else if (reverseMap[ch]) out += reverseMap[ch];
-      else out += ch;
+      out += (map[low] ?? ch);
     }
     return out;
   }
 
-  function fixText() {
-    if (!inputEl.value.trim()) return;
-    inputEl.value = convert(inputEl.value);
+  function convertHebToEng(str) {
+    let out = '';
+    for (const ch of str) {
+      out += (reverseMap[ch] ?? ch);
+    }
+    return out;
   }
 
-  function copyText() {
-    if (!inputEl.value.trim()) return;
-    navigator.clipboard.writeText(inputEl.value);
+  function fixDefault() {
+    const original = inputEl.value || "";
+    if (!original.trim()) return;
+
+    // אם זה כבר עברית (כמעט בלי לטינית) – לא נוגעים כדי לא להרוס
+    const heb = countHebrew(original);
+    const lat = countLatin(original);
+
+    if (heb > 0 && lat === 0) {
+      setStatus("נראה שכבר עברית תקינה — לא שיניתי.", "warn");
+      return;
+    }
+
+    const fixed = convertEngToHeb(original);
+    inputEl.value = fixed;
+    setStatus("תוקן (אנגלית→עברית) ✅");
   }
 
-  inputEl.addEventListener('click', fixText);
-  inputEl.addEventListener('paste', () => setTimeout(fixText, 0));
-  inputEl.addEventListener('keydown', e => {
+  function reverseNow() {
+    const original = inputEl.value || "";
+    if (!original.trim()) return;
+
+    const fixed = convertHebToEng(original);
+    inputEl.value = fixed;
+    setStatus("הומר (עברית→אנגלית) ✅");
+  }
+
+  function copyNow() {
+    const text = inputEl.value || "";
+    if (!text.trim()) return;
+
+    // Clipboard API (נקי וללא popups)
+    if (!navigator.clipboard) {
+      setStatus("הדפדפן לא תומך בהעתקה אוטומטית כאן.", "warn");
+      return;
+    }
+
+    navigator.clipboard.writeText(text)
+      .then(() => setStatus("הועתק ללוח ✅"))
+      .catch(() => setStatus("העתקה נחסמה (צריך https/הרשאות).", "warn"));
+  }
+
+  // פעולות
+  btnFix.addEventListener('click', fixDefault);
+  btnReverse.addEventListener('click', reverseNow);
+  btnCopy.addEventListener('click', copyNow);
+
+  // הדבקה/קליק בתיבה -> תיקון ברירת מחדל (אנגלית->עברית בלבד)
+  inputEl.addEventListener('click', () => {
+    if (!inputEl.value.trim()) return;
+    fixDefault();
+  });
+
+  inputEl.addEventListener('paste', () => {
+    setTimeout(() => {
+      if (!inputEl.value.trim()) return;
+      fixDefault();
+    }, 0);
+  });
+
+  // Enter -> תיקון ברירת מחדל
+  inputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      fixText();
+      fixDefault();
     }
   });
 </script>
