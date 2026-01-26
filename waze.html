@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waze Instant Commander</title>
+    <title>Waze Commander</title>
     <style>
         body {
             margin: 0;
@@ -63,7 +63,7 @@
 
         .listening {
             background-color: #ff4444 !important;
-            animation: pulse 1.0s infinite; /* אנימציה מהירה יותר */
+            animation: pulse 1.0s infinite;
         }
 
         .success { background-color: #00C853 !important; }
@@ -78,7 +78,8 @@
 <body>
 
     <button id="micBtn" onclick="startListening()">
-        <div id="icon">⚡</div> <div id="btnText">לחץ ודבר</div>
+        <div id="icon">⚡</div>
+        <div id="btnText">לחץ ודבר</div>
     </button>
 
     <div id="statusText">המערכת מוכנה</div>
@@ -102,32 +103,30 @@
         const statusText = document.getElementById("statusText");
         const debugText = document.getElementById("debugText");
         let recognition;
-        let isRedirecting = false; // למנוע הפעלה כפולה
+        let isProcessing = false; // דגל למניעת כפילויות
 
         function startListening() {
             if (!SpeechRecognition) {
-                alert("הדפדפן לא תומך. נסה Chrome באנדרואיד.");
+                alert("הדפדפן לא תומך.");
                 return;
             }
             
-            if (isRedirecting) return; // אם כבר עוברים עמוד, לא לעשות כלום
+            if (isProcessing) return;
 
             recognition = new SpeechRecognition();
             recognition.lang = 'he-IL';
-            
-            // --- השינוי הגדול: מקשיב לתוצאות ביניים ---
-            recognition.interimResults = true; 
+            recognition.interimResults = true; // מזהה תוך כדי דיבור
             recognition.maxAlternatives = 1;
 
             recognition.start();
 
+            // שינוי עיצוב להקלטה
             micBtn.className = "listening";
             btnText.innerText = "מקשיב...";
             statusText.innerText = "דבר...";
             debugText.style.display = "none";
 
             recognition.onresult = (event) => {
-                // לוקח את כל מה שנאמר עד עכשיו, כולל חלקי משפטים
                 let transcript = Array.from(event.results)
                     .map(result => result[0].transcript)
                     .join('');
@@ -135,46 +134,55 @@
                 debugText.style.display = "block";
                 debugText.innerText = `מזהה: "${transcript}"`;
 
-                // בדיקה מיידית מול הרשימה
+                // בדיקה אם המילה קיימת
                 for (let key in locations) {
                     if (transcript.includes(key)) {
-                        // ברגע שמצאנו התאמה - עוצרים הכל ומפעילים!
                         recognition.stop();
                         triggerAction(key, locations[key]);
-                        return; // יוצאים מהפונקציה
+                        return;
                     }
                 }
             };
 
             recognition.onspeechend = () => {
-                // אם הפסקת לדבר ולא זיהינו כלום
-                if (!isRedirecting) {
-                    recognition.stop();
-                    micBtn.className = "";
-                    btnText.innerText = "לחץ ודבר";
+                if (!isProcessing) {
+                    resetUI();
                 }
             };
 
             recognition.onerror = (event) => {
-                if (event.error === 'no-speech') return; // מתעלם אם לא דיברו
-                micBtn.className = "";
-                btnText.innerText = "שגיאה";
-                statusText.innerText = "שגיאה: " + event.error;
+                if (event.error === 'no-speech') return;
+                resetUI();
+                statusText.innerText = "לא שמעתי, נסה שוב";
             };
         }
 
         function triggerAction(name, url) {
-            if (isRedirecting) return;
-            isRedirecting = true;
+            isProcessing = true;
 
+            // פידבק ירוק
             micBtn.className = "success";
-            btnText.innerText = "בוצע!";
-            statusText.innerText = `נוסעים ל: ${name}`;
+            btnText.innerText = "פותח...";
+            statusText.innerText = `פותח ניווט ל-${name}`;
             
-            // ביטול ההשהייה הארוכה - מעבר מיידי (חצי שנייה בשביל האנימציה)
+            // פתיחת וויז בחלון חדש/אפליקציה ושמירה על הדף הנוכחי
             setTimeout(() => {
-                window.location.href = url;
-            }, 500);
+                window.open(url, "_blank"); 
+                
+                // איפוס המערכת שיהיה מוכן לפעם הבאה
+                setTimeout(() => {
+                    resetUI();
+                    isProcessing = false;
+                    statusText.innerText = "המערכת מוכנה לפקודה הבאה";
+                }, 1000);
+                
+            }, 300); // דיליי מזערי לאנימציה
+        }
+
+        function resetUI() {
+            micBtn.className = "";
+            btnText.innerText = "לחץ ודבר";
+            // לא מוחקים את סטטוס הטקסט כדי שתראה מה קרה אחרון
         }
     </script>
 </body>
