@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waze Voice Commander</title>
+    <title>Waze Instant Commander</title>
     <style>
         body {
             margin: 0;
@@ -25,13 +25,13 @@
             max-height: 350px;
             border-radius: 50%;
             border: none;
-            background-color: #33ccff; /* צבע כחול רגיל */
+            background-color: #33ccff;
             color: white;
             font-size: 1.5rem;
             font-weight: bold;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -39,14 +39,9 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        #micBtn:active {
-            transform: scale(0.95);
-        }
+        #micBtn:active { transform: scale(0.95); }
 
-        #icon {
-            font-size: 4rem;
-            margin-bottom: 10px;
-        }
+        #icon { font-size: 4rem; margin-bottom: 10px; }
 
         #statusText {
             margin-top: 20px;
@@ -63,19 +58,15 @@
             background: #e0e0e0;
             padding: 5px 10px;
             border-radius: 5px;
-            display: none; /* מוסתר עד שמדברים */
+            display: none;
         }
 
-        /* אנימציה בזמן הקלטה */
         .listening {
-            background-color: #ff4444 !important; /* אדום */
-            animation: pulse 1.5s infinite;
+            background-color: #ff4444 !important;
+            animation: pulse 1.0s infinite; /* אנימציה מהירה יותר */
         }
 
-        /* עיצוב כשיש הצלחה */
-        .success {
-            background-color: #00C853 !important; /* ירוק */
-        }
+        .success { background-color: #00C853 !important; }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
@@ -87,8 +78,7 @@
 <body>
 
     <button id="micBtn" onclick="startListening()">
-        <div id="icon">🎤</div>
-        <div id="btnText">לחץ ודבר</div>
+        <div id="icon">⚡</div> <div id="btnText">לחץ ודבר</div>
     </button>
 
     <div id="statusText">המערכת מוכנה</div>
@@ -102,9 +92,7 @@
             "הביתה": "https://waze.com/ul?q=Home", 
             "בית": "https://waze.com/ul?q=Home", 
             "עבודה": "https://waze.com/ul?q=Work",
-            "לעבודה": "https://waze.com/ul?q=Work",
             "סופר": "https://waze.com/ul?q=Supermarket",
-            // תוסיף כאן עוד שורות לפי הצורך
         };
         // ==========================================
 
@@ -113,94 +101,80 @@
         const btnText = document.getElementById("btnText");
         const statusText = document.getElementById("statusText");
         const debugText = document.getElementById("debugText");
+        let recognition;
+        let isRedirecting = false; // למנוע הפעלה כפולה
 
         function startListening() {
             if (!SpeechRecognition) {
-                alert("הדפדפן שלך לא תומך. נסה Chrome באנדרואיד.");
+                alert("הדפדפן לא תומך. נסה Chrome באנדרואיד.");
                 return;
             }
+            
+            if (isRedirecting) return; // אם כבר עוברים עמוד, לא לעשות כלום
 
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'he-IL'; // עברית
-            recognition.interimResults = false;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'he-IL';
+            
+            // --- השינוי הגדול: מקשיב לתוצאות ביניים ---
+            recognition.interimResults = true; 
             recognition.maxAlternatives = 1;
 
             recognition.start();
 
-            // שינוי מראה הכפתור למצב הקלטה
             micBtn.className = "listening";
             btnText.innerText = "מקשיב...";
-            statusText.innerText = "דבר עכשיו...";
+            statusText.innerText = "דבר...";
             debugText.style.display = "none";
 
             recognition.onresult = (event) => {
-                // קבלת הטקסט מהמיקרופון
-                let speechResult = event.results[0][0].transcript;
-                
-                // מנקה רווחים בהתחלה ובסוף
-                speechResult = speechResult.trim(); 
+                // לוקח את כל מה שנאמר עד עכשיו, כולל חלקי משפטים
+                let transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('');
 
-                // מציג למסך מה המחשב שמע (לצורך בדיקה)
                 debugText.style.display = "block";
-                debugText.innerText = `המערכת שמעה: "${speechResult}"`;
+                debugText.innerText = `מזהה: "${transcript}"`;
 
-                // בדיקה אם המילה קיימת ברשימה
-                // אנחנו בודקים אם מה שאמרת *מכיל* את אחת המילים ברשימה
-                let foundUrl = null;
-                
+                // בדיקה מיידית מול הרשימה
                 for (let key in locations) {
-                    if (speechResult.includes(key)) {
-                        foundUrl = locations[key];
-                        break;
+                    if (transcript.includes(key)) {
+                        // ברגע שמצאנו התאמה - עוצרים הכל ומפעילים!
+                        recognition.stop();
+                        triggerAction(key, locations[key]);
+                        return; // יוצאים מהפונקציה
                     }
-                }
-
-                if (foundUrl) {
-                    // --- נמצאה התאמה! ---
-                    micBtn.className = "success"; // הופך לירוק
-                    btnText.innerText = "זוהה!";
-                    statusText.innerText = "פותח את וויז בעוד 2 שניות...";
-                    
-                    setTimeout(() => {
-                        window.location.href = foundUrl;
-                        // מחזיר את הכפתור למצב רגיל אחרי הפתיחה
-                        setTimeout(() => {
-                            micBtn.className = "";
-                            btnText.innerText = "לחץ ודבר";
-                            statusText.innerText = "המערכת מוכנה";
-                        }, 1000);
-                    }, 2000); // השהייה של 2 שניות
-
-                } else {
-                    // --- לא נמצאה התאמה ---
-                    micBtn.className = ""; // חוזר לכחול
-                    btnText.innerText = "לא זוהה";
-                    statusText.innerText = "נסה שוב (בדוק מה המחשב שמע למטה)";
                 }
             };
 
             recognition.onspeechend = () => {
-                recognition.stop();
-                // אם לא היתה הצלחה (הכפתור לא ירוק), מחזיר לכחול
-                if (!micBtn.classList.contains("success")) {
+                // אם הפסקת לדבר ולא זיהינו כלום
+                if (!isRedirecting) {
+                    recognition.stop();
                     micBtn.className = "";
                     btnText.innerText = "לחץ ודבר";
                 }
             };
 
             recognition.onerror = (event) => {
+                if (event.error === 'no-speech') return; // מתעלם אם לא דיברו
                 micBtn.className = "";
                 btnText.innerText = "שגיאה";
-                
-                if (event.error === 'not-allowed') {
-                    statusText.innerText = "שגיאה: אין אישור מיקרופון!";
-                    alert("חובה לאשר שימוש במיקרופון ולוודא שהאתר ב-HTTPS");
-                } else if (event.error === 'no-speech') {
-                    statusText.innerText = "לא שמעתי כלום, נסה שוב";
-                } else {
-                    statusText.innerText = "שגיאה: " + event.error;
-                }
+                statusText.innerText = "שגיאה: " + event.error;
             };
+        }
+
+        function triggerAction(name, url) {
+            if (isRedirecting) return;
+            isRedirecting = true;
+
+            micBtn.className = "success";
+            btnText.innerText = "בוצע!";
+            statusText.innerText = `נוסעים ל: ${name}`;
+            
+            // ביטול ההשהייה הארוכה - מעבר מיידי (חצי שנייה בשביל האנימציה)
+            setTimeout(() => {
+                window.location.href = url;
+            }, 500);
         }
     </script>
 </body>
