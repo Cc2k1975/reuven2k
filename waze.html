@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waze Voice Commander</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        #micBtn {
+            width: 80vw;
+            height: 80vw;
+            max-width: 400px;
+            max-height: 400px;
+            border-radius: 50%;
+            border: none;
+            background-color: #33ccff; /* צבע Waze */
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #micBtn:active {
+            transform: scale(0.95);
+            background-color: #29a3cc;
+        }
+
+        #status {
+            margin-top: 10px;
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        .pulse {
+            animation: pulse-animation 1.5s infinite;
+        }
+
+        @keyframes pulse-animation {
+            0% { box-shadow: 0 0 0 0 rgba(51, 204, 255, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(51, 204, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(51, 204, 255, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <button id="micBtn" onclick="startListening()">
+        <div>🎤</div>
+        <div id="btnText">לחץ ודבר</div>
+        <div id="status"></div>
+    </button>
+
+    <script>
+        // --- רשימת המקומות שלך ---
+        // כאן אתה מגדיר את המילה שתגיד ואת הקישור לוויז
+        const locations = {
+            "הביתה": "https://waze.com/ul?q=Home", 
+            "עבודה": "https://waze.com/ul?q=Work",
+            "סופר": "https://waze.com/ul?q=Supermarket+Name",
+            "הורים": "https://waze.com/ul?ll=32.0853,34.7818&navigate=yes" // דוגמה לקואורדינטות
+        };
+
+        // בדיקה אם הדפדפן תומך בזיהוי דיבור
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const btnText = document.getElementById("btnText");
+        const statusDiv = document.getElementById("status");
+        const micBtn = document.getElementById("micBtn");
+
+        function startListening() {
+            if (!SpeechRecognition) {
+                alert("הדפדפן שלך לא תומך בזיהוי דיבור. נסה דרך Chrome באנדרואיד.");
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'he-IL'; // זיהוי בעברית
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.start();
+
+            // שינוי עיצוב בזמן האזנה
+            micBtn.classList.add("pulse");
+            micBtn.style.backgroundColor = "#ff5252"; // אדום להקלטה
+            btnText.innerText = "מקשיב...";
+            statusDiv.innerText = "";
+
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript.trim();
+                micBtn.classList.remove("pulse");
+                micBtn.style.backgroundColor = "#33ccff"; // חזרה לכחול
+                
+                statusDiv.innerText = `אמרת: "${speechResult}"`;
+
+                // בדיקה אם המילה קיימת ברשימה
+                // נחפש אם מה שאמרת מכיל את מילת המפתח (למשל "סע הביתה" יתפוס את "הביתה")
+                let foundKey = Object.keys(locations).find(key => speechResult.includes(key));
+
+                if (foundKey) {
+                    btnText.innerText = "פותח וויז...";
+                    
+                    // המתנה של 2 שניות (2000 מילישניות) לפני פתיחת הקישור
+                    setTimeout(() => {
+                        window.location.href = locations[foundKey];
+                    }, 2000);
+
+                } else {
+                    btnText.innerText = "לא זוהה, נסה שוב";
+                    setTimeout(() => { btnText.innerText = "לחץ ודבר"; }, 2000);
+                }
+            };
+
+            recognition.onspeechend = () => {
+                recognition.stop();
+                micBtn.classList.remove("pulse");
+            };
+
+            recognition.onerror = (event) => {
+                btnText.innerText = "שגיאה, נסה שוב";
+                micBtn.classList.remove("pulse");
+                micBtn.style.backgroundColor = "#33ccff";
+            };
+        }
+    </script>
+</body>
+</html>
