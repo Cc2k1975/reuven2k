@@ -11,7 +11,7 @@
             background-color: #f0f0f0;
             font-family: Arial, sans-serif;
             height: 100vh;
-            overflow: hidden; /* מונע גלילה במסך הראשי */
+            overflow: hidden;
         }
 
         /* --- מסך ראשי --- */
@@ -22,7 +22,6 @@
             align-items: center;
             height: 100%;
             width: 100%;
-            transition: opacity 0.3s;
         }
 
         #micBtn {
@@ -69,11 +68,11 @@
             text-align: center;
         }
 
-        /* --- כפתור הגדרות (גלגל שיניים) --- */
+        /* --- כפתור הגדרות --- */
         #settingsBtn {
             position: absolute;
             top: 20px;
-            left: 20px; /* צד שמאל למעלה */
+            left: 20px;
             font-size: 2rem;
             cursor: pointer;
             background: none;
@@ -83,7 +82,7 @@
 
         /* --- מסך הגדרות --- */
         #settingsScreen {
-            display: none; /* מוסתר בהתחלה */
+            display: none;
             position: fixed;
             top: 0;
             right: 0;
@@ -137,9 +136,7 @@
             margin-top: 5px;
         }
 
-        .saved-list {
-            margin-top: 20px;
-        }
+        .saved-list { margin-top: 20px; }
 
         .list-item {
             display: flex;
@@ -182,46 +179,37 @@
 
         <div class="input-group">
             <label>שם המקום (מה לומר):</label>
-            <input type="text" id="newName" placeholder="למשל: סבתא">
+            <input type="text" id="newName" placeholder="למשל: הביתה">
             
-            <label>חיפוש בוויז (כתובת):</label>
-            <input type="text" id="newLink" placeholder="למשל: רחוב הרצל 1 תל אביב">
+            <label>כתובת בוויז:</label>
+            <input type="text" id="newLink" placeholder="למשל: הזמיר 15 נהריה">
             
             <button class="action-btn" onclick="addNewPlace()">הוסף לרשימה</button>
         </div>
 
         <h3>רשימה קיימת:</h3>
-        <div id="placesList" class="saved-list">
-            </div>
+        <div id="placesList" class="saved-list"></div>
     </div>
 
     <script>
         // --- ניהול הנתונים ---
         let locations = {};
 
-        // טעינת נתונים ברגע שהדף עולה
         function loadLocations() {
             const savedData = localStorage.getItem('wazeLocations');
             if (savedData) {
                 locations = JSON.parse(savedData);
             } else {
-                // נתונים התחלתיים אם אין כלום בזיכרון
-                locations = {
-                    "הביתה": "Home",
-                    "עבודה": "Work"
-                };
-                saveLocations(); // שמירה ראשונית
+                locations = {}; // מתחיל ריק אם אין כלום
             }
             renderList();
         }
 
-        // שמירה לזיכרון המקומי
         function saveLocations() {
             localStorage.setItem('wazeLocations', JSON.stringify(locations));
             renderList();
         }
 
-        // הוספת מקום חדש
         function addNewPlace() {
             const name = document.getElementById('newName').value.trim();
             const address = document.getElementById('newLink').value.trim();
@@ -231,23 +219,21 @@
                 return;
             }
 
-            // הופך את הכתובת לפורמט של וויז אם המשתמש לא רשם קישור מלא
             let finalLink = address;
+            // --- התיקון הקריטי כאן ---
             if (!address.startsWith('waze://')) {
-                // המרה אוטומטית לפורמט חיפוש
-                finalLink = `waze://?q=${encodeURIComponent(address)}`;
+                // מוסיף &navigate=yes כדי לכפות נסיעה מיידית
+                finalLink = `waze://?q=${encodeURIComponent(address)}&navigate=yes`;
             }
 
             locations[name] = finalLink;
             saveLocations();
             
-            // איפוס שדות
             document.getElementById('newName').value = '';
             document.getElementById('newLink').value = '';
             alert(`נוסף בהצלחה: ${name}`);
         }
 
-        // מחיקת מקום
         function deletePlace(key) {
             if (confirm(`למחוק את "${key}"?`)) {
                 delete locations[key];
@@ -255,14 +241,12 @@
             }
         }
 
-        // הצגת הרשימה במסך הגדרות
         function renderList() {
             const listDiv = document.getElementById('placesList');
             listDiv.innerHTML = '';
             
             for (let [key, url] of Object.entries(locations)) {
-                // תצוגה יפה של הקישור (מקצר אם ארוך מדי)
-                let displayUrl = url.replace('waze://?q=', 'חיפוש: ');
+                let displayUrl = url.replace('waze://?q=', '').replace('&navigate=yes', '');
                 displayUrl = decodeURIComponent(displayUrl);
 
                 listDiv.innerHTML += `
@@ -277,7 +261,6 @@
             }
         }
 
-        // --- ממשק משתמש ---
         function openSettings() {
             document.getElementById('mainScreen').style.display = 'none';
             document.getElementById('settingsScreen').style.display = 'flex';
@@ -288,7 +271,7 @@
             document.getElementById('mainScreen').style.display = 'flex';
         }
 
-        // --- מנוע הדיבור (אותו קוד שעבד לך מצוין) ---
+        // --- מנוע הדיבור ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const micBtn = document.getElementById("micBtn");
         const btnText = document.getElementById("btnText");
@@ -350,9 +333,7 @@
             btnText.innerText = "לחץ ודבר";
         }
 
-        // טעינה ראשונית
         loadLocations();
-
     </script>
 </body>
 </html>
