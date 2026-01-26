@@ -87,13 +87,16 @@
 
     <script>
         // ==========================================
-        //         איזור עריכת המקומות
+        //         איזור עריכת המקומות - שים לב לשינוי!
         // ==========================================
+        // במקום https://waze.com השתמשנו ב- waze://
         const locations = {
-            "הביתה": "https://waze.com/ul?q=Home", 
-            "בית": "https://waze.com/ul?q=Home", 
-            "עבודה": "https://waze.com/ul?q=Work",
-            "סופר": "https://waze.com/ul?q=Supermarket",
+            "הביתה": "waze://?q=Home", 
+            "בית": "waze://?q=Home", 
+            "עבודה": "waze://?q=Work",
+            "סופר": "waze://?q=Supermarket",
+            // דוגמה לכתובת ספציפית:
+            // "תל אביב": "waze://?q=Tel%20Aviv"
         };
         // ==========================================
 
@@ -103,7 +106,7 @@
         const statusText = document.getElementById("statusText");
         const debugText = document.getElementById("debugText");
         let recognition;
-        let isProcessing = false; // דגל למניעת כפילויות
+        let isProcessing = false;
 
         function startListening() {
             if (!SpeechRecognition) {
@@ -115,12 +118,11 @@
 
             recognition = new SpeechRecognition();
             recognition.lang = 'he-IL';
-            recognition.interimResults = true; // מזהה תוך כדי דיבור
+            recognition.interimResults = true;
             recognition.maxAlternatives = 1;
 
             recognition.start();
 
-            // שינוי עיצוב להקלטה
             micBtn.className = "listening";
             btnText.innerText = "מקשיב...";
             statusText.innerText = "דבר...";
@@ -134,7 +136,6 @@
                 debugText.style.display = "block";
                 debugText.innerText = `מזהה: "${transcript}"`;
 
-                // בדיקה אם המילה קיימת
                 for (let key in locations) {
                     if (transcript.includes(key)) {
                         recognition.stop();
@@ -160,29 +161,30 @@
         function triggerAction(name, url) {
             isProcessing = true;
 
-            // פידבק ירוק
             micBtn.className = "success";
             btnText.innerText = "פותח...";
             statusText.innerText = `פותח ניווט ל-${name}`;
             
-            // פתיחת וויז בחלון חדש/אפליקציה ושמירה על הדף הנוכחי
+            // השהייה קטנטנה ואז שיגור לאפליקציה
             setTimeout(() => {
-                window.open(url, "_blank"); 
+                // שימוש ב-location.href עם waze:// גורם למעבר אפליקציה
+                // בלי לנווט את הדפדפן לדף חדש, כך שהדף נשאר קיים
+                window.location.href = url;
                 
-                // איפוס המערכת שיהיה מוכן לפעם הבאה
+                // מחזירים את הכפתור למצב "מוכן" אחרי 2 שניות
+                // כדי שיהיה מוכן כשתחזור לאפליקציה
                 setTimeout(() => {
                     resetUI();
                     isProcessing = false;
                     statusText.innerText = "המערכת מוכנה לפקודה הבאה";
-                }, 1000);
+                }, 2000);
                 
-            }, 300); // דיליי מזערי לאנימציה
+            }, 500); 
         }
 
         function resetUI() {
             micBtn.className = "";
             btnText.innerText = "לחץ ודבר";
-            // לא מוחקים את סטטוס הטקסט כדי שתראה מה קרה אחרון
         }
     </script>
 </body>
