@@ -3,65 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InstaScan - ראובן</title>
+    <title>InstaScan Pro - Reuven</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
-        .card { max-width: 500px; margin: auto; background: #1e1e1e; padding: 25px; border-radius: 20px; border: 1px solid #333; }
-        .bookmark-btn { display: inline-block; padding: 10px 20px; background: #E1306C; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; cursor: move; margin: 20px 0; border: 2px dashed white; }
-        .results { margin-top: 20px; text-align: right; }
-        .unfollowed { color: #ff4d4d; border-right: 3px solid #ff4d4d; padding-right: 10px; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #000; color: #fff; text-align: center; padding: 20px; margin: 0; }
+        .container { max-width: 500px; margin: auto; background: #121212; padding: 30px; border-radius: 30px; border: 1px solid #262626; box-shadow: 0 10px 50px rgba(0,0,0,0.8); }
+        h2 { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 28px; margin-bottom: 10px; }
+        .info { background: #1c1c1c; padding: 15px; border-radius: 15px; font-size: 14px; text-align: right; margin-bottom: 20px; border-right: 4px solid #cc2366; }
+        textarea { width: 100%; height: 180px; background: #000; color: #00f0ff; border: 1px solid #333; border-radius: 15px; padding: 15px; font-family: monospace; font-size: 12px; margin-bottom: 20px; box-sizing: border-box; outline: none; }
+        textarea:focus { border-color: #cc2366; }
+        .btn { background: #cc2366; color: white; padding: 18px; border: none; border-radius: 15px; width: 100%; font-weight: bold; font-size: 18px; cursor: pointer; transition: 0.3s; }
+        .btn:active { transform: scale(0.95); background: #a31673; }
+        #results { margin-top: 25px; text-align: right; }
+        .delta-card { background: #1c1c1c; padding: 15px; border-radius: 15px; margin-bottom: 10px; border: 1px solid #333; }
+        .unfollowed-name { color: #ff4d4d; font-family: monospace; display: block; padding: 5px 0; border-bottom: 1px solid #2a2a2a; }
+        .new-name { color: #00f0ff; font-family: monospace; display: block; padding: 5px 0; }
+        .counter { font-size: 40px; font-weight: bold; display: block; margin: 10px 0; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>סורק עוקבים חצי-אוטומטי 🚀</h2>
+    <div class="container">
+        <h2>InstaScan Pro ⚡</h2>
         
-        <p>בלי להוריד קבצים ובלי סיסמאות!</p>
-        
-        <div style="background: #222; padding: 15px; border-radius: 10px; font-size: 14px;">
-            <strong>הוראות הפעלה:</strong><br>
-            1. גרור את הכפתור הוורוד למעלה לסרגל הסימניות שלך.<br>
-            2. כנס לאינסטגרם לדף ה"עוקבים" שלך.<br>
-            3. לחץ על הסימניה שגררת.
+        <div class="info">
+            <strong>איך אוספים אלפי עוקבים בשניות?</strong><br>
+            1. פתח אינסטגרם בדפדפן (Chrome) בנייד.<br>
+            2. כנס לרשימת העוקבים וגלול מהר עד הסוף (הדפדפן טוען הכל לזיכרון).<br>
+            3. לחץ "בחר הכל" (Select All) והעתק.<br>
+            4. הדבק כאן הכל – המערכת תסנן את השמות לבד.
         </div>
 
-        <a class="bookmark-btn" href="javascript:(function(){
-            let users = Array.from(document.querySelectorAll('span._ap35')).map(u => u.innerText).filter(u => u && !u.includes(' '));
-            if(users.length === 0) { alert('נא לפתוח את רשימת העוקבים קודם!'); return; }
-            window.location.href = 'https://reuven2k.com/insta.html?data=' + btoa(JSON.stringify(users));
-        })()">גרור אותי לסרגל הסימניות</a>
+        <textarea id="rawInput" placeholder="הדבק כאן את כל הטקסט שהעתקת..."></textarea>
+        
+        <button class="btn" onclick="analyzeFollowers()">השווה רשימות עכשיו</button>
 
-        <div id="display"></div>
+        <div id="results"></div>
     </div>
 
     <script>
-        // בדיקת נתונים שהגיעו מהסימניה
-        const urlParams = new URLSearchParams(window.location.search);
-        const incomingData = urlParams.get('data');
+        function analyzeFollowers() {
+            const rawData = document.getElementById('rawInput').value;
+            if (!rawData) return;
 
-        if (incomingData) {
-            const currentFollowers = JSON.parse(atob(incomingData));
-            const lastBackup = JSON.parse(localStorage.getItem('insta_backup'));
+            // רגקס משופר: מוציא רק מילים שמתחילות בתחילת שורה ולא מכילות רווחים (מבנה טיפוסי של העתקת רשימה)
+            // מסנן מילים מערכתיות של אינסטגרם
+            const blacklist = ['Follow', 'Following', 'Requested', 'Remove', 'Verified', 'Suggested'];
+            const foundUsers = rawData.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 2 && !line.includes(' ') && !blacklist.includes(line));
 
-            if (!lastBackup) {
-                localStorage.setItem('insta_backup', JSON.stringify(currentFollowers));
-                document.getElementById('display').innerHTML = `<h3>✅ גיבוי ראשון נשמר!</h3><p>נסרקנו ${currentFollowers.length} עוקבים. חזור בעוד שבוע לבדיקה.</p>`;
+            const currentList = Array.from(new Set(foundUsers)); // הסרת כפילויות
+            const savedList = JSON.parse(localStorage.getItem('insta_pro_backup') || '[]');
+            const resultsDiv = document.getElementById('results');
+
+            if (savedList.length === 0) {
+                localStorage.setItem('insta_pro_backup', JSON.stringify(currentList));
+                resultsDiv.innerHTML = `<div class="delta-card">
+                    <span class="counter" style="color:#00f0ff">${currentList.length}</span>
+                    עוקבים נשמרו בגיבוי הראשון.<br>חזור מחר לבדיקה.
+                </div>`;
             } else {
-                const unfollowed = lastBackup.filter(x => !currentFollowers.includes(x));
-                let html = `<h3>תוצאות סריקה:</h3>`;
-                if (unfollowed.length > 0) {
-                    html += `<p class="unfollowed">הורידו עוקב (${unfollowed.length}):<br>${unfollowed.join(', ')}</p>`;
-                } else {
-                    html += `<p style="color:#25d366">אף אחד לא הוריד עוקב! 🎉</p>`;
-                }
-                document.getElementById('display').innerHTML = html;
+                const unfollowed = savedList.filter(u => !currentList.includes(u));
+                const newFollowers = currentList.filter(u => !savedList.includes(u));
+
+                let resHtml = '';
                 
-                // עדכון הגיבוי
-                localStorage.setItem('insta_backup', JSON.stringify(currentFollowers));
+                if (unfollowed.length > 0) {
+                    resHtml += `<div class="delta-card">
+                        <strong style="color:#ff4d4d">בוגדים שעזבו (${unfollowed.length}):</strong><br>
+                        ${unfollowed.map(u => `<span class="unfollowed-name">@${u}</span>`).join('')}
+                    </div>`;
+                } else {
+                    resHtml += `<div class="delta-card" style="color:#25d366">אף אחד לא הוריד עוקב! המצב יציב.</div>`;
+                }
+
+                if (newFollowers.length > 0) {
+                    resHtml += `<div class="delta-card">
+                        <strong style="color:#00f0ff">חברים חדשים (${newFollowers.length}):</strong><br>
+                        ${newFollowers.map(u => `<span class="new-name">@${u}</span>`).join('')}
+                    </div>`;
+                }
+
+                resultsDiv.innerHTML = resHtml;
+
+                if (confirm("לעדכן גיבוי למצב הנוכחי?")) {
+                    localStorage.setItem('insta_pro_backup', JSON.stringify(currentList));
+                }
             }
-            // ניקוי ה-URL
-            window.history.replaceState({}, document.title, window.location.pathname);
+            document.getElementById('rawInput').value = '';
         }
     </script>
 </body>
