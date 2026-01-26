@@ -3,26 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waze Commander</title>
+    <title>Waze Commander Pro</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden; /* מונע גלילה במסך הראשי */
+        }
+
+        /* --- מסך ראשי --- */
+        #mainScreen {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-            text-align: center;
+            height: 100%;
+            width: 100%;
+            transition: opacity 0.3s;
         }
 
         #micBtn {
             width: 70vw;
             height: 70vw;
-            max-width: 350px;
-            max-height: 350px;
+            max-width: 300px;
+            max-height: 300px;
             border-radius: 50%;
             border: none;
             background-color: #33ccff;
@@ -40,32 +47,11 @@
         }
 
         #micBtn:active { transform: scale(0.95); }
-
-        #icon { font-size: 4rem; margin-bottom: 10px; }
-
-        #statusText {
-            margin-top: 20px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #333;
-            min-height: 30px;
-        }
-
-        #debugText {
-            margin-top: 10px;
-            font-size: 0.9rem;
-            color: #666;
-            background: #e0e0e0;
-            padding: 5px 10px;
-            border-radius: 5px;
-            display: none;
-        }
-
+        
         .listening {
             background-color: #ff4444 !important;
             animation: pulse 1.0s infinite;
         }
-
         .success { background-color: #00C853 !important; }
 
         @keyframes pulse {
@@ -73,33 +59,236 @@
             70% { box-shadow: 0 0 0 20px rgba(255, 68, 68, 0); }
             100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
         }
+
+        #statusText {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            min-height: 30px;
+            text-align: center;
+        }
+
+        /* --- כפתור הגדרות (גלגל שיניים) --- */
+        #settingsBtn {
+            position: absolute;
+            top: 20px;
+            left: 20px; /* צד שמאל למעלה */
+            font-size: 2rem;
+            cursor: pointer;
+            background: none;
+            border: none;
+            z-index: 10;
+        }
+
+        /* --- מסך הגדרות --- */
+        #settingsScreen {
+            display: none; /* מוסתר בהתחלה */
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            z-index: 20;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        button.action-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #33ccff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .saved-list {
+            margin-top: 20px;
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+
+        .delete-btn {
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
-    <button id="micBtn" onclick="startListening()">
-        <div id="icon">⚡</div>
-        <div id="btnText">לחץ ודבר</div>
-    </button>
+    <div id="mainScreen">
+        <button id="settingsBtn" onclick="openSettings()">⚙️</button>
+        
+        <button id="micBtn" onclick="startListening()">
+            <div style="font-size: 4rem; margin-bottom: 10px;">⚡</div>
+            <div id="btnText">לחץ ודבר</div>
+        </button>
 
-    <div id="statusText">המערכת מוכנה</div>
-    <div id="debugText"></div>
+        <div id="statusText">המערכת מוכנה</div>
+        <div id="debugText" style="margin-top:10px; color:#666; font-size:0.9rem;"></div>
+    </div>
+
+    <div id="settingsScreen">
+        <div class="settings-header">
+            <h2>ניהול מקומות</h2>
+            <button onclick="closeSettings()" style="font-size:1.5rem; background:none; border:none;">✖️</button>
+        </div>
+
+        <div class="input-group">
+            <label>שם המקום (מה לומר):</label>
+            <input type="text" id="newName" placeholder="למשל: סבתא">
+            
+            <label>חיפוש בוויז (כתובת):</label>
+            <input type="text" id="newLink" placeholder="למשל: רחוב הרצל 1 תל אביב">
+            
+            <button class="action-btn" onclick="addNewPlace()">הוסף לרשימה</button>
+        </div>
+
+        <h3>רשימה קיימת:</h3>
+        <div id="placesList" class="saved-list">
+            </div>
+    </div>
 
     <script>
-        // ==========================================
-        //         איזור עריכת המקומות - שים לב לשינוי!
-        // ==========================================
-        // במקום https://waze.com השתמשנו ב- waze://
-        const locations = {
-            "הביתה": "waze://?q=Home", 
-            "בית": "waze://?q=Home", 
-            "עבודה": "waze://?q=Work",
-            "סופר": "waze://?q=Supermarket",
-            // דוגמה לכתובת ספציפית:
-            // "תל אביב": "waze://?q=Tel%20Aviv"
-        };
-        // ==========================================
+        // --- ניהול הנתונים ---
+        let locations = {};
 
+        // טעינת נתונים ברגע שהדף עולה
+        function loadLocations() {
+            const savedData = localStorage.getItem('wazeLocations');
+            if (savedData) {
+                locations = JSON.parse(savedData);
+            } else {
+                // נתונים התחלתיים אם אין כלום בזיכרון
+                locations = {
+                    "הביתה": "Home",
+                    "עבודה": "Work"
+                };
+                saveLocations(); // שמירה ראשונית
+            }
+            renderList();
+        }
+
+        // שמירה לזיכרון המקומי
+        function saveLocations() {
+            localStorage.setItem('wazeLocations', JSON.stringify(locations));
+            renderList();
+        }
+
+        // הוספת מקום חדש
+        function addNewPlace() {
+            const name = document.getElementById('newName').value.trim();
+            const address = document.getElementById('newLink').value.trim();
+
+            if (!name || !address) {
+                alert("חובה למלא גם שם וגם כתובת");
+                return;
+            }
+
+            // הופך את הכתובת לפורמט של וויז אם המשתמש לא רשם קישור מלא
+            let finalLink = address;
+            if (!address.startsWith('waze://')) {
+                // המרה אוטומטית לפורמט חיפוש
+                finalLink = `waze://?q=${encodeURIComponent(address)}`;
+            }
+
+            locations[name] = finalLink;
+            saveLocations();
+            
+            // איפוס שדות
+            document.getElementById('newName').value = '';
+            document.getElementById('newLink').value = '';
+            alert(`נוסף בהצלחה: ${name}`);
+        }
+
+        // מחיקת מקום
+        function deletePlace(key) {
+            if (confirm(`למחוק את "${key}"?`)) {
+                delete locations[key];
+                saveLocations();
+            }
+        }
+
+        // הצגת הרשימה במסך הגדרות
+        function renderList() {
+            const listDiv = document.getElementById('placesList');
+            listDiv.innerHTML = '';
+            
+            for (let [key, url] of Object.entries(locations)) {
+                // תצוגה יפה של הקישור (מקצר אם ארוך מדי)
+                let displayUrl = url.replace('waze://?q=', 'חיפוש: ');
+                displayUrl = decodeURIComponent(displayUrl);
+
+                listDiv.innerHTML += `
+                    <div class="list-item">
+                        <div>
+                            <strong>${key}</strong><br>
+                            <span style="font-size:0.8rem; color:#666;">${displayUrl}</span>
+                        </div>
+                        <button class="delete-btn" onclick="deletePlace('${key}')">מחק</button>
+                    </div>
+                `;
+            }
+        }
+
+        // --- ממשק משתמש ---
+        function openSettings() {
+            document.getElementById('mainScreen').style.display = 'none';
+            document.getElementById('settingsScreen').style.display = 'flex';
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsScreen').style.display = 'none';
+            document.getElementById('mainScreen').style.display = 'flex';
+        }
+
+        // --- מנוע הדיבור (אותו קוד שעבד לך מצוין) ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const micBtn = document.getElementById("micBtn");
         const btnText = document.getElementById("btnText");
@@ -109,11 +298,7 @@
         let isProcessing = false;
 
         function startListening() {
-            if (!SpeechRecognition) {
-                alert("הדפדפן לא תומך.");
-                return;
-            }
-            
+            if (!SpeechRecognition) { alert("הדפדפן לא תומך"); return; }
             if (isProcessing) return;
 
             recognition = new SpeechRecognition();
@@ -126,14 +311,9 @@
             micBtn.className = "listening";
             btnText.innerText = "מקשיב...";
             statusText.innerText = "דבר...";
-            debugText.style.display = "none";
 
             recognition.onresult = (event) => {
-                let transcript = Array.from(event.results)
-                    .map(result => result[0].transcript)
-                    .join('');
-
-                debugText.style.display = "block";
+                let transcript = Array.from(event.results).map(r => r[0].transcript).join('');
                 debugText.innerText = `מזהה: "${transcript}"`;
 
                 for (let key in locations) {
@@ -145,47 +325,34 @@
                 }
             };
 
-            recognition.onspeechend = () => {
-                if (!isProcessing) {
-                    resetUI();
-                }
-            };
-
-            recognition.onerror = (event) => {
-                if (event.error === 'no-speech') return;
-                resetUI();
-                statusText.innerText = "לא שמעתי, נסה שוב";
-            };
+            recognition.onspeechend = () => { if (!isProcessing) resetUI(); };
+            recognition.onerror = (event) => { if (event.error !== 'no-speech') resetUI(); };
         }
 
         function triggerAction(name, url) {
             isProcessing = true;
-
             micBtn.className = "success";
             btnText.innerText = "פותח...";
-            statusText.innerText = `פותח ניווט ל-${name}`;
+            statusText.innerText = `נוסעים ל: ${name}`;
             
-            // השהייה קטנטנה ואז שיגור לאפליקציה
             setTimeout(() => {
-                // שימוש ב-location.href עם waze:// גורם למעבר אפליקציה
-                // בלי לנווט את הדפדפן לדף חדש, כך שהדף נשאר קיים
                 window.location.href = url;
-                
-                // מחזירים את הכפתור למצב "מוכן" אחרי 2 שניות
-                // כדי שיהיה מוכן כשתחזור לאפליקציה
                 setTimeout(() => {
                     resetUI();
                     isProcessing = false;
-                    statusText.innerText = "המערכת מוכנה לפקודה הבאה";
+                    statusText.innerText = "המערכת מוכנה";
                 }, 2000);
-                
-            }, 500); 
+            }, 500);
         }
 
         function resetUI() {
             micBtn.className = "";
             btnText.innerText = "לחץ ודבר";
         }
+
+        // טעינה ראשונית
+        loadLocations();
+
     </script>
 </body>
 </html>
