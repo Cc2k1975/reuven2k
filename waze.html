@@ -10,131 +10,196 @@
             padding: 0;
             background-color: #f0f0f0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             font-family: Arial, sans-serif;
+            text-align: center;
         }
 
         #micBtn {
-            width: 80vw;
-            height: 80vw;
-            max-width: 400px;
-            max-height: 400px;
+            width: 70vw;
+            height: 70vw;
+            max-width: 350px;
+            max-height: 350px;
             border-radius: 50%;
             border: none;
-            background-color: #33ccff; /* צבע Waze */
+            background-color: #33ccff; /* צבע כחול רגיל */
             color: white;
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: bold;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
             cursor: pointer;
-            transition: transform 0.2s, background-color 0.3s;
+            transition: all 0.3s ease;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
+            -webkit-tap-highlight-color: transparent;
         }
 
         #micBtn:active {
             transform: scale(0.95);
-            background-color: #29a3cc;
         }
 
-        #status {
-            margin-top: 10px;
+        #icon {
+            font-size: 4rem;
+            margin-bottom: 10px;
+        }
+
+        #statusText {
+            margin-top: 20px;
             font-size: 1.2rem;
-            opacity: 0.8;
+            font-weight: bold;
+            color: #333;
+            min-height: 30px;
         }
 
-        .pulse {
-            animation: pulse-animation 1.5s infinite;
+        #debugText {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+            background: #e0e0e0;
+            padding: 5px 10px;
+            border-radius: 5px;
+            display: none; /* מוסתר עד שמדברים */
         }
 
-        @keyframes pulse-animation {
-            0% { box-shadow: 0 0 0 0 rgba(51, 204, 255, 0.7); }
-            70% { box-shadow: 0 0 0 20px rgba(51, 204, 255, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(51, 204, 255, 0); }
+        /* אנימציה בזמן הקלטה */
+        .listening {
+            background-color: #ff4444 !important; /* אדום */
+            animation: pulse 1.5s infinite;
+        }
+
+        /* עיצוב כשיש הצלחה */
+        .success {
+            background-color: #00C853 !important; /* ירוק */
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(255, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); }
         }
     </style>
 </head>
 <body>
 
     <button id="micBtn" onclick="startListening()">
-        <div>🎤</div>
+        <div id="icon">🎤</div>
         <div id="btnText">לחץ ודבר</div>
-        <div id="status"></div>
     </button>
 
+    <div id="statusText">המערכת מוכנה</div>
+    <div id="debugText"></div>
+
     <script>
-        // --- רשימת המקומות שלך ---
-        // כאן אתה מגדיר את המילה שתגיד ואת הקישור לוויז
+        // ==========================================
+        //         איזור עריכת המקומות
+        // ==========================================
         const locations = {
             "הביתה": "https://waze.com/ul?q=Home", 
+            "בית": "https://waze.com/ul?q=Home", 
             "עבודה": "https://waze.com/ul?q=Work",
-            "סופר": "https://waze.com/ul?q=Supermarket+Name",
-            "הורים": "https://waze.com/ul?ll=32.0853,34.7818&navigate=yes" // דוגמה לקואורדינטות
+            "לעבודה": "https://waze.com/ul?q=Work",
+            "סופר": "https://waze.com/ul?q=Supermarket",
+            // תוסיף כאן עוד שורות לפי הצורך
         };
+        // ==========================================
 
-        // בדיקה אם הדפדפן תומך בזיהוי דיבור
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const btnText = document.getElementById("btnText");
-        const statusDiv = document.getElementById("status");
         const micBtn = document.getElementById("micBtn");
+        const btnText = document.getElementById("btnText");
+        const statusText = document.getElementById("statusText");
+        const debugText = document.getElementById("debugText");
 
         function startListening() {
             if (!SpeechRecognition) {
-                alert("הדפדפן שלך לא תומך בזיהוי דיבור. נסה דרך Chrome באנדרואיד.");
+                alert("הדפדפן שלך לא תומך. נסה Chrome באנדרואיד.");
                 return;
             }
 
             const recognition = new SpeechRecognition();
-            recognition.lang = 'he-IL'; // זיהוי בעברית
+            recognition.lang = 'he-IL'; // עברית
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
 
             recognition.start();
 
-            // שינוי עיצוב בזמן האזנה
-            micBtn.classList.add("pulse");
-            micBtn.style.backgroundColor = "#ff5252"; // אדום להקלטה
+            // שינוי מראה הכפתור למצב הקלטה
+            micBtn.className = "listening";
             btnText.innerText = "מקשיב...";
-            statusDiv.innerText = "";
+            statusText.innerText = "דבר עכשיו...";
+            debugText.style.display = "none";
 
             recognition.onresult = (event) => {
-                const speechResult = event.results[0][0].transcript.trim();
-                micBtn.classList.remove("pulse");
-                micBtn.style.backgroundColor = "#33ccff"; // חזרה לכחול
+                // קבלת הטקסט מהמיקרופון
+                let speechResult = event.results[0][0].transcript;
                 
-                statusDiv.innerText = `אמרת: "${speechResult}"`;
+                // מנקה רווחים בהתחלה ובסוף
+                speechResult = speechResult.trim(); 
+
+                // מציג למסך מה המחשב שמע (לצורך בדיקה)
+                debugText.style.display = "block";
+                debugText.innerText = `המערכת שמעה: "${speechResult}"`;
 
                 // בדיקה אם המילה קיימת ברשימה
-                // נחפש אם מה שאמרת מכיל את מילת המפתח (למשל "סע הביתה" יתפוס את "הביתה")
-                let foundKey = Object.keys(locations).find(key => speechResult.includes(key));
+                // אנחנו בודקים אם מה שאמרת *מכיל* את אחת המילים ברשימה
+                let foundUrl = null;
+                
+                for (let key in locations) {
+                    if (speechResult.includes(key)) {
+                        foundUrl = locations[key];
+                        break;
+                    }
+                }
 
-                if (foundKey) {
-                    btnText.innerText = "פותח וויז...";
+                if (foundUrl) {
+                    // --- נמצאה התאמה! ---
+                    micBtn.className = "success"; // הופך לירוק
+                    btnText.innerText = "זוהה!";
+                    statusText.innerText = "פותח את וויז בעוד 2 שניות...";
                     
-                    // המתנה של 2 שניות (2000 מילישניות) לפני פתיחת הקישור
                     setTimeout(() => {
-                        window.location.href = locations[foundKey];
-                    }, 2000);
+                        window.location.href = foundUrl;
+                        // מחזיר את הכפתור למצב רגיל אחרי הפתיחה
+                        setTimeout(() => {
+                            micBtn.className = "";
+                            btnText.innerText = "לחץ ודבר";
+                            statusText.innerText = "המערכת מוכנה";
+                        }, 1000);
+                    }, 2000); // השהייה של 2 שניות
 
                 } else {
-                    btnText.innerText = "לא זוהה, נסה שוב";
-                    setTimeout(() => { btnText.innerText = "לחץ ודבר"; }, 2000);
+                    // --- לא נמצאה התאמה ---
+                    micBtn.className = ""; // חוזר לכחול
+                    btnText.innerText = "לא זוהה";
+                    statusText.innerText = "נסה שוב (בדוק מה המחשב שמע למטה)";
                 }
             };
 
             recognition.onspeechend = () => {
                 recognition.stop();
-                micBtn.classList.remove("pulse");
+                // אם לא היתה הצלחה (הכפתור לא ירוק), מחזיר לכחול
+                if (!micBtn.classList.contains("success")) {
+                    micBtn.className = "";
+                    btnText.innerText = "לחץ ודבר";
+                }
             };
 
             recognition.onerror = (event) => {
-                btnText.innerText = "שגיאה, נסה שוב";
-                micBtn.classList.remove("pulse");
-                micBtn.style.backgroundColor = "#33ccff";
+                micBtn.className = "";
+                btnText.innerText = "שגיאה";
+                
+                if (event.error === 'not-allowed') {
+                    statusText.innerText = "שגיאה: אין אישור מיקרופון!";
+                    alert("חובה לאשר שימוש במיקרופון ולוודא שהאתר ב-HTTPS");
+                } else if (event.error === 'no-speech') {
+                    statusText.innerText = "לא שמעתי כלום, נסה שוב";
+                } else {
+                    statusText.innerText = "שגיאה: " + event.error;
+                }
             };
         }
     </script>
