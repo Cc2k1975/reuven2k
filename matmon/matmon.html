@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מנוע משחק - תיקון סופי בהחלט</title>
+    <title>משחק המטמון - גרסה סופית</title>
     <style>
         body { font-family: system-ui; background: #000; color: white; margin: 0; overflow: hidden; height: 100vh; touch-action: none; }
         #ui-layer { position: absolute; top: 0; width: 100%; z-index: 100; background: rgba(0,0,0,0.7); padding: 10px; text-align: center; pointer-events: none; }
@@ -28,7 +28,7 @@
 
     <div id="ui-layer">
         <div>שלב: <span id="level-num">1</span></div>
-        <div id="instruction-display">טוען...</div>
+        <div id="instruction-display">הכן את עצמך...</div>
         <div id="timer-display">30</div>
     </div>
 
@@ -67,16 +67,20 @@
             </script>
         </div>
         <div class="btn-group">
-            <button class="btn save-btn" onclick="saveStage()">שמור בטלפון</button>
-            <button class="btn" style="background:#3498db; color:white;" onclick="exportJSON()">ייצוא ל-GitHub 📋</button>
+            <button class="btn save-btn" onclick="saveStage()">שמור בזיכרון טלפון</button>
+            <button class="btn" style="background:#3498db; color:white;" onclick="exportData()">העתק נתונים סופיים 📋</button>
             <button class="btn" style="background:#e74c3c; color:white;" onclick="toggleAdmin(false)">סגור</button>
         </div>
     </div>
 
     <script>
-        const GITHUB_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/matmon.json";
-        
-        let gameData = [];
+        // *** כשתיתן לי את הנתונים, אני אשתול אותם כאן במקום ה-null ***
+        const HARDCODED_DATA = null;
+
+        let gameData = HARDCODED_DATA || JSON.parse(localStorage.getItem('myGameData')) || Array(10).fill(null).map(() => ({
+            emoji: '🍉', x: 50, y: 50, size: 35, blur: 0, bg: '1.png', text: 'מצא את המטמון'
+        }));
+
         let currentLevel = 0, isAdminOpen = false, editTarget = 'IMAGE', pressTimer;
         let scale = 1, lastDist = 0, objSize = 35, posX = 0, posY = 0, startX = 0, startY = 0;
         let timeLeft = 30, timerInterval, currentBlur = 0;
@@ -84,31 +88,6 @@
         const world = document.getElementById('world'), viewport = document.getElementById('game-viewport');
         const obj = document.getElementById('hidden-object'), img = document.getElementById('game-image');
         const admin = document.getElementById('admin-panel'), timerEl = document.getElementById('timer-display');
-
-        // פונקציית טעינה שמעדיפה את השרת (GitHub) על פני הטלפון
-        async function loadServerData() {
-            try {
-                const response = await fetch(`data/matmon.json?v=${Date.now()}`, { cache: "no-store" });
-                if (response.ok) {
-                    gameData = await response.json();
-                    console.log("נתונים נטענו מהשרת!");
-                } else {
-                    throw new Error();
-                }
-            } catch (e) {
-                console.log("טוען מזיכרון מקומי...");
-                const local = localStorage.getItem('myGameData');
-                if(local) gameData = JSON.parse(local);
-            }
-            
-            if (!gameData || gameData.length === 0) {
-                gameData = Array(10).fill(null).map(() => ({
-                    emoji: '🍉', x: 50, y: 50, size: 35, blur: 0, bg: '1.png', text: 'מצא את המטמון'
-                }));
-            }
-            loadStage();
-            startTimer();
-        }
 
         function loadStage() {
             let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
@@ -118,7 +97,6 @@
             document.getElementById('level-num').innerText = parseInt(idx) + 1;
             document.getElementById('instruction-display').innerText = data.text || 'חפש את האובייקט';
             
-            // טעינת תמונה ורק אחרי שהיא נטענת - הצגת האובייקט במקום הנכון
             img.src = data.bg;
             img.onload = () => {
                 obj.innerText = data.emoji;
@@ -149,8 +127,7 @@
                 return;
             }
             pressTimer = setTimeout(() => {
-                const pass = prompt("סיסמה:");
-                if(pass === "4451") toggleAdmin(true);
+                if(prompt("סיסמה:") === "4451") toggleAdmin(true);
             }, 10000);
             if(e.touches.length === 1) { startX = e.touches[0].clientX - posX; startY = e.touches[0].clientY - posY; }
         };
@@ -163,10 +140,8 @@
             if(isAdminOpen && editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
                     let rect = img.getBoundingClientRect();
-                    let px = ((e.touches[0].clientX - rect.left) / rect.width) * 100;
-                    let py = ((e.touches[0].clientY - rect.top) / rect.height) * 100;
-                    obj.style.left = px + '%';
-                    obj.style.top = py + '%';
+                    obj.style.left = ((e.touches[0].clientX - rect.left) / rect.width) * 100 + '%';
+                    obj.style.top = ((e.touches[0].clientY - rect.top) / rect.height) * 100 + '%';
                 }
                 if(e.touches.length === 2) {
                     let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
@@ -196,24 +171,19 @@
         function saveStage() {
             let idx = document.getElementById('stage-select').value;
             gameData[idx] = {
-                emoji: obj.innerText,
-                bg: document.getElementById('bg-select').value,
-                x: parseFloat(obj.style.left),
-                y: parseFloat(obj.style.top),
-                size: parseFloat(objSize),
-                blur: parseFloat(currentBlur),
-                text: document.getElementById('stage-instruction').value
+                emoji: obj.innerText, bg: document.getElementById('bg-select').value,
+                x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), 
+                size: parseFloat(objSize), blur: parseFloat(currentBlur), text: document.getElementById('stage-instruction').value
             };
             localStorage.setItem('myGameData', JSON.stringify(gameData));
             alert("נשמר בטלפון!");
         }
 
-        function exportJSON() {
+        function exportData() {
             saveStage();
-            const dataStr = JSON.stringify(gameData, null, 2);
+            const dataStr = JSON.stringify(gameData);
             navigator.clipboard.writeText(dataStr).then(() => {
-                alert("הנתונים הועתקו! מחק את הזיכרון המקומי בטלפון אחרי שתדביק ב-GitHub כדי לראות שינויים.");
-                window.open(GITHUB_EDIT_URL, '_blank');
+                alert("הנתונים הועתקו! שלח לי אותם עכשיו כאן בצ'אט.");
             });
         }
 
@@ -261,7 +231,7 @@
         function setEmoji(e) { obj.innerText = e; }
         function updateBG() { img.src = document.getElementById('bg-select').value; }
 
-        window.onload = loadServerData;
+        window.onload = () => { loadStage(); startTimer(); };
     </script>
 </body>
 </html>
