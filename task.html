@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סיכום משימות יומי</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h2 { color: #1a73e8; margin-bottom: 10px; }
+
+        #date-display {
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #555;
+        }
+
+        .tasks-container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            min-height: 200px;
+        }
+
+        .task-item {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+            font-size: 16px;
+            line-height: 1.4;
+        }
+
+        .task-time {
+            font-size: 0.8em;
+            color: #888;
+            margin-left: 8px;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* כפתור ההקלטה העגול */
+        #record-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #ea4335;
+            border: none;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.1s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #record-btn:active {
+            transform: scale(0.9);
+            background-color: #c5221f;
+        }
+
+        .action-btns {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: none;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .whatsapp-daily { background-color: #25d366; }
+        .whatsapp-monthly { background-color: #075e54; }
+
+        .recording-status {
+            color: #ea4335;
+            font-weight: bold;
+            height: 20px;
+            margin-bottom: 5px;
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>המשימות שלי</h2>
+    <div id="date-display"></div>
+
+    <div class="tasks-container" id="task-list">
+        </div>
+
+    <div class="controls">
+        <div id="status" class="recording-status">מקליט... שחרר לסיום</div>
+        
+        <button id="record-btn">🎤</button>
+
+        <div class="action-btns">
+            <button class="btn whatsapp-daily" onclick="sendWhatsApp('daily')">סיכום יומי</button>
+            <button class="btn whatsapp-monthly" onclick="sendWhatsApp('monthly')">סיכום חודשי</button>
+        </div>
+    </div>
+
+    <script>
+        const recordBtn = document.getElementById('record-btn');
+        const statusTxt = document.getElementById('status');
+        const taskListDiv = document.getElementById('task-list');
+        const dateDisplay = document.getElementById('date-display');
+
+        // הגדרת תאריך נוכחי
+        const now = new Date();
+        dateDisplay.innerText = now.toLocaleDateString('he-IL');
+
+        // זיהוי קולי
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'he-IL';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                addTask(transcript);
+            };
+
+            recognition.onerror = (e) => {
+                console.error("Speech error", e);
+                statusTxt.innerText = "שגיאה בזיהוי הקול";
+                setTimeout(() => statusTxt.style.visibility = 'hidden', 2000);
+            };
+        }
+
+        // ניהול לחיצה ארוכה (עבור מובייל ומחשב)
+        recordBtn.addEventListener('mousedown', startRec);
+        recordBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRec(); });
+        
+        recordBtn.addEventListener('mouseup', stopRec);
+        recordBtn.addEventListener('touchend', stopRec);
+
+        function startRec() {
+            if (!recognition) return alert("הדפדפן שלך לא תומך בזיהוי קולי");
+            statusTxt.style.visibility = 'visible';
+            recognition.start();
+        }
+
+        function stopRec() {
+            statusTxt.style.visibility = 'hidden';
+            recognition.stop();
+        }
+
+        // הוספת משימה ושמירה
+        function addTask(text) {
+            const timestamp = new Date();
+            const timeStr = timestamp.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            const dateStr = timestamp.toLocaleDateString('he-IL');
+            
+            const task = {
+                id: Date.now(),
+                text: text,
+                time: timeStr,
+                date: dateStr,
+                fullTimestamp: timestamp.toISOString()
+            };
+
+            const tasks = getTasks();
+            tasks.push(task);
+            localStorage.setItem('myTasks', JSON.stringify(tasks));
+            renderTasks();
+        }
+
+        function getTasks() {
+            return JSON.parse(localStorage.getItem('myTasks') || '[]');
+        }
+
+        function renderTasks() {
+            const tasks = getTasks();
+            const todayStr = new Date().toLocaleDateString('he-IL');
+            const todayTasks = tasks.filter(t => t.date === todayStr);
+
+            taskListDiv.innerHTML = todayTasks.length ? '' : '<p style="text-align:center; color:#ccc;">אין משימות להיום...</p>';
+            
+            todayTasks.forEach((t, index) => {
+                const item = document.createElement('div');
+                item.className = 'task-item';
+                item.innerHTML = `<strong>${index + 1}.</strong> <span class="task-time">${t.date} ${t.time}</span> - ${t.text}`;
+                taskListDiv.appendChild(item);
+            });
+        }
+
+        // שליחה לווצאפ
+        function sendWhatsApp(type) {
+            const tasks = getTasks();
+            let filteredTasks = [];
+            let title = "";
+
+            if (type === 'daily') {
+                const today = new Date().toLocaleDateString('he-IL');
+                filteredTasks = tasks.filter(t => t.date === today);
+                title = `*סיכום יומי - ${today}*%0A`;
+            } else {
+                const month = new Date().getMonth();
+                filteredTasks = tasks.filter(t => new Date(t.fullTimestamp).getMonth() === month);
+                title = `*סיכום חודשי*%0A`;
+            }
+
+            if (filteredTasks.length === 0) return alert("אין משימות לשלוח");
+
+            let message = title;
+            filteredTasks.forEach((t, i) => {
+                message += `${i + 1}. ${t.time} - ${t.text}%0A`;
+            });
+
+            window.open(`https://wa.me/?text=${message}`, '_blank');
+        }
+
+        // טעינה ראשונית
+        renderTasks();
+
+    </script>
+</body>
+</html>
