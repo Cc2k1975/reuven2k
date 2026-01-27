@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>משחק חיפוש - מוגן בסיסמה</title>
+    <title>משחק חיפוש - מצב הישרדות</title>
     <style>
         body { 
             font-family: system-ui; background: #000; color: white; 
@@ -128,7 +128,6 @@
                 return;
             }
 
-            // שינוי ל-10 שניות (10,000 מילישניות)
             pressTimer = setTimeout(() => {
                 const password = prompt("נא להזין סיסמה לכניסה להגדרות:");
                 if (password === "4451") {
@@ -146,18 +145,18 @@
         function toggleAdmin(show) {
             isAdminOpen = show;
             admin.style.display = show ? 'block' : 'none';
-            if(!show) { scale = 1; posX = 0; posY = 0; updateTransform(); startTimer(); }
-            else { clearInterval(timerInterval); }
+            if(!show) { 
+                scale = 1; posX = 0; posY = 0; updateTransform(); 
+                startTimer(); 
+            } else { 
+                clearInterval(timerInterval); 
+            }
             loadStage();
         }
 
         viewport.ontouchmove = (e) => {
             e.preventDefault();
-            // אם האצבע זזה משמעותית, נבטל את הטיימר כדי למנוע כניסה להגדרות בזמן גרירה
-            if (e.touches.length > 0) {
-                // בדיקה בסיסית אם התנועה היא גרירה אקטיבית
-                clearTimeout(pressTimer);
-            }
+            if (e.touches.length > 0) clearTimeout(pressTimer);
 
             if(isAdminOpen && editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
@@ -190,13 +189,16 @@
                 timerEl.innerText = timeLeft;
                 if(timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    alert("נגמר הזמן! נסה שוב.");
-                    resetLevel();
+                    // השכלול החדש: חזרה לשלב 1 במקרה של הפסד
+                    alert("נכשלת! חוזרים לשלב הראשון...");
+                    currentLevel = 0; 
+                    resetGamePosition();
+                    loadStage();
                 }
             }, 1000);
         }
 
-        function resetLevel() {
+        function resetGamePosition() {
             scale = 1; posX = 0; posY = 0; updateTransform();
             startTimer();
         }
@@ -206,9 +208,9 @@
         obj.onclick = () => {
             if(!isAdminOpen) {
                 clearInterval(timerInterval);
-                alert("מצאת!");
+                alert("מצאת! עוברים הלאה.");
                 currentLevel = (currentLevel + 1) % 10;
-                resetLevel();
+                resetGamePosition();
                 loadStage();
             }
         };
