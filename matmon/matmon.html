@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>עורך משחק - בורר מצבי זום</title>
+    <title>עורך משחק - תיקון שמירת גודל</title>
     <style>
         body { 
             font-family: system-ui; background: #000; color: white; 
@@ -44,17 +44,12 @@
             z-index: 1000; width: 95%; max-width: 420px;
         }
 
-        /* בורר מצבים חדש */
-        .mode-selector {
-            display: flex; gap: 10px; margin-bottom: 10px;
-        }
+        .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
         .mode-btn {
             flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555;
             background: #1e272e; color: white; font-weight: bold;
         }
-        .mode-btn.active {
-            background: #f1c40f; color: black; border-color: white;
-        }
+        .mode-btn.active { background: #f1c40f; color: black; border-color: white; }
 
         .emoji-grid { 
             display: grid; grid-template-columns: repeat(10, 1fr); 
@@ -73,7 +68,7 @@
 
     <div id="ui-layer">
         <div id="status">שלב: <span id="level-num">1</span></div>
-        <div id="edit-msg" style="display:none; color:#f1c40f; font-size:12px;">בחר "ערוך פריט" להזזה או "ערוך תמונה" לזום במפה</div>
+        <div id="edit-msg" style="display:none; color:#f1c40f; font-size:12px;">מצב עריכה פעיל</div>
     </div>
 
     <div id="game-viewport">
@@ -86,7 +81,7 @@
     <div id="admin-panel">
         <div class="mode-selector">
             <button id="btn-mode-img" class="mode-btn active" onclick="setEditMode('IMAGE')">ערוך תמונה 🖼️</button>
-            <button id="id-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">ערוך פריט 🍉</button>
+            <button id="btn-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">ערוך פריט 🍉</button>
         </div>
 
         <div style="display:flex; justify-content: space-between;">
@@ -113,16 +108,16 @@
     </div>
 
     <script>
+        // טעינת נתונים
         let gameData = JSON.parse(localStorage.getItem('myGameData')) || Array(10).fill(null).map(() => ({
             emoji: '🍉', x: 50, y: 50, size: 30, bg: '1.png'
         }));
 
         let currentLevel = 0;
         let isAdminOpen = false;
-        let editTarget = 'IMAGE'; // IMAGE או OBJECT
+        let editTarget = 'IMAGE'; 
         let pressTimer;
 
-        // משתני תנועה
         let scale = 1, lastDist = 0, objSize = 30;
         let posX = 0, posY = 0, startX = 0, startY = 0;
 
@@ -132,7 +127,6 @@
         const img = document.getElementById('game-image');
         const admin = document.getElementById('admin-panel');
 
-        // לחיצה ארוכה לכניסה לעריכה
         viewport.ontouchstart = (e) => {
             if(isAdminOpen) {
                 if(e.touches.length === 1) {
@@ -148,7 +142,7 @@
         function setEditMode(mode) {
             editTarget = mode;
             document.getElementById('btn-mode-img').classList.toggle('active', mode === 'IMAGE');
-            document.getElementById('id-mode-obj').classList.toggle('active', mode === 'OBJECT');
+            document.getElementById('btn-mode-obj').classList.toggle('active', mode === 'OBJECT');
             obj.classList.toggle('edit-active-obj', mode === 'OBJECT');
         }
 
@@ -164,7 +158,6 @@
             if(!isAdminOpen) return;
             e.preventDefault();
 
-            // מצב עריכת תמונה (זום וגרירה של המפה)
             if(editTarget === 'IMAGE') {
                 if(e.touches.length === 1) {
                     posX = e.touches[0].clientX - startX;
@@ -176,7 +169,6 @@
                     lastDist = dist;
                 }
             } 
-            // מצב עריכת פריט (הזזה וזום של האבטיח)
             else if(editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
                     let rect = img.getBoundingClientRect();
@@ -185,7 +177,12 @@
                 }
                 if(e.touches.length === 2) {
                     let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    if(lastDist > 0) { objSize += (dist - lastDist) * 0.5; obj.style.fontSize = Math.max(5, objSize) + 'px'; }
+                    if(lastDist > 0) { 
+                        let delta = dist - lastDist;
+                        objSize += delta * 0.5;
+                        objSize = Math.max(5, objSize); // מינימום גודל
+                        obj.style.fontSize = objSize + 'px';
+                    }
                     lastDist = dist;
                 }
             }
@@ -200,7 +197,7 @@
 
         obj.onclick = () => {
             if(!isAdminOpen) {
-                alert("כל הכבוד!");
+                alert("כל הכבוד! עוברים לשלב הבא");
                 currentLevel = (currentLevel + 1) % 10;
                 loadStage();
             }
@@ -212,24 +209,32 @@
         function loadStage() {
             let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
             let data = gameData[idx];
+            
             document.getElementById('level-num').innerText = parseInt(idx) + 1;
             img.src = data.bg;
             obj.innerText = data.emoji;
             obj.style.left = data.x + '%';
             obj.style.top = data.y + '%';
-            obj.style.fontSize = data.size + 'px';
-            objSize = data.size;
+            
+            // תיקון קריטי: עדכון הגודל גם במשתנה וגם בתצוגה
+            objSize = data.size || 30; 
+            obj.style.fontSize = objSize + 'px';
+            
             obj.style.display = 'block';
+            if(isAdminOpen) document.getElementById('bg-select').value = data.bg;
         }
 
         function saveStage() {
             let idx = document.getElementById('stage-select').value;
             gameData[idx] = {
-                emoji: obj.innerText, bg: document.getElementById('bg-select').value,
-                x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), size: objSize
+                emoji: obj.innerText,
+                bg: document.getElementById('bg-select').value,
+                x: parseFloat(obj.style.left),
+                y: parseFloat(obj.style.top),
+                size: objSize // שומר את הגודל הנוכחי
             };
             localStorage.setItem('myGameData', JSON.stringify(gameData));
-            alert("השלב נשמר!");
+            alert("השלב נשמר בהצלחה!");
         }
 
         window.onload = loadStage;
