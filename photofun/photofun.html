@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFun Booth Pro - Final</title>
+    <title>PhotoFun Booth Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
     <style>
         /* --- עיצוב כללי --- */
@@ -88,19 +88,20 @@
             transition: filter 0.3s;
         }
 
-        /* --- פילטרים --- */
+        /* --- פילטרים (עיצוב מעודכן) --- */
         .filter-controls {
+            /* מיקום רגיל בתוך הפלקס ולא אבסולוטי */
             display: flex;
             gap: 15px;
             background: rgba(0,0,0,0.4);
             padding: 8px 15px;
             border-radius: 30px;
-            margin: 5px 0 15px 0;
-            pointer-events: auto;
+            margin: 5px 0 15px 0; /* רווח מהמספר למעלה ומהטקסט למטה */
+            pointer-events: auto; /* מוודא שאפשר ללחוץ */
         }
         .filter-btn {
-            width: 40px;
-            height: 40px;
+            width: 40px;  /* הוקטן מ-50 */
+            height: 40px; /* הוקטן מ-50 */
             border-radius: 50%;
             border: 2px solid white;
             cursor: pointer;
@@ -153,7 +154,7 @@
             justify-content: flex-end;
             z-index: 20;
             width: 100%;
-            pointer-events: none;
+            pointer-events: none; /* כדי שהקונטיינר לא יחסום לחיצות מסביב, אבל הפילטרים בפנים כן לחיצים */
         }
 
         #countdown-display {
@@ -164,7 +165,7 @@
             text-shadow: 4px 4px 0 #333;
             font-family: 'Fredoka One', cursive;
             margin-bottom: 0;
-            min-height: 130px;
+            min-height: 130px; /* שומר מקום למספר שלא יקפוץ */
         }
 
         /* --- תצוגה מקדימה של הסטריפ --- */
@@ -448,12 +449,10 @@
         <input type="color" id="input-text-color" class="admin-input" style="height: 50px; padding: 2px; cursor: pointer;">
 
         <label>סגנון תמונות:</label>
-        <div style="display:flex; gap:5px; margin: 8px 0 15px 0;">
-            <button id="btn-style-round-blur" type="button" style="flex:1; padding:10px; border-radius:10px; cursor:pointer; font-size:0.8rem;">עיגול טשטוש</button>
-            <button id="btn-style-square-blur" type="button" style="flex:1; padding:10px; border-radius:10px; cursor:pointer; font-size:0.8rem;">מרובע טשטוש</button>
-            <button id="btn-style-square-frame" type="button" style="flex:1; padding:10px; border-radius:10px; cursor:pointer; font-size:0.8rem;">מרובע מסגרת</button>
+        <div style="display:flex; gap:10px; margin: 8px 0 15px 0;">
+            <button id="btn-style-framed" type="button" style="flex:1; padding:10px; border-radius:12px; cursor:pointer;">עם מסגרת</button>
+            <button id="btn-style-plain" type="button" style="flex:1; padding:10px; border-radius:12px; cursor:pointer;">בלי מסגרת</button>
         </div>
-        
         <label>כמות תמונות בסטריפ:</label>
         <div style="display:flex; gap:10px; margin: 8px 0 15px 0;">
             <button id="btn-mode-multipic" type="button" style="flex:1; padding:10px; border-radius:12px; cursor:pointer;">multipic</button>
@@ -492,11 +491,11 @@
         let eventDate = localStorage.getItem('eventDate') || new Date().toLocaleDateString('he-IL');
         let selectedBg = localStorage.getItem('selectedBg') || null;
 
+        // ✅ צבע טקסט (שמירה בזיכרון)
         let footerColor = localStorage.getItem('footerColor') || '#2c3e50';
 
         const FRAME_STYLE_KEY = 'photoFrameStyle';
-        // ברירת המחדל: עיגול טשטוש
-        let photoFrameStyle = localStorage.getItem(FRAME_STYLE_KEY) || 'round_blur';
+        let photoFrameStyle = localStorage.getItem(FRAME_STYLE_KEY) || 'framed';
 
         const PHOTO_MODE_KEY = 'photoMode'; 
         let photoMode = localStorage.getItem(PHOTO_MODE_KEY) || 'multipic';
@@ -505,6 +504,7 @@
         let lastFinalJpegDataUrl = null;
         let lastUploadedDownloadUrl = null;
 
+        // ✅ שמירת פילטר בזיכרון
         let currentFilter = localStorage.getItem('currentFilter') || 'none';
 
         let idleTime = 0;
@@ -531,6 +531,7 @@
                 osc.stop(audioCtx.currentTime + 0.1);
             } 
             else if (type === 'shutter') {
+                // ✅ צליל צילום חזק וברור יותר
                 osc.type = 'sawtooth'; 
                 osc.frequency.setValueAtTime(800, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
@@ -621,6 +622,7 @@
 
         function setFilter(filterVal) {
             currentFilter = filterVal;
+            // ✅ שמירת הפילטר בזיכרון הדפדפן
             localStorage.setItem('currentFilter', currentFilter);
             document.getElementById('camera-feed').style.filter = filterVal;
         }
@@ -633,32 +635,19 @@
         }
 
         function setupFrameStyleButtons() {
-            const btnRoundBlur = document.getElementById('btn-style-round-blur');
-            const btnSquareBlur = document.getElementById('btn-style-square-blur');
-            const btnSquareFrame = document.getElementById('btn-style-square-frame');
-
+            const btnFramed = document.getElementById('btn-style-framed');
+            const btnPlain = document.getElementById('btn-style-plain');
             function applyVisual() {
-                [btnRoundBlur, btnSquareBlur, btnSquareFrame].forEach(btn => {
-                    btn.style.background = '#f0f0f0';
-                    btn.style.color = '#333';
-                    btn.style.border = '2px solid #ddd';
-                });
-
-                let activeBtn;
-                if (photoFrameStyle === 'round_blur') activeBtn = btnRoundBlur;
-                else if (photoFrameStyle === 'square_blur') activeBtn = btnSquareBlur;
-                else activeBtn = btnSquareFrame;
-
-                if (activeBtn) {
-                    activeBtn.style.background = '#4ecdc4';
-                    activeBtn.style.color = '#fff';
-                    activeBtn.style.border = '3px solid #2cb5ac';
+                if (photoFrameStyle === 'framed') {
+                    btnFramed.style.background = '#4ecdc4'; btnFramed.style.color = '#fff'; btnFramed.style.border = '3px solid #2cb5ac';
+                    btnPlain.style.background = '#f0f0f0'; btnPlain.style.color = '#333'; btnPlain.style.border = '2px solid #ddd';
+                } else {
+                    btnPlain.style.background = '#4ecdc4'; btnPlain.style.color = '#fff'; btnPlain.style.border = '3px solid #2cb5ac';
+                    btnFramed.style.background = '#f0f0f0'; btnFramed.style.color = '#333'; btnFramed.style.border = '2px solid #ddd';
                 }
             }
-
-            btnRoundBlur.onclick = () => { photoFrameStyle = 'round_blur'; applyVisual(); };
-            btnSquareBlur.onclick = () => { photoFrameStyle = 'square_blur'; applyVisual(); };
-            btnSquareFrame.onclick = () => { photoFrameStyle = 'square_frame'; applyVisual(); };
+            btnFramed.onclick = () => { photoFrameStyle = 'framed'; applyVisual(); };
+            btnPlain.onclick = () => { photoFrameStyle = 'plain'; applyVisual(); };
             applyVisual();
         }
 
@@ -725,6 +714,7 @@
         function saveSettings() {
             eventName = document.getElementById('input-event-name').value;
             eventDate = document.getElementById('input-event-date').value;
+            // ✅ שמירת צבע
             footerColor = document.getElementById('input-text-color').value;
 
             localStorage.setItem('eventName', eventName);
@@ -744,6 +734,7 @@
         }
 
         document.getElementById('btn-start').addEventListener('click', async () => {
+            // ✅ הפעלת סאונד בלחיצה הראשונה
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
@@ -753,6 +744,7 @@
             totalPhotos = (photoMode === 'onepic') ? 1 : 3;
             document.getElementById('total-photos').innerText = totalPhotos;
 
+            // ✅ שימוש בפילטר השמור
             setFilter(currentFilter);
 
             try {
@@ -795,6 +787,7 @@
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             
+            // ✅ ניגון צליל צילום
             playSound('shutter');
 
             ctx.translate(canvas.width, 0);
@@ -850,119 +843,74 @@
                 const rr = Math.min(r, w / 2, h / 2);
                 ctx.beginPath();
                 ctx.moveTo(x + rr, y);
-                ctx.arcTo(x + w, y,      x + w, y + h, rr);
-                ctx.arcTo(x + w, y + h, x,      y + h, rr);
-                ctx.arcTo(x,      y + h, x,      y,      rr);
-                ctx.arcTo(x,      y,      x + w, y,      rr);
+                ctx.arcTo(x + w, y,     x + w, y + h, rr);
+                ctx.arcTo(x + w, y + h, x,     y + h, rr);
+                ctx.arcTo(x,     y + h, x,     y,     rr);
+                ctx.arcTo(x,     y,     x + w, y,     rr);
                 ctx.closePath();
             }
 
-            // ✅ כאן כל התיקון שהיה חסר לך!
             function drawSquarePhoto(photoCanvas, dx, dy, size) {
                 const imgW = photoCanvas.width, imgH = photoCanvas.height;
                 const s = Math.min(imgW, imgH);
                 const sx = (imgW - s) / 2, sy = (imgH - s) / 2;
 
-                // 1. עיגול עם טשטוש (המקורי)
-                if (photoFrameStyle === 'round_blur') {
-                    const radius = 28;
-                    const pad = 14;
-                    const fx = dx - pad;
-                    const fy = dy - pad;
-                    const fs = size + pad * 2;
+                if (photoFrameStyle === 'plain') {
+                    const temp = document.createElement('canvas');
+                    temp.width = size;
+                    temp.height = size;
+                    const tctx = temp.getContext('2d');
 
-                    // הילה חיצונית
-                    ctx.save();
-                    ctx.shadowColor = 'rgba(0,0,0,0.28)';
-                    ctx.shadowBlur = 18;
-                    ctx.shadowOffsetY = 10;
-                    ctx.fillStyle = 'rgba(255,255,255,0.93)';
-                    roundedRectPath(fx, fy, fs, fs, radius + 10);
-                    ctx.fill();
+                    tctx.drawImage(photoCanvas, sx, sy, s, s, 0, 0, size, size);
 
-                    // קו לבן דק
-                    ctx.shadowColor = 'transparent';
-                    ctx.lineWidth = 6;
-                    ctx.strokeStyle = 'rgba(255,255,255,0.98)';
-                    roundedRectPath(fx, fy, fs, fs, radius + 10);
-                    ctx.stroke();
-                    ctx.restore();
+                    tctx.globalCompositeOperation = 'destination-in';
+                    const g = tctx.createRadialGradient(
+                        size / 2, size / 2, size * 0.40,
+                        size / 2, size / 2, size * 0.52
+                    );
+                    g.addColorStop(0, 'rgba(0,0,0,1)');
+                    g.addColorStop(1, 'rgba(0,0,0,0)');
+                    tctx.fillStyle = g;
+                    tctx.fillRect(0, 0, size, size);
 
-                    // התמונה עצמה (עגולה)
-                    ctx.save();
-                    roundedRectPath(dx, dy, size, size, radius);
-                    ctx.clip();
-                    ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
-
-                    // קו פנימי
-                    ctx.lineWidth = 4;
-                    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-                    roundedRectPath(dx + 2, dy + 2, size - 4, size - 4, Math.max(2, radius - 2));
-                    ctx.stroke();
-                    ctx.restore();
+                    tctx.globalCompositeOperation = 'source-over';
+                    ctx.drawImage(temp, dx, dy, size, size);
                     return;
                 }
 
-                // 2. מרובע עם טשטוש (החדש - אותו אפקט בדיוק אבל מרובע)
-                if (photoFrameStyle === 'square_blur') {
-                    // כאן אני משתמש באותם ערכים בדיוק כמו של העיגול למעלה!
-                    // רק משנה את ה-radius כדי שזה יהיה מרובע עם פינות עגולות
-                    const radius = 10; // פינות קטנות (מרובע)
-                    const pad = 14;    // אותה הילה
-                    const fx = dx - pad;
-                    const fy = dy - pad;
-                    const fs = size + pad * 2;
+                const radius = 28;
+                const pad = 14;
+                const fx = dx - pad;
+                const fy = dy - pad;
+                const fs = size + pad * 2;
 
-                    // הילה חיצונית (בדיוק אותו קוד)
-                    ctx.save();
-                    ctx.shadowColor = 'rgba(0,0,0,0.28)';
-                    ctx.shadowBlur = 18; 
-                    ctx.shadowOffsetY = 10;
-                    ctx.fillStyle = 'rgba(255,255,255,0.93)';
-                    roundedRectPath(fx, fy, fs, fs, radius + 10);
-                    ctx.fill();
+                ctx.save();
+                ctx.shadowColor = 'rgba(0,0,0,0.28)';
+                ctx.shadowBlur = 18;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 10;
 
-                    // קו לבן דק
-                    ctx.shadowColor = 'transparent';
-                    ctx.lineWidth = 6;
-                    ctx.strokeStyle = 'rgba(255,255,255,0.98)';
-                    roundedRectPath(fx, fy, fs, fs, radius + 10);
-                    ctx.stroke();
-                    ctx.restore();
+                ctx.fillStyle = 'rgba(255,255,255,0.93)';
+                roundedRectPath(fx, fy, fs, fs, radius + 10);
+                ctx.fill();
 
-                    // התמונה עצמה (מרובעת!)
-                    ctx.save();
-                    roundedRectPath(dx, dy, size, size, radius); // חיתוך מרובע
-                    ctx.clip();
-                    ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
+                ctx.shadowColor = 'transparent';
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = 'rgba(255,255,255,0.98)';
+                roundedRectPath(fx, fy, fs, fs, radius + 10);
+                ctx.stroke();
+                ctx.restore();
 
-                    // קו פנימי
-                    ctx.lineWidth = 4;
-                    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-                    roundedRectPath(dx + 2, dy + 2, size - 4, size - 4, Math.max(2, radius - 2));
-                    ctx.stroke();
-                    ctx.restore();
-                    return;
-                }
+                ctx.save();
+                roundedRectPath(dx, dy, size, size, radius);
+                ctx.clip();
+                ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
 
-                // 3. מרובע עם מסגרת (פולארויד - מסגרת עבה יותר)
-                if (photoFrameStyle === 'square_frame') {
-                    const radius = 4;
-                    const pad = 15; // מסגרת לבנה עבה
-                    
-                    // רקע לבן
-                    ctx.save();
-                    ctx.fillStyle = 'white';
-                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-                    ctx.shadowBlur = 10;
-                    roundedRectPath(dx - pad, dy - pad, size + pad*2, size + pad*2, radius + 2);
-                    ctx.fill();
-                    ctx.restore();
-                    
-                    // התמונה
-                    ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
-                    return;
-                }
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+                roundedRectPath(dx + 2, dy + 2, size - 4, size - 4, Math.max(2, radius - 2));
+                ctx.stroke();
+                ctx.restore();
             }
 
             function drawFooterText() {
@@ -974,6 +922,7 @@
                 ctx.shadowBlur = 4;
                 ctx.shadowOffsetY = 3;
 
+                // ✅ שימוש בצבע שנבחר בסקאלה (דינמי)
                 ctx.fillStyle = footerColor; 
                 
                 ctx.font = 'bold 70px "Rubik", "Varela Round", sans-serif'; 
