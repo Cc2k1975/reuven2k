@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>משחק חיפוש עם שעון</title>
+    <title>משחק חיפוש - מוגן בסיסמה</title>
     <style>
         body { 
             font-family: system-ui; background: #000; color: white; 
@@ -80,7 +80,7 @@
             <button id="btn-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">ערוך פריט</button>
         </div>
 
-        <input type="text" id="stage-instruction" class="text-input" placeholder="מה צריך לחפש בשלב זה?">
+        <input type="text" id="stage-instruction" class="text-input" placeholder="מה המשימה לשלב זה?">
 
         <div style="display:flex; justify-content: space-between;">
             <select id="stage-select" class="selector" onchange="loadStage()">
@@ -127,7 +127,17 @@
                 }
                 return;
             }
-            pressTimer = setTimeout(() => toggleAdmin(true), 5000);
+
+            // שינוי ל-10 שניות (10,000 מילישניות)
+            pressTimer = setTimeout(() => {
+                const password = prompt("נא להזין סיסמה לכניסה להגדרות:");
+                if (password === "4451") {
+                    toggleAdmin(true);
+                } else if (password !== null) {
+                    alert("סיסמה שגויה!");
+                }
+            }, 10000);
+
             if(e.touches.length === 1) { startX = e.touches[0].clientX - posX; startY = e.touches[0].clientY - posY; }
         };
 
@@ -143,7 +153,12 @@
 
         viewport.ontouchmove = (e) => {
             e.preventDefault();
-            clearTimeout(pressTimer);
+            // אם האצבע זזה משמעותית, נבטל את הטיימר כדי למנוע כניסה להגדרות בזמן גרירה
+            if (e.touches.length > 0) {
+                // בדיקה בסיסית אם התנועה היא גרירה אקטיבית
+                clearTimeout(pressTimer);
+            }
+
             if(isAdminOpen && editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
                     let rect = img.getBoundingClientRect();
