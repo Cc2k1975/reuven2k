@@ -3,11 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>סיכום משימות יומי</title>
+    <title>ניהול משימות קולי</title>
     <style>
+        :root {
+            --primary: #1a73e8;
+            --danger: #ea4335;
+            --success: #25d366;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: #f8f9fa;
             margin: 0;
             padding: 20px;
             display: flex;
@@ -15,232 +21,230 @@
             align-items: center;
         }
 
-        h2 { color: #1a73e8; margin-bottom: 10px; }
+        h2 { margin-bottom: 5px; color: #333; }
+        #date-display { font-size: 1.2em; margin-bottom: 20px; color: #666; }
 
-        #date-display {
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: #555;
-        }
-
-        .tasks-container {
-            width: 100%;
-            max-width: 400px;
-            background: white;
-            border-radius: 15px;
-            padding: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            min-height: 200px;
-        }
-
-        .task-item {
-            border-bottom: 1px solid #eee;
-            padding: 10px 0;
-            font-size: 16px;
-            line-height: 1.4;
-        }
-
-        .task-time {
-            font-size: 0.8em;
-            color: #888;
-            margin-left: 8px;
-        }
-
-        .controls {
-            position: fixed;
-            bottom: 30px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-
-        /* כפתור ההקלטה העגול */
+        /* כפתור הקלטה ענק */
         #record-btn {
-            width: 80px;
-            height: 80px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
-            background-color: #ea4335;
-            border: none;
+            background-color: var(--danger);
+            border: 8px solid white;
             color: white;
-            font-size: 30px;
+            font-size: 40px;
             cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: transform 0.1s;
+            transition: all 0.2s;
+            margin-bottom: 10px;
             -webkit-tap-highlight-color: transparent;
         }
 
-        #record-btn:active {
-            transform: scale(0.9);
-            background-color: #c5221f;
+        #record-btn:active { transform: scale(0.9); box-shadow: 0 5px 10px rgba(0,0,0,0.2); }
+        .recording-active { animation: pulse 1.5s infinite; background-color: #ff0000 !important; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(234, 67, 53, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
         }
 
-        .action-btns {
+        #status { height: 25px; color: var(--danger); font-weight: bold; margin-bottom: 20px; visibility: hidden; }
+
+        /* רשימת משימות */
+        .tasks-container {
+            width: 100%;
+            max-width: 450px;
+            background: white;
+            border-radius: 20px;
+            padding: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 100px;
+        }
+
+        .task-item {
             display: flex;
+            align-items: center;
+            padding: 15px 10px;
+            border-bottom: 1px solid #f0f0f0;
             gap: 10px;
         }
 
-        .btn {
-            padding: 10px 20px;
-            border-radius: 20px;
+        .task-content { flex: 1; font-size: 16px; }
+        .task-meta { font-size: 0.75em; color: #999; display: block; }
+
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 5px;
+        }
+
+        /* כפתורי שליחה בתחתית */
+        .footer-btns {
+            position: fixed;
+            bottom: 20px;
+            display: flex;
+            gap: 10px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
             border: none;
             color: white;
             font-weight: bold;
-            cursor: pointer;
+            font-size: 14px;
         }
-
-        .whatsapp-daily { background-color: #25d366; }
-        .whatsapp-monthly { background-color: #075e54; }
-
-        .recording-status {
-            color: #ea4335;
-            font-weight: bold;
-            height: 20px;
-            margin-bottom: 5px;
-            visibility: hidden;
-        }
+        .bg-daily { background-color: var(--success); }
+        .bg-monthly { background-color: #075e54; }
     </style>
 </head>
 <body>
 
-    <h2>המשימות שלי</h2>
-    <div id="date-display"></div>
+    <h2 id="date-display"></h2>
+    
+    <button id="record-btn">🎤</button>
+    <div id="status">מקליט... שחרר לסיום</div>
 
-    <div class="tasks-container" id="task-list">
-        </div>
+    <div class="tasks-container" id="task-list"></div>
 
-    <div class="controls">
-        <div id="status" class="recording-status">מקליט... שחרר לסיום</div>
-        
-        <button id="record-btn">🎤</button>
-
-        <div class="action-btns">
-            <button class="btn whatsapp-daily" onclick="sendWhatsApp('daily')">סיכום יומי</button>
-            <button class="btn whatsapp-monthly" onclick="sendWhatsApp('monthly')">סיכום חודשי</button>
-        </div>
+    <div class="footer-btns">
+        <button class="btn-action bg-daily" onclick="sendWhatsApp('daily')">שלח סיכום יומי</button>
+        <button class="btn-action bg-monthly" onclick="sendWhatsApp('monthly')">שלח סיכום חודשי</button>
     </div>
 
     <script>
+        const PHONE_NUMBER = "972524291544"; // המספר שהגדרת
         const recordBtn = document.getElementById('record-btn');
         const statusTxt = document.getElementById('status');
         const taskListDiv = document.getElementById('task-list');
         const dateDisplay = document.getElementById('date-display');
 
-        // הגדרת תאריך נוכחי
-        const now = new Date();
-        dateDisplay.innerText = now.toLocaleDateString('he-IL');
+        dateDisplay.innerText = new Date().toLocaleDateString('he-IL');
 
-        // זיהוי קולי
+        // הגדרת זיהוי קולי
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         let recognition;
 
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
             recognition.lang = 'he-IL';
-            recognition.continuous = false;
-            recognition.interimResults = false;
-
+            
             recognition.onresult = (event) => {
                 const transcript = event.results[0][0].transcript;
-                addTask(transcript);
-            };
-
-            recognition.onerror = (e) => {
-                console.error("Speech error", e);
-                statusTxt.innerText = "שגיאה בזיהוי הקול";
-                setTimeout(() => statusTxt.style.visibility = 'hidden', 2000);
+                saveTask(transcript);
             };
         }
 
-        // ניהול לחיצה ארוכה (עבור מובייל ומחשב)
-        recordBtn.addEventListener('mousedown', startRec);
-        recordBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRec(); });
-        
-        recordBtn.addEventListener('mouseup', stopRec);
-        recordBtn.addEventListener('touchend', stopRec);
-
+        // פונקציות הקלטה
         function startRec() {
-            if (!recognition) return alert("הדפדפן שלך לא תומך בזיהוי קולי");
-            statusTxt.style.visibility = 'visible';
+            if (!recognition) return alert("הדפדפן לא תומך");
             recognition.start();
+            statusTxt.style.visibility = 'visible';
+            recordBtn.classList.add('recording-active');
         }
 
         function stopRec() {
-            statusTxt.style.visibility = 'hidden';
             recognition.stop();
+            statusTxt.style.visibility = 'hidden';
+            recordBtn.classList.remove('recording-active');
         }
 
-        // הוספת משימה ושמירה
-        function addTask(text) {
-            const timestamp = new Date();
-            const timeStr = timestamp.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-            const dateStr = timestamp.toLocaleDateString('he-IL');
-            
-            const task = {
+        recordBtn.addEventListener('mousedown', startRec);
+        recordBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRec(); });
+        recordBtn.addEventListener('mouseup', stopRec);
+        recordBtn.addEventListener('touchend', stopRec);
+
+        // ניהול נתונים
+        function saveTask(text) {
+            const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
+            const now = new Date();
+            tasks.push({
                 id: Date.now(),
                 text: text,
-                time: timeStr,
-                date: dateStr,
-                fullTimestamp: timestamp.toISOString()
-            };
-
-            const tasks = getTasks();
-            tasks.push(task);
+                time: now.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}),
+                date: now.toLocaleDateString('he-IL'),
+                rawDate: now.toISOString()
+            });
             localStorage.setItem('myTasks', JSON.stringify(tasks));
-            renderTasks();
+            render();
         }
 
-        function getTasks() {
-            return JSON.parse(localStorage.getItem('myTasks') || '[]');
+        function deleteTask(id) {
+            if(confirm("למחוק את המשימה?")) {
+                const tasks = JSON.parse(localStorage.getItem('myTasks')).filter(t => t.id !== id);
+                localStorage.setItem('myTasks', JSON.stringify(tasks));
+                render();
+            }
         }
 
-        function renderTasks() {
-            const tasks = getTasks();
-            const todayStr = new Date().toLocaleDateString('he-IL');
-            const todayTasks = tasks.filter(t => t.date === todayStr);
+        function editTask(id) {
+            const tasks = JSON.parse(localStorage.getItem('myTasks'));
+            const task = tasks.find(t => t.id === id);
+            const newText = prompt("ערוך משימה:", task.text);
+            if (newText) {
+                task.text = newText;
+                localStorage.setItem('myTasks', JSON.stringify(tasks));
+                render();
+            }
+        }
 
-            taskListDiv.innerHTML = todayTasks.length ? '' : '<p style="text-align:center; color:#ccc;">אין משימות להיום...</p>';
+        function render() {
+            const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
+            const today = new Date().toLocaleDateString('he-IL');
+            const todayTasks = tasks.filter(t => t.date === today);
+
+            taskListDiv.innerHTML = todayTasks.length ? '' : '<p style="text-align:center; color:#ccc;">אין משימות היום</p>';
             
-            todayTasks.forEach((t, index) => {
-                const item = document.createElement('div');
-                item.className = 'task-item';
-                item.innerHTML = `<strong>${index + 1}.</strong> <span class="task-time">${t.date} ${t.time}</span> - ${t.text}`;
-                taskListDiv.appendChild(item);
+            todayTasks.forEach((t, i) => {
+                const div = document.createElement('div');
+                div.className = 'task-item';
+                div.innerHTML = `
+                    <div class="task-content">
+                        <span class="task-meta">${t.date} | ${t.time}</span>
+                        <strong>${i+1}.</strong> ${t.text}
+                    </div>
+                    <button class="btn-icon" onclick="editTask(${t.id})">✏️</button>
+                    <button class="btn-icon" onclick="deleteTask(${t.id})">🗑️</button>
+                `;
+                taskListDiv.appendChild(div);
             });
         }
 
-        // שליחה לווצאפ
         function sendWhatsApp(type) {
-            const tasks = getTasks();
-            let filteredTasks = [];
-            let title = "";
+            const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
+            let filtered = [];
+            let header = "";
 
             if (type === 'daily') {
                 const today = new Date().toLocaleDateString('he-IL');
-                filteredTasks = tasks.filter(t => t.date === today);
-                title = `*סיכום יומי - ${today}*%0A`;
+                filtered = tasks.filter(t => t.date === today);
+                header = `*סיכום משימות יומי (${today})*`;
             } else {
-                const month = new Date().getMonth();
-                filteredTasks = tasks.filter(t => new Date(t.fullTimestamp).getMonth() === month);
-                title = `*סיכום חודשי*%0A`;
+                const thisMonth = new Date().getMonth();
+                filtered = tasks.filter(t => new Date(t.rawDate).getMonth() === thisMonth);
+                header = `*סיכום משימות חודשי*`;
             }
 
-            if (filteredTasks.length === 0) return alert("אין משימות לשלוח");
+            if (!filtered.length) return alert("אין נתונים לשליחה");
 
-            let message = title;
-            filteredTasks.forEach((t, i) => {
-                message += `${i + 1}. ${t.time} - ${t.text}%0A`;
+            let msg = header + "%0A%0A";
+            filtered.forEach((t, i) => {
+                msg += `${i+1}. [${t.time}] ${t.text}%0A`;
             });
 
-            window.open(`https://wa.me/?text=${message}`, '_blank');
+            window.open(`https://wa.me/${PHONE_NUMBER}?text=${msg}`, '_blank');
         }
 
-        // טעינה ראשונית
-        renderTasks();
-
+        render();
     </script>
 </body>
 </html>
