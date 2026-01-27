@@ -22,6 +22,9 @@
         .btn-group { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
         .btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; }
         .save-btn { background: #2ecc71; color: white; }
+        .slider-container { margin: 10px 0; background: #34495e; padding: 10px; border-radius: 8px; }
+        .slider-container label { display: block; margin-bottom: 5px; font-size: 14px; }
+        input[type=range] { width: 100%; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -45,6 +48,12 @@
             <button id="btn-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">🍉 פריט</button>
         </div>
         <input type="text" id="stage-instruction" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;" placeholder="מה המשימה לשלב זה?">
+        
+        <div class="slider-container">
+            <label>טשטוש אובייקט (Blur): <span id="blur-val">0</span>px</label>
+            <input type="range" id="blur-slider" min="0" max="5" step="0.5" value="0" oninput="updateBlur(this.value)">
+        </div>
+
         <div style="display:flex; justify-content: space-between; gap:5px;">
             <select id="stage-select" style="flex:1; padding:10px; border-radius:5px;" onchange="loadStage()">
                 <script>for(let i=0; i<10; i++) document.write(`<option value="${i}">שלב ${i+1}</option>`)</script>
@@ -71,12 +80,12 @@
         const GITHUB_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/matmon.json";
 
         let gameData = Array(10).fill(null).map(() => ({
-            emoji: '🍉', x: 50, y: 50, size: 30, bg: '1.png', text: 'מצא את האבטיח'
+            emoji: '🍉', x: 50, y: 50, size: 30, blur: 0, bg: '1.png', text: 'מצא את האבטיח'
         }));
 
         let currentLevel = 0, isAdminOpen = false, editTarget = 'IMAGE', pressTimer;
         let scale = 1, lastDist = 0, objSize = 30, posX = 0, posY = 0, startX = 0, startY = 0;
-        let timeLeft = 30, timerInterval;
+        let timeLeft = 30, timerInterval, currentBlur = 0;
 
         const world = document.getElementById('world'), viewport = document.getElementById('game-viewport');
         const obj = document.getElementById('hidden-object'), img = document.getElementById('game-image');
@@ -155,7 +164,6 @@
                     let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
                     if(lastDist > 0) { 
                         scale *= (dist / lastDist); 
-                        // הגבלת הגדלה עד פי 5 בדיוק
                         scale = Math.max(1, Math.min(5, scale)); 
                     }
                     lastDist = dist;
@@ -163,6 +171,12 @@
             }
             updateTransform();
         };
+
+        function updateBlur(val) {
+            currentBlur = val;
+            document.getElementById('blur-val').innerText = val;
+            obj.style.filter = `blur(${val}px)`;
+        }
 
         function startTimer() {
             clearInterval(timerInterval);
@@ -209,11 +223,17 @@
             obj.innerText = data.emoji;
             obj.style.left = data.x + '%'; obj.style.top = data.y + '%';
             objSize = data.size || 30; obj.style.fontSize = objSize + 'px';
-            obj.style.display = 'block';
+            
+            // טעינת הטשטוש
+            currentBlur = data.blur || 0;
+            obj.style.filter = `blur(${currentBlur}px)`;
             if(isAdminOpen) {
+                document.getElementById('blur-slider').value = currentBlur;
+                document.getElementById('blur-val').innerText = currentBlur;
                 document.getElementById('bg-select').value = data.bg;
                 document.getElementById('stage-instruction').value = data.text || '';
             }
+            obj.style.display = 'block';
         }
 
         function saveStage() {
@@ -221,7 +241,7 @@
             gameData[idx] = {
                 emoji: obj.innerText, bg: document.getElementById('bg-select').value,
                 x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), 
-                size: objSize, text: document.getElementById('stage-instruction').value
+                size: objSize, blur: parseFloat(currentBlur), text: document.getElementById('stage-instruction').value
             };
             localStorage.setItem('myGameData', JSON.stringify(gameData));
             alert("נשמר בזיכרון המקומי!");
