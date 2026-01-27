@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFun Booth Pro V4 Final</title>
+    <title>PhotoFun Booth Pro Final</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
     <style>
         /* --- עיצוב כללי --- */
@@ -855,7 +855,7 @@
                 ctx.closePath();
             }
 
-            // ✅ פונקציית הציור המתוקנת - הפרדה ברורה בין 3 המצבים
+            // ✅ תיקון לוגיקה לציור מרובע עם הילה (בלי מסגרת לבנה חיצונית)
             function drawSquarePhoto(photoCanvas, dx, dy, size) {
                 const imgW = photoCanvas.width, imgH = photoCanvas.height;
                 const s = Math.min(imgW, imgH);
@@ -885,43 +885,32 @@
                     return;
                 }
 
-                // --- מצב 3: מרובע עם הילה (Box) - הקוד החדש והמתוקן ---
+                // --- מצב 3: מרובע עם הילה (Box) - הקוד החדש והסופי ---
                 if (photoFrameStyle === 'box') {
-                    const radius = 12; // פינות מעט מעוגלות
-                    const pad = 15;
+                    // הגדרה של פינות טיפה מעוגלות
+                    const radius = 12;
 
-                    // 1. מסגרת חיצונית לבנה עם צל (כמו קודם)
-                    ctx.save();
-                    ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 12;
-                    ctx.fillStyle = 'white';
-                    roundedRectPath(dx - pad, dy - pad, size + pad*2, size + pad*2, radius + 5);
-                    ctx.fill();
-                    ctx.restore();
-
-                    // 2. חיתוך (Clip) לצורת הריבוע המעוגל
+                    // 1. שמירה כדי לבצע חיתוך (Clip) לצורת הריבוע
                     ctx.save();
                     roundedRectPath(dx, dy, size, size, radius);
-                    ctx.clip();
+                    ctx.clip(); // כל מה שיצויר מעכשיו יהיה רק בתוך הריבוע הזה
 
-                    // 3. ציור התמונה
+                    // 2. ציור התמונה עצמה
                     ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
 
-                    // 4. ✅ הוספת ה"הילה" המרובעת (וינייט) על גבי התמונה
-                    // יצירת גרדיאנט רדיאלי שנמתח מעט כדי לכסות את הפינות של הריבוע
-                    const vig = ctx.createRadialGradient(dx + size/2, dy + size/2, size*0.35, dx + size/2, dy + size/2, size*0.75);
-                    vig.addColorStop(0, 'rgba(0,0,0,0)');   // מרכז שקוף
-                    vig.addColorStop(0.7, 'rgba(0,0,0,0.3)'); // התחלת הכהיה
-                    vig.addColorStop(1, 'rgba(0,0,0,0.85)');   // פינות כהות (הילה)
-                    ctx.fillStyle = vig;
-                    // מילוי הריבוע בגרדיאנט (ה-clip ידאג שזה יישאר בגבולות)
-                    ctx.fillRect(dx, dy, size, size);
+                    // 3. הוספת ה"הילה" (Shadow) בתוך הריבוע
+                    // אנו מציירים גרדיאנט שחור שמתחיל שקוף במרכז והופך לשחור בקצוות
+                    const halo = ctx.createRadialGradient(
+                        dx + size/2, dy + size/2, size * 0.4, 
+                        dx + size/2, dy + size/2, size * 0.75
+                    );
+                    halo.addColorStop(0, 'rgba(0,0,0,0)');     // שקוף באמצע
+                    halo.addColorStop(1, 'rgba(0,0,0,0.6)');   // כהה בקצוות (הילה)
+                    
+                    ctx.fillStyle = halo;
+                    ctx.fillRect(dx, dy, size, size); // מילוי הריבוע בגרדיאנט
 
-                    // 5. קו מתאר פנימי דק ועדין להדגשה
-                    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-                    roundedRectPath(dx+2, dy+2, size-4, size-4, radius);
-                    ctx.stroke();
-
-                    ctx.restore();
+                    ctx.restore(); // ביטול ה-Clip
                 }
             }
 
