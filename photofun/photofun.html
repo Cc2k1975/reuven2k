@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFun Booth Pro V2</title>
+    <title>PhotoFun Booth Pro V3</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
     <style>
         /* --- עיצוב כללי --- */
@@ -632,24 +632,21 @@
             document.getElementById('input-text-color').value = footerColor;
         }
 
-        // ✅ שינוי: עדכון הפונקציה שתתמוך ב-3 כפתורים
         function setupFrameStyleButtons() {
-            const btnFramed = document.getElementById('btn-style-framed'); // הכפתור העגול (הישן)
-            const btnBox = document.getElementById('btn-style-box');       // הכפתור המרובע החדש
-            const btnPlain = document.getElementById('btn-style-plain');   // הכפתור בלי מסגרת
+            const btnFramed = document.getElementById('btn-style-framed');
+            const btnBox = document.getElementById('btn-style-box');
+            const btnPlain = document.getElementById('btn-style-plain');
 
             function applyVisual() {
-                // איפוס לכולם
                 [btnFramed, btnBox, btnPlain].forEach(btn => {
                     btn.style.background = '#f0f0f0';
                     btn.style.color = '#333';
                     btn.style.border = '2px solid #ddd';
                 });
 
-                // הדגשת הכפתור הנבחר
                 let activeBtn;
                 if (photoFrameStyle === 'framed') activeBtn = btnFramed;
-                else if (photoFrameStyle === 'box') activeBtn = btnBox; // המצב החדש
+                else if (photoFrameStyle === 'box') activeBtn = btnBox;
                 else activeBtn = btnPlain;
 
                 activeBtn.style.background = '#4ecdc4';
@@ -658,7 +655,7 @@
             }
 
             btnFramed.onclick = () => { photoFrameStyle = 'framed'; applyVisual(); };
-            btnBox.onclick = () => { photoFrameStyle = 'box'; applyVisual(); }; // הוספת מאזין לחדש
+            btnBox.onclick = () => { photoFrameStyle = 'box'; applyVisual(); };
             btnPlain.onclick = () => { photoFrameStyle = 'plain'; applyVisual(); };
             applyVisual();
         }
@@ -858,37 +855,19 @@
                 ctx.closePath();
             }
 
-            // ✅ שינוי מהותי כאן: עדכון הלוגיקה של ציור המסגרת
             function drawSquarePhoto(photoCanvas, dx, dy, size) {
                 const imgW = photoCanvas.width, imgH = photoCanvas.height;
                 const s = Math.min(imgW, imgH);
                 const sx = (imgW - s) / 2, sy = (imgH - s) / 2;
 
-                // --- אופציה 1: בלי מסגרת (הקיים) ---
+                // --- תיקון: אם המצב הוא "בלי כלום", פשוט מציירים את הריבוע כמו שהוא ---
                 if (photoFrameStyle === 'plain') {
-                    const temp = document.createElement('canvas');
-                    temp.width = size;
-                    temp.height = size;
-                    const tctx = temp.getContext('2d');
-
-                    tctx.drawImage(photoCanvas, sx, sy, s, s, 0, 0, size, size);
-
-                    tctx.globalCompositeOperation = 'destination-in';
-                    const g = tctx.createRadialGradient(
-                        size / 2, size / 2, size * 0.40,
-                        size / 2, size / 2, size * 0.52
-                    );
-                    g.addColorStop(0, 'rgba(0,0,0,1)');
-                    g.addColorStop(1, 'rgba(0,0,0,0)');
-                    tctx.fillStyle = g;
-                    tctx.fillRect(0, 0, size, size);
-
-                    tctx.globalCompositeOperation = 'source-over';
-                    ctx.drawImage(temp, dx, dy, size, size);
+                    // ציור נקי ללא מסכות וללא עיגולים
+                    ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
                     return;
                 }
 
-                // --- הגדרת משתנים לפי הסגנון הנבחר (חדש!) ---
+                // --- הגדרת משתנים לפי הסגנון הנבחר ---
                 
                 // ברירת מחדל זה ה"עגול" הישן (framed)
                 let radius = 28;
@@ -897,26 +876,23 @@
 
                 // אם נבחר החדש "מרובע" (box)
                 if (photoFrameStyle === 'box') {
-                     // כאן השינוי שביקשת:
-                     radius = 4; // פינות כמעט ישרות (מרובע)
-                     shadowBlurVal = 10; // הילה קצת פחות חזקה (במקום 18)
-                     pad = 12; // מסגרת לבנה טיפה יותר עדינה
+                     radius = 4; // פינות כמעט ישרות
+                     shadowBlurVal = 10;
+                     pad = 12;
                 }
 
-                // --- המשך ציור עם המשתנים הדינמיים ---
-                // const pad = 14; // שורה ישנה שנמחקה
+                // --- ציור המסגרת והאפקטים למצבים האחרים ---
                 const fx = dx - pad;
                 const fy = dy - pad;
                 const fs = size + pad * 2;
 
                 ctx.save();
                 ctx.shadowColor = 'rgba(0,0,0,0.28)';
-                ctx.shadowBlur = shadowBlurVal; // ✅ שימוש במשתנה החדש
+                ctx.shadowBlur = shadowBlurVal; 
                 ctx.shadowOffsetX = 0;
                 ctx.shadowOffsetY = 10;
 
                 ctx.fillStyle = 'rgba(255,255,255,0.93)';
-                // חישוב רדיוס חיצוני שיהיה פרופורציונלי לפנימי
                 roundedRectPath(fx, fy, fs, fs, radius + (pad * 0.6));
                 ctx.fill();
 
@@ -928,7 +904,6 @@
                 ctx.restore();
 
                 ctx.save();
-                // ✅ שימוש ברדיוס המשתנה לחיתוך התמונה
                 roundedRectPath(dx, dy, size, size, radius);
                 ctx.clip();
                 ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
@@ -936,7 +911,6 @@
                 // קו פנימי עדין
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-                // ✅ שימוש ברדיוס המשתנה
                 roundedRectPath(dx + 2, dy + 2, size - 4, size - 4, Math.max(1, radius - 2));
                 ctx.stroke();
                 ctx.restore();
