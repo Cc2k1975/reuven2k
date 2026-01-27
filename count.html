@@ -2,119 +2,96 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>מונה חכם - תרגום אוטומטי</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>מונה חכם - ללא API</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #121212; color: white; margin: 0; padding: 20px; }
-        .controls { background: #1e1e1e; padding: 25px; border-radius: 20px; margin-bottom: 20px; border: 1px solid #333; }
-        input { padding: 15px; font-size: 1.1rem; border-radius: 10px; border: none; width: 250px; margin: 10px; text-align: center; }
-        button { padding: 15px 30px; font-size: 1.1rem; background: #00ff88; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; color: #000; transition: 0.3s; }
-        button:hover { background: #00cc6e; transform: scale(1.05); }
-        #container { position: relative; display: inline-block; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #0f172a; color: white; margin: 0; padding: 20px; }
+        .header { background: #1e293b; padding: 20px; border-radius: 20px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        #container { position: relative; display: inline-block; border: 5px solid #334155; border-radius: 20px; overflow: hidden; }
         video, canvas { display: block; max-width: 100%; }
         canvas { position: absolute; top: 0; left: 0; }
-        .result { font-size: 3rem; margin: 15px; color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.5); }
-        .debug-info { color: #888; font-size: 0.9rem; margin-top: 5px; }
+        .count-badge { font-size: 3.5rem; color: #38bdf8; font-weight: bold; margin: 10px 0; }
+        .btn { padding: 15px 40px; font-size: 1.2rem; background: #38bdf8; color: #0f172a; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .btn:disabled { background: #64748b; cursor: wait; }
+        .loading-text { color: #94a3b8; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <div class="controls">
-        <h1>🔢 מונה יחידות אוניברסלי</h1>
-        <input type="text" id="hebrewInput" placeholder="מה לספור? (למשל: מטבעות, ברגים)">
-        <button id="runInference">סרוק וספור</button>
-        <div id="translationDebug" class="debug-info"></div>
+    <div class="header">
+        <h1>🔢 מונה חכם (Local AI)</h1>
+        <div class="count-badge">נספרו: <span id="countDisplay">0</span></div>
+        <button id="scanBtn" class="btn">טוען מודל...</button>
+        <div id="status" class="loading-text">אנא המתן לטעינת ה-AI...</div>
     </div>
 
-    <div class="result">נספרו: <span id="count">0</span></div>
-
     <div id="container">
-        <video id="video" width="640" height="480" autoplay playsinline></video>
+        <video id="webcam" width="640" height="480" autoplay playsinline></video>
         <canvas id="overlay"></canvas>
     </div>
 
     <script>
-        const video = document.getElementById('video');
+        const video = document.getElementById('webcam');
         const canvas = document.getElementById('overlay');
         const ctx = canvas.getContext('2d');
-        const countDisplay = document.getElementById('count');
-        const debugInfo = document.getElementById('translationDebug');
+        const scanBtn = document.getElementById('scanBtn');
+        const countDisplay = document.getElementById('countDisplay');
+        const status = document.getElementById('status');
 
-        // הגדרות API
-        const ROBOFLOW_API_KEY = "YOUR_API_KEY"; // שים כאן את המפתח שלך
+        let model = undefined;
 
-        // הפעלת מצלמה
+        // 1. טעינת המודל (קורה פעם אחת בכניסה לדף)
+        cocoSsd.load().then(loadedModel => {
+            model = loadedModel;
+            status.innerText = "המודל מוכן! כוון את המצלמה ולחץ לסריקה.";
+            scanBtn.innerText = "סרוק וספור";
+            scanBtn.disabled = false;
+        });
+
+        // 2. הפעלת מצלמה
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => { video.srcObject = stream; });
-
-        // פונקציית תרגום (שימוש ב-API חופשי)
-        async function translateText(text) {
-            try {
-                const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=he&tl=en&dt=t&q=${encodeURI(text)}`);
-                const data = await res.json();
-                return data[0][0][0]; // מחזיר את המילה המתורגמת
-            } catch (e) {
-                console.error("Translation error", e);
-                return text; // במקרה של שגיאה נשלח את המקור
-            }
-        }
-
-        document.getElementById('runInference').onclick = async () => {
-            const hebrewText = document.getElementById('hebrewInput').value.trim();
-            if (!hebrewText) return alert("אנא כתוב מה לספור");
-
-            countDisplay.innerText = "...מתרגם";
-            const englishPrompt = await translateText(hebrewText);
-            debugInfo.innerText = `מתרגם ל: ${englishPrompt}...`;
-
-            countDisplay.innerText = "...סורק";
-
-            // לכידת תמונה מהוידאו
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = video.videoWidth;
-            tempCanvas.height = video.videoHeight;
-            tempCanvas.getContext('2d').drawImage(video, 0, 0);
-            const base64Image = tempCanvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-
-            // שליחה ל-Roboflow Workflow
-            const settings = {
-                url: `https://infer.roboflow.com/infer/workflows/roboflow/universal-object-detection?api_key=${ROBOFLOW_API_KEY}`,
-                method: "POST",
-                data: JSON.stringify({
-                    inputs: {
-                        image: { type: "base64", value: base64Image },
-                        prompt: englishPrompt
-                    }
-                }),
-                contentType: "application/json",
-            };
-
-            $.ajax(settings).done(function (response) {
-                const predictions = response.outputs[0].predictions;
-                drawResults(predictions);
-            }).fail(function() {
-                alert("שגיאה בסריקה. וודא שה-API Key תקין.");
-                countDisplay.innerText = "0";
+            .then(stream => {
+                video.srcObject = stream;
             });
+
+        // 3. פונקציית הזיהוי
+        scanBtn.onclick = async () => {
+            if (!model) return;
+
+            status.innerText = "מנתח תמונה...";
+            
+            // זיהוי אובייקטים בפריים הנוכחי
+            const predictions = await model.detect(video);
+            
+            drawResults(predictions);
+            status.innerText = "סריקה הושלמה!";
         };
 
         function drawResults(predictions) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // ניקוי הקנבס
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
             countDisplay.innerText = predictions.length;
 
-            ctx.strokeStyle = "#00ff88";
+            ctx.strokeStyle = "#38bdf8";
             ctx.lineWidth = 4;
-            ctx.fillStyle = "#00ff88";
-            ctx.font = "bold 20px Arial";
+            ctx.fillStyle = "#38bdf8";
+            ctx.font = "bold 18px Arial";
 
-            predictions.forEach((p, i) => {
-                const x = p.x - p.width/2;
-                const y = p.y - p.height/2;
-                ctx.strokeRect(x, y, p.width, p.height);
-                ctx.fillText(i + 1, x, y - 7);
+            predictions.forEach((prediction, i) => {
+                const [x, y, width, height] = prediction.bbox;
+                
+                // ציור ריבוע מסביב לחפץ
+                ctx.strokeRect(x, y, width, height);
+                
+                // ציור רקע קטן לטקסט
+                ctx.fillRect(x, y - 25, 100, 25);
+                ctx.fillStyle = "#0f172a";
+                ctx.fillText(`${i + 1}. ${prediction.class}`, x + 5, y - 7);
+                ctx.fillStyle = "#38bdf8";
             });
         }
     </script>
