@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>עורך משחק - תיקון שמירת גודל</title>
+    <title>משחק חיפוש - זום חופשי</title>
     <style>
         body { 
             font-family: system-ui; background: #000; color: white; 
@@ -13,6 +13,7 @@
         #ui-layer {
             position: absolute; top: 0; width: 100%; z-index: 100;
             background: rgba(0,0,0,0.7); padding: 10px; text-align: center;
+            pointer-events: none; /* מאפשר ללחוץ דרך הטקסט */
         }
 
         #game-viewport {
@@ -68,7 +69,7 @@
 
     <div id="ui-layer">
         <div id="status">שלב: <span id="level-num">1</span></div>
-        <div id="edit-msg" style="display:none; color:#f1c40f; font-size:12px;">מצב עריכה פעיל</div>
+        <div id="msg" style="color:#f1c40f; font-size:12px;">השתמש בשתי אצבעות לזום | לחיצה של 5 שניות להגדרות</div>
     </div>
 
     <div id="game-viewport">
@@ -108,7 +109,6 @@
     </div>
 
     <script>
-        // טעינת נתונים
         let gameData = JSON.parse(localStorage.getItem('myGameData')) || Array(10).fill(null).map(() => ({
             emoji: '🍉', x: 50, y: 50, size: 30, bg: '1.png'
         }));
@@ -127,6 +127,7 @@
         const img = document.getElementById('game-image');
         const admin = document.getElementById('admin-panel');
 
+        // לחיצה ארוכה - 5 שניות בדיוק
         viewport.ontouchstart = (e) => {
             if(isAdminOpen) {
                 if(e.touches.length === 1) {
@@ -135,9 +136,21 @@
                 }
                 return;
             }
-            pressTimer = setTimeout(() => toggleAdmin(true), 3000);
+            
+            // הגדרה ל-5000 מילישניות (5 שניות)
+            pressTimer = setTimeout(() => toggleAdmin(true), 5000);
+
+            // אם זה מצב משחק, עדיין צריך לאפשר התחלת גרירה לזום
+            if(e.touches.length === 1) {
+                startX = e.touches[0].clientX - posX;
+                startY = e.touches[0].clientY - posY;
+            }
         };
-        viewport.ontouchend = () => clearTimeout(pressTimer);
+
+        viewport.ontouchend = () => {
+            clearTimeout(pressTimer);
+            lastDist = 0;
+        };
 
         function setEditMode(mode) {
             editTarget = mode;
@@ -149,27 +162,21 @@
         function toggleAdmin(show) {
             isAdminOpen = show;
             admin.style.display = show ? 'block' : 'none';
-            document.getElementById('edit-msg').style.display = show ? 'block' : 'none';
-            if(!show) { scale = 1; posX = 0; posY = 0; updateTransform(); obj.classList.remove('edit-active-obj'); }
+            if(!show) { 
+                scale = 1; posX = 0; posY = 0; updateTransform(); 
+                obj.classList.remove('edit-active-obj'); 
+                setEditMode('IMAGE'); 
+            }
             loadStage();
         }
 
         viewport.ontouchmove = (e) => {
-            if(!isAdminOpen) return;
             e.preventDefault();
+            // אם הזזנו את האצבע, נבטל את הטיימר של ה-5 שניות (כדי שלא יפתח הגדרות באמצע חיפוש)
+            if (e.touches.length > 0) clearTimeout(pressTimer);
 
-            if(editTarget === 'IMAGE') {
-                if(e.touches.length === 1) {
-                    posX = e.touches[0].clientX - startX;
-                    posY = e.touches[0].clientY - startY;
-                }
-                if(e.touches.length === 2) {
-                    let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    if(lastDist > 0) { scale *= (dist / lastDist); scale = Math.max(1, Math.min(8, scale)); }
-                    lastDist = dist;
-                }
-            } 
-            else if(editTarget === 'OBJECT') {
+            // מצב עריכת פריט (כשההגדרות פתוחות וגם המצב נבחר)
+            if(isAdminOpen && editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
                     let rect = img.getBoundingClientRect();
                     obj.style.left = ((e.touches[0].clientX - rect.left) / rect.width) * 100 + '%';
@@ -178,10 +185,23 @@
                 if(e.touches.length === 2) {
                     let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                     if(lastDist > 0) { 
-                        let delta = dist - lastDist;
-                        objSize += delta * 0.5;
-                        objSize = Math.max(5, objSize); // מינימום גודל
-                        obj.style.fontSize = objSize + 'px';
+                        objSize += (dist - lastDist) * 0.5;
+                        obj.style.fontSize = Math.max(5, objSize) + 'px';
+                    }
+                    lastDist = dist;
+                }
+            } 
+            // זום וגרירה של התמונה (עובד תמיד - גם במשחק וגם בעריכת תמונה)
+            else {
+                if(e.touches.length === 1) {
+                    posX = e.touches[0].clientX - startX;
+                    posY = e.touches[0].clientY - startY;
+                }
+                if(e.touches.length === 2) {
+                    let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    if(lastDist > 0) { 
+                        scale *= (dist / lastDist); 
+                        scale = Math.max(1, Math.min(10, scale)); 
                     }
                     lastDist = dist;
                 }
@@ -189,16 +209,16 @@
             updateTransform();
         };
 
-        viewport.ontouchend = () => { lastDist = 0; };
-
         function updateTransform() {
             world.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
         }
 
         obj.onclick = () => {
             if(!isAdminOpen) {
-                alert("כל הכבוד! עוברים לשלב הבא");
+                alert("מצאת! עוברים לשלב הבא.");
                 currentLevel = (currentLevel + 1) % 10;
+                // איפוס זום במעבר שלב
+                scale = 1; posX = 0; posY = 0; updateTransform();
                 loadStage();
             }
         };
@@ -209,17 +229,13 @@
         function loadStage() {
             let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
             let data = gameData[idx];
-            
             document.getElementById('level-num').innerText = parseInt(idx) + 1;
             img.src = data.bg;
             obj.innerText = data.emoji;
             obj.style.left = data.x + '%';
             obj.style.top = data.y + '%';
-            
-            // תיקון קריטי: עדכון הגודל גם במשתנה וגם בתצוגה
-            objSize = data.size || 30; 
+            objSize = data.size || 30;
             obj.style.fontSize = objSize + 'px';
-            
             obj.style.display = 'block';
             if(isAdminOpen) document.getElementById('bg-select').value = data.bg;
         }
@@ -227,17 +243,15 @@
         function saveStage() {
             let idx = document.getElementById('stage-select').value;
             gameData[idx] = {
-                emoji: obj.innerText,
-                bg: document.getElementById('bg-select').value,
-                x: parseFloat(obj.style.left),
-                y: parseFloat(obj.style.top),
-                size: objSize // שומר את הגודל הנוכחי
+                emoji: obj.innerText, bg: document.getElementById('bg-select').value,
+                x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), size: objSize
             };
             localStorage.setItem('myGameData', JSON.stringify(gameData));
-            alert("השלב נשמר בהצלחה!");
+            alert("השלב נשמר!");
         }
 
         window.onload = loadStage;
     </script>
 </body>
 </html>
+
