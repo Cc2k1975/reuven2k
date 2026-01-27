@@ -2,8 +2,12 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="משימות שילה">
     <title>דוח משימות יומי של שילה</title>
+    
     <style>
         :root {
             --primary: #1a73e8;
@@ -19,9 +23,11 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        h2 { margin-bottom: 5px; color: #333; text-align: center; }
+        h2 { margin-top: 10px; margin-bottom: 5px; color: #333; text-align: center; }
         #date-display { font-size: 1.2em; margin-bottom: 20px; color: #666; }
 
         /* כפתור הקלטה ענק */
@@ -41,9 +47,10 @@
             transition: all 0.2s;
             margin-bottom: 20px;
             -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
-        #record-btn:active { transform: scale(0.9); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        #record-btn:active { transform: scale(0.95); background-color: #d93025; }
         .recording-active { animation: pulse 1.5s infinite; background-color: #ff0000 !important; }
 
         @keyframes pulse {
@@ -61,7 +68,7 @@
             border-radius: 20px;
             padding: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 100px;
+            margin-bottom: 120px; /* רווח לכפתורים התחתונים */
         }
 
         .task-item {
@@ -75,13 +82,7 @@
         .task-content { flex: 1; font-size: 16px; }
         .task-meta { font-size: 0.75em; color: #999; display: block; }
 
-        .btn-icon {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 18px;
-            padding: 5px;
-        }
+        .btn-icon { background: none; border: none; font-size: 18px; padding: 5px; }
 
         .footer-btns {
             position: fixed;
@@ -90,16 +91,20 @@
             gap: 10px;
             width: 90%;
             max-width: 400px;
+            background: rgba(248, 249, 250, 0.9);
+            padding: 10px;
+            border-radius: 15px;
         }
 
         .btn-action {
             flex: 1;
-            padding: 12px;
+            padding: 15px 10px;
             border-radius: 12px;
             border: none;
             color: white;
             font-weight: bold;
             font-size: 14px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .bg-daily { background-color: var(--success); }
         .bg-monthly { background-color: #075e54; }
@@ -135,18 +140,15 @@
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
             recognition.lang = 'he-IL';
-            
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                saveTask(transcript);
-            };
+            recognition.onresult = (e) => saveTask(e.results[0][0].transcript);
         }
 
         function startRec() {
-            if (!recognition) return alert("הדפדפן לא תומך בזיהוי קולי");
+            if (!recognition) return alert("הדפדפן לא תומך");
             try { recognition.start(); } catch(e) {}
             statusTxt.style.visibility = 'visible';
             recordBtn.classList.add('recording-active');
+            if (window.navigator.vibrate) window.navigator.vibrate(50);
         }
 
         function stopRec() {
@@ -175,7 +177,7 @@
         }
 
         function deleteTask(id) {
-            if(confirm("למחוק את המשימה?")) {
+            if(confirm("למחוק?")) {
                 const tasks = JSON.parse(localStorage.getItem('myTasks')).filter(t => t.id !== id);
                 localStorage.setItem('myTasks', JSON.stringify(tasks));
                 render();
@@ -197,20 +199,13 @@
             const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
             const today = new Date().toLocaleDateString('he-IL');
             const todayTasks = tasks.filter(t => t.date === today);
-
             taskListDiv.innerHTML = todayTasks.length ? '' : '<p style="text-align:center; color:#ccc;">אין משימות היום</p>';
-            
             todayTasks.forEach((t, i) => {
                 const div = document.createElement('div');
                 div.className = 'task-item';
-                div.innerHTML = `
-                    <div class="task-content">
-                        <span class="task-meta">${t.date} ${t.time}</span>
-                        <strong>${i+1}.</strong> ${t.text}
-                    </div>
+                div.innerHTML = `<div class="task-content"><span class="task-meta">${t.date} ${t.time}</span><strong>${i+1}.</strong> ${t.text}</div>
                     <button class="btn-icon" onclick="editTask(${t.id})">✏️</button>
-                    <button class="btn-icon" onclick="deleteTask(${t.id})">🗑️</button>
-                `;
+                    <button class="btn-icon" onclick="deleteTask(${t.id})">🗑️</button>`;
                 taskListDiv.appendChild(div);
             });
         }
@@ -219,7 +214,6 @@
             const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
             let filtered = [];
             let header = "";
-
             if (type === 'daily') {
                 const today = new Date().toLocaleDateString('he-IL');
                 filtered = tasks.filter(t => t.date === today);
@@ -229,17 +223,11 @@
                 filtered = tasks.filter(t => new Date(t.rawDate).getMonth() === thisMonth);
                 header = `*דוח משימות חודשי של שילה*`;
             }
-
-            if (!filtered.length) return alert("אין נתונים לשליחה");
-
+            if (!filtered.length) return alert("אין נתונים");
             let msg = header + "%0A%0A";
-            filtered.forEach((t, i) => {
-                msg += `${i+1}. [${t.time}] ${t.text}%0A`;
-            });
-
+            filtered.forEach((t, i) => msg += `${i+1}. [${t.time}] ${t.text}%0A`);
             window.open(`https://wa.me/${PHONE_NUMBER}?text=${msg}`, '_blank');
         }
-
         render();
     </script>
 </body>
