@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ניהול משימות קולי</title>
+    <title>דוח משימות יומי של שילה</title>
     <style>
         :root {
             --primary: #1a73e8;
@@ -21,10 +21,10 @@
             align-items: center;
         }
 
-        h2 { margin-bottom: 5px; color: #333; }
+        h2 { margin-bottom: 5px; color: #333; text-align: center; }
         #date-display { font-size: 1.2em; margin-bottom: 20px; color: #666; }
 
-        /* כפתור הקלטה ענק - הוגדל פי 2 */
+        /* כפתור הקלטה ענק */
         #record-btn {
             width: 240px;
             height: 240px;
@@ -54,7 +54,6 @@
 
         #status { height: 25px; color: var(--danger); font-weight: bold; margin-bottom: 20px; visibility: hidden; }
 
-        /* רשימת משימות */
         .tasks-container {
             width: 100%;
             max-width: 450px;
@@ -84,7 +83,6 @@
             padding: 5px;
         }
 
-        /* כפתורי שליחה בתחתית */
         .footer-btns {
             position: fixed;
             bottom: 20px;
@@ -109,7 +107,8 @@
 </head>
 <body>
 
-    <h2 id="date-display"></h2>
+    <h2>דוח משימות יומי של שילה</h2>
+    <div id="date-display"></div>
     
     <button id="record-btn">🎤</button>
     <div id="status">מקליט... שחרר לסיום</div>
@@ -144,14 +143,14 @@
         }
 
         function startRec() {
-            if (!recognition) return alert("הדפדפן לא תומך");
-            recognition.start();
+            if (!recognition) return alert("הדפדפן לא תומך בזיהוי קולי");
+            try { recognition.start(); } catch(e) {}
             statusTxt.style.visibility = 'visible';
             recordBtn.classList.add('recording-active');
         }
 
         function stopRec() {
-            recognition.stop();
+            try { recognition.stop(); } catch(e) {}
             statusTxt.style.visibility = 'hidden';
             recordBtn.classList.remove('recording-active');
         }
@@ -206,7 +205,7 @@
                 div.className = 'task-item';
                 div.innerHTML = `
                     <div class="task-content">
-                        <span class="task-meta">${t.date} | ${t.time}</span>
+                        <span class="task-meta">${t.date} ${t.time}</span>
                         <strong>${i+1}.</strong> ${t.text}
                     </div>
                     <button class="btn-icon" onclick="editTask(${t.id})">✏️</button>
@@ -224,11 +223,11 @@
             if (type === 'daily') {
                 const today = new Date().toLocaleDateString('he-IL');
                 filtered = tasks.filter(t => t.date === today);
-                header = `*סיכום משימות יומי (${today})*`;
+                header = `*דוח משימות יומי של שילה (${today})*`;
             } else {
                 const thisMonth = new Date().getMonth();
                 filtered = tasks.filter(t => new Date(t.rawDate).getMonth() === thisMonth);
-                header = `*סיכום משימות חודשי*`;
+                header = `*דוח משימות חודשי של שילה*`;
             }
 
             if (!filtered.length) return alert("אין נתונים לשליחה");
