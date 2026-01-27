@@ -106,7 +106,6 @@
             };
         }
 
-        // לוגיקת לחיצה ארוכה לסיסמה - 10 שניות ללא תזוזה
         viewport.ontouchstart = (e) => {
             if(isAdminOpen) {
                 if(e.touches.length === 1) {
@@ -116,12 +115,11 @@
                 return;
             }
 
-            // מתחיל טיימר לסיסמה רק אם אין פאנל פתוח
             clearTimeout(pressTimer);
             pressTimer = setTimeout(() => {
                 let pass = prompt("סיסמה:");
                 if(pass === "4451") toggleAdmin(true);
-            }, 10000); // 10 שניות לחיצה רצופה
+            }, 10000);
 
             if(e.touches.length === 1) { 
                 startX = e.touches[0].clientX - posX; 
@@ -130,13 +128,13 @@
         };
 
         viewport.ontouchend = () => { 
-            clearTimeout(pressTimer); // מבטל את הטיימר אם הרימו את האצבע
+            clearTimeout(pressTimer);
             lastDist = 0; 
         };
 
         viewport.ontouchmove = (e) => {
             e.preventDefault();
-            clearTimeout(pressTimer); // מבטל את הטיימר אם הזיזו את האצבע (מונע קפיצה בטעות)
+            clearTimeout(pressTimer);
 
             if(isAdminOpen && editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
@@ -214,11 +212,16 @@
         function updateTransform() { world.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
 
         obj.onclick = (e) => {
-            e.stopPropagation(); // מונע מהלחיצה על האובייקט להפעיל את לוגיקת הרקע
+            e.stopPropagation();
             if(!isAdminOpen) {
                 clearInterval(timerInterval);
-                alert("כל הכבוד! מצאת.");
-                currentLevel = (currentLevel + 1) % 10;
+                if (currentLevel === 9) {
+                    alert("כל הכבוד 👏");
+                    currentLevel = 0;
+                } else {
+                    alert("כל הכבוד! מצאת.");
+                    currentLevel++;
+                }
                 scale = 1; posX = 0; posY = 0; updateTransform(); loadStage(); startTimer();
             }
         };
