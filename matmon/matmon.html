@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>משחק חיפוש - זום חופשי</title>
+    <title>משחק חיפוש עם שעון</title>
     <style>
         body { 
             font-family: system-ui; background: #000; color: white; 
@@ -13,8 +13,11 @@
         #ui-layer {
             position: absolute; top: 0; width: 100%; z-index: 100;
             background: rgba(0,0,0,0.7); padding: 10px; text-align: center;
-            pointer-events: none; /* מאפשר ללחוץ דרך הטקסט */
+            pointer-events: none;
         }
+
+        #timer-display { font-size: 24px; color: #e74c3c; font-weight: bold; margin-top: 5px; }
+        #instruction-display { font-size: 18px; color: #f1c40f; margin-top: 5px; }
 
         #game-viewport {
             width: 100vw; height: 100vh; position: relative;
@@ -33,10 +36,7 @@
             display: none; white-space: nowrap;
             user-select: none; touch-action: none;
             transform: translate(-50%, -50%);
-            border: 2px transparent dashed;
         }
-
-        .edit-active-obj { border-color: #f1c40f !important; }
 
         #admin-panel {
             display: none; position: fixed; bottom: 10px; left: 50%;
@@ -46,30 +46,25 @@
         }
 
         .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
-        .mode-btn {
-            flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555;
-            background: #1e272e; color: white; font-weight: bold;
-        }
-        .mode-btn.active { background: #f1c40f; color: black; border-color: white; }
+        .mode-btn { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555; background: #1e272e; color: white; }
+        .mode-btn.active { background: #f1c40f; color: black; }
 
-        .emoji-grid { 
-            display: grid; grid-template-columns: repeat(10, 1fr); 
-            gap: 5px; margin: 10px 0; max-height: 60px; overflow-y: auto; 
-        }
+        .emoji-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin: 10px 0; max-height: 60px; overflow-y: auto; }
         .emoji-btn { font-size: 20px; background: #34495e; border: none; padding: 5px; border-radius: 5px; }
         
         .selector { background: #34495e; color: white; padding: 8px; width: 49%; border-radius: 5px; border: none; }
+        .text-input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; }
         .btn-group { display: flex; gap: 5px; margin-top: 10px; }
         .btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; }
         .save-btn { background: #2ecc71; color: white; }
-        .close-btn { background: #e74c3c; color: white; }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
     <div id="ui-layer">
-        <div id="status">שלב: <span id="level-num">1</span></div>
-        <div id="msg" style="color:#f1c40f; font-size:12px;">השתמש בשתי אצבעות לזום | לחיצה של 5 שניות להגדרות</div>
+        <div>שלב: <span id="level-num">1</span></div>
+        <div id="instruction-display">חפש את האובייקט</div>
+        <div id="timer-display">30</div>
     </div>
 
     <div id="game-viewport">
@@ -81,9 +76,11 @@
 
     <div id="admin-panel">
         <div class="mode-selector">
-            <button id="btn-mode-img" class="mode-btn active" onclick="setEditMode('IMAGE')">ערוך תמונה 🖼️</button>
-            <button id="btn-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">ערוך פריט 🍉</button>
+            <button id="btn-mode-img" class="mode-btn active" onclick="setEditMode('IMAGE')">ערוך תמונה</button>
+            <button id="btn-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">ערוך פריט</button>
         </div>
+
+        <input type="text" id="stage-instruction" class="text-input" placeholder="מה צריך לחפש בשלב זה?">
 
         <div style="display:flex; justify-content: space-between;">
             <select id="stage-select" class="selector" onchange="loadStage()">
@@ -97,37 +94,31 @@
 
         <div class="emoji-grid">
             <script>
-                const emojis = ['🍉','🚗','🐤','💎','🍕','⚽','🚀','🍦','🎸','🍩','🚁','🕶️','🔑','🍄','🧸','🚲','🦀','🦋','⚓','🎁'];
-                emojis.forEach(e => document.write(`<button class="emoji-btn" onclick="setEmoji('${e}')">${e}</button>`));
+                ['🍉','🚗','🐤','💎','🍕','⚽','🚀','🍦','🎸','🍩','🚁','🕶️','🔑','🍄','🧸','🚲','🦀','🦋','⚓','🎁'].forEach(e => 
+                    document.write(`<button class="emoji-btn" onclick="setEmoji('${e}')">${e}</button>`));
             </script>
         </div>
 
         <div class="btn-group">
             <button class="btn save-btn" onclick="saveStage()">שמור שלב</button>
-            <button class="btn close-btn" onclick="toggleAdmin(false)">סגור</button>
+            <button class="btn" style="background:#e74c3c; color:white;" onclick="toggleAdmin(false)">סגור</button>
         </div>
     </div>
 
     <script>
         let gameData = JSON.parse(localStorage.getItem('myGameData')) || Array(10).fill(null).map(() => ({
-            emoji: '🍉', x: 50, y: 50, size: 30, bg: '1.png'
+            emoji: '🍉', x: 50, y: 50, size: 30, bg: '1.png', text: 'מצא את האובייקט'
         }));
 
-        let currentLevel = 0;
-        let isAdminOpen = false;
-        let editTarget = 'IMAGE'; 
-        let pressTimer;
-
-        let scale = 1, lastDist = 0, objSize = 30;
+        let currentLevel = 0, isAdminOpen = false, editTarget = 'IMAGE';
+        let pressTimer, scale = 1, lastDist = 0, objSize = 30;
         let posX = 0, posY = 0, startX = 0, startY = 0;
+        let timeLeft = 30, timerInterval;
 
-        const world = document.getElementById('world');
-        const viewport = document.getElementById('game-viewport');
-        const obj = document.getElementById('hidden-object');
-        const img = document.getElementById('game-image');
-        const admin = document.getElementById('admin-panel');
+        const world = document.getElementById('world'), viewport = document.getElementById('game-viewport');
+        const obj = document.getElementById('hidden-object'), img = document.getElementById('game-image');
+        const admin = document.getElementById('admin-panel'), timerEl = document.getElementById('timer-display');
 
-        // לחיצה ארוכה - 5 שניות בדיוק
         viewport.ontouchstart = (e) => {
             if(isAdminOpen) {
                 if(e.touches.length === 1) {
@@ -136,46 +127,23 @@
                 }
                 return;
             }
-            
-            // הגדרה ל-5000 מילישניות (5 שניות)
             pressTimer = setTimeout(() => toggleAdmin(true), 5000);
-
-            // אם זה מצב משחק, עדיין צריך לאפשר התחלת גרירה לזום
-            if(e.touches.length === 1) {
-                startX = e.touches[0].clientX - posX;
-                startY = e.touches[0].clientY - posY;
-            }
+            if(e.touches.length === 1) { startX = e.touches[0].clientX - posX; startY = e.touches[0].clientY - posY; }
         };
 
-        viewport.ontouchend = () => {
-            clearTimeout(pressTimer);
-            lastDist = 0;
-        };
-
-        function setEditMode(mode) {
-            editTarget = mode;
-            document.getElementById('btn-mode-img').classList.toggle('active', mode === 'IMAGE');
-            document.getElementById('btn-mode-obj').classList.toggle('active', mode === 'OBJECT');
-            obj.classList.toggle('edit-active-obj', mode === 'OBJECT');
-        }
+        viewport.ontouchend = () => { clearTimeout(pressTimer); lastDist = 0; };
 
         function toggleAdmin(show) {
             isAdminOpen = show;
             admin.style.display = show ? 'block' : 'none';
-            if(!show) { 
-                scale = 1; posX = 0; posY = 0; updateTransform(); 
-                obj.classList.remove('edit-active-obj'); 
-                setEditMode('IMAGE'); 
-            }
+            if(!show) { scale = 1; posX = 0; posY = 0; updateTransform(); startTimer(); }
+            else { clearInterval(timerInterval); }
             loadStage();
         }
 
         viewport.ontouchmove = (e) => {
             e.preventDefault();
-            // אם הזזנו את האצבע, נבטל את הטיימר של ה-5 שניות (כדי שלא יפתח הגדרות באמצע חיפוש)
-            if (e.touches.length > 0) clearTimeout(pressTimer);
-
-            // מצב עריכת פריט (כשההגדרות פתוחות וגם המצב נבחר)
+            clearTimeout(pressTimer);
             if(isAdminOpen && editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
                     let rect = img.getBoundingClientRect();
@@ -183,45 +151,58 @@
                     obj.style.top = ((e.touches[0].clientY - rect.top) / rect.height) * 100 + '%';
                 }
                 if(e.touches.length === 2) {
-                    let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    if(lastDist > 0) { 
-                        objSize += (dist - lastDist) * 0.5;
-                        obj.style.fontSize = Math.max(5, objSize) + 'px';
-                    }
+                    let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+                    if(lastDist > 0) { objSize += (dist - lastDist) * 0.5; obj.style.fontSize = Math.max(5, objSize) + 'px'; }
                     lastDist = dist;
                 }
-            } 
-            // זום וגרירה של התמונה (עובד תמיד - גם במשחק וגם בעריכת תמונה)
-            else {
-                if(e.touches.length === 1) {
-                    posX = e.touches[0].clientX - startX;
-                    posY = e.touches[0].clientY - startY;
-                }
+            } else {
+                if(e.touches.length === 1) { posX = e.touches[0].clientX - startX; posY = e.touches[0].clientY - startY; }
                 if(e.touches.length === 2) {
-                    let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    if(lastDist > 0) { 
-                        scale *= (dist / lastDist); 
-                        scale = Math.max(1, Math.min(10, scale)); 
-                    }
+                    let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+                    if(lastDist > 0) { scale *= (dist / lastDist); scale = Math.max(1, Math.min(10, scale)); }
                     lastDist = dist;
                 }
             }
             updateTransform();
         };
 
-        function updateTransform() {
-            world.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 30;
+            timerEl.innerText = timeLeft;
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.innerText = timeLeft;
+                if(timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert("נגמר הזמן! נסה שוב.");
+                    resetLevel();
+                }
+            }, 1000);
         }
+
+        function resetLevel() {
+            scale = 1; posX = 0; posY = 0; updateTransform();
+            startTimer();
+        }
+
+        function updateTransform() { world.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
 
         obj.onclick = () => {
             if(!isAdminOpen) {
-                alert("מצאת! עוברים לשלב הבא.");
+                clearInterval(timerInterval);
+                alert("מצאת!");
                 currentLevel = (currentLevel + 1) % 10;
-                // איפוס זום במעבר שלב
-                scale = 1; posX = 0; posY = 0; updateTransform();
+                resetLevel();
                 loadStage();
             }
         };
+
+        function setEditMode(m) {
+            editTarget = m;
+            document.getElementById('btn-mode-img').classList.toggle('active', m === 'IMAGE');
+            document.getElementById('btn-mode-obj').classList.toggle('active', m === 'OBJECT');
+        }
 
         function setEmoji(e) { obj.innerText = e; }
         function updateBG() { img.src = document.getElementById('bg-select').value; }
@@ -230,28 +211,30 @@
             let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
             let data = gameData[idx];
             document.getElementById('level-num').innerText = parseInt(idx) + 1;
+            document.getElementById('instruction-display').innerText = data.text || 'חפש את האובייקט';
             img.src = data.bg;
             obj.innerText = data.emoji;
-            obj.style.left = data.x + '%';
-            obj.style.top = data.y + '%';
-            objSize = data.size || 30;
-            obj.style.fontSize = objSize + 'px';
+            obj.style.left = data.x + '%'; obj.style.top = data.y + '%';
+            objSize = data.size || 30; obj.style.fontSize = objSize + 'px';
             obj.style.display = 'block';
-            if(isAdminOpen) document.getElementById('bg-select').value = data.bg;
+            if(isAdminOpen) {
+                document.getElementById('bg-select').value = data.bg;
+                document.getElementById('stage-instruction').value = data.text || '';
+            }
         }
 
         function saveStage() {
             let idx = document.getElementById('stage-select').value;
             gameData[idx] = {
                 emoji: obj.innerText, bg: document.getElementById('bg-select').value,
-                x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), size: objSize
+                x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), 
+                size: objSize, text: document.getElementById('stage-instruction').value
             };
             localStorage.setItem('myGameData', JSON.stringify(gameData));
             alert("השלב נשמר!");
         }
 
-        window.onload = loadStage;
+        window.onload = () => { loadStage(); startTimer(); };
     </script>
 </body>
 </html>
-
