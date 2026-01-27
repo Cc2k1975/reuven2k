@@ -2,40 +2,27 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="משימות שילה">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/4345/4345573.png">
-    
-    <title>דוח משימות - שילה</title>
-
-    <link rel="manifest" href='data:application/manifest+json,{"name":"משימות שילה","short_name":"שילה","start_url":".","display":"standalone","background_color":"#f8f9fa","theme_color":"#ea4335","orientation":"portrait","icons":[{"src":"https://cdn-icons-png.flaticon.com/512/4345/4345573.png","sizes":"512x512","type":"image/png"}]}'>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>דוח משימות יומי של שילה</title>
     <style>
         :root {
+            --primary: #1a73e8;
             --danger: #ea4335;
             --success: #25d366;
-            --dark-green: #075e54;
         }
 
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background-color: #f8f9fa;
             margin: 0;
-            padding: env(safe-area-inset-top) 20px 120px 20px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
         }
 
-        h2 { margin-top: 20px; color: #333; font-weight: 800; }
-        #date-display { font-size: 1.1em; margin-bottom: 30px; color: #888; }
+        h2 { margin-bottom: 5px; color: #333; text-align: center; }
+        #date-display { font-size: 1.2em; margin-bottom: 20px; color: #666; }
 
         /* כפתור הקלטה ענק */
         #record-btn {
@@ -43,204 +30,214 @@
             height: 240px;
             border-radius: 50%;
             background-color: var(--danger);
-            border: 10px solid white;
+            border: 12px solid white;
             color: white;
-            font-size: 90px;
+            font-size: 80px;
             cursor: pointer;
-            box-shadow: 0 15px 40px rgba(234, 67, 53, 0.4);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: transform 0.1s ease;
-            margin-bottom: 10px;
-            z-index: 10;
+            transition: all 0.2s;
+            margin-bottom: 20px;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        #record-btn:active { transform: scale(0.92); }
-        .recording { animation: pulse 1.2s infinite; background-color: #ff0000 !important; }
+        #record-btn:active { transform: scale(0.9); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .recording-active { animation: pulse 1.5s infinite; background-color: #ff0000 !important; }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.7); }
-            70% { box-shadow: 0 0 0 35px rgba(234, 67, 53, 0); }
+            70% { box-shadow: 0 0 0 30px rgba(234, 67, 53, 0); }
             100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
         }
 
-        #status { font-weight: bold; color: var(--danger); margin-bottom: 20px; height: 24px; visibility: hidden; }
+        #status { height: 25px; color: var(--danger); font-weight: bold; margin-bottom: 20px; visibility: hidden; }
 
-        /* רשימת משימות */
         .tasks-container {
             width: 100%;
-            max-width: 500px;
+            max-width: 450px;
             background: white;
-            border-radius: 24px;
-            padding: 5px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border-radius: 20px;
+            padding: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 100px;
         }
 
         .task-item {
             display: flex;
             align-items: center;
-            padding: 18px 15px;
-            border-bottom: 1px solid #f1f1f1;
+            padding: 15px 10px;
+            border-bottom: 1px solid #f0f0f0;
+            gap: 10px;
         }
 
-        .task-item:last-child { border-bottom: none; }
+        .task-content { flex: 1; font-size: 16px; }
+        .task-meta { font-size: 0.75em; color: #999; display: block; }
 
-        .task-text { flex: 1; font-size: 17px; color: #2c3e50; line-height: 1.4; }
-        .task-time { display: block; font-size: 12px; color: #aaa; margin-bottom: 3px; }
+        .btn-icon {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 5px;
+        }
 
-        .btn-icon { background: none; border: none; font-size: 20px; padding: 10px; cursor: pointer; opacity: 0.6; }
-
-        /* כפתורים תחתונים קבועים */
-        .footer {
+        .footer-btns {
             position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            padding: 20px;
+            bottom: 20px;
             display: flex;
-            gap: 12px;
-            justify-content: center;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
-            padding-bottom: max(20px, env(safe-area-inset-bottom));
+            gap: 10px;
+            width: 90%;
+            max-width: 400px;
         }
 
-        .btn-wa {
+        .btn-action {
             flex: 1;
-            max-width: 180px;
-            padding: 14px;
-            border-radius: 16px;
+            padding: 12px;
+            border-radius: 12px;
             border: none;
             color: white;
             font-weight: bold;
-            font-size: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            font-size: 14px;
         }
-
-        .daily { background-color: var(--success); }
-        .monthly { background-color: var(--dark-green); }
-
+        .bg-daily { background-color: var(--success); }
+        .bg-monthly { background-color: #075e54; }
     </style>
 </head>
 <body>
 
-    <h2>משימות שילה</h2>
+    <h2>דוח משימות יומי של שילה</h2>
     <div id="date-display"></div>
-
+    
     <button id="record-btn">🎤</button>
-    <div id="status">מקשיב...</div>
+    <div id="status">מקליט... שחרר לסיום</div>
 
     <div class="tasks-container" id="task-list"></div>
 
-    <div class="footer">
-        <button class="btn-wa daily" onclick="sendWA('daily')">סיכום יומי</button>
-        <button class="btn-wa monthly" onclick="sendWA('monthly')">סיכום חודשי</button>
+    <div class="footer-btns">
+        <button class="btn-action bg-daily" onclick="sendWhatsApp('daily')">שלח סיכום יומי</button>
+        <button class="btn-action bg-monthly" onclick="sendWhatsApp('monthly')">שלח סיכום חודשי</button>
     </div>
 
     <script>
-        const PHONE = "972524291544";
-        const btn = document.getElementById('record-btn');
-        const list = document.getElementById('task-list');
-        const status = document.getElementById('status');
-        
-        document.getElementById('date-display').innerText = new Date().toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const PHONE_NUMBER = "972524291544"; 
+        const recordBtn = document.getElementById('record-btn');
+        const statusTxt = document.getElementById('status');
+        const taskListDiv = document.getElementById('task-list');
+        const dateDisplay = document.getElementById('date-display');
 
-        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let rec;
+        dateDisplay.innerText = new Date().toLocaleDateString('he-IL');
 
-        if (Recognition) {
-            rec = new Recognition();
-            rec.lang = 'he-IL';
-            rec.onresult = (e) => save(e.results[0][0].transcript);
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'he-IL';
+            
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                saveTask(transcript);
+            };
         }
 
-        function start() {
-            if (!rec) return alert("זיהוי קולי לא נתמך במכשיר זה");
-            rec.start();
-            btn.classList.add('recording');
-            status.style.visibility = 'visible';
-            if (navigator.vibrate) navigator.vibrate(60);
+        function startRec() {
+            if (!recognition) return alert("הדפדפן לא תומך בזיהוי קולי");
+            try { recognition.start(); } catch(e) {}
+            statusTxt.style.visibility = 'visible';
+            recordBtn.classList.add('recording-active');
         }
 
-        function stop() {
-            rec.stop();
-            btn.classList.remove('recording');
-            status.style.visibility = 'hidden';
+        function stopRec() {
+            try { recognition.stop(); } catch(e) {}
+            statusTxt.style.visibility = 'hidden';
+            recordBtn.classList.remove('recording-active');
         }
 
-        btn.addEventListener('touchstart', (e) => { e.preventDefault(); start(); });
-        btn.addEventListener('touchend', stop);
-        btn.addEventListener('mousedown', start);
-        btn.addEventListener('mouseup', stop);
+        recordBtn.addEventListener('mousedown', startRec);
+        recordBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRec(); });
+        recordBtn.addEventListener('mouseup', stopRec);
+        recordBtn.addEventListener('touchend', stopRec);
 
-        function save(txt) {
-            const tasks = JSON.parse(localStorage.getItem('shila_tasks') || '[]');
+        function saveTask(text) {
+            const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
             const now = new Date();
             tasks.push({
                 id: Date.now(),
-                text: txt,
+                text: text,
                 time: now.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'}),
                 date: now.toLocaleDateString('he-IL'),
-                fullDate: now.toISOString()
+                rawDate: now.toISOString()
             });
-            localStorage.setItem('shila_tasks', JSON.stringify(tasks));
+            localStorage.setItem('myTasks', JSON.stringify(tasks));
             render();
         }
 
-        function remove(id) {
-            if (confirm("למחוק?")) {
-                let tasks = JSON.parse(localStorage.getItem('shila_tasks'));
-                tasks = tasks.filter(t => t.id !== id);
-                localStorage.setItem('shila_tasks', JSON.stringify(tasks));
+        function deleteTask(id) {
+            if(confirm("למחוק את המשימה?")) {
+                const tasks = JSON.parse(localStorage.getItem('myTasks')).filter(t => t.id !== id);
+                localStorage.setItem('myTasks', JSON.stringify(tasks));
+                render();
+            }
+        }
+
+        function editTask(id) {
+            const tasks = JSON.parse(localStorage.getItem('myTasks'));
+            const task = tasks.find(t => t.id === id);
+            const newText = prompt("ערוך משימה:", task.text);
+            if (newText) {
+                task.text = newText;
+                localStorage.setItem('myTasks', JSON.stringify(tasks));
                 render();
             }
         }
 
         function render() {
-            const tasks = JSON.parse(localStorage.getItem('shila_tasks') || '[]');
+            const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
             const today = new Date().toLocaleDateString('he-IL');
-            const filtered = tasks.filter(t => t.date === today);
+            const todayTasks = tasks.filter(t => t.date === today);
 
-            list.innerHTML = filtered.length ? '' : '<div style="padding:40px; text-align:center; color:#ccc;">אין משימות מתועדות להיום</div>';
+            taskListDiv.innerHTML = todayTasks.length ? '' : '<p style="text-align:center; color:#ccc;">אין משימות היום</p>';
             
-            filtered.forEach((t, i) => {
-                const item = document.createElement('div');
-                item.className = 'task-item';
-                item.innerHTML = `
-                    <div class="task-text">
-                        <span class="task-time">${t.time}</span>
+            todayTasks.forEach((t, i) => {
+                const div = document.createElement('div');
+                div.className = 'task-item';
+                div.innerHTML = `
+                    <div class="task-content">
+                        <span class="task-meta">${t.date} ${t.time}</span>
                         <strong>${i+1}.</strong> ${t.text}
                     </div>
-                    <button class="btn-icon" onclick="remove(${t.id})">🗑️</button>
+                    <button class="btn-icon" onclick="editTask(${t.id})">✏️</button>
+                    <button class="btn-icon" onclick="deleteTask(${t.id})">🗑️</button>
                 `;
-                list.appendChild(item);
+                taskListDiv.appendChild(div);
             });
         }
 
-        function sendWA(type) {
-            const tasks = JSON.parse(localStorage.getItem('shila_tasks') || '[]');
+        function sendWhatsApp(type) {
+            const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
             let filtered = [];
-            let title = "";
+            let header = "";
 
             if (type === 'daily') {
                 const today = new Date().toLocaleDateString('he-IL');
                 filtered = tasks.filter(t => t.date === today);
-                title = `*סיכום משימות יומי - שילה (${today})*`;
+                header = `*דוח משימות יומי של שילה (${today})*`;
             } else {
-                const m = new Date().getMonth();
-                filtered = tasks.filter(t => new Date(t.fullDate).getMonth() === m);
-                title = `*סיכום משימות חודשי - שילה*`;
+                const thisMonth = new Date().getMonth();
+                filtered = tasks.filter(t => new Date(t.rawDate).getMonth() === thisMonth);
+                header = `*דוח משימות חודשי של שילה*`;
             }
 
-            if (!filtered.length) return alert("אין מה לשלוח");
-            let msg = title + "%0A%0A";
-            filtered.forEach((t, i) => msg += `• ${t.time}: ${t.text}%0A`);
-            window.open(`https://wa.me/${PHONE}?text=${msg}`, '_blank');
+            if (!filtered.length) return alert("אין נתונים לשליחה");
+
+            let msg = header + "%0A%0A";
+            filtered.forEach((t, i) => {
+                msg += `${i+1}. [${t.time}] ${t.text}%0A`;
+            });
+
+            window.open(`https://wa.me/${PHONE_NUMBER}?text=${msg}`, '_blank');
         }
 
         render();
