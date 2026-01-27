@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PhotoFun Booth Pro - Simple Fix</title>
+    <title>PhotoFun Booth Pro - Final</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Varela+Round&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
     <style>
         /* --- עיצוב כללי --- */
@@ -449,8 +449,8 @@
 
         <label>סגנון תמונות:</label>
         <div style="display:flex; gap:5px; margin: 8px 0 15px 0;">
-            <button id="btn-style-round-normal" type="button" style="flex:1; padding:10px; border-radius:10px; cursor:pointer; font-size:0.8rem;">עגול רגיל</button>
-            <button id="btn-style-round-big" type="button" style="flex:1; padding:10px; border-radius:10px; cursor:pointer; font-size:0.8rem;">עגול גדול</button>
+            <button id="btn-style-round-blur" type="button" style="flex:1; padding:10px; border-radius:10px; cursor:pointer; font-size:0.8rem;">עיגול טשטוש</button>
+            <button id="btn-style-square-blur" type="button" style="flex:1; padding:10px; border-radius:10px; cursor:pointer; font-size:0.8rem;">מרובע טשטוש</button>
             <button id="btn-style-square-frame" type="button" style="flex:1; padding:10px; border-radius:10px; cursor:pointer; font-size:0.8rem;">מרובע מסגרת</button>
         </div>
         
@@ -495,8 +495,8 @@
         let footerColor = localStorage.getItem('footerColor') || '#2c3e50';
 
         const FRAME_STYLE_KEY = 'photoFrameStyle';
-        // ברירת המחדל: עגול רגיל
-        let photoFrameStyle = localStorage.getItem(FRAME_STYLE_KEY) || 'round_normal';
+        // ברירת המחדל: עיגול טשטוש
+        let photoFrameStyle = localStorage.getItem(FRAME_STYLE_KEY) || 'round_blur';
 
         const PHOTO_MODE_KEY = 'photoMode'; 
         let photoMode = localStorage.getItem(PHOTO_MODE_KEY) || 'multipic';
@@ -633,22 +633,20 @@
         }
 
         function setupFrameStyleButtons() {
-            const btnRoundNormal = document.getElementById('btn-style-round-normal');
-            const btnRoundBig = document.getElementById('btn-style-round-big');
+            const btnRoundBlur = document.getElementById('btn-style-round-blur');
+            const btnSquareBlur = document.getElementById('btn-style-square-blur');
             const btnSquareFrame = document.getElementById('btn-style-square-frame');
 
             function applyVisual() {
-                // איפוס
-                [btnRoundNormal, btnRoundBig, btnSquareFrame].forEach(btn => {
+                [btnRoundBlur, btnSquareBlur, btnSquareFrame].forEach(btn => {
                     btn.style.background = '#f0f0f0';
                     btn.style.color = '#333';
                     btn.style.border = '2px solid #ddd';
                 });
 
-                // בחירה
                 let activeBtn;
-                if (photoFrameStyle === 'round_normal') activeBtn = btnRoundNormal;
-                else if (photoFrameStyle === 'round_big') activeBtn = btnRoundBig;
+                if (photoFrameStyle === 'round_blur') activeBtn = btnRoundBlur;
+                else if (photoFrameStyle === 'square_blur') activeBtn = btnSquareBlur;
                 else activeBtn = btnSquareFrame;
 
                 if (activeBtn) {
@@ -658,8 +656,8 @@
                 }
             }
 
-            btnRoundNormal.onclick = () => { photoFrameStyle = 'round_normal'; applyVisual(); };
-            btnRoundBig.onclick = () => { photoFrameStyle = 'round_big'; applyVisual(); };
+            btnRoundBlur.onclick = () => { photoFrameStyle = 'round_blur'; applyVisual(); };
+            btnSquareBlur.onclick = () => { photoFrameStyle = 'square_blur'; applyVisual(); };
             btnSquareFrame.onclick = () => { photoFrameStyle = 'square_frame'; applyVisual(); };
             applyVisual();
         }
@@ -859,62 +857,21 @@
                 ctx.closePath();
             }
 
-            // ✅ פונקציה מתוקנת - 3 מצבים ברורים
+            // ✅ כאן כל התיקון שהיה חסר לך!
             function drawSquarePhoto(photoCanvas, dx, dy, size) {
                 const imgW = photoCanvas.width, imgH = photoCanvas.height;
                 const s = Math.min(imgW, imgH);
                 const sx = (imgW - s) / 2, sy = (imgH - s) / 2;
 
-                // 1. עגול רגיל (הישן והטוב)
-                if (photoFrameStyle === 'round_normal') {
-                    const temp = document.createElement('canvas');
-                    temp.width = size; temp.height = size;
-                    const tctx = temp.getContext('2d');
-                    
-                    tctx.drawImage(photoCanvas, sx, sy, s, s, 0, 0, size, size);
-                    
-                    tctx.globalCompositeOperation = 'destination-in';
-                    // הגדרות הרגילות של העיגול
-                    const g = tctx.createRadialGradient(size/2, size/2, size*0.40, size/2, size/2, size*0.52);
-                    g.addColorStop(0, 'rgba(0,0,0,1)');
-                    g.addColorStop(1, 'rgba(0,0,0,0)');
-                    tctx.fillStyle = g;
-                    tctx.fillRect(0, 0, size, size);
-                    
-                    tctx.globalCompositeOperation = 'source-over';
-                    ctx.drawImage(temp, dx, dy, size, size);
-                    return;
-                }
-
-                // 2. ✅ עגול גדול (החדש!)
-                if (photoFrameStyle === 'round_big') {
-                    const temp = document.createElement('canvas');
-                    temp.width = size; temp.height = size;
-                    const tctx = temp.getContext('2d');
-                    
-                    tctx.drawImage(photoCanvas, sx, sy, s, s, 0, 0, size, size);
-                    
-                    tctx.globalCompositeOperation = 'destination-in';
-                    // ✅ כאן השינוי: הרדיוסים גדולים יותר, אז העיגול הנקי גדול יותר
-                    const g = tctx.createRadialGradient(size/2, size/2, size*0.47, size/2, size/2, size*0.65);
-                    g.addColorStop(0, 'rgba(0,0,0,1)');
-                    g.addColorStop(1, 'rgba(0,0,0,0)');
-                    tctx.fillStyle = g;
-                    tctx.fillRect(0, 0, size, size);
-                    
-                    tctx.globalCompositeOperation = 'source-over';
-                    ctx.drawImage(temp, dx, dy, size, size);
-                    return;
-                }
-
-                // 3. מרובע + מסגרת לבנה (הפולחרויד)
-                if (photoFrameStyle === 'square_frame') {
+                // 1. עיגול עם טשטוש (המקורי)
+                if (photoFrameStyle === 'round_blur') {
                     const radius = 28;
                     const pad = 14;
                     const fx = dx - pad;
                     const fy = dy - pad;
                     const fs = size + pad * 2;
 
+                    // הילה חיצונית
                     ctx.save();
                     ctx.shadowColor = 'rgba(0,0,0,0.28)';
                     ctx.shadowBlur = 18;
@@ -922,7 +879,8 @@
                     ctx.fillStyle = 'rgba(255,255,255,0.93)';
                     roundedRectPath(fx, fy, fs, fs, radius + 10);
                     ctx.fill();
-                    
+
+                    // קו לבן דק
                     ctx.shadowColor = 'transparent';
                     ctx.lineWidth = 6;
                     ctx.strokeStyle = 'rgba(255,255,255,0.98)';
@@ -930,16 +888,79 @@
                     ctx.stroke();
                     ctx.restore();
 
+                    // התמונה עצמה (עגולה)
                     ctx.save();
                     roundedRectPath(dx, dy, size, size, radius);
                     ctx.clip();
                     ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
-                    
+
+                    // קו פנימי
                     ctx.lineWidth = 4;
                     ctx.strokeStyle = 'rgba(255,255,255,0.35)';
                     roundedRectPath(dx + 2, dy + 2, size - 4, size - 4, Math.max(2, radius - 2));
                     ctx.stroke();
                     ctx.restore();
+                    return;
+                }
+
+                // 2. מרובע עם טשטוש (החדש - אותו אפקט בדיוק אבל מרובע)
+                if (photoFrameStyle === 'square_blur') {
+                    // כאן אני משתמש באותם ערכים בדיוק כמו של העיגול למעלה!
+                    // רק משנה את ה-radius כדי שזה יהיה מרובע עם פינות עגולות
+                    const radius = 10; // פינות קטנות (מרובע)
+                    const pad = 14;    // אותה הילה
+                    const fx = dx - pad;
+                    const fy = dy - pad;
+                    const fs = size + pad * 2;
+
+                    // הילה חיצונית (בדיוק אותו קוד)
+                    ctx.save();
+                    ctx.shadowColor = 'rgba(0,0,0,0.28)';
+                    ctx.shadowBlur = 18; 
+                    ctx.shadowOffsetY = 10;
+                    ctx.fillStyle = 'rgba(255,255,255,0.93)';
+                    roundedRectPath(fx, fy, fs, fs, radius + 10);
+                    ctx.fill();
+
+                    // קו לבן דק
+                    ctx.shadowColor = 'transparent';
+                    ctx.lineWidth = 6;
+                    ctx.strokeStyle = 'rgba(255,255,255,0.98)';
+                    roundedRectPath(fx, fy, fs, fs, radius + 10);
+                    ctx.stroke();
+                    ctx.restore();
+
+                    // התמונה עצמה (מרובעת!)
+                    ctx.save();
+                    roundedRectPath(dx, dy, size, size, radius); // חיתוך מרובע
+                    ctx.clip();
+                    ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
+
+                    // קו פנימי
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+                    roundedRectPath(dx + 2, dy + 2, size - 4, size - 4, Math.max(2, radius - 2));
+                    ctx.stroke();
+                    ctx.restore();
+                    return;
+                }
+
+                // 3. מרובע עם מסגרת (פולארויד - מסגרת עבה יותר)
+                if (photoFrameStyle === 'square_frame') {
+                    const radius = 4;
+                    const pad = 15; // מסגרת לבנה עבה
+                    
+                    // רקע לבן
+                    ctx.save();
+                    ctx.fillStyle = 'white';
+                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                    ctx.shadowBlur = 10;
+                    roundedRectPath(dx - pad, dy - pad, size + pad*2, size + pad*2, radius + 2);
+                    ctx.fill();
+                    ctx.restore();
+                    
+                    // התמונה
+                    ctx.drawImage(photoCanvas, sx, sy, s, s, dx, dy, size, size);
                     return;
                 }
             }
