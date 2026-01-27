@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>מנוע משחק - תיקון טעינה סופי</title>
+    <title>מנוע משחק - תיקון סופי בהחלט</title>
     <style>
         body { font-family: system-ui; background: #000; color: white; margin: 0; overflow: hidden; height: 100vh; touch-action: none; }
         #ui-layer { position: absolute; top: 0; width: 100%; z-index: 100; background: rgba(0,0,0,0.7); padding: 10px; text-align: center; pointer-events: none; }
@@ -22,8 +22,6 @@
         .btn-group { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
         .btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; }
         .save-btn { background: #2ecc71; color: white; }
-        .slider-container { margin: 10px 0; background: #34495e; padding: 10px; border-radius: 8px; }
-        input[type=range] { width: 100%; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -48,9 +46,9 @@
         </div>
         <input type="text" id="stage-instruction" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;" placeholder="מה המשימה לשלב זה?">
         
-        <div class="slider-container">
-            <label>טשטוש (Blur): <span id="blur-val">0</span>px</label>
-            <input type="range" id="blur-slider" min="0" max="5" step="0.1" value="0" oninput="updateBlur(this.value)">
+        <div style="background: #34495e; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+            <label style="font-size: 12px;">טשטוש: <span id="blur-val">0</span>px</label>
+            <input type="range" id="blur-slider" min="0" max="5" step="0.1" value="0" style="width:100%" oninput="updateBlur(this.value)">
         </div>
 
         <div style="display:flex; justify-content: space-between; gap:5px;">
@@ -69,7 +67,7 @@
             </script>
         </div>
         <div class="btn-group">
-            <button class="btn save-btn" onclick="saveStage()">שמור מקומית</button>
+            <button class="btn save-btn" onclick="saveStage()">שמור בטלפון</button>
             <button class="btn" style="background:#3498db; color:white;" onclick="exportJSON()">ייצוא ל-GitHub 📋</button>
             <button class="btn" style="background:#e74c3c; color:white;" onclick="toggleAdmin(false)">סגור</button>
         </div>
@@ -78,11 +76,7 @@
     <script>
         const GITHUB_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/matmon.json";
         
-        // נתוני ברירת מחדל
-        let gameData = Array(10).fill(null).map(() => ({
-            emoji: '🍉', x: 50, y: 50, size: 35, blur: 0, bg: '1.png', text: 'מצא את האבטיח'
-        }));
-
+        let gameData = [];
         let currentLevel = 0, isAdminOpen = false, editTarget = 'IMAGE', pressTimer;
         let scale = 1, lastDist = 0, objSize = 35, posX = 0, posY = 0, startX = 0, startY = 0;
         let timeLeft = 30, timerInterval, currentBlur = 0;
@@ -91,20 +85,26 @@
         const obj = document.getElementById('hidden-object'), img = document.getElementById('game-image');
         const admin = document.getElementById('admin-panel'), timerEl = document.getElementById('timer-display');
 
+        // פונקציית טעינה שמעדיפה את השרת (GitHub) על פני הטלפון
         async function loadServerData() {
             try {
                 const response = await fetch(`data/matmon.json?v=${Date.now()}`, { cache: "no-store" });
                 if (response.ok) {
-                    const data = await response.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        gameData = data;
-                        console.log("נתונים נטענו מהשרת");
-                    }
+                    gameData = await response.json();
+                    console.log("נתונים נטענו מהשרת!");
+                } else {
+                    throw new Error();
                 }
             } catch (e) {
-                console.log("שגיאה בטעינה מהשרת, בודק זיכרון מקומי");
+                console.log("טוען מזיכרון מקומי...");
                 const local = localStorage.getItem('myGameData');
                 if(local) gameData = JSON.parse(local);
+            }
+            
+            if (!gameData || gameData.length === 0) {
+                gameData = Array(10).fill(null).map(() => ({
+                    emoji: '🍉', x: 50, y: 50, size: 35, blur: 0, bg: '1.png', text: 'מצא את המטמון'
+                }));
             }
             loadStage();
             startTimer();
@@ -115,37 +115,31 @@
             let data = gameData[idx];
             if(!data) return;
 
-            // המרה כפויה למספרים למניעת באגים
-            data.x = Number(data.x);
-            data.y = Number(data.y);
-            data.size = Number(data.size);
-            data.blur = Number(data.blur);
-
             document.getElementById('level-num').innerText = parseInt(idx) + 1;
-            document.getElementById('instruction-display').innerText = data.text || 'מצא את המטמון';
+            document.getElementById('instruction-display').innerText = data.text || 'חפש את האובייקט';
+            
+            // טעינת תמונה ורק אחרי שהיא נטענת - הצגת האובייקט במקום הנכון
             img.src = data.bg;
-            obj.innerText = data.emoji;
-            
-            // עדכון גודל וטשטוש לפני הצגה
-            objSize = data.size || 35;
-            currentBlur = data.blur || 0;
-            
-            obj.style.left = data.x + '%';
-            obj.style.top = data.y + '%';
-            obj.style.fontSize = objSize + 'px';
-            obj.style.filter = `blur(${currentBlur}px)`;
+            img.onload = () => {
+                obj.innerText = data.emoji;
+                obj.style.left = data.x + '%';
+                obj.style.top = data.y + '%';
+                objSize = Number(data.size) || 35;
+                obj.style.fontSize = objSize + 'px';
+                currentBlur = Number(data.blur) || 0;
+                obj.style.filter = `blur(${currentBlur}px)`;
+                obj.style.display = 'block';
+            };
 
             if(isAdminOpen) {
-                document.getElementById('blur-slider').value = currentBlur;
-                document.getElementById('blur-val').innerText = currentBlur;
+                document.getElementById('blur-slider').value = data.blur || 0;
+                document.getElementById('blur-val').innerText = data.blur || 0;
                 document.getElementById('bg-select').value = data.bg;
                 document.getElementById('stage-instruction').value = data.text || '';
                 document.getElementById('stage-select').value = idx;
             }
-            obj.style.display = 'block';
         }
 
-        // --- מנגנון מגע ---
         viewport.ontouchstart = (e) => {
             if(isAdminOpen) {
                 if(e.touches.length === 1) {
@@ -166,14 +160,13 @@
         viewport.ontouchmove = (e) => {
             e.preventDefault();
             if (e.touches.length > 0) clearTimeout(pressTimer);
-            
             if(isAdminOpen && editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
                     let rect = img.getBoundingClientRect();
-                    let newX = ((e.touches[0].clientX - rect.left) / rect.width) * 100;
-                    let newY = ((e.touches[0].clientY - rect.top) / rect.height) * 100;
-                    obj.style.left = newX + '%';
-                    obj.style.top = newY + '%';
+                    let px = ((e.touches[0].clientX - rect.left) / rect.width) * 100;
+                    let py = ((e.touches[0].clientY - rect.top) / rect.height) * 100;
+                    obj.style.left = px + '%';
+                    obj.style.top = py + '%';
                 }
                 if(e.touches.length === 2) {
                     let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
@@ -195,7 +188,7 @@
         };
 
         function updateBlur(val) {
-            currentBlur = Number(val);
+            currentBlur = parseFloat(val);
             document.getElementById('blur-val').innerText = val;
             obj.style.filter = `blur(${val}px)`;
         }
@@ -216,11 +209,10 @@
         }
 
         function exportJSON() {
-            // שמירה לפני ייצוא
             saveStage();
             const dataStr = JSON.stringify(gameData, null, 2);
             navigator.clipboard.writeText(dataStr).then(() => {
-                alert("הנתונים הועתקו! הדבק אותם ב-GitHub.");
+                alert("הנתונים הועתקו! מחק את הזיכרון המקומי בטלפון אחרי שתדביק ב-GitHub כדי לראות שינויים.");
                 window.open(GITHUB_EDIT_URL, '_blank');
             });
         }
