@@ -12,7 +12,7 @@
         #game-viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         #world { position: relative; transform-origin: center; width: 100%; display: flex; align-items: center; justify-content: center; }
         #game-image { width: 100%; height: auto; pointer-events: none; }
-        #hidden-object { position: absolute; z-index: 50; line-height: 1; display: none; white-space: nowrap; transform: translate(-50%, -50%); border: 2px transparent dashed; }
+        #hidden-object { position: absolute; z-index: 50; line-height: 1; display: none; white-space: nowrap; transform: translate(-50%, -50%); border: 2px transparent dashed; transition: filter 0.2s; }
         #admin-panel { display: none; position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(30, 39, 46, 0.95); padding: 12px; border-radius: 20px; border: 2px solid #f1c40f; z-index: 1000; width: 95%; max-width: 420px; max-height: 80vh; overflow-y: auto; }
         .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
         .mode-btn { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555; background: #1e272e; color: white; font-weight: bold; }
@@ -155,7 +155,10 @@
                 }
                 if(e.touches.length === 2) {
                     let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-                    if(lastDist > 0) { objSize += (dist - lastDist) * 0.5; obj.style.fontSize = Math.max(5, objSize) + 'px'; }
+                    if(lastDist > 0) { 
+                        objSize += (dist - lastDist) * 0.5; 
+                        obj.style.fontSize = Math.max(5, objSize) + 'px'; 
+                    }
                     lastDist = dist;
                 }
             } else {
@@ -173,7 +176,7 @@
         };
 
         function updateBlur(val) {
-            currentBlur = val;
+            currentBlur = parseFloat(val);
             document.getElementById('blur-val').innerText = val;
             obj.style.filter = `blur(${val}px)`;
         }
@@ -217,21 +220,30 @@
         function loadStage() {
             let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
             let data = gameData[idx];
+            
+            // עדכון טקסט ושלב
             document.getElementById('level-num').innerText = parseInt(idx) + 1;
             document.getElementById('instruction-display').innerText = data.text || 'מצא את המטמון';
             img.src = data.bg;
             obj.innerText = data.emoji;
-            obj.style.left = data.x + '%'; obj.style.top = data.y + '%';
-            objSize = data.size || 30; obj.style.fontSize = objSize + 'px';
             
-            // טעינת הטשטוש
+            // עדכון מיקום
+            obj.style.left = data.x + '%'; 
+            obj.style.top = data.y + '%';
+            
+            // *** התיקון כאן: עדכון המשתנים הגלובליים ***
+            objSize = data.size || 30; 
+            obj.style.fontSize = objSize + 'px';
+            
             currentBlur = data.blur || 0;
             obj.style.filter = `blur(${currentBlur}px)`;
+
             if(isAdminOpen) {
                 document.getElementById('blur-slider').value = currentBlur;
                 document.getElementById('blur-val').innerText = currentBlur;
                 document.getElementById('bg-select').value = data.bg;
                 document.getElementById('stage-instruction').value = data.text || '';
+                document.getElementById('stage-select').value = idx;
             }
             obj.style.display = 'block';
         }
@@ -239,9 +251,13 @@
         function saveStage() {
             let idx = document.getElementById('stage-select').value;
             gameData[idx] = {
-                emoji: obj.innerText, bg: document.getElementById('bg-select').value,
-                x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), 
-                size: objSize, blur: parseFloat(currentBlur), text: document.getElementById('stage-instruction').value
+                emoji: obj.innerText, 
+                bg: document.getElementById('bg-select').value,
+                x: parseFloat(obj.style.left), 
+                y: parseFloat(obj.style.top), 
+                size: parseFloat(objSize), 
+                blur: parseFloat(currentBlur), 
+                text: document.getElementById('stage-instruction').value
             };
             localStorage.setItem('myGameData', JSON.stringify(gameData));
             alert("נשמר בזיכרון המקומי!");
