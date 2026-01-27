@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>עורך משחק - מצב זום מלא</title>
+    <title>עורך משחק - בורר מצבי זום</title>
     <style>
         body { 
             font-family: system-ui; background: #000; color: white; 
@@ -12,7 +12,7 @@
 
         #ui-layer {
             position: absolute; top: 0; width: 100%; z-index: 100;
-            background: rgba(0,0,0,0.6); padding: 10px; text-align: center;
+            background: rgba(0,0,0,0.7); padding: 10px; text-align: center;
         }
 
         #game-viewport {
@@ -20,7 +20,6 @@
             overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
 
-        /* הקונטיינר שזז ועושה זום */
         #world {
             position: relative; transform-origin: center;
             width: 100%; display: flex; align-items: center; justify-content: center;
@@ -33,25 +32,39 @@
             display: none; white-space: nowrap;
             user-select: none; touch-action: none;
             transform: translate(-50%, -50%);
+            border: 2px transparent dashed;
         }
 
-        /* פאנל ניהול משופר - קטן ולא מסתיר */
+        .edit-active-obj { border-color: #f1c40f !important; }
+
         #admin-panel {
             display: none; position: fixed; bottom: 10px; left: 50%;
-            transform: translateX(-50%); background: rgba(30, 39, 46, 0.9);
-            padding: 10px; border-radius: 15px; border: 2px solid #f1c40f;
-            z-index: 1000; width: 95%; max-width: 400px;
+            transform: translateX(-50%); background: rgba(30, 39, 46, 0.95);
+            padding: 12px; border-radius: 20px; border: 2px solid #f1c40f;
+            z-index: 1000; width: 95%; max-width: 420px;
+        }
+
+        /* בורר מצבים חדש */
+        .mode-selector {
+            display: flex; gap: 10px; margin-bottom: 10px;
+        }
+        .mode-btn {
+            flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555;
+            background: #1e272e; color: white; font-weight: bold;
+        }
+        .mode-btn.active {
+            background: #f1c40f; color: black; border-color: white;
         }
 
         .emoji-grid { 
             display: grid; grid-template-columns: repeat(10, 1fr); 
-            gap: 5px; margin: 10px 0; max-height: 80px; overflow-y: auto; 
+            gap: 5px; margin: 10px 0; max-height: 60px; overflow-y: auto; 
         }
         .emoji-btn { font-size: 20px; background: #34495e; border: none; padding: 5px; border-radius: 5px; }
         
-        .selector { background: #34495e; color: white; padding: 8px; margin: 2px 0; width: 100%; border-radius: 5px; border: none; }
-        .btn-group { display: flex; gap: 5px; }
-        .btn { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; font-size: 14px; }
+        .selector { background: #34495e; color: white; padding: 8px; width: 49%; border-radius: 5px; border: none; }
+        .btn-group { display: flex; gap: 5px; margin-top: 10px; }
+        .btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; }
         .save-btn { background: #2ecc71; color: white; }
         .close-btn { background: #e74c3c; color: white; }
     </style>
@@ -60,7 +73,7 @@
 
     <div id="ui-layer">
         <div id="status">שלב: <span id="level-num">1</span></div>
-        <div id="edit-msg" style="display:none; color:#f1c40f; font-size:12px;">צבוט את המסך לזום | גרור את הפריט למיקום</div>
+        <div id="edit-msg" style="display:none; color:#f1c40f; font-size:12px;">בחר "ערוך פריט" להזזה או "ערוך תמונה" לזום במפה</div>
     </div>
 
     <div id="game-viewport">
@@ -71,7 +84,12 @@
     </div>
 
     <div id="admin-panel">
-        <div style="display:flex; gap:5px;">
+        <div class="mode-selector">
+            <button id="btn-mode-img" class="mode-btn active" onclick="setEditMode('IMAGE')">ערוך תמונה 🖼️</button>
+            <button id="id-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">ערוך פריט 🍉</button>
+        </div>
+
+        <div style="display:flex; justify-content: space-between;">
             <select id="stage-select" class="selector" onchange="loadStage()">
                 <script>for(let i=0; i<10; i++) document.write(`<option value="${i}">שלב ${i+1}</option>`)</script>
             </select>
@@ -82,31 +100,15 @@
         </div>
 
         <div class="emoji-grid">
-            <button class="emoji-btn" onclick="setEmoji('🍉')">🍉</button>
-            <button class="emoji-btn" onclick="setEmoji('🚗')">🚗</button>
-            <button class="emoji-btn" onclick="setEmoji('🐤')">🐤</button>
-            <button class="emoji-btn" onclick="setEmoji('💎')">💎</button>
-            <button class="emoji-btn" onclick="setEmoji('🍕')">🍕</button>
-            <button class="emoji-btn" onclick="setEmoji('⚽')">⚽</button>
-            <button class="emoji-btn" onclick="setEmoji('🚀')">🚀</button>
-            <button class="emoji-btn" onclick="setEmoji('🍦')">🍦</button>
-            <button class="emoji-btn" onclick="setEmoji('🎸')">🎸</button>
-            <button class="emoji-btn" onclick="setEmoji('🍩')">🍩</button>
-            <button class="emoji-btn" onclick="setEmoji('🚁')">🚁</button>
-            <button class="emoji-btn" onclick="setEmoji('🕶️')">🕶️</button>
-            <button class="emoji-btn" onclick="setEmoji('🔑')">🔑</button>
-            <button class="emoji-btn" onclick="setEmoji('🍄')">🍄</button>
-            <button class="emoji-btn" onclick="setEmoji('🧸')">🧸</button>
-            <button class="emoji-btn" onclick="setEmoji('🚲')">🚲</button>
-            <button class="emoji-btn" onclick="setEmoji('🦀')">🦀</button>
-            <button class="emoji-btn" onclick="setEmoji('🦋')">🦋</button>
-            <button class="emoji-btn" onclick="setEmoji('⚓')">⚓</button>
-            <button class="emoji-btn" onclick="setEmoji('🎁')">🎁</button>
+            <script>
+                const emojis = ['🍉','🚗','🐤','💎','🍕','⚽','🚀','🍦','🎸','🍩','🚁','🕶️','🔑','🍄','🧸','🚲','🦀','🦋','⚓','🎁'];
+                emojis.forEach(e => document.write(`<button class="emoji-btn" onclick="setEmoji('${e}')">${e}</button>`));
+            </script>
         </div>
 
         <div class="btn-group">
-            <button class="btn save-btn" onclick="saveStage()">שמור</button>
-            <button class="btn close-btn" onclick="toggleEdit(false)">סגור</button>
+            <button class="btn save-btn" onclick="saveStage()">שמור שלב</button>
+            <button class="btn close-btn" onclick="toggleAdmin(false)">סגור</button>
         </div>
     </div>
 
@@ -116,10 +118,11 @@
         }));
 
         let currentLevel = 0;
-        let isEditMode = false;
+        let isAdminOpen = false;
+        let editTarget = 'IMAGE'; // IMAGE או OBJECT
         let pressTimer;
 
-        // משתני תנועה וזום
+        // משתני תנועה
         let scale = 1, lastDist = 0, objSize = 30;
         let posX = 0, posY = 0, startX = 0, startY = 0;
 
@@ -129,77 +132,75 @@
         const img = document.getElementById('game-image');
         const admin = document.getElementById('admin-panel');
 
-        // לחיצה ארוכה (3 שניות) לכניסה לעריכה
+        // לחיצה ארוכה לכניסה לעריכה
         viewport.ontouchstart = (e) => {
-            if(isEditMode) {
+            if(isAdminOpen) {
                 if(e.touches.length === 1) {
-                    startX = e.touches[0].clientX - posX;
-                    startY = e.touches[0].clientY - posY;
+                    startX = e.touches[0].clientX - (editTarget === 'IMAGE' ? posX : 0);
+                    startY = e.touches[0].clientY - (editTarget === 'IMAGE' ? posY : 0);
                 }
                 return;
             }
-            pressTimer = setTimeout(() => toggleEdit(true), 3000);
+            pressTimer = setTimeout(() => toggleAdmin(true), 3000);
         };
         viewport.ontouchend = () => clearTimeout(pressTimer);
 
-        function toggleEdit(show) {
-            isEditMode = show;
+        function setEditMode(mode) {
+            editTarget = mode;
+            document.getElementById('btn-mode-img').classList.toggle('active', mode === 'IMAGE');
+            document.getElementById('id-mode-obj').classList.toggle('active', mode === 'OBJECT');
+            obj.classList.toggle('edit-active-obj', mode === 'OBJECT');
+        }
+
+        function toggleAdmin(show) {
+            isAdminOpen = show;
             admin.style.display = show ? 'block' : 'none';
             document.getElementById('edit-msg').style.display = show ? 'block' : 'none';
-            if(!show) { scale = 1; posX = 0; posY = 0; updateTransform(); }
+            if(!show) { scale = 1; posX = 0; posY = 0; updateTransform(); obj.classList.remove('edit-active-obj'); }
             loadStage();
         }
 
-        // מנגנון זום וגרירה של כל התמונה במצב עריכה
         viewport.ontouchmove = (e) => {
-            if(!isEditMode) return;
+            if(!isAdminOpen) return;
             e.preventDefault();
 
-            if(e.touches.length === 1 && e.target !== obj) {
-                posX = e.touches[0].clientX - startX;
-                posY = e.touches[0].clientY - startY;
-            }
-
-            if(e.touches.length === 2) {
-                let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                if(lastDist > 0) {
-                    scale *= (dist / lastDist);
-                    scale = Math.max(1, Math.min(6, scale));
+            // מצב עריכת תמונה (זום וגרירה של המפה)
+            if(editTarget === 'IMAGE') {
+                if(e.touches.length === 1) {
+                    posX = e.touches[0].clientX - startX;
+                    posY = e.touches[0].clientY - startY;
                 }
-                lastDist = dist;
+                if(e.touches.length === 2) {
+                    let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    if(lastDist > 0) { scale *= (dist / lastDist); scale = Math.max(1, Math.min(8, scale)); }
+                    lastDist = dist;
+                }
+            } 
+            // מצב עריכת פריט (הזזה וזום של האבטיח)
+            else if(editTarget === 'OBJECT') {
+                if(e.touches.length === 1) {
+                    let rect = img.getBoundingClientRect();
+                    obj.style.left = ((e.touches[0].clientX - rect.left) / rect.width) * 100 + '%';
+                    obj.style.top = ((e.touches[0].clientY - rect.top) / rect.height) * 100 + '%';
+                }
+                if(e.touches.length === 2) {
+                    let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    if(lastDist > 0) { objSize += (dist - lastDist) * 0.5; obj.style.fontSize = Math.max(5, objSize) + 'px'; }
+                    lastDist = dist;
+                }
             }
             updateTransform();
         };
+
         viewport.ontouchend = () => { lastDist = 0; };
 
         function updateTransform() {
             world.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
         }
 
-        // ניהול האובייקט (הזזה ושינוי גודל)
-        obj.ontouchmove = (e) => {
-            if(!isEditMode) return;
-            e.stopPropagation();
-            if(e.touches.length === 1) {
-                let rect = img.getBoundingClientRect();
-                let x = ((e.touches[0].clientX - rect.left) / rect.width) * 100;
-                let y = ((e.touches[0].clientY - rect.top) / rect.height) * 100;
-                obj.style.left = x + '%';
-                obj.style.top = y + '%';
-            }
-            if(e.touches.length === 2) {
-                let dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                if(lastDist > 0) {
-                    objSize += (dist - lastDist) * 0.5;
-                    obj.style.fontSize = objSize + 'px';
-                }
-                lastDist = dist;
-            }
-        };
-
-        obj.ontouchend = () => {
-            if(!isEditMode) {
-                alert("מצאת!");
+        obj.onclick = () => {
+            if(!isAdminOpen) {
+                alert("כל הכבוד!");
                 currentLevel = (currentLevel + 1) % 10;
                 loadStage();
             }
@@ -209,7 +210,7 @@
         function updateBG() { img.src = document.getElementById('bg-select').value; }
 
         function loadStage() {
-            let idx = isEditMode ? document.getElementById('stage-select').value : currentLevel;
+            let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
             let data = gameData[idx];
             document.getElementById('level-num').innerText = parseInt(idx) + 1;
             img.src = data.bg;
@@ -224,14 +225,11 @@
         function saveStage() {
             let idx = document.getElementById('stage-select').value;
             gameData[idx] = {
-                emoji: obj.innerText,
-                bg: document.getElementById('bg-select').value,
-                x: parseFloat(obj.style.left),
-                y: parseFloat(obj.style.top),
-                size: objSize
+                emoji: obj.innerText, bg: document.getElementById('bg-select').value,
+                x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), size: objSize
             };
             localStorage.setItem('myGameData', JSON.stringify(gameData));
-            alert("נשמר!");
+            alert("השלב נשמר!");
         }
 
         window.onload = loadStage;
