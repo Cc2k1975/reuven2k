@@ -2,195 +2,186 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>משחק המציאה הבלתי אפשרי</title>
+    <title>מנוע בניית שלבים - 10 שלבים</title>
     <style>
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background-color: #1a1a1a;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; text-align: center; margin: 0; overflow: hidden; }
+        #game-container { position: relative; display: inline-block; margin-top: 10px; border: 4px solid #444; background: #000; }
+        #game-image { max-width: 85vw; max-height: 70vh; display: block; user-select: none; }
+        
+        /* הפריט המוחבא */
+        #hidden-object {
+            position: absolute;
+            cursor: move;
+            display: none;
+            z-index: 10;
+            line-height: 1;
         }
 
-        #game-wrapper {
-            text-align: center;
-            max-width: 900px;
-            width: 95%;
+        /* פאנל ניהול */
+        #admin-panel {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2c3e50; padding: 20px;
+            border-radius: 15px; border: 3px solid #f1c40f;
+            z-index: 1000; width: 300px; box-shadow: 0 0 100px rgba(0,0,0,0.8);
         }
 
-        .header-info {
-            background: rgba(0,0,0,0.8);
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-around;
-            border: 1px solid #444;
-        }
-
-        #game-container {
-            position: relative;
-            cursor: crosshair;
-            border: 5px solid #333;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            background-color: #000;
-        }
-
-        #game-image {
-            display: block;
-            width: 100%;
-            height: auto;
-            user-select: none;
-            -webkit-user-drag: none;
-        }
-
-        .stat-box { font-size: 22px; font-weight: bold; }
-        #timer { color: #ff4757; }
-        #level-num { color: #2ed573; }
-        #instruction { 
-            color: #ffd32a; 
-            margin: 10px 0; 
-            font-size: 20px; 
-            text-shadow: 1px 1px 2px black;
-        }
-
-        /* אפקט רעידה בטעות */
-        .wrong-click { animation: shake 0.2s ease-in-out; }
-        @keyframes shake {
-            0%, 100% { transform: translate(0); }
-            25% { transform: translate(-8px); }
-            75% { transform: translate(8px); }
-        }
-
-        /* אפקט הצלחה */
-        .success-flash { background-color: #2ed573 !important; transition: 0.2s; }
+        .btn { background: #f1c40f; color: black; border: none; padding: 8px 12px; margin: 4px; cursor: pointer; font-weight: bold; border-radius: 5px; }
+        .btn:hover { background: #d4ac0d; }
+        .save-btn { background: #2ecc71; color: white; width: 90%; margin-top: 15px; }
+        .stage-selector { background: #34495e; color: white; padding: 5px; margin-bottom: 10px; width: 100%; }
+        
+        #ui-layer { margin: 10px; font-size: 20px; }
+        .edit-mode-active { border: 4px dashed #f1c40f !important; }
     </style>
 </head>
 <body>
 
-    <div id="game-wrapper">
-        <div class="header-info" id="top-bar">
-            <div class="stat-box">שלב: <span id="level-num">1</span>/50</div>
-            <div class="stat-box">זמן נותר: <span id="timer">20</span>s</div>
-        </div>
-        
-        <div id="instruction">טוען משחק...</div>
+    <div id="ui-layer">
+        <div>שלב: <span id="current-stage-display">1</span> | זמן: <span id="timer">20</span></div>
+        <div id="hint" style="color: #f1c40f; font-size: 16px;">(לחץ 5 שניות למצב עריכה)</div>
+    </div>
 
-        <div id="game-container">
-            <img id="game-image" src="1.png" alt="Game Level">
-        </div>
+    <div id="game-container">
+        <img id="game-image" src="1.png">
+        <div id="hidden-object"><span id="object-emoji">🍉</span></div>
+    </div>
+
+    <div id="admin-panel">
+        <h2 style="margin-top:0">הגדרות שלב</h2>
+        
+        <label>בחר שלב לעריכה:</label>
+        <select id="stage-select" class="stage-selector" onchange="loadStageToEdit()">
+            <option value="0">שלב 1</option>
+            <option value="1">שלב 2</option>
+            <option value="2">שלב 3</option>
+            <option value="3">שלב 4</option>
+            <option value="4">שלב 5</option>
+            <option value="5">שלב 6</option>
+            <option value="6">שלב 7</option>
+            <option value="7">שלב 8</option>
+            <option value="8">שלב 9</option>
+            <option value="9">שלב 10</option>
+        </select>
+
+        <p>בחר פריט:</p>
+        <button class="btn" onclick="setEmoji('🍉')">🍉</button>
+        <button class="btn" onclick="setEmoji('🚗')">🚗</button>
+        <button class="btn" onclick="setEmoji('🚢')">🚢</button>
+        <button class="btn" onclick="setEmoji('🐤')">🐤</button>
+
+        <p>גודל פריט:</p>
+        <button class="btn" onclick="changeSize(2)">+</button>
+        <button class="btn" onclick="changeSize(-2)">-</button>
+
+        <button class="btn save-btn" onclick="saveCurrentStage()">שמור שלב זה</button>
+        <button class="btn" style="background:#e74c3c; color:white;" onclick="closeAdmin()">סגור</button>
     </div>
 
     <script>
-        // הגדרות השלבים - כאן אתה מעדכן את המיקום המדויק
-        const levels = [
-            { 
-                img: "1.png", 
-                targetName: "אבטיח", 
-                x: 75, // מיקום באחוזים מרוחב התמונה (0-100)
-                y: 82, // מיקום באחוזים מגובה התמונה (0-100)
-                radius: 4 // רמת דיוק נדרשת (ככל שקטן יותר - קשה יותר)
-            },
-            { 
-                img: "2.png", 
-                targetName: "ציפור", 
-                x: 15, 
-                y: 10, 
-                radius: 3 
-            }
-            // תוכל להוסיף כאן 3.png, 4.png וכו'
-        ];
+        let gameData = JSON.parse(localStorage.getItem('myGameData')) || Array(10).fill(null).map(() => ({
+            emoji: '🍉', x: 50, y: 50, size: 20
+        }));
 
-        let currentLevel = 0;
-        let timeLeft = 20;
-        let timerInterval;
+        let currentStage = 0;
+        let isEditMode = false;
+        let pressTimer;
 
+        const obj = document.getElementById('hidden-object');
         const img = document.getElementById('game-image');
-        const timerDisplay = document.getElementById('timer');
-        const levelDisplay = document.getElementById('level-num');
-        const instrDisplay = document.getElementById('instruction');
-        const container = document.getElementById('game-container');
-        const topBar = document.getElementById('top-bar');
+        const admin = document.getElementById('admin-panel');
+        const stageDisplay = document.getElementById('current-stage-display');
 
-        function startLevel() {
-            const levelData = levels[currentLevel];
-            
-            // עדכון ממשק
-            img.src = levelData.img;
-            levelDisplay.innerText = currentLevel + 1;
-            instrDisplay.innerHTML = `חפש את ה<strong>${levelData.targetName}</strong> הקטן!`;
-            
-            timeLeft = 20;
-            timerDisplay.innerText = timeLeft;
+        // לחיצה ארוכה לפתיחת עורך
+        window.onmousedown = (e) => {
+            if (e.target.id === 'admin-panel' || admin.contains(e.target)) return;
+            pressTimer = setTimeout(() => {
+                isEditMode = true;
+                admin.style.display = 'block';
+                document.getElementById('game-container').classList.add('edit-mode-active');
+                loadStageToEdit();
+            }, 5000);
+        };
+        window.onmouseup = () => clearTimeout(pressTimer);
 
-            clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                timerDisplay.innerText = timeLeft;
-                if (timeLeft <= 0) {
-                    gameOver();
+        function setEmoji(e) { document.getElementById('object-emoji').innerText = e; }
+        
+        function changeSize(amt) {
+            let current = parseInt(window.getComputedStyle(obj).fontSize);
+            obj.style.fontSize = (current + amt) + "px";
+        }
+
+        function loadStageToEdit() {
+            let stageIdx = document.getElementById('stage-select').value;
+            let data = gameData[stageIdx];
+            obj.style.display = 'block';
+            obj.style.left = data.x + '%';
+            obj.style.top = data.y + '%';
+            obj.style.fontSize = data.size + 'px';
+            document.getElementById('object-emoji').innerText = data.emoji;
+        }
+
+        function saveCurrentStage() {
+            let stageIdx = document.getElementById('stage-select').value;
+            gameData[stageIdx] = {
+                emoji: document.getElementById('object-emoji').innerText,
+                x: parseFloat(obj.style.left),
+                y: parseFloat(obj.style.top),
+                size: parseInt(obj.style.fontSize)
+            };
+            localStorage.setItem('myGameData', JSON.stringify(gameData));
+            alert("שלב " + (parseInt(stageIdx)+1) + " נשמר בהצלחה!");
+        }
+
+        function closeAdmin() {
+            admin.style.display = 'none';
+            isEditMode = false;
+            document.getElementById('game-container').classList.remove('edit-mode-active');
+            playGame();
+        }
+
+        // גרירה
+        obj.onmousedown = function(e) {
+            if(!isEditMode) {
+                alert("כל הכבוד! מצאת את האובייקט!");
+                if(currentStage < 9) {
+                    currentStage++;
+                    playGame();
+                } else {
+                    alert("סיימת את כל 10 השלבים!");
+                    currentStage = 0;
+                    playGame();
                 }
-            }, 1000);
-        }
-
-        container.addEventListener('mousedown', function(e) {
-            const rect = img.getBoundingClientRect();
-            
-            // חישוב המיקום היחסי באחוזים
-            const clickX = ((e.clientX - rect.left) / rect.width) * 100;
-            const clickY = ((e.clientY - rect.top) / rect.height) * 100;
-
-            const levelData = levels[currentLevel];
-            
-            // בדיקת מרחק (פיתגורס)
-            const dist = Math.sqrt(Math.pow(clickX - levelData.x, 2) + Math.pow(clickY - levelData.y, 2));
-
-            if (dist <= levelData.radius) {
-                nextLevel();
-            } else {
-                penalty();
+                return;
             }
-        });
-
-        function nextLevel() {
-            clearInterval(timerInterval);
-            topBar.classList.add('success-flash');
-            setTimeout(() => topBar.classList.remove('success-flash'), 300);
-
-            if (currentLevel < levels.length - 1) {
-                alert("מצאת! מוכן לשלב הבא?");
-                currentLevel++;
-                startLevel();
-            } else {
-                alert("מדהים! סיימת את כל השלבים הזמינים!");
-                currentLevel = 0;
-                startLevel();
+            e.stopPropagation();
+            let rect = img.getBoundingClientRect();
+            function moveAt(pageX, pageY) {
+                let x = ((pageX - rect.left) / rect.width) * 100;
+                let y = ((pageY - rect.top) / rect.height) * 100;
+                obj.style.left = Math.max(0, Math.min(98, x)) + '%';
+                obj.style.top = Math.max(0, Math.min(98, y)) + '%';
             }
+            function onMouseMove(e) { moveAt(e.pageX, e.pageY); }
+            document.addEventListener('mousemove', onMouseMove);
+            document.onmouseup = () => document.removeEventListener('mousemove', onMouseMove);
+        };
+
+        function playGame() {
+            let data = gameData[currentStage];
+            stageDisplay.innerText = currentStage + 1;
+            obj.style.display = 'block';
+            obj.style.left = data.x + '%';
+            obj.style.top = data.y + '%';
+            obj.style.fontSize = data.size + 'px';
+            document.getElementById('object-emoji').innerText = data.emoji;
+            // כאן אפשר להוסיף לוגיקה להחלפת תמונה (1.png, 2.png וכו')
+            // img.src = (currentStage + 1) + ".png"; 
         }
 
-        function penalty() {
-            timeLeft -= 3; // הורדת 3 שניות על טעות
-            timerDisplay.innerText = timeLeft;
-            container.classList.add('wrong-click');
-            setTimeout(() => container.classList.remove('wrong-click'), 200);
-        }
-
-        function gameOver() {
-            clearInterval(timerInterval);
-            alert("נגמר הזמן! נסה שוב מהתחלה.");
-            currentLevel = 0;
-            startLevel();
-        }
-
-        // התחלת המשחק ברגע שהדף נטען
-        window.onload = startLevel;
+        window.onload = playGame;
     </script>
 </body>
 </html>
