@@ -12,7 +12,7 @@
         #game-viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         #world { position: relative; transform-origin: center; width: 100%; display: flex; align-items: center; justify-content: center; }
         #game-image { width: 100%; height: auto; pointer-events: none; }
-        #hidden-object { position: absolute; z-index: 50; line-height: 1; display: none; white-space: nowrap; transform: translate(-50%, -50%); border: 2px transparent dashed; transition: filter 0.2s; }
+        #hidden-object { position: absolute; z-index: 50; line-height: 1; display: none; white-space: nowrap; transform: translate(-50%, -50%); border: 2px transparent dashed; }
         #admin-panel { display: none; position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(30, 39, 46, 0.95); padding: 12px; border-radius: 20px; border: 2px solid #f1c40f; z-index: 1000; width: 95%; max-width: 420px; max-height: 80vh; overflow-y: auto; }
         .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
         .mode-btn { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555; background: #1e272e; color: white; font-weight: bold; }
@@ -51,7 +51,7 @@
         
         <div class="slider-container">
             <label>טשטוש אובייקט (Blur): <span id="blur-val">0</span>px</label>
-            <input type="range" id="blur-slider" min="0" max="5" step="0.5" value="0" oninput="updateBlur(this.value)">
+            <input type="range" id="blur-slider" min="0" max="5" step="0.1" value="0" oninput="updateBlur(this.value)">
         </div>
 
         <div style="display:flex; justify-content: space-between; gap:5px;">
@@ -79,10 +79,7 @@
     <script>
         const GITHUB_EDIT_URL = "https://github.com/Cc2k1975/reuven2k/edit/main/data/matmon.json";
 
-        let gameData = Array(10).fill(null).map(() => ({
-            emoji: '🍉', x: 50, y: 50, size: 30, blur: 0, bg: '1.png', text: 'מצא את האבטיח'
-        }));
-
+        let gameData = [];
         let currentLevel = 0, isAdminOpen = false, editTarget = 'IMAGE', pressTimer;
         let scale = 1, lastDist = 0, objSize = 30, posX = 0, posY = 0, startX = 0, startY = 0;
         let timeLeft = 30, timerInterval, currentBlur = 0;
@@ -91,16 +88,65 @@
         const obj = document.getElementById('hidden-object'), img = document.getElementById('game-image');
         const admin = document.getElementById('admin-panel'), timerEl = document.getElementById('timer-display');
 
+        // פונקציית טעינה עם מנגנון שבירת קאש חזק
         async function loadServerData() {
             try {
-                const response = await fetch('data/matmon.json?nocache=' + Date.now());
-                if (response.ok) gameData = await response.json();
+                // הוספת Timestamp כדי להכריח את הדפדפן להוריד קובץ חדש מהשרת
+                const cacheBuster = Date.now();
+                const response = await fetch(`data/matmon.json?v=${cacheBuster}`, {
+                    cache: "no-store", // מבקש מהדפדפן לא לשמור בזיכרון
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (response.ok) {
+                    gameData = await response.json();
+                    console.log("נתונים נטענו מ-GitHub");
+                } else {
+                    throw new Error("קובץ לא נמצא בשרת");
+                }
             } catch (e) { 
+                console.log("טוען מהזיכרון המקומי...");
                 const local = localStorage.getItem('myGameData');
                 if(local) gameData = JSON.parse(local);
+                else {
+                    // יצירת מערך ברירת מחדל אם אין כלום
+                    gameData = Array(10).fill(null).map(() => ({
+                        emoji: '🍉', x: 50, y: 50, size: 30, blur: 0, bg: '1.png', text: 'מצא את האבטיח'
+                    }));
+                }
             }
             loadStage();
             startTimer();
+        }
+
+        function loadStage() {
+            let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
+            let data = gameData[idx];
+            if(!data) return;
+
+            document.getElementById('level-num').innerText = parseInt(idx) + 1;
+            document.getElementById('instruction-display').innerText = data.text || 'מצא את המטמון';
+            img.src = data.bg;
+            obj.innerText = data.emoji;
+            
+            // עדכון ערכים פיזיים
+            obj.style.left = data.x + '%'; 
+            obj.style.top = data.y + '%';
+            
+            // עדכון משתנים גלובליים
+            objSize = parseFloat(data.size) || 30; 
+            obj.style.fontSize = objSize + 'px';
+            
+            currentBlur = parseFloat(data.blur) || 0;
+            obj.style.filter = `blur(${currentBlur}px)`;
+
+            if(isAdminOpen) {
+                document.getElementById('blur-slider').value = currentBlur;
+                document.getElementById('blur-val').innerText = currentBlur;
+                document.getElementById('bg-select').value = data.bg;
+                document.getElementById('stage-instruction').value = data.text || '';
+            }
+            obj.style.display = 'block';
         }
 
         viewport.ontouchstart = (e) => {
@@ -216,37 +262,6 @@
 
         function setEmoji(e) { obj.innerText = e; }
         function updateBG() { img.src = document.getElementById('bg-select').value; }
-
-        function loadStage() {
-            let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
-            let data = gameData[idx];
-            
-            // עדכון טקסט ושלב
-            document.getElementById('level-num').innerText = parseInt(idx) + 1;
-            document.getElementById('instruction-display').innerText = data.text || 'מצא את המטמון';
-            img.src = data.bg;
-            obj.innerText = data.emoji;
-            
-            // עדכון מיקום
-            obj.style.left = data.x + '%'; 
-            obj.style.top = data.y + '%';
-            
-            // *** התיקון כאן: עדכון המשתנים הגלובליים ***
-            objSize = data.size || 30; 
-            obj.style.fontSize = objSize + 'px';
-            
-            currentBlur = data.blur || 0;
-            obj.style.filter = `blur(${currentBlur}px)`;
-
-            if(isAdminOpen) {
-                document.getElementById('blur-slider').value = currentBlur;
-                document.getElementById('blur-val').innerText = currentBlur;
-                document.getElementById('bg-select').value = data.bg;
-                document.getElementById('stage-instruction').value = data.text || '';
-                document.getElementById('stage-select').value = idx;
-            }
-            obj.style.display = 'block';
-        }
 
         function saveStage() {
             let idx = document.getElementById('stage-select').value;
