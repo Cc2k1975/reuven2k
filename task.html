@@ -195,12 +195,19 @@
 
         function render() {
             const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
-            const today = new Date().toLocaleDateString('he-IL');
-            const todayTasks = tasks.filter(t => t.date === today);
 
-            taskListDiv.innerHTML = todayTasks.length ? '' : '<p style="text-align:center; color:#ccc;">אין משימות היום</p>';
+            const now = new Date();
+            const todayStr = now.toLocaleDateString('he-IL');
+            const y = new Date(now);
+            y.setDate(now.getDate() - 1);
+            const yesterdayStr = y.toLocaleDateString('he-IL');
+
+            // מציג גם אתמול וגם היום (בלי כפתורים ובלי שינוי עיצוב)
+            const shownTasks = tasks.filter(t => t.date === todayStr || t.date === yesterdayStr);
+
+            taskListDiv.innerHTML = shownTasks.length ? '' : '<p style="text-align:center; color:#ccc;">אין משימות היום</p>';
             
-            todayTasks.forEach((t, i) => {
+            shownTasks.forEach((t, i) => {
                 const div = document.createElement('div');
                 div.className = 'task-item';
                 div.innerHTML = `
@@ -225,8 +232,15 @@
                 filtered = tasks.filter(t => t.date === today);
                 header = `*דוח משימות יומי של שילה (${today})*`;
             } else {
-                const thisMonth = new Date().getMonth();
-                filtered = tasks.filter(t => new Date(t.rawDate).getMonth() === thisMonth);
+                const now = new Date();
+                const thisMonth = now.getMonth();
+                const thisYear = now.getFullYear();
+
+                // מסנן לפי חודש ושנה, ואז בדוח עצמו מוסיף גם תאריך וגם שעה
+                filtered = tasks.filter(t => {
+                    const d = new Date(t.rawDate);
+                    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+                });
                 header = `*דוח משימות חודשי של שילה*`;
             }
 
@@ -234,7 +248,11 @@
 
             let msg = header + "%0A%0A";
             filtered.forEach((t, i) => {
-                msg += `${i+1}. [${t.time}] ${t.text}%0A`;
+                if (type === 'daily') {
+                    msg += `${i+1}. [${t.time}] ${t.text}%0A`;
+                } else {
+                    msg += `${i+1}. [${t.date} ${t.time}] ${t.text}%0A`;
+                }
             });
 
             window.open(`https://wa.me/${PHONE_NUMBER}?text=${msg}`, '_blank');
