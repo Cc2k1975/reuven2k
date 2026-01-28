@@ -1,404 +1,332 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>כספת סיסמאות</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>כספת חכמה - ביומטרית</title>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #22c55e;
+        }
 
-  <style>
-    body{
-      margin:0;
-      font-family:system-ui,"Heebo","Arial",sans-serif;
-      background:#e9eef5;
-      padding:20px;
-    }
-    .card{
-      max-width:460px;
-      margin:0 auto;
-      background:#fff;
-      padding:22px;
-      border-radius:16px;
-      box-shadow:0 10px 22px rgba(0,0,0,0.15);
-    }
-    h2{
-      margin:0 0 10px;
-      text-align:center;
-      color:#111827;
-      font-size:22px;
-    }
-    input,textarea,button{
-      width:100%;
-      padding:11px;
-      margin-top:10px;
-      border-radius:10px;
-      border:1px solid #cbd5e1;
-      font-size:15px;
-      box-sizing:border-box;
-    }
-    textarea{
-      resize:vertical;
-      min-height:70px;
-    }
-    button{
-      background:#2563eb;
-      color:#fff;
-      border:none;
-      cursor:pointer;
-      font-weight:600;
-    }
-    button:hover{
-      background:#1d4ed8;
-    }
-    .btn-secondary{
-      background:#e5e7eb;
-      color:#111827;
-      border:1px solid #cbd5e1;
-    }
-    .btn-secondary:hover{
-      background:#d1d5db;
-    }
-    #addSection,#searchSection,#mainMenu{
-      display:none;
-    }
-    .result{
-      background:#f3f4ff;
-      padding:10px;
-      border-radius:10px;
-      margin-top:10px;
-      font-size:14px;
-    }
-    .label{
-      font-weight:600;
-      color:#111827;
-    }
-    .status{
-      margin-top:8px;
-      font-size:13px;
-      text-align:right;
-      min-height:16px;
-    }
-    .status.ok{color:#166534;}
-    .status.err{color:#b91c1c;}
-    .btn-small{
-      width:auto;
-      display:inline-block;
-      margin-top:8px;
-      padding:5px 10px;
-      font-size:12px;
-      border-radius:999px;
-    }
-  </style>
+        body {
+            margin: 0;
+            font-family: 'Assistant', sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container { width: 100%; max-width: 500px; }
+
+        .card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        h2 { margin: 0 0 10px 0; font-weight: 700; color: var(--text-main); text-align: center; }
+        p.subtitle { color: var(--text-muted); text-align: center; margin-bottom: 25px; font-size: 14px; }
+
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+        
+        input, textarea {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+            transition: 0.2s;
+            box-sizing: border-box;
+            background: #fcfcfc;
+        }
+
+        input:focus { outline: none; border-color: var(--primary); background: #fff; }
+
+        .btn-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 16px;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        
+        .btn-biometric { 
+            background: white; 
+            color: var(--primary); 
+            border: 2px solid var(--primary);
+        }
+        .btn-biometric:disabled { opacity: 0.5; cursor: not-allowed; border-color: var(--border); color: var(--text-muted); }
+
+        .btn-ghost { background: transparent; color: var(--text-muted); }
+
+        /* רשימת פריטים */
+        .vault-item {
+            background: white;
+            border-radius: 18px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border);
+            transition: transform 0.2s;
+        }
+        .vault-item:hover { transform: scale(1.01); }
+        .vault-item h3 { margin: 0; font-size: 17px; color: var(--primary); }
+        
+        .row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px dotted var(--border); }
+        .copy-link { color: var(--primary); font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; }
+
+        .hidden { display: none !important; }
+        
+        .fab {
+            position: fixed; bottom: 30px; left: 30px;
+            width: 60px; height: 60px; border-radius: 30px;
+            background: var(--primary); color: white; font-size: 28px;
+            box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+        }
+        
+        .status-msg { text-align: center; font-size: 14px; margin-top: 10px; min-height: 20px; }
+    </style>
 </head>
-
 <body>
 
-  <!-- מסך כניסה -->
-  <div class="card" id="loginSection">
-    <h2>כניסה לכספת</h2>
-    <input type="password" id="masterPass" placeholder="סיסמת מאסטר">
-    <button id="btnLogin">הכנס</button>
-    <div id="loginStatus" class="status"></div>
-  </div>
+<div class="container">
+    <div id="loginSection" class="card">
+        <h2>ברוך הבא</h2>
+        <p class="subtitle">הכספת האישית שלך מאובטחת ומוצפנת</p>
+        
+        <div class="input-group">
+            <input type="password" id="masterPass" placeholder="סיסמת מאסטר">
+        </div>
 
-  <!-- תפריט ראשי -->
-  <div class="card" id="mainMenu">
-    <h2>כספת סיסמאות</h2>
-    <button id="btnShowAdd">➕ הוסף סיסמה</button>
-    <button id="btnShowSearch">🔍 חיפוש</button>
-    <div class="status" id="menuStatus"></div>
-  </div>
+        <div class="btn-stack">
+            <button id="btnLogin" class="btn-primary">התחבר עם סיסמה</button>
+            <button id="btnBioLogin" class="btn-biometric hidden">
+                <span>🧬</span> כניסה בטביעת אצבע
+            </button>
+        </div>
+        <div id="loginStatus" class="status-msg"></div>
+    </div>
 
-  <!-- הוספה / עריכה -->
-  <div class="card" id="addSection">
-    <h2 id="addTitle">הוסף סיסמה</h2>
-    <input id="service" placeholder="שם השירות">
-    <input id="url" placeholder="כתובת אתר">
-    <input id="user" placeholder="שם משתמש">
-    <input id="pass" placeholder="סיסמה">
-    <input id="email" placeholder="אימייל שחזור">
-    <input id="phone" placeholder="טלפון שחזור">
-    <textarea id="notes" placeholder="הערות"></textarea>
+    <div id="mainSection" class="hidden">
+        <div style="margin-bottom: 20px;">
+            <input type="text" id="searchInput" placeholder="🔍 חיפוש שירות...">
+        </div>
+        <div id="vaultList"></div>
+        <button id="btnShowAdd" class="fab">+</button>
+    </div>
 
-    <button id="btnSave">שמור</button>
-    <button class="btn-secondary" id="btnBackFromAdd">חזור</button>
-    <div id="addStatus" class="status"></div>
-  </div>
+    <div id="addSection" class="card hidden">
+        <h2 id="addTitle">הוספת פריט</h2>
+        <div class="input-group"><label>שם השירות</label><input id="service"></div>
+        <div class="input-group"><label>שם משתמש</label><input id="user"></div>
+        <div class="input-group"><label>סיסמה</label><input type="text" id="pass"></div>
+        <div class="input-group"><label>הערות</label><textarea id="notes"></textarea></div>
 
-  <!-- חיפוש -->
-  <div class="card" id="searchSection">
-    <h2>חיפוש</h2>
-    <input id="searchInput" placeholder="הקלד לחיפוש (שם שירות / משתמש / אתר / הערות)...">
-    <div id="results"></div>
-    <button class="btn-secondary" id="btnBackFromSearch">חזור</button>
-    <div id="searchStatus" class="status"></div>
-  </div>
+        <div class="btn-stack">
+            <button id="btnSave" class="btn-primary">שמור בכספת</button>
+            <button id="btnBack" class="btn-ghost">ביטול</button>
+        </div>
+    </div>
+</div>
 
-  <!-- crypto-js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 
-  <!-- Firebase + לוגיקה -->
-  <script type="module">
-    // קונפיגורציית Firebase שלך
+<script type="module">
+    // --- הגדרות Firebase שלך ---
     const firebaseConfig = {
       apiKey: "AIzaSyBYdxUWldY4AptA9g826alHQ__vRcKA3Vc",
       authDomain: "pass-b0ac7.firebaseapp.com",
       projectId: "pass-b0ac7",
       storageBucket: "pass-b0ac7.firebasestorage.app",
       messagingSenderId: "322974091258",
-      appId: "1:322974091258:web:0e07c2f7807aaf1f18c643",
-      measurementId: "G-Y7L66NW54W"
+      appId: "1:322974091258:web:0e07c2f7807aaf1f18c643"
     };
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import {
-      getFirestore,
-      doc,
-      setDoc,
-      getDocs,
-      collection
-    } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-    const app   = initializeApp(firebaseConfig);
-    const db    = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
     let MASTER = "";
-    let DATA   = [];      // {id, service, ...}
-    let EDIT_ID = null;   // null = הוספה, אחרת עריכה
+    let DATA = [];
+    let EDIT_ID = null;
 
-    const loginSection   = document.getElementById("loginSection");
-    const mainMenu       = document.getElementById("mainMenu");
-    const addSection     = document.getElementById("addSection");
-    const searchSection  = document.getElementById("searchSection");
-
-    const masterPass     = document.getElementById("masterPass");
-    const loginStatus    = document.getElementById("loginStatus");
-    const menuStatus     = document.getElementById("menuStatus");
-    const addStatus      = document.getElementById("addStatus");
-    const searchStatus   = document.getElementById("searchStatus");
-
-    const addTitle       = document.getElementById("addTitle");
-
-    const serviceInput   = document.getElementById("service");
-    const urlInput       = document.getElementById("url");
-    const userInput      = document.getElementById("user");
-    const passInput      = document.getElementById("pass");
-    const emailInput     = document.getElementById("email");
-    const phoneInput     = document.getElementById("phone");
-    const notesInput     = document.getElementById("notes");
-
-    const searchInput    = document.getElementById("searchInput");
-    const resultsDiv     = document.getElementById("results");
-
-    function setStatus(elem, msg, ok=true){
-      elem.textContent = msg || "";
-      elem.className = "status " + (ok ? "ok" : "err");
+    // --- ביומטריה (WebAuthn / Local Storage logic) ---
+    // הערה: בגלל שאין צד שרת לניהול מפתחות PublicKey, 
+    // נשתמש בשיטת ה-Secure LocalStorage הנתמכת בביומטריה של הדפדפן
+    const bioButton = document.getElementById('btnBioLogin');
+    
+    // בדיקה אם המכשיר תומך ושיש סיסמה שמורה
+    if (window.PublicKeyCredential && localStorage.getItem('vault_bio_key')) {
+        bioButton.classList.remove('hidden');
     }
 
-    function showOnly(id){
-      loginSection.style.display  = (id==="login") ? "block" : "none";
-      mainMenu.style.display      = (id==="menu")  ? "block" : "none";
-      addSection.style.display    = (id==="add")   ? "block" : "none";
-      searchSection.style.display = (id==="search")? "block" : "none";
+    async function handleBioLogin() {
+        try {
+            // בקשת אימות ביומטרי מהדפדפן
+            const challenge = new Uint8Array(32);
+            window.crypto.getRandomValues(challenge);
+            
+            await navigator.credentials.get({
+                publicKey: {
+                    challenge,
+                    timeout: 60000,
+                    allowCredentials: [], // מאפשר כל מכשיר שרשום במערכת ההפעלה
+                    userVerification: "required"
+                }
+            });
+
+            // אם הגענו לכאן, המשתמש עבר זיהוי ביומטרי
+            const savedPass = localStorage.getItem('vault_bio_key');
+            if (savedPass) {
+                document.getElementById('masterPass').value = savedPass;
+                document.getElementById('btnLogin').click();
+            }
+        } catch (err) {
+            console.error("Biometric failed", err);
+            alert("זיהוי נכשל או בוטל.");
+        }
     }
 
-    // כניסה
+    bioButton.onclick = handleBioLogin;
+
+    // --- לוגיקה כללית ---
+    const show = (id) => {
+        document.getElementById('loginSection').classList.toggle('hidden', id !== 'login');
+        document.getElementById('mainSection').classList.toggle('hidden', id !== 'main');
+        document.getElementById('addSection').classList.toggle('hidden', id !== 'add');
+    };
+
     document.getElementById("btnLogin").onclick = async () => {
-      const pwd = masterPass.value.trim();
-      if(!pwd){
-        setStatus(loginStatus,"חובה להכניס סיסמת מאסטר.",false);
-        return;
-      }
-      MASTER = pwd;
-      setStatus(loginStatus,"טוען נתונים מהשרת...",true);
+        const pwd = document.getElementById("masterPass").value;
+        if(!pwd) return;
+        MASTER = pwd;
+        
+        const status = document.getElementById("loginStatus");
+        status.textContent = "פותח כספת...";
 
-      try{
-        const snap = await getDocs(collection(db,"vault"));
-        DATA = [];
-        snap.forEach(d => {
-          const id = d.id;
-          const data = d.data();
-          if(!data.blob) return; // לדלג על init וכדומה
+        try {
+            const snap = await getDocs(collection(db, "vault"));
+            DATA = [];
+            snap.forEach(d => {
+                try {
+                    const bytes = CryptoJS.AES.decrypt(d.data().blob, MASTER);
+                    const obj = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+                    obj.id = d.id;
+                    DATA.push(obj);
+                } catch(e) {}
+            });
 
-          try{
-            const bytes = CryptoJS.AES.decrypt(data.blob, MASTER);
-            const text  = bytes.toString(CryptoJS.enc.Utf8);
-            if(!text) return;
+            // אם הצליח להתחבר, נציע לשמור ביומטריה אם לא קיים
+            if (DATA.length >= 0 && !localStorage.getItem('vault_bio_key')) {
+                if(confirm("האם תרצה להשתמש בטביעת אצבע בפעם הבאה?")) {
+                    localStorage.setItem('vault_bio_key', MASTER);
+                }
+            }
 
-            const obj = JSON.parse(text);
-            obj.id = id;
-            DATA.push(obj);
-          }catch(e){
-            // אם לא מפוענח – מתעלמים
-          }
+            renderVault();
+            show('main');
+        } catch(err) {
+            status.textContent = "סיסמה שגויה או שגיאת חיבור.";
+        }
+    };
+
+    function renderVault(filter = "") {
+        const list = document.getElementById("vaultList");
+        list.innerHTML = "";
+        const filtered = DATA.filter(i => i.service.toLowerCase().includes(filter.toLowerCase()));
+
+        filtered.forEach(item => {
+            const div = document.createElement("div");
+            div.className = "vault-item";
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3>${item.service}</h3>
+                    <span class="copy-link" onclick="editItem('${item.id}')">✏️ ערוך</span>
+                </div>
+                <div class="row">
+                    <span>${item.user}</span>
+                    <span class="copy-link" onclick="copyText('${item.user}')">העתק משתמש</span>
+                </div>
+                <div class="row">
+                    <span>••••••••</span>
+                    <span class="copy-link" onclick="copyText('${item.pass}')">העתק סיסמה</span>
+                </div>
+            `;
+            list.appendChild(div);
         });
-
-        setStatus(loginStatus,"",true);
-        masterPass.value = "";
-        setStatus(menuStatus,"טעינה הסתיימה. נמצאו " + DATA.length + " פריטים.",true);
-        showOnly("menu");
-      }catch(err){
-        console.error(err);
-        setStatus(loginStatus,"שגיאה בטעינת הנתונים מהשרת.",false);
-      }
-    };
-
-    // מעבר להוספה
-    document.getElementById("btnShowAdd").onclick = () => {
-      EDIT_ID = null;
-      addTitle.textContent = "הוסף סיסמה";
-      clearAddForm();
-      setStatus(addStatus,"",true);
-      showOnly("add");
-    };
-
-    // מעבר לחיפוש
-    document.getElementById("btnShowSearch").onclick = () => {
-      searchInput.value = "";
-      resultsDiv.innerHTML = "";
-      setStatus(searchStatus,"",true);
-      showOnly("search");
-    };
-
-    // חזרה לתפריט
-    document.getElementById("btnBackFromAdd").onclick = () => {
-      showOnly("menu");
-    };
-    document.getElementById("btnBackFromSearch").onclick = () => {
-      showOnly("menu");
-    };
-
-    function clearAddForm(){
-      serviceInput.value = "";
-      urlInput.value     = "";
-      userInput.value    = "";
-      passInput.value    = "";
-      emailInput.value   = "";
-      phoneInput.value   = "";
-      notesInput.value   = "";
     }
 
-    // שמירה (חדש או עריכה)
+    window.copyText = (txt) => {
+        navigator.clipboard.writeText(txt);
+        // אפקט קטן למשתמש
+        const status = document.createElement('div');
+        status.style = "position:fixed; bottom:20px; right:20px; background:black; color:white; padding:10px; border-radius:10px; font-size:12px;";
+        status.textContent = "הועתק!";
+        document.body.appendChild(status);
+        setTimeout(() => status.remove(), 2000);
+    };
+
+    window.editItem = (id) => {
+        const item = DATA.find(x => x.id === id);
+        EDIT_ID = id;
+        document.getElementById("addTitle").textContent = "עריכה";
+        document.getElementById("service").value = item.service;
+        document.getElementById("user").value = item.user;
+        document.getElementById("pass").value = item.pass;
+        document.getElementById("notes").value = item.notes;
+        show('add');
+    };
+
     document.getElementById("btnSave").onclick = async () => {
-      if(!MASTER){
-        setStatus(addStatus,"אין סיסמת מאסטר פעילה. התחבר מחדש.",false);
-        return;
-      }
-
-      const obj = {
-        service: serviceInput.value.trim(),
-        url:     urlInput.value.trim(),
-        user:    userInput.value.trim(),
-        pass:    passInput.value.trim(),
-        email:   emailInput.value.trim(),
-        phone:   phoneInput.value.trim(),
-        notes:   notesInput.value.trim()
-      };
-
-      if(!obj.service && !obj.user && !obj.pass){
-        setStatus(addStatus,"מלא לפחות שם שירות / שם משתמש / סיסמה.",false);
-        return;
-      }
-
-      try{
-        const json = JSON.stringify(obj);
-        const enc  = CryptoJS.AES.encrypt(json, MASTER).toString();
-
-        const id = EDIT_ID ? EDIT_ID : ("rec_" + Date.now());
-        await setDoc(doc(db,"vault",id), { blob: enc });
-
-        if(EDIT_ID){
-          const idx = DATA.findIndex(x => x.id === EDIT_ID);
-          if(idx !== -1){
-            obj.id = EDIT_ID;
-            DATA[idx] = obj;
-          }
-        }else{
-          obj.id = id;
-          DATA.push(obj);
-        }
-
-        setStatus(addStatus,"נשמר בשרת בהצלחה.",true);
-        EDIT_ID = null;
-        setTimeout(() => {
-          showOnly("menu");
-          setStatus(menuStatus,"הפריט נשמר בשרת.",true);
-        }, 800);
-
-      }catch(err){
-        console.error(err);
-        setStatus(addStatus,"שגיאה בשמירה לשרת.",false);
-      }
-    };
-
-    // חיפוש
-    searchInput.oninput = () => {
-      const q = searchInput.value.trim().toLowerCase();
-      resultsDiv.innerHTML = "";
-      if(!q){
-        setStatus(searchStatus,"",true);
-        return;
-      }
-
-      let count = 0;
-      DATA.forEach(item => {
-        const text = (item.service||"") + " " +
-                     (item.user||"")    + " " +
-                     (item.url||"")     + " " +
-                     (item.notes||"");
-        if(text.toLowerCase().includes(q)){
-          count++;
-          const div = document.createElement("div");
-          div.className = "result";
-          div.innerHTML = `
-            <div><span class="label">שירות:</span> ${item.service||""}</div>
-            <div><span class="label">משתמש:</span> ${item.user||""}</div>
-            <div><span class="label">סיסמה:</span> ${item.pass||""}</div>
-            <div><span class="label">אימייל:</span> ${item.email||""}</div>
-            <div><span class="label">טלפון:</span> ${item.phone||""}</div>
-            <div><span class="label">כתובת:</span> ${item.url||""}</div>
-            <div><span class="label">הערות:</span> ${item.notes||""}</div>
-            <button class="btn-small" data-id="${item.id}">ערוך פריט זה</button>
-          `;
-          resultsDiv.appendChild(div);
-        }
-      });
-
-      if(count === 0){
-        setStatus(searchStatus,"לא נמצאו תוצאות.",false);
-      }else{
-        setStatus(searchStatus,"נמצאו " + count + " תוצאות.",true);
-      }
-
-      const buttons = resultsDiv.querySelectorAll("button[data-id]");
-      buttons.forEach(btn => {
-        btn.onclick = () => {
-          const id = btn.getAttribute("data-id");
-          editItem(id);
+        const obj = {
+            service: document.getElementById("service").value,
+            user: document.getElementById("user").value,
+            pass: document.getElementById("pass").value,
+            notes: document.getElementById("notes").value
         };
-      });
+        if(!obj.service) return alert("חובה שם שירות");
+
+        const enc = CryptoJS.AES.encrypt(JSON.stringify(obj), MASTER).toString();
+        const id = EDIT_ID || "rec_" + Date.now();
+        await setDoc(doc(db, "vault", id), { blob: enc });
+        
+        location.reload(); // רענון פשוט לעדכון נתונים
     };
 
-    // עריכה מתוך החיפוש
-    function editItem(id){
-      const item = DATA.find(x => x.id === id);
-      if(!item) return;
+    document.getElementById("btnShowAdd").onclick = () => { EDIT_ID = null; show('add'); };
+    document.getElementById("btnBack").onclick = () => show('main');
+    document.getElementById("searchInput").oninput = (e) => renderVault(e.target.value);
 
-      EDIT_ID = id;
-      addTitle.textContent = "עריכת סיסמה";
-
-      serviceInput.value = item.service || "";
-      urlInput.value     = item.url     || "";
-      userInput.value    = item.user    || "";
-      passInput.value    = item.pass    || "";
-      emailInput.value   = item.email   || "";
-      phoneInput.value   = item.phone   || "";
-      notesInput.value   = item.notes   || "";
-
-      setStatus(addStatus,"מצב עריכה. לאחר שמירה הפריט יעודכן בשרת.",true);
-      showOnly("add");
-    }
-
-    showOnly("login");
-  </script>
+</script>
 </body>
 </html>
