@@ -13,7 +13,6 @@
         #world { position: relative; transform-origin: center; width: 100%; display: flex; align-items: center; justify-content: center; }
         #game-image { width: 100%; height: auto; pointer-events: none; }
         
-        /* תיקון הבאג: המסגרת מבוטלת לחלוטין כברירת מחדל */
         #hidden-object { 
             position: absolute; 
             z-index: 50; 
@@ -24,8 +23,7 @@
             user-select: none; 
             -webkit-user-select: none; 
             pointer-events: auto; 
-            border: none; 
-            outline: none;
+            border: none;
         }
 
         #admin-panel { display: none; position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(30, 39, 46, 0.95); padding: 12px; border-radius: 20px; border: 2px solid #f1c40f; z-index: 1000; width: 95%; max-width: 420px; max-height: 80vh; overflow-y: auto; }
@@ -37,7 +35,6 @@
         .btn-group { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
         .btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
         .save-btn { background: #2ecc71; color: white; }
-        .refresh-btn { background: #3498db; color: white; padding: 5px 10px; font-size: 12px; border-radius: 5px; margin-right: 5px; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -60,27 +57,20 @@
             <button id="btn-mode-img" class="mode-btn active" onclick="setEditMode('IMAGE')">🖼️ הזז תמונה</button>
             <button id="btn-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">🍉 הזז פריט</button>
         </div>
-        <input type="text" id="stage-instruction" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;" placeholder="מה המשימה לשלב זה?">
+        <input type="text" id="stage-instruction" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;" placeholder="מה המשימה?">
         <div style="background: #34495e; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
             <label style="font-size: 12px;">טשטוש: <span id="blur-val">0</span>px</label>
             <input type="range" id="blur-slider" min="0" max="5" step="0.1" value="0" style="width:100%" oninput="updateBlur(this.value)">
         </div>
         <div style="display:flex; flex-direction: column; gap:10px; margin-bottom: 10px;">
-            <div style="display:flex; align-items: center;">
-                <label style="margin-left:10px;">שלב:</label>
-                <select id="stage-select" style="flex:1; padding:8px; border-radius:5px;" onchange="loadStage()">
-                    <script>for(let i=0; i<20; i++) document.write(`<option value="${i}">שלב ${i+1}</option>`)</script>
-                </select>
-            </div>
-            <div style="display:flex; align-items: center;">
-                <label style="margin-left:10px;">תמונה:</label>
-                <select id="bg-select" style="flex:1; padding:8px; border-radius:5px;" onchange="updateBG()">
-                    <option value="1.png">תמונה 1</option>
-                    <option value="2.png">תמונה 2</option>
-                    <option value="3.png">תמונה 3</option>
-                </select>
-                <button class="refresh-btn" onclick="updateBG()">🔄</button>
-            </div>
+            <select id="stage-select" style="padding:10px;" onchange="loadStage()">
+                <script>for(let i=0; i<20; i++) document.write(`<option value="${i}">שלב ${i+1}</option>`)</script>
+            </select>
+            <select id="bg-select" style="padding:10px;" onchange="updateBG()">
+                <option value="1.png">תמונה 1</option>
+                <option value="2.png">תמונה 2</option>
+                <option value="3.png">תמונה 3</option>
+            </select>
         </div>
         <div class="emoji-grid">
             <script>['🍉','🚗','🐤','💎','🍕','⚽','🚀','🍦','🎸','🍩','🚁','🕶️','🔑','🍄','🧸','🚲','🦀','🦋','⚓','🎁'].forEach(e => document.write(`<button class="emoji-btn" onclick="setEmoji('${e}')">${e}</button>`));</script>
@@ -93,7 +83,6 @@
     </div>
 
     <script>
-        // הנתונים שלך (10 השלבים הראשונים + מקום ל-10 נוספים)
         const HARDCODED_DATA = [{"emoji":"🍉","bg":"1.png","x":32.68,"y":55.72,"size":9.6,"blur":0.3,"text":"מצא את האבטיח"},{"emoji":"🚗","bg":"1.png","x":35.23,"y":52.49,"size":5.7,"blur":0.3,"text":"מצא את המכונית"},{"emoji":"🧸","bg":"1.png","x":41.72,"y":37.22,"size":6,"blur":0.2,"text":"מצא את הדובי"},{"emoji":"🎸","bg":"1.png","x":54.49,"y":56.88,"size":7.4,"blur":0.2,"text":"מצא את הגיטרה"},{"emoji":"🚲","bg":"1.png","x":41.17,"y":37.27,"size":6.5,"blur":0,"text":"מצא את האופניים"},{"emoji":"⚽","bg":"1.png","x":70.72,"y":50.22,"size":4.7,"blur":0.3,"text":"מצא את הכדורגל"},{"emoji":"🚀","bg":"1.png","x":87.24,"y":39.17,"size":4.9,"blur":0.2,"text":"מצא את הטיל"},{"emoji":"🚁","bg":"1.png","x":19.97,"y":74.32,"size":12.2,"blur":0,"text":"מצא את המסוק"},{"emoji":"🍄","bg":"1.png","x":44.0,"y":45.93,"size":4,"blur":0.2,"text":"מצא את הפטריה"},{"emoji":"🍕","bg":"1.png","x":16.87,"y":53.7,"size":8,"blur":0,"text":"מצא את הפיצה"}];
         while(HARDCODED_DATA.length < 20) HARDCODED_DATA.push({"emoji":"🍉","bg":"1.png","x":50,"y":50,"size":35,"blur":0,"text":"שלב עריכה"});
 
@@ -120,13 +109,13 @@
                 obj.style.fontSize = objSize + 'px';
                 obj.style.filter = `blur(${data.blur || 0}px)`;
                 obj.style.display = 'block';
-                // מוודא שהמסגרת כבויה בטעינת שלב
                 if(!isAdminOpen || editTarget !== 'OBJECT') obj.style.border = 'none';
             };
         }
 
         viewport.ontouchstart = (e) => {
             if(isAdminOpen) {
+                lastDist = 0; // איפוס מרחק בזום
                 if(e.touches.length === 1) {
                     startX = e.touches[0].clientX - (editTarget === 'IMAGE' ? posX : 0);
                     startY = e.touches[0].clientY - (editTarget === 'IMAGE' ? posY : 0);
@@ -134,23 +123,28 @@
                 return;
             }
             clearTimeout(pressTimer);
-            pressTimer = setTimeout(() => {
-                if(prompt("סיסמה:") === "4451") toggleAdmin(true);
-            }, 10000);
+            pressTimer = setTimeout(() => { if(prompt("סיסמה:") === "4451") toggleAdmin(true); }, 10000);
             if(e.touches.length === 1) { startX = e.touches[0].clientX - posX; startY = e.touches[0].clientY - posY; }
         };
 
-        viewport.ontouchend = () => { clearTimeout(pressTimer); clearTimeout(foundTimer); lastDist = 0; };
+        viewport.ontouchend = () => { lastDist = 0; clearTimeout(pressTimer); clearTimeout(foundTimer); };
 
         viewport.ontouchmove = (e) => {
             e.preventDefault();
-            clearTimeout(pressTimer);
-            clearTimeout(foundTimer);
             if(isAdminOpen && editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
                     let rect = img.getBoundingClientRect();
                     obj.style.left = ((e.touches[0].clientX - rect.left) / rect.width) * 100 + '%';
                     obj.style.top = ((e.touches[0].clientY - rect.top) / rect.height) * 100 + '%';
+                }
+                if(e.touches.length === 2) {
+                    let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+                    if(lastDist > 0) {
+                        let diff = dist - lastDist;
+                        objSize = Math.max(1, objSize + diff * 0.5); // מינימום 1 פיקסל!
+                        obj.style.fontSize = objSize + 'px';
+                    }
+                    lastDist = dist;
                 }
             } else {
                 if(e.touches.length === 1) { posX = e.touches[0].clientX - startX; posY = e.touches[0].clientY - startY; }
@@ -173,11 +167,9 @@
         function success() {
             clearInterval(timerInterval);
             if (currentLevel === 19) {
-                alert("כל הכבוד! הגעת לשלב האחרון 🏆\n\nבצע צילום מסך כעת, גש לצ'רלי ותקבל 100 שקל!");
+                alert("ניצחת במשחק! צלם מסך וקבל 100 שקל מצ'רלי!");
             } else {
-                alert("מצאת!");
-                currentLevel++;
-                resetView(); loadStage(); startTimer();
+                alert("מצאת!"); currentLevel++; resetView(); loadStage(); startTimer();
             }
         }
 
@@ -188,21 +180,13 @@
             editTarget = m;
             document.getElementById('btn-mode-img').classList.toggle('active', m === 'IMAGE');
             document.getElementById('btn-mode-obj').classList.toggle('active', m === 'OBJECT');
-            // כאן נפתר הבאג: המסגרת מופיעה אך ורק במצב הזזת אובייקט
             obj.style.border = (m === 'OBJECT') ? "2px dashed #f1c40f" : "none";
         }
 
         function toggleAdmin(show) { 
-            isAdminOpen = show; 
-            admin.style.display = show ? 'block' : 'none'; 
-            if(!show) { 
-                resetView(); 
-                startTimer(); 
-                obj.style.border = 'none'; // מכבה את המסגרת בסגירה
-            } else {
-                clearInterval(timerInterval);
-                setEditMode('IMAGE'); // מתחיל תמיד במצב תמונה
-            }
+            isAdminOpen = show; admin.style.display = show ? 'block' : 'none'; 
+            if(!show) { resetView(); startTimer(); obj.style.border = 'none'; } 
+            else { clearInterval(timerInterval); setEditMode('IMAGE'); }
             loadStage(); 
         }
 
@@ -211,7 +195,7 @@
         function updateBlur(v) { document.getElementById('blur-val').innerText = v; obj.style.filter = `blur(${v}px)`; }
         function updateBG() { img.src = document.getElementById('bg-select').value; }
         function setEmoji(e) { obj.innerText = e; }
-        function startTimer() { clearInterval(timerInterval); timeLeft = 30; timerEl.innerText = timeLeft; timerInterval = setInterval(() => { timeLeft--; timerEl.innerText = timeLeft; if(timeLeft <= 0) { clearInterval(timerInterval); alert("נגמר הזמן! חוזרים לשלב 1..."); currentLevel = 0; resetView(); loadStage(); startTimer(); } }, 1000); }
+        function startTimer() { clearInterval(timerInterval); timeLeft = 30; timerEl.innerText = timeLeft; timerInterval = setInterval(() => { timeLeft--; timerEl.innerText = timeLeft; if(timeLeft <= 0) { clearInterval(timerInterval); alert("נגמר הזמן!"); currentLevel = 0; resetView(); loadStage(); startTimer(); } }, 1000); }
 
         window.onload = () => { loadStage(); startTimer(); };
     </script>
