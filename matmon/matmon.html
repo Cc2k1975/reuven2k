@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>משחק המטמון - Cc2k1975</title>
+    <title>משחק המטמון - גרסה מתוקנת</title>
     <style>
         body { font-family: system-ui; background: #000; color: white; margin: 0; overflow: hidden; height: 100vh; touch-action: none; }
         #ui-layer { position: absolute; top: 0; width: 100%; z-index: 100; background: rgba(0,0,0,0.7); padding: 10px; text-align: center; pointer-events: none; }
@@ -12,7 +12,7 @@
         #game-viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
         #world { position: relative; transform-origin: center; width: 100%; display: flex; align-items: center; justify-content: center; }
         #game-image { width: 100%; height: auto; pointer-events: none; }
-        #hidden-object { position: absolute; z-index: 50; line-height: 1; display: none; white-space: nowrap; transform: translate(-50%, -50%); user-select: none; -webkit-user-select: none; pointer-events: auto; }
+        #hidden-object { position: absolute; z-index: 50; line-height: 1; display: none; white-space: nowrap; transform: translate(-50%, -50%); user-select: none; -webkit-user-select: none; pointer-events: auto; border: 2px transparent dashed; }
         #admin-panel { display: none; position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(30, 39, 46, 0.95); padding: 12px; border-radius: 20px; border: 2px solid #f1c40f; z-index: 1000; width: 95%; max-width: 420px; max-height: 80vh; overflow-y: auto; }
         .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
         .mode-btn { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555; background: #1e272e; color: white; font-weight: bold; }
@@ -140,6 +140,11 @@
                     obj.style.left = ((e.touches[0].clientX - rect.left) / rect.width) * 100 + '%';
                     obj.style.top = ((e.touches[0].clientY - rect.top) / rect.height) * 100 + '%';
                 }
+                if(e.touches.length === 2) {
+                    let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+                    if(lastDist > 0) { objSize += (dist - lastDist) * 0.5; obj.style.fontSize = Math.max(5, objSize) + 'px'; }
+                    lastDist = dist;
+                }
             } else {
                 if(e.touches.length === 1) { posX = e.touches[0].clientX - startX; posY = e.touches[0].clientY - startY; }
                 if(e.touches.length === 2) {
@@ -151,13 +156,13 @@
             updateTransform();
         };
 
-        // --- התיקון עם זום גבוה נגד רמאים ---
         obj.ontouchstart = (e) => {
+            // התיקון: אם מצב עריכה פתוח, אל תחסום לחיצות ואל תפעיל את מנגנון הניצחון
             if(isAdminOpen) return;
-            
-            // השחקן חייב להגדיל את התמונה פי 2.5 כדי שיוכל ללחוץ!
-            if(scale < 2.5) return; 
 
+            // רק בזמן משחק: הגבלת זום
+            if(scale < 2.5) return; 
+            
             e.stopPropagation();
             foundTimer = setTimeout(() => { success(); }, 50); 
         };
@@ -175,6 +180,14 @@
 
         function resetView() { scale = 1; posX = 0; posY = 0; updateTransform(); }
         function updateTransform() { world.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
+        
+        function setEditMode(m) {
+            editTarget = m;
+            document.getElementById('btn-mode-img').classList.toggle('active', m === 'IMAGE');
+            document.getElementById('btn-mode-obj').classList.toggle('active', m === 'OBJECT');
+            obj.style.border = (m === 'OBJECT') ? "2px dashed #f1c40f" : "2px transparent dashed";
+        }
+
         function toggleAdmin(show) { isAdminOpen = show; admin.style.display = show ? 'block' : 'none'; if(!show) { resetView(); startTimer(); } else clearInterval(timerInterval); loadStage(); }
         function saveStage() { let idx = document.getElementById('stage-select').value; gameData[idx] = { emoji: obj.innerText, bg: document.getElementById('bg-select').value, x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), size: parseFloat(objSize), blur: parseFloat(document.getElementById('blur-slider').value), text: document.getElementById('stage-instruction').value }; localStorage.setItem('myGameData', JSON.stringify(gameData)); alert("נשמר!"); }
         function exportData() { saveStage(); navigator.clipboard.writeText(JSON.stringify(gameData)).then(() => alert("הקוד הועתק!")); }
