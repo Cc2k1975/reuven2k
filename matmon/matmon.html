@@ -1,444 +1,244 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>משחק המטמון - Cc2k1975</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>משחק המטמון - Cc2k1975</title>
+    <style>
+        /* הגנה מוחלטת נגד סימון ובחירה של אובייקטים */
+        * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none; /* מבטל את התפריט שקופץ בלחיצה ארוכה בנייד */
+        }
 
-  <style>
-    body { font-family: system-ui; background: #000; color: white; margin: 0; overflow: hidden; height: 100vh; touch-action: none; }
-    #ui-layer { position: absolute; top: 0; width: 100%; z-index: 100; background: rgba(0,0,0,0.7); padding: 10px; text-align: center; pointer-events: none; }
-    #timer-display { font-size: 24px; color: #e74c3c; font-weight: bold; margin-top: 5px; }
-    #instruction-display { font-size: 18px; color: #f1c40f; margin-top: 5px; }
-    #game-viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-    #world { position: relative; transform-origin: center; width: 100%; display: flex; align-items: center; justify-content: center; }
-    #game-image { width: 100%; height: auto; pointer-events: none; }
-    #hidden-object { position: absolute; z-index: 50; line-height: 1; display: none; white-space: nowrap; transform: translate(-50%, -50%); user-select: none; -webkit-user-select: none; pointer-events: auto; border: none; }
-    #admin-panel { display: none; position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(30, 39, 46, 0.95); padding: 12px; border-radius: 20px; border: 2px solid #f1c40f; z-index: 1000; width: 95%; max-width: 420px; max-height: 80vh; overflow-y: auto; }
-    .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
-    .mode-btn { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555; background: #1e272e; color: white; font-weight: bold; }
-    .mode-btn.active { background: #f1c40f; color: black; }
-    .btn-group { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
-    .btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
-    .refresh-btn { background: #3498db; color: white; padding: 5px 10px; font-size: 12px; border-radius: 5px; margin-right: 5px; }
-    .emoji-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin: 10px 0; }
-    .emoji-btn { font-size: 20px; background: #34495e; border: none; padding: 5px; border-radius: 5px; }
-  </style>
+        body { font-family: system-ui; background: #000; color: white; margin: 0; overflow: hidden; height: 100vh; touch-action: none; }
+        #ui-layer { position: absolute; top: 0; width: 100%; z-index: 100; background: rgba(0,0,0,0.7); padding: 10px; text-align: center; pointer-events: none; }
+        #timer-display { font-size: 24px; color: #e74c3c; font-weight: bold; margin-top: 5px; }
+        #instruction-display { font-size: 18px; color: #f1c40f; margin-top: 5px; }
+        #game-viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        #world { position: relative; transform-origin: center; width: 100%; display: flex; align-items: center; justify-content: center; }
+        #game-image { width: 100%; height: auto; pointer-events: none; }
+        
+        #hidden-object { 
+            position: absolute; 
+            z-index: 50; 
+            line-height: 1; 
+            display: none; 
+            white-space: nowrap; 
+            transform: translate(-50%, -50%); 
+            pointer-events: auto; 
+            border: none;
+        }
+
+        /* פאנל הניהול - כאן מותר לבחור טקסט בתוך האינפוטים */
+        #admin-panel { 
+            display: none; position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); 
+            background: rgba(30, 39, 46, 0.95); padding: 12px; border-radius: 20px; 
+            border: 2px solid #f1c40f; z-index: 1000; width: 95%; max-width: 420px; 
+            max-height: 80vh; overflow-y: auto; 
+        }
+        #admin-panel input, #admin-panel select { user-select: auto; -webkit-user-select: auto; }
+
+        .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
+        .mode-btn { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555; background: #1e272e; color: white; font-weight: bold; }
+        .mode-btn.active { background: #f1c40f; color: black; }
+        .btn-group { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+        .btn { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+        .refresh-btn { background: #3498db; color: white; padding: 5px 10px; font-size: 12px; border-radius: 5px; margin-right: 5px; }
+        .emoji-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin: 10px 0; }
+        .emoji-btn { font-size: 20px; background: #34495e; border: none; padding: 5px; border-radius: 5px; }
+    </style>
 </head>
-
 <body oncontextmenu="return false;">
 
-  <div id="ui-layer">
-    <div>שלב: <span id="level-num">1</span> / 20</div>
-    <div id="instruction-display">הכן את עצמך...</div>
-    <div id="timer-display">30</div>
-  </div>
-
-  <div id="game-viewport">
-    <div id="world">
-      <img id="game-image" src="1.png">
-      <div id="hidden-object"></div>
-    </div>
-  </div>
-
-  <div id="admin-panel">
-
-    <div class="mode-selector">
-      <button id="btn-mode-img" class="mode-btn active" onclick="setEditMode('IMAGE')">🖼️ הזז תמונה</button>
-      <button id="btn-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">🍉 הזז פריט</button>
+    <div id="ui-layer">
+        <div>שלב: <span id="level-num">1</span> / 20</div>
+        <div id="instruction-display">הכן את עצמך...</div>
+        <div id="timer-display">30</div>
     </div>
 
-    <!-- ✅ נתונים אמיתיים מכל השחקנים (Firebase) + שיא שלב -->
-    <div id="counter-box" style="background:#111a20; border:1px solid #2c3e50; padding:10px; border-radius:10px; margin-bottom:10px; font-size:13px;">
-      <div style="font-weight:700; color:#f1c40f; margin-bottom:6px;">📊 סטטיסטיקה אמיתית (מכל השחקנים)</div>
-      <div>שחקנים ייחודיים: <span id="g-players">טוען...</span></div>
-      <div>כניסות לדף: <span id="g-entries">טוען...</span></div>
-      <div>התחלות מחדש (נגמר הזמן): <span id="g-restarts">טוען...</span></div>
-      <div>סיימו משחק (שלב אחרון): <span id="g-wins">טוען...</span></div>
-
-      <div style="margin-top:8px; padding-top:8px; border-top:1px solid #2c3e50;">
-        <div style="font-weight:700;">🏁 שיא שלב גלובלי: <span id="g-best-level">טוען...</span></div>
-        <div>מי הגיע לשיא: <span id="g-best-player">טוען...</span></div>
-        <div>מתי: <span id="g-best-time">טוען...</span></div>
-      </div>
-
-      <div style="margin-top:8px; font-weight:700;">סטטוס: <span id="g-status">ממתין...</span></div>
+    <div id="game-viewport">
+        <div id="world">
+            <img id="game-image" src="1.png">
+            <div id="hidden-object"></div>
+        </div>
     </div>
 
-    <input type="text" id="stage-instruction" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;" placeholder="מה המשימה?">
+    <div id="admin-panel">
+        <div class="mode-selector">
+            <button id="btn-mode-img" class="mode-btn active" onclick="setEditMode('IMAGE')">🖼️ הזז תמונה</button>
+            <button id="btn-mode-obj" class="mode-btn" onclick="setEditMode('OBJECT')">🍉 הזז פריט</button>
+        </div>
+        <input type="text" id="stage-instruction" style="width:100%; padding:10px; margin-bottom:10px; border-radius:5px; border:none;" placeholder="מה המשימה?">
+        
+        <div style="background: #34495e; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+            <label style="font-size: 12px;">טשטוש: <span id="blur-val">0</span>px</label>
+            <input type="range" id="blur-slider" min="0" max="5" step="0.1" value="0" style="width:100%" oninput="updateBlur(this.value)">
+        </div>
 
-    <div style="background: #34495e; padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-      <label style="font-size: 12px;">טשטוש: <span id="blur-val">0</span>px</label>
-      <input type="range" id="blur-slider" min="0" max="5" step="0.1" value="0" style="width:100%" oninput="updateBlur(this.value)">
+        <div style="display:flex; flex-direction: column; gap:10px; margin-bottom: 10px;">
+            <div style="display:flex; align-items: center;">
+                <label style="margin-left:10px;">שלב:</label>
+                <select id="stage-select" style="flex:1; padding:8px; border-radius:5px;" onchange="loadStage()">
+                    <script>for(let i=0; i<20; i++) document.write(`<option value="${i}">שלב ${i+1}</option>`)</script>
+                </select>
+            </div>
+            <div style="display:flex; align-items: center;">
+                <label style="margin-left:10px;">תמונה:</label>
+                <select id="bg-select" style="flex:1; padding:8px; border-radius:5px;" onchange="updateBG()">
+                    <option value="1.png">תמונה 1</option>
+                    <option value="2.png">תמונה 2</option>
+                    <option value="3.png">תמונה 3</option>
+                </select>
+                <button class="refresh-btn" onclick="updateBG()">🔄</button>
+            </div>
+        </div>
+
+        <div class="emoji-grid">
+            <script>['🍉','🚗','🐤','💎','🍕','⚽','🚀','🍦','🎸','🍩','🚁','🕶️','🔑','🍄','🧸','🚲','🦀','🦋','⚓','🎁'].forEach(e => document.write(`<button class="emoji-btn" onclick="setEmoji('${e}')">${e}</button>`));</script>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" style="background: #2ecc71; color: white;" onclick="saveStage()">💾 שמור שינוי</button>
+            <button class="btn" style="background:#3498db; color:white;" onclick="exportData()">📋 העתק קוד</button>
+            <button class="btn" style="background:#e74c3c; color:white;" onclick="toggleAdmin(false)">✖ סגור</button>
+        </div>
     </div>
 
-    <div style="display:flex; flex-direction: column; gap:10px; margin-bottom: 10px;">
-      <div style="display:flex; align-items: center;">
-        <label style="margin-left:10px;">שלב:</label>
-        <select id="stage-select" style="flex:1; padding:8px; border-radius:5px;" onchange="loadStage()">
-          <script>for(let i=0; i<20; i++) document.write(`<option value="${i}">שלב ${i+1}</option>`)</script>
-        </select>
-      </div>
-      <div style="display:flex; align-items: center;">
-        <label style="margin-left:10px;">תמונה:</label>
-        <select id="bg-select" style="flex:1; padding:8px; border-radius:5px;" onchange="updateBG()">
-          <option value="1.png">תמונה 1</option>
-          <option value="2.png">תמונה 2</option>
-          <option value="3.png">תמונה 3</option>
-        </select>
-        <button class="refresh-btn" onclick="updateBG()">🔄</button>
-      </div>
-    </div>
+    <script>
+        const HARDCODED_DATA = [{"emoji":"🍉","bg":"1.png","x":32.6838,"y":55.7279,"size":9.6,"blur":0.3,"text":"מצא את האבטיח"},{"emoji":"🚗","bg":"1.png","x":35.2357,"y":52.4927,"size":5.7,"blur":0.3,"text":"מצא את המכונית"},{"emoji":"🧸","bg":"1.png","x":41.7217,"y":37.2278,"size":6,"blur":0.2,"text":"מצא את הדובי"},{"emoji":"🎸","bg":"1.png","x":54.4942,"y":56.8838,"size":7.4,"blur":0.2,"text":"מצא את הגיטרה"},{"emoji":"🚲","bg":"1.png","x":41.1741,"y":37.2748,"size":6.5,"blur":0,"text":"מצא את האופניים"},{"emoji":"⚽","bg":"1.png","x":70.7292,"y":50.2267,"size":4.7,"blur":0.3,"text":"מצא את הכדורגל"},{"emoji":"🚀","bg":"1.png","x":87.2475,"y":39.1756,"size":4.9,"blur":0.2,"text":"מצא את הטיל"},{"emoji":"🚁","bg":"1.png","x":19.9773,"y":74.3207,"size":12.2,"blur":0,"text":"מצא את המסוק"},{"emoji":"🍄","bg":"1.png","x":44.002,"y":45.9382,"size":4,"blur":0.2,"text":"מצא את הפטריה"},{"emoji":"🍕","bg":"1.png","x":16.8742,"y":53.7018,"size":8,"blur":0,"text":"מצא את הפיצה"},{"emoji":"🔑","bg":"2.png","x":74.5158,"y":52.4195,"size":3.393737178073934,"blur":0,"text":"מצא את המפתח"},{"emoji":"⚽","bg":"2.png","x":2.9034,"y":13.7401,"size":1.9377390820655762,"blur":0.1,"text":"מצא את הכדור"},{"emoji":"🚗","bg":"2.png","x":50.3936,"y":29.0221,"size":3.0042619024650463,"blur":0.1,"text":"מצא את המכונית"},{"emoji":"🎸","bg":"2.png","x":97.9246,"y":87.6409,"size":8.371037528126969,"blur":0.1,"text":"מצא את הגיטרה"},{"emoji":"🍉","bg":"2.png","x":85.264,"y":81.52,"size":6.671478101010507,"blur":0.1,"text":"מצא את האבטיח"},{"emoji":"🍉","bg":"2.png","x":16.0048,"y":68.5589,"size":6.784812076767686,"blur":0,"text":"מצא את אבטיח"},{"emoji":"🚲","bg":"2.png","x":10.3459,"y":53.8259,"size":9.68184380945172,"blur":0.1,"text":"מצא את האופניים "},{"emoji":"⚽","bg":"2.png","x":83.001,"y":43.7169,"size":2.87630237088473,"blur":0.1,"text":"מצא את הכדור"},{"emoji":"🦋","bg":"2.png","x":16.1249,"y":33.0715,"size":4.184878062136043,"blur":0.1,"text":"מצא את הפרפר"},{"emoji":"🎁","bg":"2.png","x":54.5782,"y":73.9635,"size":2.5433854702349947,"blur":0.2,"text":"מצא את המתנה ותקבל את הפרס"}];
 
-    <div class="emoji-grid">
-      <script>['🍉','🚗','🐤','💎','🍕','⚽','🚀','🍦','🎸','🍩','🚁','🕶️','🔑','🍄','🧸','🚲','🦀','🦋','⚓','🎁'].forEach(e => document.write(`<button class="emoji-btn" onclick="setEmoji('${e}')">${e}</button>`));</script>
-    </div>
-
-    <div class="btn-group">
-      <button class="btn" style="background: #2ecc71; color: white;" onclick="saveStage()">💾 שמור שינוי לזיכרון</button>
-      <button class="btn" style="background:#3498db; color:white;" onclick="exportData()">📋 העתק קוד סופי</button>
-      <button class="btn" style="background:#e74c3c; color:white;" onclick="toggleAdmin(false)">✖ סגור</button>
-    </div>
-
-  </div>
-
-  <!-- ✅ Firebase (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
-
-  <script>
-    // *** הנתונים שאתה מעדכן בקוד ***
-    const HARDCODED_DATA = [{"emoji":"🍉","bg":"1.png","x":32.6838,"y":55.7279,"size":9.6,"blur":0.3,"text":"מצא את האבטיח"},{"emoji":"🚗","bg":"1.png","x":35.2357,"y":52.4927,"size":5.7,"blur":0.3,"text":"מצא את המכונית"},{"emoji":"🧸","bg":"1.png","x":41.7217,"y":37.2278,"size":6,"blur":0.2,"text":"מצא את הדובי"},{"emoji":"🎸","bg":"1.png","x":54.4942,"y":56.8838,"size":7.4,"blur":0.2,"text":"מצא את הגיטרה"},{"emoji":"🚲","bg":"1.png","x":41.1741,"y":37.2748,"size":6.5,"blur":0,"text":"מצא את האופניים"},{"emoji":"⚽","bg":"1.png","x":70.7292,"y":50.2267,"size":4.7,"blur":0.3,"text":"מצא את הכדורגל"},{"emoji":"🚀","bg":"1.png","x":87.2475,"y":39.1756,"size":4.9,"blur":0.2,"text":"מצא את הטיל"},{"emoji":"🚁","bg":"1.png","x":19.9773,"y":74.3207,"size":12.2,"blur":0,"text":"מצא את המסוק"},{"emoji":"🍄","bg":"1.png","x":44.002,"y":45.9382,"size":4,"blur":0.2,"text":"מצא את הפטריה"},{"emoji":"🍕","bg":"1.png","x":16.8742,"y":53.7018,"size":8,"blur":0,"text":"מצא את הפיצה"},{"emoji":"🔑","bg":"2.png","x":74.5158,"y":52.4195,"size":3.393737178073934,"blur":0,"text":"מצא את המפתח"},{"emoji":"⚽","bg":"2.png","x":2.9034,"y":13.7401,"size":1.9377390820655762,"blur":0.1,"text":"מצא את הכדור"},{"emoji":"🚗","bg":"2.png","x":50.3936,"y":29.0221,"size":3.0042619024650463,"blur":0.1,"text":"מצא את המכונית"},{"emoji":"🎸","bg":"2.png","x":97.9246,"y":87.6409,"size":8.371037528126969,"blur":0.1,"text":"מצא את הגיטרה"},{"emoji":"🍉","bg":"2.png","x":85.264,"y":81.52,"size":6.671478101010507,"blur":0.1,"text":"מצא את האבטיח"},{"emoji":"🍉","bg":"2.png","x":16.0048,"y":68.5589,"size":6.784812076767686,"blur":0,"text":"מצא את אבטיח"},{"emoji":"🚲","bg":"2.png","x":10.3459,"y":53.8259,"size":9.68184380945172,"blur":0.1,"text":"מצא את האופניים "},{"emoji":"⚽","bg":"2.png","x":83.001,"y":43.7169,"size":2.87630237088473,"blur":0.1,"text":"מצא את הכדור"},{"emoji":"🦋","bg":"2.png","x":16.1249,"y":33.0715,"size":4.184878062136043,"blur":0.1,"text":"מצא את הפרפר"},{"emoji":"🎁","bg":"2.png","x":54.5782,"y":73.9635,"size":2.5433854702349947,"blur":0.2,"text":"מצא את המתנה ותקבל את הפרס"}];
-
-    // *** מנגנון עדכון אוטומטי לשחקנים ***
-    let savedData = localStorage.getItem('myGameData');
-    if (savedData && JSON.stringify(HARDCODED_DATA) !== savedData) localStorage.removeItem('myGameData');
-
-    let gameData = HARDCODED_DATA;
-    let currentLevel = 0, isAdminOpen = false, editTarget = 'IMAGE', pressTimer, foundTimer;
-    let scale = 1, lastDist = 0, objSize = 35, posX = 0, posY = 0, startX = 0, startY = 0;
-    let timeLeft = 30, timerInterval;
-
-    const world = document.getElementById('world'), viewport = document.getElementById('game-viewport');
-    const obj = document.getElementById('hidden-object'), img = document.getElementById('game-image');
-    const admin = document.getElementById('admin-panel'), timerEl = document.getElementById('timer-display');
-
-    // =========================
-    // ✅ Firebase Global Counters + Best Level
-    // =========================
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBswW8xWycgld51KQmHl8ISx-zAnju7VOc",
-      authDomain: "matmon-b501a.firebaseapp.com",
-      databaseURL: "https://matmon-b501a-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "matmon-b501a",
-      storageBucket: "matmon-b501a.firebasestorage.app",
-      messagingSenderId: "251029525325",
-      appId: "1:251029525325:web:d85292571ada567b181d04"
-    };
-
-    const GAME_ID = "matmon_cc2k1975";
-
-    let db = null;
-    let globalReady = false;
-
-    const uiPlayers  = document.getElementById('g-players');
-    const uiEntries  = document.getElementById('g-entries');
-    const uiRestarts = document.getElementById('g-restarts');
-    const uiWins     = document.getElementById('g-wins');
-    const uiStatus   = document.getElementById('g-status');
-
-    const uiBestLevel  = document.getElementById('g-best-level');
-    const uiBestPlayer = document.getElementById('g-best-player');
-    const uiBestTime   = document.getElementById('g-best-time');
-
-    function setStatus(t) { if(uiStatus) uiStatus.innerText = t; }
-
-    function shortId(id) {
-      if (!id) return "-";
-      const s = String(id);
-      return s.length <= 10 ? s : ("…" + s.slice(-8));
-    }
-
-    function formatTime(ts) {
-      if (!ts) return "-";
-      try {
-        const d = new Date(ts);
-        return d.toLocaleString('he-IL');
-      } catch(e) {
-        return "-";
-      }
-    }
-
-    function getOrCreateUUID() {
-      let id = localStorage.getItem('cc2k_uuid');
-      if (!id) {
-        id = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
-        localStorage.setItem('cc2k_uuid', id);
-      }
-      return id;
-    }
-
-    function txIncrement(ref, by = 1) {
-      return ref.transaction(cur => (cur || 0) + by);
-    }
-
-    function initFirebaseAndLiveCounters() {
-      try {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.database();
-        globalReady = true;
-
-        const baseStats = db.ref('games/' + GAME_ID + '/stats');
-        const bestRef   = db.ref('games/' + GAME_ID + '/bestGlobal');
-
-        baseStats.child('playersCount').on('value', snap => uiPlayers.innerText  = (snap.val() ?? 0));
-        baseStats.child('entries').on('value',      snap => uiEntries.innerText  = (snap.val() ?? 0));
-        baseStats.child('restarts').on('value',     snap => uiRestarts.innerText = (snap.val() ?? 0));
-        baseStats.child('wins').on('value',         snap => uiWins.innerText     = (snap.val() ?? 0));
-
-        bestRef.on('value', snap => {
-          const v = snap.val() || {};
-          uiBestLevel.innerText  = (v.level ?? 0);
-          uiBestPlayer.innerText = shortId(v.player);
-          uiBestTime.innerText   = formatTime(v.ts);
-        });
-
-        setStatus("✅ מחובר ל-Firebase");
-
-        registerEntryAndMaybeNewPlayer();
-
-      } catch (e) {
-        setStatus("❌ שגיאת Firebase: " + (e && e.message ? e.message : e));
-      }
-    }
-
-    function registerEntryAndMaybeNewPlayer() {
-      if (!globalReady || !db) return;
-
-      const uuid = getOrCreateUUID();
-      const root = db.ref('games/' + GAME_ID);
-      const stats = root.child('stats');
-      const playerRef = root.child('players/' + uuid);
-
-      txIncrement(stats.child('entries'), 1);
-
-      playerRef.once('value').then(snap => {
-        if (snap.exists()) return;
-        return playerRef.set(true).then(() => txIncrement(stats.child('playersCount'), 1));
-      }).catch(() => {});
-    }
-
-    function globalRestart() {
-      if (!globalReady || !db) return;
-      const stats = db.ref('games/' + GAME_ID + '/stats');
-      txIncrement(stats.child('restarts'), 1);
-    }
-
-    function globalWin() {
-      if (!globalReady || !db) return;
-      const stats = db.ref('games/' + GAME_ID + '/stats');
-      txIncrement(stats.child('wins'), 1);
-    }
-
-    // ✅ עדכון "שלב הכי גבוה" (פר שחקן + גלובלי)
-    function globalReachedLevel(levelNum1to20) {
-      if (!globalReady || !db) return;
-
-      const uuid = getOrCreateUUID();
-      const root = db.ref('games/' + GAME_ID);
-
-      const playerBestRef = root.child('playerBest/' + uuid + '/bestLevel');
-      const bestGlobalRef = root.child('bestGlobal');
-
-      // פר שחקן
-      playerBestRef.transaction(cur => {
-        cur = cur || 0;
-        return (levelNum1to20 > cur) ? levelNum1to20 : cur;
-      }).catch(() => {});
-
-      // גלובלי
-      bestGlobalRef.transaction(cur => {
-        cur = cur || { level: 0, player: "", ts: 0 };
-        const curLevel = (cur && typeof cur.level === 'number') ? cur.level : 0;
-
-        if (levelNum1to20 > curLevel) {
-          return {
-            level: levelNum1to20,
-            player: uuid,
-            ts: firebase.database.ServerValue.TIMESTAMP
-          };
+        // בדיקת גרסה אוטומטית - מרענן אם הנתונים בקוד חדשים יותר
+        let currentHash = btoa(JSON.stringify(HARDCODED_DATA));
+        if (localStorage.getItem('gameVersion') !== currentHash) {
+            localStorage.removeItem('myGameData');
+            localStorage.setItem('gameVersion', currentHash);
         }
-        return; // לא לשנות
-      }).catch(() => {});
-    }
 
-    // =========================
-    // ✅ המשחק שלך (כמו שהוא)
-    // =========================
+        let gameData = JSON.parse(localStorage.getItem('myGameData')) || HARDCODED_DATA;
+        let currentLevel = 0, isAdminOpen = false, editTarget = 'IMAGE', pressTimer, foundTimer;
+        let scale = 1, lastDist = 0, objSize = 35, posX = 0, posY = 0, startX = 0, startY = 0;
+        let timeLeft = 30, timerInterval;
 
-    function loadStage() {
-      let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
-      let data = gameData[idx];
+        const world = document.getElementById('world'), viewport = document.getElementById('game-viewport');
+        const obj = document.getElementById('hidden-object'), img = document.getElementById('game-image');
+        const admin = document.getElementById('admin-panel'), timerEl = document.getElementById('timer-display');
 
-      document.getElementById('level-num').innerText = parseInt(idx) + 1;
-      document.getElementById('instruction-display').innerText = data.text || 'חפש את האובייקט';
-
-      img.src = data.bg;
-      img.onload = () => {
-        obj.innerText = data.emoji;
-        obj.style.left = data.x + '%';
-        obj.style.top = data.y + '%';
-        objSize = data.size || 35;
-        obj.style.fontSize = objSize + 'px';
-        obj.style.filter = `blur(${data.blur || 0}px)`;
-        obj.style.display = 'block';
-        if(!isAdminOpen || editTarget !== 'OBJECT') obj.style.border = 'none';
-      };
-    }
-
-    viewport.ontouchstart = (e) => {
-      if(isAdminOpen) {
-        lastDist = 0;
-        if(e.touches.length === 1) {
-          startX = e.touches[0].clientX - (editTarget === 'IMAGE' ? posX : 0);
-          startY = e.touches[0].clientY - (editTarget === 'IMAGE' ? posY : 0);
+        function loadStage() {
+            let idx = isAdminOpen ? document.getElementById('stage-select').value : currentLevel;
+            let data = gameData[idx];
+            document.getElementById('level-num').innerText = parseInt(idx) + 1;
+            document.getElementById('instruction-display').innerText = data.text || 'חפש את האובייקט';
+            img.src = data.bg;
+            img.onload = () => {
+                obj.innerText = data.emoji;
+                obj.style.left = data.x + '%';
+                obj.style.top = data.y + '%';
+                objSize = data.size || 35;
+                obj.style.fontSize = objSize + 'px';
+                obj.style.filter = `blur(${data.blur || 0}px)`;
+                obj.style.display = 'block';
+                if(!isAdminOpen || editTarget !== 'OBJECT') obj.style.border = 'none';
+            };
         }
-        return;
-      }
 
-      clearTimeout(pressTimer);
-      pressTimer = setTimeout(() => { if(prompt("סיסמה:") === "4451") toggleAdmin(true); }, 10000);
+        // ביטול זיהוי לחיצה ארוכה כבחירה
+        window.oncontextmenu = function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+        };
 
-      if(e.touches.length === 1) { startX = e.touches[0].clientX - posX; startY = e.touches[0].clientY - posY; }
-    };
+        viewport.ontouchstart = (e) => {
+            if(isAdminOpen) {
+                lastDist = 0;
+                if(e.touches.length === 1) {
+                    startX = e.touches[0].clientX - (editTarget === 'IMAGE' ? posX : 0);
+                    startY = e.touches[0].clientY - (editTarget === 'IMAGE' ? posY : 0);
+                }
+                return;
+            }
+            clearTimeout(pressTimer);
+            pressTimer = setTimeout(() => { if(prompt("סיסמה:") === "4451") toggleAdmin(true); }, 10000);
+            if(e.touches.length === 1) { startX = e.touches[0].clientX - posX; startY = e.touches[0].clientY - posY; }
+        };
 
-    viewport.ontouchend = () => { lastDist = 0; clearTimeout(pressTimer); clearTimeout(foundTimer); };
+        viewport.ontouchend = () => { lastDist = 0; clearTimeout(pressTimer); clearTimeout(foundTimer); };
 
-    viewport.ontouchmove = (e) => {
-      e.preventDefault();
+        viewport.ontouchmove = (e) => {
+            e.preventDefault();
+            if(isAdminOpen && editTarget === 'OBJECT') {
+                if(e.touches.length === 1) {
+                    let rect = img.getBoundingClientRect();
+                    obj.style.left = ((e.touches[0].clientX - rect.left) / rect.width) * 100 + '%';
+                    obj.style.top = ((e.touches[0].clientY - rect.top) / rect.height) * 100 + '%';
+                }
+                if(e.touches.length === 2) {
+                    let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+                    if(lastDist > 0) {
+                        let diff = dist - lastDist;
+                        objSize = Math.max(1, objSize + diff * 0.5);
+                        obj.style.fontSize = objSize + 'px';
+                    }
+                    lastDist = dist;
+                }
+            } else {
+                if(e.touches.length === 1) { posX = e.touches[0].clientX - startX; posY = e.touches[0].clientY - startY; }
+                if(e.touches.length === 2) {
+                    let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+                    if(lastDist > 0) { scale *= (dist / lastDist); scale = Math.max(1, Math.min(5, scale)); }
+                    lastDist = dist;
+                }
+            }
+            updateTransform();
+        };
 
-      if(isAdminOpen && editTarget === 'OBJECT') {
-        if(e.touches.length === 1) {
-          let rect = img.getBoundingClientRect();
-          obj.style.left = ((e.touches[0].clientX - rect.left) / rect.width) * 100 + '%';
-          obj.style.top = ((e.touches[0].clientY - rect.top) / rect.height) * 100 + '%';
+        obj.ontouchstart = (e) => {
+            if(isAdminOpen) return;
+            if(scale < 2.5) return; 
+            e.stopPropagation();
+            foundTimer = setTimeout(() => { success(); }, 50); 
+        };
+
+        function success() {
+            clearInterval(timerInterval);
+            if (currentLevel === 19) {
+                alert("כל הכבוד! הגעת לשלב האחרון 🏆\n\nבצע צילום מסך כעת, גש לצ'רלי ותקבל 50 שקל!");
+            } else {
+                alert("מצאת!");
+                currentLevel++;
+                resetView(); loadStage(); startTimer();
+            }
         }
-        if(e.touches.length === 2) {
-          let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-          if(lastDist > 0) {
-            let diff = dist - lastDist;
-            objSize = Math.max(1, objSize + diff * 0.5);
-            obj.style.fontSize = objSize + 'px';
-          }
-          lastDist = dist;
+
+        function resetView() { scale = 1; posX = 0; posY = 0; updateTransform(); }
+        function updateTransform() { world.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
+
+        function setEditMode(m) {
+            editTarget = m;
+            document.getElementById('btn-mode-img').classList.toggle('active', m === 'IMAGE');
+            document.getElementById('btn-mode-obj').classList.toggle('active', m === 'OBJECT');
+            obj.style.border = (m === 'OBJECT') ? "2px dashed #f1c40f" : "none";
         }
-      } else {
-        if(e.touches.length === 1) { posX = e.touches[0].clientX - startX; posY = e.touches[0].clientY - startY; }
-        if(e.touches.length === 2) {
-          let dist = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-          if(lastDist > 0) { scale *= (dist / lastDist); scale = Math.max(1, Math.min(5, scale)); }
-          lastDist = dist;
+
+        function toggleAdmin(show) { 
+            isAdminOpen = show; admin.style.display = show ? 'block' : 'none'; 
+            if(!show) { resetView(); startTimer(); obj.style.border = 'none'; } 
+            else { clearInterval(timerInterval); setEditMode('IMAGE'); }
+            loadStage(); 
         }
-      }
-      updateTransform();
-    };
 
-    obj.ontouchstart = (e) => {
-      if(isAdminOpen) return;
-      if(scale < 2.5) return;
-      e.stopPropagation();
-      foundTimer = setTimeout(() => { success(); }, 50);
-    };
+        function saveStage() { let idx = document.getElementById('stage-select').value; gameData[idx] = { emoji: obj.innerText, bg: document.getElementById('bg-select').value, x: parseFloat(obj.style.left), y: parseFloat(obj.style.top), size: parseFloat(objSize), blur: parseFloat(document.getElementById('blur-slider').value), text: document.getElementById('stage-instruction').value }; localStorage.setItem('myGameData', JSON.stringify(gameData)); alert("נשמר!"); }
+        function exportData() { saveStage(); navigator.clipboard.writeText(JSON.stringify(gameData)).then(() => alert("הקוד הועתק!")); }
+        function updateBlur(v) { document.getElementById('blur-val').innerText = v; obj.style.filter = `blur(${v}px)`; }
+        function updateBG() { img.src = document.getElementById('bg-select').value; }
+        function setEmoji(e) { obj.innerText = e; }
+        function startTimer() { clearInterval(timerInterval); timeLeft = 30; timerEl.innerText = timeLeft; timerInterval = setInterval(() => { timeLeft--; timerEl.innerText = timeLeft; if(timeLeft <= 0) { clearInterval(timerInterval); alert("נגמר הזמן! חוזרים לשלב 1..."); currentLevel = 0; resetView(); loadStage(); startTimer(); } }, 1000); }
 
-    function success() {
-      clearInterval(timerInterval);
-
-      if (currentLevel === 19) {
-        // סיים = הגיע לשלב 20
-        globalReachedLevel(20);
-        globalWin();
-
-        alert("כל הכבוד! הגעת לשלב האחרון 🏆\n\nבצע צילום מסך כעת, גש לצ'רלי ותקבל 50 שקל!");
-      } else {
-        alert("מצאת!");
-
-        // הוא מתקדם לשלב הבא -> זה אומר שהשלב הבא "הושג"
-        const nextLevel = (currentLevel + 2); // 1..20
-        globalReachedLevel(nextLevel);
-
-        currentLevel++;
-        resetView(); loadStage(); startTimer();
-      }
-    }
-
-    function resetView() { scale = 1; posX = 0; posY = 0; updateTransform(); }
-    function updateTransform() { world.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
-
-    function setEditMode(m) {
-      editTarget = m;
-      document.getElementById('btn-mode-img').classList.toggle('active', m === 'IMAGE');
-      document.getElementById('btn-mode-obj').classList.toggle('active', m === 'OBJECT');
-      obj.style.border = (m === 'OBJECT') ? "2px dashed #f1c40f" : "none";
-    }
-
-    function toggleAdmin(show) {
-      isAdminOpen = show; admin.style.display = show ? 'block' : 'none';
-      if(!show) { resetView(); startTimer(); obj.style.border = 'none'; }
-      else { clearInterval(timerInterval); setEditMode('IMAGE'); }
-      loadStage();
-    }
-
-    function saveStage() {
-      let idx = document.getElementById('stage-select').value;
-      gameData[idx] = {
-        emoji: obj.innerText,
-        bg: document.getElementById('bg-select').value,
-        x: parseFloat(obj.style.left),
-        y: parseFloat(obj.style.top),
-        size: parseFloat(objSize),
-        blur: parseFloat(document.getElementById('blur-slider').value),
-        text: document.getElementById('stage-instruction').value
-      };
-      localStorage.setItem('myGameData', JSON.stringify(gameData));
-      alert("נשמר בזיכרון הטלפון!");
-    }
-
-    function exportData() { saveStage(); navigator.clipboard.writeText(JSON.stringify(gameData)).then(() => alert("הקוד הועתק! הדבק אותו ב-HARDCODED_DATA בקוד המקור.")); }
-    function updateBlur(v) { document.getElementById('blur-val').innerText = v; obj.style.filter = `blur(${v}px)`; }
-    function updateBG() { img.src = document.getElementById('bg-select').value; }
-    function setEmoji(e) { obj.innerText = e; }
-
-    function startTimer() {
-      clearInterval(timerInterval);
-      timeLeft = 30;
-      timerEl.innerText = timeLeft;
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        timerEl.innerText = timeLeft;
-        if(timeLeft <= 0) {
-          clearInterval(timerInterval);
-
-          // ✅ התחלה מחדש גלובלית
-          globalRestart();
-
-          alert("נגמר הזמן! חוזרים לשלב 1...");
-          currentLevel = 0;
-          resetView();
-          loadStage();
-          startTimer();
-        }
-      }, 1000);
-    }
-
-    window.onload = () => {
-      // ✅ הפעלה של פיירבייס + מאזינים בזמן אמת
-      initFirebaseAndLiveCounters();
-
-      loadStage();
-      startTimer();
-    };
-  </script>
-
+        window.onload = () => { loadStage(); startTimer(); };
+    </script>
 </body>
 </html>
