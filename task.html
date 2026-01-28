@@ -121,7 +121,47 @@
     </div>
 
     <script>
-        const PHONE_NUMBER = "972524291544"; 
+        const USER_NAME_KEY = "report_user_name";
+        const WA_PHONE_KEY = "report_wa_phone";
+        const DEFAULT_NAME = "שילה";
+        const DEFAULT_PHONE = "972524291544";
+
+        function normalizePhone(input) {
+            let s = String(input || "").trim().replace(/[^\d+]/g, "");
+            if (!s) return "";
+            if (s.startsWith("+")) s = s.slice(1);
+            if (s.startsWith("00")) s = s.slice(2);
+            // אם הקליד 05XXXXXXXX -> נהפוך ל-9725XXXXXXXX
+            if (s.startsWith("05") && s.length === 10) s = "972" + s.slice(1);
+            // אם הקליד 5XXXXXXXX (בלי 0) ונראה כמו סלולרי ישראלי
+            if (s.startsWith("5") && s.length === 9) s = "972" + s;
+            return s.replace(/[^\d]/g, "");
+        }
+
+        function ensureUserProfile() {
+            let storedName = (localStorage.getItem(USER_NAME_KEY) || "").trim();
+            let storedPhone = (localStorage.getItem(WA_PHONE_KEY) || "").trim();
+
+            if (!storedName) {
+                const nameInput = prompt("מה השם שלך?") || "";
+                const name = nameInput.trim() || DEFAULT_NAME;
+                localStorage.setItem(USER_NAME_KEY, name);
+                storedName = name;
+            }
+
+            if (!storedPhone) {
+                const phoneInput = prompt("מה מספר הטלפון לשליחת WhatsApp? (למשל 0521234567)") || "";
+                const normalized = normalizePhone(phoneInput) || DEFAULT_PHONE;
+                localStorage.setItem(WA_PHONE_KEY, normalized);
+                storedPhone = normalized;
+            }
+
+            return { name: storedName, phone: storedPhone };
+        }
+
+        const profile = ensureUserProfile();
+
+        const PHONE_NUMBER = profile.phone; 
         const recordBtn = document.getElementById('record-btn');
         const statusTxt = document.getElementById('status');
         const taskListDiv = document.getElementById('task-list');
@@ -227,10 +267,12 @@
             let filtered = [];
             let header = "";
 
+            const userName = (localStorage.getItem(USER_NAME_KEY) || DEFAULT_NAME).trim() || DEFAULT_NAME;
+
             if (type === 'daily') {
                 const today = new Date().toLocaleDateString('he-IL');
                 filtered = tasks.filter(t => t.date === today);
-                header = `*דוח משימות יומי של שילה (${today})*`;
+                header = `*דוח משימות יומי של ${userName} (${today})*`;
             } else {
                 const now = new Date();
                 const thisMonth = now.getMonth();
@@ -241,7 +283,7 @@
                     const d = new Date(t.rawDate);
                     return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
                 });
-                header = `*דוח משימות חודשי של שילה*`;
+                header = `*דוח משימות חודשי של ${userName}*`;
             }
 
             if (!filtered.length) return alert("אין נתונים לשליחה");
@@ -255,7 +297,8 @@
                 }
             });
 
-            window.open(`https://wa.me/${PHONE_NUMBER}?text=${msg}`, '_blank');
+            const waPhone = (localStorage.getItem(WA_PHONE_KEY) || PHONE_NUMBER).trim() || PHONE_NUMBER;
+            window.open(`https://wa.me/${waPhone}?text=${msg}`, '_blank');
         }
 
         render();
