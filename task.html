@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>דוח משימות יומי של שילה</title>
+    <title id="page-title">דוח משימות יומי</title>
     <style>
         :root {
             --primary: #1a73e8;
@@ -107,7 +107,7 @@
 </head>
 <body>
 
-    <h2>דוח משימות יומי של שילה</h2>
+    <h2 id="main-header">דוח משימות יומי</h2>
     <div id="date-display"></div>
     
     <button id="record-btn">🎤</button>
@@ -121,7 +121,38 @@
     </div>
 
     <script>
-        const PHONE_NUMBER = "972524291544"; 
+        // --- מנגנון הגדרה ראשונית ---
+        function setupUser() {
+            let userName = localStorage.getItem('user_name');
+            let userPhone = localStorage.getItem('user_phone');
+
+            if (!userName || !userPhone) {
+                userName = prompt("שלום! זו הפעם הראשונה שלך. איך קוראים לך?");
+                while (!userName) userName = prompt("חובה להזין שם כדי להמשיך:");
+
+                let phone1 = prompt("מה מספר הטלפון לשליחת הדוחות? (לדוגמה: 972501234567)");
+                let phone2 = prompt("נא להזין את מספר הטלפון שוב לאימות:");
+
+                while (!phone1 || phone1 !== phone2) {
+                    alert("המספרים אינם תואמים או ריקים. נסה שוב.");
+                    phone1 = prompt("מה מספר הטלפון לשליחת הדוחות?");
+                    phone2 = prompt("נא להזין את מספר הטלפון שוב לאימות:");
+                }
+
+                localStorage.setItem('user_name', userName);
+                localStorage.setItem('user_phone', phone1);
+                location.reload(); // רענון כדי לעדכן את הכותרות
+            }
+            return { name: userName, phone: userPhone };
+        }
+
+        const userData = setupUser();
+        
+        // עדכון כותרות לפי השם שנשמר
+        document.title = `דוח משימות יומי של ${userData.name}`;
+        document.getElementById('main-header').innerText = `דוח משימות יומי של ${userData.name}`;
+
+        const PHONE_NUMBER = userData.phone; 
         const recordBtn = document.getElementById('record-btn');
         const statusTxt = document.getElementById('status');
         const taskListDiv = document.getElementById('task-list');
@@ -202,7 +233,6 @@
             y.setDate(now.getDate() - 1);
             const yesterdayStr = y.toLocaleDateString('he-IL');
 
-            // מציג גם אתמול וגם היום (בלי כפתורים ובלי שינוי עיצוב)
             const shownTasks = tasks.filter(t => t.date === todayStr || t.date === yesterdayStr);
 
             taskListDiv.innerHTML = shownTasks.length ? '' : '<p style="text-align:center; color:#ccc;">אין משימות היום</p>';
@@ -230,18 +260,17 @@
             if (type === 'daily') {
                 const today = new Date().toLocaleDateString('he-IL');
                 filtered = tasks.filter(t => t.date === today);
-                header = `*דוח משימות יומי של שילה (${today})*`;
+                header = `*דוח משימות יומי של ${userData.name} (${today})*`;
             } else {
                 const now = new Date();
                 const thisMonth = now.getMonth();
                 const thisYear = now.getFullYear();
 
-                // מסנן לפי חודש ושנה, ואז בדוח עצמו מוסיף גם תאריך וגם שעה
                 filtered = tasks.filter(t => {
                     const d = new Date(t.rawDate);
                     return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
                 });
-                header = `*דוח משימות חודשי של שילה*`;
+                header = `*דוח משימות חודשי של ${userData.name}*`;
             }
 
             if (!filtered.length) return alert("אין נתונים לשליחה");
