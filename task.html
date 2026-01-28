@@ -24,7 +24,6 @@
         h2 { margin-bottom: 5px; color: #333; text-align: center; }
         #date-display { font-size: 1.2em; margin-bottom: 20px; color: #666; }
 
-        /* כפתור הקלטה ענק */
         #record-btn {
             width: 240px;
             height: 240px;
@@ -127,32 +126,38 @@
             let userPhone = localStorage.getItem('user_phone');
 
             if (!userName || !userPhone) {
-                userName = prompt("שלום! זו הפעם הראשונה שלך. איך קוראים לך?");
+                userName = prompt("שלום! מה שמך?");
                 while (!userName) userName = prompt("חובה להזין שם כדי להמשיך:");
 
-                let phone1 = prompt("מה מספר הטלפון לשליחת הדוחות? (לדוגמה: 972501234567)");
+                let phone1 = prompt("מה מספר הטלפון שלך? (לדוגמה: 0523719856)");
                 let phone2 = prompt("נא להזין את מספר הטלפון שוב לאימות:");
 
-                while (!phone1 || phone1 !== phone2) {
-                    alert("המספרים אינם תואמים או ריקים. נסה שוב.");
-                    phone1 = prompt("מה מספר הטלפון לשליחת הדוחות?");
+                while (!phone1 || phone1 !== phone2 || phone1.length < 10) {
+                    alert("המספרים אינם תואמים או שאינם תקינים. נא להזין מספר מלא עם 0 בהתחלה.");
+                    phone1 = prompt("מה מספר הטלפון שלך?");
                     phone2 = prompt("נא להזין את מספר הטלפון שוב לאימות:");
                 }
 
                 localStorage.setItem('user_name', userName);
                 localStorage.setItem('user_phone', phone1);
-                location.reload(); // רענון כדי לעדכן את הכותרות
+                location.reload();
             }
             return { name: userName, phone: userPhone };
         }
 
         const userData = setupUser();
         
-        // עדכון כותרות לפי השם שנשמר
         document.title = `דוח משימות יומי של ${userData.name}`;
         document.getElementById('main-header').innerText = `דוח משימות יומי של ${userData.name}`;
 
-        const PHONE_NUMBER = userData.phone; 
+        // פונקציה להמרת המספר לפורמט וואטסאפ (החלפת 0 ב-972)
+        function getWhatsAppFormat(phone) {
+            if (phone.startsWith('0')) {
+                return '972' + phone.substring(1);
+            }
+            return phone;
+        }
+
         const recordBtn = document.getElementById('record-btn');
         const statusTxt = document.getElementById('status');
         const taskListDiv = document.getElementById('task-list');
@@ -166,11 +171,7 @@
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
             recognition.lang = 'he-IL';
-            
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                saveTask(transcript);
-            };
+            recognition.onresult = (event) => saveTask(event.results[0][0].transcript);
         }
 
         function startRec() {
@@ -226,7 +227,6 @@
 
         function render() {
             const tasks = JSON.parse(localStorage.getItem('myTasks') || '[]');
-
             const now = new Date();
             const todayStr = now.toLocaleDateString('he-IL');
             const y = new Date(now);
@@ -265,7 +265,6 @@
                 const now = new Date();
                 const thisMonth = now.getMonth();
                 const thisYear = now.getFullYear();
-
                 filtered = tasks.filter(t => {
                     const d = new Date(t.rawDate);
                     return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
@@ -277,14 +276,11 @@
 
             let msg = header + "%0A%0A";
             filtered.forEach((t, i) => {
-                if (type === 'daily') {
-                    msg += `${i+1}. [${t.time}] ${t.text}%0A`;
-                } else {
-                    msg += `${i+1}. [${t.date} ${t.time}] ${t.text}%0A`;
-                }
+                msg += `${i+1}. [${type === 'daily' ? t.time : t.date + ' ' + t.time}] ${t.text}%0A`;
             });
 
-            window.open(`https://wa.me/${PHONE_NUMBER}?text=${msg}`, '_blank');
+            const finalPhone = getWhatsAppFormat(userData.phone);
+            window.open(`https://wa.me/${finalPhone}?text=${msg}`, '_blank');
         }
 
         render();
