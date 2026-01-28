@@ -5,16 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>משחק המטמון - Cc2k1975</title>
     <style>
-        /* הגנה מוחלטת נגד סימון ובחירה של אובייקטים */
+        /* הגנה נגד סימון ובחירה - מאפשרת זום ותנועה */
         * {
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
-            -webkit-touch-callout: none; /* מבטל את התפריט שקופץ בלחיצה ארוכה בנייד */
+            -webkit-touch-callout: none;
+            /* מאפשר מחוות מגע כמו זום */
+            touch-action: none; 
         }
 
-        body { font-family: system-ui; background: #000; color: white; margin: 0; overflow: hidden; height: 100vh; touch-action: none; }
+        body { font-family: system-ui; background: #000; color: white; margin: 0; overflow: hidden; height: 100vh; }
         #ui-layer { position: absolute; top: 0; width: 100%; z-index: 100; background: rgba(0,0,0,0.7); padding: 10px; text-align: center; pointer-events: none; }
         #timer-display { font-size: 24px; color: #e74c3c; font-weight: bold; margin-top: 5px; }
         #instruction-display { font-size: 18px; color: #f1c40f; margin-top: 5px; }
@@ -33,14 +35,14 @@
             border: none;
         }
 
-        /* פאנל הניהול - כאן מותר לבחור טקסט בתוך האינפוטים */
         #admin-panel { 
             display: none; position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); 
             background: rgba(30, 39, 46, 0.95); padding: 12px; border-radius: 20px; 
             border: 2px solid #f1c40f; z-index: 1000; width: 95%; max-width: 420px; 
             max-height: 80vh; overflow-y: auto; 
         }
-        #admin-panel input, #admin-panel select { user-select: auto; -webkit-user-select: auto; }
+        /* מאפשר עריכת טקסט רק בתוך פאנל הניהול */
+        #admin-panel input, #admin-panel select { user-select: auto; -webkit-user-select: auto; touch-action: auto; }
 
         .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
         .mode-btn { flex: 1; padding: 10px; border-radius: 10px; border: 2px solid #555; background: #1e272e; color: white; font-weight: bold; }
@@ -111,7 +113,7 @@
     <script>
         const HARDCODED_DATA = [{"emoji":"🍉","bg":"1.png","x":32.6838,"y":55.7279,"size":9.6,"blur":0.3,"text":"מצא את האבטיח"},{"emoji":"🚗","bg":"1.png","x":35.2357,"y":52.4927,"size":5.7,"blur":0.3,"text":"מצא את המכונית"},{"emoji":"🧸","bg":"1.png","x":41.7217,"y":37.2278,"size":6,"blur":0.2,"text":"מצא את הדובי"},{"emoji":"🎸","bg":"1.png","x":54.4942,"y":56.8838,"size":7.4,"blur":0.2,"text":"מצא את הגיטרה"},{"emoji":"🚲","bg":"1.png","x":41.1741,"y":37.2748,"size":6.5,"blur":0,"text":"מצא את האופניים"},{"emoji":"⚽","bg":"1.png","x":70.7292,"y":50.2267,"size":4.7,"blur":0.3,"text":"מצא את הכדורגל"},{"emoji":"🚀","bg":"1.png","x":87.2475,"y":39.1756,"size":4.9,"blur":0.2,"text":"מצא את הטיל"},{"emoji":"🚁","bg":"1.png","x":19.9773,"y":74.3207,"size":12.2,"blur":0,"text":"מצא את המסוק"},{"emoji":"🍄","bg":"1.png","x":44.002,"y":45.9382,"size":4,"blur":0.2,"text":"מצא את הפטריה"},{"emoji":"🍕","bg":"1.png","x":16.8742,"y":53.7018,"size":8,"blur":0,"text":"מצא את הפיצה"},{"emoji":"🔑","bg":"2.png","x":74.5158,"y":52.4195,"size":3.393737178073934,"blur":0,"text":"מצא את המפתח"},{"emoji":"⚽","bg":"2.png","x":2.9034,"y":13.7401,"size":1.9377390820655762,"blur":0.1,"text":"מצא את הכדור"},{"emoji":"🚗","bg":"2.png","x":50.3936,"y":29.0221,"size":3.0042619024650463,"blur":0.1,"text":"מצא את המכונית"},{"emoji":"🎸","bg":"2.png","x":97.9246,"y":87.6409,"size":8.371037528126969,"blur":0.1,"text":"מצא את הגיטרה"},{"emoji":"🍉","bg":"2.png","x":85.264,"y":81.52,"size":6.671478101010507,"blur":0.1,"text":"מצא את האבטיח"},{"emoji":"🍉","bg":"2.png","x":16.0048,"y":68.5589,"size":6.784812076767686,"blur":0,"text":"מצא את אבטיח"},{"emoji":"🚲","bg":"2.png","x":10.3459,"y":53.8259,"size":9.68184380945172,"blur":0.1,"text":"מצא את האופניים "},{"emoji":"⚽","bg":"2.png","x":83.001,"y":43.7169,"size":2.87630237088473,"blur":0.1,"text":"מצא את הכדור"},{"emoji":"🦋","bg":"2.png","x":16.1249,"y":33.0715,"size":4.184878062136043,"blur":0.1,"text":"מצא את הפרפר"},{"emoji":"🎁","bg":"2.png","x":54.5782,"y":73.9635,"size":2.5433854702349947,"blur":0.2,"text":"מצא את המתנה ותקבל את הפרס"}];
 
-        // בדיקת גרסה אוטומטית - מרענן אם הנתונים בקוד חדשים יותר
+        // עדכון גרסה אוטומטי
         let currentHash = btoa(JSON.stringify(HARDCODED_DATA));
         if (localStorage.getItem('gameVersion') !== currentHash) {
             localStorage.removeItem('myGameData');
@@ -146,11 +148,7 @@
         }
 
         // ביטול זיהוי לחיצה ארוכה כבחירה
-        window.oncontextmenu = function(event) {
-            event.preventDefault();
-            event.stopPropagation();
-            return false;
-        };
+        window.oncontextmenu = function(event) { event.preventDefault(); return false; };
 
         viewport.ontouchstart = (e) => {
             if(isAdminOpen) {
@@ -169,7 +167,6 @@
         viewport.ontouchend = () => { lastDist = 0; clearTimeout(pressTimer); clearTimeout(foundTimer); };
 
         viewport.ontouchmove = (e) => {
-            e.preventDefault();
             if(isAdminOpen && editTarget === 'OBJECT') {
                 if(e.touches.length === 1) {
                     let rect = img.getBoundingClientRect();
