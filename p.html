@@ -57,6 +57,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 <script type="module">
+    // --- Firebase Config ---
     const firebaseConfig = {
       apiKey: "AIzaSyBYdxUWldY4AptA9g826alHQ__vRcKA3Vc",
       authDomain: "pass-b0ac7.firebaseapp.com",
@@ -79,59 +80,115 @@
         document.getElementById('addSec').classList.toggle('hidden', id !== 'add');
     };
 
+    // בדיקת כפתור ביומטרי - יופיע רק אם יש מפתח שמור
     if (window.PublicKeyCredential && localStorage.getItem('bio_v')) {
         document.getElementById('btnBio').style.display = 'block';
     }
 
+    // פונקציית עזר להמרת טקסט ל-ArrayBuffer (חשוב לביומטריה)
+    const strToBuffer = (str) => new TextEncoder().encode(str);
+
+    // --- רישום ביומטרי ---
     async function registerBio(pwd) {
         try {
             const challenge = window.crypto.getRandomValues(new Uint8Array(32));
             const credential = await navigator.credentials.create({
                 publicKey: {
-                    challenge, rp: { name: "Vault" },
-                    user: { id: new Uint8Array([1,2,3,4]), name: "user", displayName: "User" },
-                    pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                    challenge,
+                    rp: { name: "My Vault" },
+                    user: {
+                        id: strToBuffer("user123"),
+                        name: "user@vault",
+                        displayName: "User"
+                    },
+                    pubKeyCredParams: [{ alg: -7, type: "public-key" }, { alg: -257, type: "public-key" }],
                     timeout: 60000,
-                    authenticatorSelection: { authenticatorAttachment: "platform" }
+                    authenticatorSelection: {
+                        authenticatorAttachment: "platform",
+                        userVerification: "required"
+                    }
                 }
             });
-            if (credential) { localStorage.setItem('bio_v', pwd); alert("טביעת אצבע הוגדרה!"); }
-        } catch (e) { console.error(e); }
+            if (credential) {
+                localStorage.setItem('bio_v', pwd);
+                alert("טביעת אצבע הוגדרה בהצלחה!");
+                document.getElementById('btnBio').style.display = 'block';
+            }
+        } catch (e) {
+            console.error("רישום נכשל:", e);
+        }
     }
 
+    // --- אימות ביומטרי (כניסה חוזרת) ---
     document.getElementById('btnBio').onclick = async () => {
         try {
             const challenge = window.crypto.getRandomValues(new Uint8Array(32));
-            await navigator.credentials.get({ publicKey: { challenge, timeout: 60000, userVerification: "required" } });
-            document.getElementById('masterPass').value = localStorage.getItem('bio_v');
-            document.getElementById('btnLogin').click();
-        } catch (e) { alert("זיהוי נכשל"); }
+            // ניסיון לקבל אישור מהמכשיר
+            const assertion = await navigator.credentials.get({
+                publicKey: {
+                    challenge,
+                    timeout: 60000,
+                    userVerification: "required"
+                }
+            });
+            
+            if (assertion) {
+                const savedPass = localStorage.getItem('bio_v');
+                if (savedPass) {
+                    document.getElementById('masterPass').value = savedPass;
+                    document.getElementById('btnLogin').click();
+                }
+            }
+        } catch (e) {
+            console.error("זיהוי נכשל:", e);
+            alert("לא הצלחנו לזהות את טביעת האצבע. נסה להשתמש בסיסמה.");
+        }
     };
 
+    // --- כניסה רגילה ---
     document.getElementById("btnLogin").onclick = async () => {
         MASTER = document.getElementById("masterPass").value;
         if(!MASTER) return;
+        
+        document.getElementById('status').textContent = "טוען...";
         try {
             const snap = await getDocs(collection(db, "vault"));
             DATA = [];
+            let success = false;
+            
             snap.forEach(d => {
                 try {
                     const bytes = CryptoJS.AES.decrypt(d.data().blob, MASTER);
                     const decStr = bytes.toString(CryptoJS.enc.Utf8);
                     if(!decStr) return;
                     const obj = JSON.parse(decStr);
-                    obj.id = d.id; DATA.push(obj);
+                    obj.id = d.id;
+                    DATA.push(obj);
+                    success = true; // אם הצלחנו לפענח לפחות אחד, הסיסמה נכונה
                 } catch(e) {}
             });
-            if (!localStorage.getItem('bio_v') && confirm("להפעיל טביעת אצבע להבא?")) await registerBio(MASTER);
-            render(); show('main');
-        } catch(err) { document.getElementById('status').textContent = "שגיאה בחיבור/סיסמה"; }
+
+            // אם זו כניסה ראשונה מוצלחת ואין ביומטריה - נבקש להגדיר
+            if (!localStorage.getItem('bio_v')) {
+                const wantBio = confirm("האם תרצה להשתמש בטביעת אצבע לכניסות הבאות?");
+                if (wantBio) await registerBio(MASTER);
+            }
+
+            document.getElementById('status').textContent = "";
+            render();
+            show('main');
+        } catch(err) {
+            document.getElementById('status').textContent = "שגיאה בחיבור או סיסמה שגויה";
+        }
     };
 
+    // --- שאר הפונקציות (מחיקה, עריכה, תצוגה) ---
     function render(f = "") {
         const list = document.getElementById("list");
         list.innerHTML = "";
-        DATA.filter(i => i.service.toLowerCase().includes(f.toLowerCase())).forEach(item => {
+        const filtered = DATA.filter(i => i.service.toLowerCase().includes(f.toLowerCase()));
+        
+        filtered.forEach(item => {
             const div = document.createElement("div");
             div.className = "vault-item";
             div.innerHTML = `
@@ -173,18 +230,24 @@
     };
 
     window.cp = (t) => { navigator.clipboard.writeText(t); alert("הועתק!"); };
+    
     window.edit = (id) => {
         const i = DATA.find(x => x.id === id);
         EDIT_ID = id;
         document.getElementById("service").value = i.service;
         document.getElementById("user").value = i.user;
         document.getElementById("pass").value = i.pass;
-        document.getElementById("notes").value = i.notes;
+        document.getElementById("notes").value = i.notes || "";
         show('add');
     };
 
     document.getElementById("saveBtn").onclick = async () => {
-        const obj = { service: document.getElementById("service").value, user: document.getElementById("user").value, pass: document.getElementById("pass").value, notes: document.getElementById("notes").value };
+        const obj = { 
+            service: document.getElementById("service").value, 
+            user: document.getElementById("user").value, 
+            pass: document.getElementById("pass").value, 
+            notes: document.getElementById("notes").value 
+        };
         const enc = CryptoJS.AES.encrypt(JSON.stringify(obj), MASTER).toString();
         const id = EDIT_ID || "rec_" + Date.now();
         await setDoc(doc(db, "vault", id), { blob: enc });
@@ -196,3 +259,4 @@
 </script>
 </body>
 </html>
+.
