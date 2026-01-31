@@ -174,13 +174,14 @@
     .month-row{
       display:flex;
       flex-direction: column;
-      padding:6px 2px;
+      padding:8px 2px;
       border-bottom:1px solid #dde1ee;
       font-size:14px;
     }
     .month-header {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-weight: 600;
     }
     .month-counts {
@@ -194,6 +195,16 @@
       color:#0a5;
       text-align:left;
       direction:ltr;
+    }
+
+    .btn-whatsapp {
+      background: #25D366;
+      color: white;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      text-decoration: none;
+      margin-right: 8px;
     }
 
     .details-wrapper{
@@ -259,9 +270,7 @@
   <script>
     let currentSortMode = 'date';
     
-    // יצירת אובייקט סאונד עם צליל "קליק" עדין
-    const tickSound = new Audio('https://www.soundjay.com/buttons/button-16.mp3');
-    tickSound.volume = 0.4;
+    // בוטל הצליל - הקוד הקודם של tickSound הוסר לבקשתך.
 
     (function checkLogin() {
       let entered = "";
@@ -272,8 +281,6 @@
         }
       }
       document.getElementById('mainApp').style.display = 'block';
-      // ניסיון "להעיר" את האודיו אחרי לחיצה על ה-OK של הסיסמה
-      tickSound.load();
     })();
 
     const firebaseConfig = {
@@ -325,12 +332,6 @@
     }
 
     function addEntry(amount, label) {
-      // השמעת הצליל
-      if (tickSound) {
-          tickSound.currentTime = 0; // חזרה להתחלה למקרה של לחיצות מהירות
-          tickSound.play().catch(e => console.log("Audio play blocked until user interacts"));
-      }
-
       const now = new Date();
       const entry = {
         id: Date.now().toString() + '_' + Math.random().toString(16).slice(2),
@@ -370,6 +371,20 @@
         if (e.label.includes('מכשיר פן')) counts.device++;
       });
       return counts;
+    }
+
+    function sendToWhatsapp(monthText, total, c) {
+        const text = `*סיכום חודש ${monthText}*
+-------------------
+פן (לקוחות): ${c.customers}
+מסכות: ${c.mask}
+ספריי: ${c.spray}
+מכשירי פן: ${c.device}
+-------------------
+*סה"כ הכנסות: ${total} ₪*`;
+        
+        const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(text);
+        window.open(url, '_blank');
     }
 
     function renderAll() {
@@ -469,14 +484,21 @@
         totalSum += e.amount;
       });
       const months = Object.keys(byMonth).sort().reverse();
+
+      window.monthDataStore = byMonth; // שמירה גלובלית לצורך הלחצן
+
       container.innerHTML = months.map(mKey => {
         const [y, m] = mKey.split('-');
         const data = byMonth[mKey];
         const c = getCounts(data.items);
+        const monthLabel = `${m}/${y}`;
         return `
           <div class="month-row">
             <div class="month-header">
-               <span>חודש ${m}/${y}</span>
+               <div>
+                  <span>חודש ${monthLabel}</span>
+                  <button class="btn-whatsapp" onclick="sendToWhatsapp('${monthLabel}', ${data.sum}, ${JSON.stringify(c).replace(/"/g, '&quot;')})">שלח בווצאפ ✅</button>
+               </div>
                <span>${data.sum} ₪</span>
             </div>
             <div class="month-counts">
