@@ -1,3 +1,94 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>לוח שידורים חי</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; }
+        .container { max-width: 500px; margin: 20px auto; padding: 15px; }
+        .match-card { background: #1e1e1e; border: 1px solid #333; margin: 10px 0; padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .time { color: #00ff00; font-weight: bold; font-size: 1.2em; }
+        .channel { color: #ff3e3e; font-weight: bold; border: 1px solid #ff3e3e; padding: 3px 8px; border-radius: 5px; font-size: 0.9em; }
+        .game-name { flex-grow: 1; padding: 0 15px; text-align: right; font-size: 1em; }
+        #status { color: #888; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>שידורי ספורט 5 - עכשיו</h2>
+    <div id="status">מתחבר למקור הנתונים...</div>
+    <div id="results"></div>
+</div>
+
+<script>
+    async function getLiveUpdates() {
+        const resultsDiv = document.getElementById('results');
+        const statusDiv = document.getElementById('status');
+        
+        // כתובת הדף (השתמשתי בגרסה רגילה ולא m. כדי לקבל מבנה יציב יותר)
+        const targetUrl = 'https://www.sport5.co.il/Pages/BroadcastSheet.aspx';
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}&timestamp=${new Date().getTime()}`;
+
+        try {
+            const response = await fetch(proxyUrl);
+            const data = await response.json();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.contents, 'text/html');
+
+            // כאן הקוד סורק את כל הטבלאות בדף
+            const rows = doc.querySelectorAll('tr, .broadcast-item');
+            let found = false;
+            let html = "";
+
+            rows.forEach(row => {
+                const text = row.innerText || "";
+                
+                // מחפש תבנית של שעה (00:00) ושם של ערוץ ספורט 5
+                const timeMatch = text.match(/(\d{2}:\d{2})/);
+                if (timeMatch && (text.includes("ספורט 5") || text.includes("GOLD") || text.includes("LIVE") || text.includes("STARS"))) {
+                    
+                    const time = timeMatch[0];
+                    // מנקה את הטקסט המיותר
+                    let cleanText = text.replace(time, "").replace(/\t/g, "").replace(/\n/g, " ").trim();
+                    
+                    // מנסה לבודד את שם הערוץ מהמשחק
+                    let channelName = "ספורט 5";
+                    if (text.includes("LIVE")) channelName = "5 LIVE";
+                    else if (text.includes("GOLD")) channelName = "5 GOLD";
+                    else if (text.includes("STARS")) channelName = "5 STARS";
+                    else if (text.includes("PLUS") || text.includes("+")) channelName = "5 PLUS";
+
+                    // מנקה את שם הערוץ מהתיאור של המשחק
+                    let gameTitle = cleanText.split(channelName)[0].split("ערוץ")[0].trim();
+
+                    if (gameTitle.length > 2) {
+                        html += `
+                            <div class="match-card">
+                                <div class="time">${time}</div>
+                                <div class="game-name">${gameTitle}</div>
+                                <div class="channel">${channelName}</div>
+                            </div>
+                        `;
+                        found = true;
+                    }
+                }
+            });
+
+            if (found) {
+                statusDiv.style.display = 'none';
+                resultsDiv.innerHTML = html;
+            } else {
+                statusDiv.innerHTML = "לא נמצאו משחקים כרגע. וודא שהדף של ספורט 5 מעודכן.";
+            }
+
+        } catch (e) {
+            statusDiv.innerHTML = "שגיאה בגישה לנתונים. נסה לרענן.";
+        }
+    }
+
+    getLiveUpdates();
 </script>
 
 </body>
