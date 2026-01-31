@@ -3,93 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>לוח שידורים חי</title>
+    <title>לוח שידורי ספורט ישיר</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; }
-        .container { max-width: 500px; margin: 20px auto; padding: 15px; }
-        .match-card { background: #1e1e1e; border: 1px solid #333; margin: 10px 0; padding: 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .time { color: #00ff00; font-weight: bold; font-size: 1.2em; }
-        .channel { color: #ff3e3e; font-weight: bold; border: 1px solid #ff3e3e; padding: 3px 8px; border-radius: 5px; font-size: 0.9em; }
-        .game-name { flex-grow: 1; padding: 0 15px; text-align: right; font-size: 1em; }
-        #status { color: #888; margin-top: 20px; }
+        /* עיצוב כללי של הדף שלך */
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #000; 
+            color: white; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; /* מונע גלילה כפולה */
+        }
+
+        .header {
+            background: #ff3e3e;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            position: relative;
+            z-index: 10;
+        }
+
+        /* המסגרת שבה יוצג האתר של ספורט 5 */
+        .iframe-wrapper {
+            position: absolute;
+            top: 60px; /* מתחת לכותרת */
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 60px);
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* הודעת עזר למשתמש */
+        .info-bar {
+            background: #222;
+            color: #ccc;
+            font-size: 12px;
+            padding: 5px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>שידורי ספורט 5 - עכשיו</h2>
-    <div id="status">מתחבר למקור הנתונים...</div>
-    <div id="results"></div>
-</div>
+    <div class="header">📺 שידורים חיים עכשיו - ספורט 5</div>
+    <div class="info-bar">הנתונים נמשכים ישירות מלוח השידורים הרשמי</div>
 
-<script>
-    async function getLiveUpdates() {
-        const resultsDiv = document.getElementById('results');
-        const statusDiv = document.getElementById('status');
-        
-        // כתובת הדף (השתמשתי בגרסה רגילה ולא m. כדי לקבל מבנה יציב יותר)
-        const targetUrl = 'https://www.sport5.co.il/Pages/BroadcastSheet.aspx';
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}&timestamp=${new Date().getTime()}`;
-
-        try {
-            const response = await fetch(proxyUrl);
-            const data = await response.json();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(data.contents, 'text/html');
-
-            // כאן הקוד סורק את כל הטבלאות בדף
-            const rows = doc.querySelectorAll('tr, .broadcast-item');
-            let found = false;
-            let html = "";
-
-            rows.forEach(row => {
-                const text = row.innerText || "";
-                
-                // מחפש תבנית של שעה (00:00) ושם של ערוץ ספורט 5
-                const timeMatch = text.match(/(\d{2}:\d{2})/);
-                if (timeMatch && (text.includes("ספורט 5") || text.includes("GOLD") || text.includes("LIVE") || text.includes("STARS"))) {
-                    
-                    const time = timeMatch[0];
-                    // מנקה את הטקסט המיותר
-                    let cleanText = text.replace(time, "").replace(/\t/g, "").replace(/\n/g, " ").trim();
-                    
-                    // מנסה לבודד את שם הערוץ מהמשחק
-                    let channelName = "ספורט 5";
-                    if (text.includes("LIVE")) channelName = "5 LIVE";
-                    else if (text.includes("GOLD")) channelName = "5 GOLD";
-                    else if (text.includes("STARS")) channelName = "5 STARS";
-                    else if (text.includes("PLUS") || text.includes("+")) channelName = "5 PLUS";
-
-                    // מנקה את שם הערוץ מהתיאור של המשחק
-                    let gameTitle = cleanText.split(channelName)[0].split("ערוץ")[0].trim();
-
-                    if (gameTitle.length > 2) {
-                        html += `
-                            <div class="match-card">
-                                <div class="time">${time}</div>
-                                <div class="game-name">${gameTitle}</div>
-                                <div class="channel">${channelName}</div>
-                            </div>
-                        `;
-                        found = true;
-                    }
-                }
-            });
-
-            if (found) {
-                statusDiv.style.display = 'none';
-                resultsDiv.innerHTML = html;
-            } else {
-                statusDiv.innerHTML = "לא נמצאו משחקים כרגע. וודא שהדף של ספורט 5 מעודכן.";
-            }
-
-        } catch (e) {
-            statusDiv.innerHTML = "שגיאה בגישה לנתונים. נסה לרענן.";
-        }
-    }
-
-    getLiveUpdates();
-</script>
+    <div class="iframe-wrapper">
+        <iframe 
+            src="https://m.sport5.co.il/Pages/BroadcastSheet.aspx?showheader=false" 
+            title="לוח שידורים">
+        </iframe>
+    </div>
 
 </body>
 </html>
