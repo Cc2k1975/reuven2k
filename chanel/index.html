@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>באיזה ערוץ המשחק היום</title>
+<style>
+body{font-family:system-ui;background:#000;color:#fff;margin:0;padding:20px}
+input,button{width:100%;font-size:20px;padding:12px;margin-top:10px}
+.result{margin-top:20px;font-size:18px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+
+<h2>בדיקת שידור היום</h2>
+<input id="team" placeholder="לדוגמה: מכבי חיפה">
+<button onclick="check()">בדוק</button>
+<div id="out" class="result"></div>
+
+<script>
+async function check(){
+  const team = document.getElementById("team").value.trim().toLowerCase();
+  const out = document.getElementById("out");
+  if(!team){ out.innerText="לא כתבת קבוצה"; return; }
+
+  const data = await fetch("data.json?"+Date.now()).then(r=>r.json());
+  const hits = data.filter(x=>x.text.toLowerCase().includes(team));
+
+  if(hits.length===0){
+    out.innerText="לא נמצא שידור היום";
+  } else {
+    out.innerText = hits.map(x=>`שעה: ${x.time}\nערוץ: ${x.channel}\n${x.text}\n---`).join("\n");
+  }
+}
+</script>
+</body>
+</html>
