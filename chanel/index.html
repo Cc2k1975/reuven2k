@@ -1,37 +1,60 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>באיזה ערוץ המשחק היום</title>
-<style>
-body{font-family:system-ui;background:#000;color:#fff;margin:0;padding:20px}
-input,button{width:100%;font-size:20px;padding:12px;margin-top:10px}
-.result{margin-top:20px;font-size:18px;white-space:pre-wrap}
-</style>
+    <meta charset="UTF-8">
+    <title>איפה המשחק?</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; text-align: center; background: #1a1a1a; color: white; }
+        .box { border: 2px solid #00ff00; padding: 20px; margin: 20px auto; width: 80%; border-radius: 15px; }
+        .loading { font-style: italic; color: #aaa; }
+    </style>
 </head>
 <body>
 
-<h2>בדיקת שידור היום</h2>
-<input id="team" placeholder="לדוגמה: מכבי חיפה">
-<button onclick="check()">בדוק</button>
-<div id="out" class="result"></div>
+    <h1>שידורי ספורט להיום</h1>
+    <div id="results" class="box">
+        <p class="loading">מחפש נתוני שידור חיים...</p>
+    </div>
 
-<script>
-async function check(){
-  const team = document.getElementById("team").value.trim().toLowerCase();
-  const out = document.getElementById("out");
-  if(!team){ out.innerText="לא כתבת קבוצה"; return; }
+    <script>
+        async function getBroadcast() {
+            const resultsDiv = document.getElementById('results');
+            // משתמשים במתווך כדי לעקוף חסימת גישה לאתרים ישראלים
+            const targetUrl = encodeURIComponent('https://israsport.co.il/'); 
+            const proxyUrl = `https://api.allorigins.win/get?url=${targetUrl}`;
 
-  const data = await fetch("data.json?"+Date.now()).then(r=>r.json());
-  const hits = data.filter(x=>x.text.toLowerCase().includes(team));
+            try {
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(data.contents, 'text/html');
 
-  if(hits.length===0){
-    out.innerText="לא נמצא שידור היום";
-  } else {
-    out.innerText = hits.map(x=>`שעה: ${x.time}\nערוץ: ${x.channel}\n${x.text}\n---`).join("\n");
-  }
-}
-</script>
+                // כאן הקוד מחפש אלמנטים שכוללים שמות של ערוצים
+                // זהו "ניחוש מושכל" לפי מבנה אתרי לוחות שידורים נפוצים
+                const games = doc.querySelectorAll('.game-row, .match-item, tr'); 
+                let foundAny = false;
+                let htmlContent = "<h3>משחקים וערוצים:</h3><ul style='list-style:none; padding:0;'>";
+
+                games.forEach(game => {
+                    const text = game.innerText;
+                    if (text.includes("ספורט") || text.includes("SPORT")) {
+                        htmlContent += `<li style="margin-bottom:10px; border-bottom:1px solid #333; padding:5px;">${text}</li>`;
+                        foundAny = true;
+                    }
+                });
+
+                if (!foundAny) {
+                    resultsDiv.innerHTML = "לא נמצאו נתוני שידור זמינים כרגע. בדוק שוב קרוב למועד המשחק.";
+                } else {
+                    resultsDiv.innerHTML = htmlContent + "</ul>";
+                }
+
+            } catch (error) {
+                resultsDiv.innerHTML = "שגיאה בטעינת הנתונים. ייתכן והמקור חסום.";
+            }
+        }
+
+        getBroadcast();
+    </script>
 </body>
 </html>
