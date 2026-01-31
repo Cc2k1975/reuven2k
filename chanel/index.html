@@ -3,139 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>חיפוש ערוץ שידור - 100% דיוק</title>
+    <title>מאתר ערוצי שידור</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            background: #121212; 
-            color: white; 
-            text-align: center; 
-            padding: 20px; 
-            margin: 0;
-        }
-        .container {
-            max-width: 500px;
-            margin: 50px auto;
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid #333;
-        }
-        h2 { color: #ff3e3e; margin-bottom: 25px; }
-        .search-group { display: flex; gap: 10px; justify-content: center; }
-        input { 
-            padding: 12px; 
-            border-radius: 8px; 
-            border: 1px solid #444; 
-            background: #2a2a2a; 
-            color: white; 
-            font-size: 16px; 
-            flex-grow: 1;
-            outline: none;
-        }
-        input:focus { border-color: #ff3e3e; }
-        button { 
-            padding: 12px 20px; 
-            background: #ff3e3e; 
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: bold;
-            transition: 0.2s;
-        }
-        button:hover { background: #e03535; }
-        #result-box { 
-            margin-top: 30px; 
-            padding: 20px; 
-            border-radius: 10px; 
-            min-height: 50px;
-            display: none; 
-        }
-        .success { background: #1b5e20; color: #fff; font-size: 22px; font-weight: bold; }
-        .not-found { background: #b71c1c; color: #fff; }
-        .loader { 
-            display: none; 
-            margin-top: 20px; 
-            color: #888; 
-            font-style: italic; 
-        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #121212; color: white; text-align: center; padding: 20px; margin: 0; }
+        .container { max-width: 450px; margin: 40px auto; background: #1e1e1e; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
+        h2 { color: #ff3e3e; margin-bottom: 25px; font-size: 24px; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 14px; border-radius: 10px; border: 1px solid #444; background: #2a2a2a; color: white; font-size: 18px; outline: none; transition: 0.3s; }
+        input:focus { border-color: #ff3e3e; box-shadow: 0 0 10px rgba(255, 62, 62, 0.2); }
+        button { padding: 14px 25px; background: #ff3e3e; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; }
+        button:hover { background: #e03535; transform: scale(1.02); }
+        #status { margin-top: 20px; padding: 15px; border-radius: 12px; font-size: 22px; font-weight: bold; display: none; line-height: 1.5; }
+        .success { background: #2e7d32; border: 1px solid #4caf50; display: block !important; }
+        .error { background: #c62828; border: 1px solid #ef5350; display: block !important; }
+        .loader { color: #888; display: none; margin-top: 15px; font-style: italic; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>📺 איפה המשחק?</h2>
-    <div class="search-group">
-        <input type="text" id="teamInput" placeholder="הכנס שם קבוצה (למשל: מכבי חיפה)">
-        <button onclick="findMyGame()">חפש</button>
+    <h2>⚽ איפה המשחק?</h2>
+    <div class="input-group">
+        <input type="text" id="teamInput" placeholder="הקלד קבוצה (למשל: מכבי חיפה)">
+        <button onclick="searchBroadcast()">חפש</button>
     </div>
     
-    <div id="loader" class="loader">סורק לוחות שידורים בזמן אמת...</div>
-    <div id="result-box"></div>
+    <div id="loader" class="loader">סורק לוחות שידורים...</div>
+    <div id="status"></div>
 </div>
 
 <script>
-    async function findMyGame() {
+    async function searchBroadcast() {
         const team = document.getElementById('teamInput').value.trim();
-        const resultBox = document.getElementById('result-box');
+        const status = document.getElementById('status');
         const loader = document.getElementById('loader');
         
-        if (!team) {
-            alert("אנא הכנס שם קבוצה");
-            return;
-        }
-        
-        // ניקוי תצוגה
+        if (!team) return;
+
         loader.style.display = 'block';
-        resultBox.style.display = 'none';
-        
-        // הכתובת של ה-API שלך מגוגל
-        const googleApiUrl = "https://script.google.com/macros/s/AKfycbxRkGmMSmL0baIhQ8r3s9PwHYTGNEWsg5ddk7jgI4wtOk4CkB2YO0zeJkAdsX4J1DW0sA/exec";
+        status.style.display = 'none';
+
+        // הלינק החדש והתקין שלך
+        const apiUrl = "https://script.google.com/macros/s/AKfycbwBQA6eMYM6Kjgf1egkiPPD7SNmWRJG79RFj-ubj1k3-hr4plAI89tri5XcVQpMQvhq/exec";
 
         try {
-            const response = await fetch(googleApiUrl);
-            const htmlSource = await response.text();
+            const response = await fetch(apiUrl);
+            const html = await response.text();
             
-            // בדיקה אם שם הקבוצה קיים בדף
-            if (htmlSource.includes(team)) {
-                // רשימת ערוצים פוטנציאליים לחיפוש
-                const channels = ["ספורט 1", "ספורט 2", "ספורט 3", "ספורט 4", "ספורט 5", "5LIVE", "5LIVE", "5LIVE", "5GOLD", "5STARS", "5PLUS", "ערוץ ONE"];
-                let detectedChannel = "המשחק נמצא בלוח, אך שם הערוץ לא זוהה";
+            // בדיקה אם המילה קיימת בלוח השידורים
+            if (html.includes(team)) {
+                // רשימת הערוצים לחיפוש בקוד המקור
+                const channels = ["ספורט 1", "ספורט 2", "ספורט 3", "ספורט 4", "ספורט 5", "5LIVE", "5GOLD", "5STARS", "5PLUS", "ערוץ One"];
+                let foundChannel = "לא זוהה ערוץ ספציפי (בדוק בלוח)";
 
-                // מחפשים את הערוץ שמופיע הכי קרוב לשם הקבוצה בתוך הקוד
-                const pos = htmlSource.indexOf(team);
-                const searchArea = htmlSource.substring(pos - 1500, pos + 1500);
+                // מחפשים את שם הערוץ שמופיע הכי קרוב לשם הקבוצה
+                const index = html.indexOf(team);
+                // סורקים טווח רחב לפני ואחרי המילה כדי לתפוס את כותרת הערוץ (כמו שראינו בתמונה שלך)
+                const context = html.substring(Math.max(0, index - 2500), Math.min(html.length, index + 2500));
 
-                for (let channel of channels) {
-                    if (searchArea.includes(channel)) {
-                        detectedChannel = channel;
+                for (let ch of channels) {
+                    if (context.includes(ch)) {
+                        foundChannel = ch;
                         break;
                     }
                 }
 
-                resultBox.className = "success";
-                resultBox.style.display = 'block';
-                resultBox.innerHTML = `המשחק משודר ב:<br><span style="font-size:35px;">${detectedChannel}</span>`;
+                status.className = "success";
+                status.innerHTML = `נמצא שידור!<br><span style="font-size: 30px;">📺 ${foundChannel}</span>`;
             } else {
-                resultBox.className = "not-found";
-                resultBox.style.display = 'block';
-                resultBox.innerHTML = "המשחק לא נמצא בלוח השידורים להיום.";
+                status.className = "error";
+                status.innerHTML = "המשחק לא נמצא בלוח השידורים להיום.";
             }
-        } catch (error) {
-            resultBox.className = "not-found";
-            resultBox.style.display = 'block';
-            resultBox.innerHTML = "שגיאה בחיבור לשרת הנתונים.";
+        } catch (e) {
+            status.className = "error";
+            status.innerHTML = "שגיאה בתקשורת עם השרת. וודא שהסקריפט בגוגל מופעל.";
         } finally {
             loader.style.display = 'none';
         }
     }
 
-    // מאפשר חיפוש בלחיצה על Enter
+    // חיפוש בלחיצה על מקש Enter
     document.getElementById("teamInput").addEventListener("keyup", function(event) {
         if (event.key === "Enter") {
-            findMyGame();
+            searchBroadcast();
         }
     });
 </script>
