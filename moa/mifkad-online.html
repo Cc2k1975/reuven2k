@@ -203,19 +203,17 @@
   <h1>מפקד ציוד</h1>
   <div class="subtitle">סריקת מיקום, תג עובד ופריטי ציוד, שמירה ישירות לשרת</div>
 
-  <!-- 1. אזור חדר / מיקום (קודם) -->
   <div class="card">
     <div class="section-title">סריקת חדר / מיקום עובד</div>
     <div class="row">
       <input id="roomLocationInput" type="text"
-             placeholder="סרוק ברקוד חדר (לדוגמה: L 291 6)" />
+             placeholder="סרוק ברקוד חדר (לדוגמה: L-5100-501)" />
     </div>
     <div class="row wrap">
       <button class="btn-main" onclick="setRoomLocation()">שמור מיקום</button>
     </div>
   </div>
 
-  <!-- 2. אזור עובד -->
   <div class="card">
     <div class="section-title">סריקת תג עובד / הקלדת מספר זהות</div>
     <div class="row">
@@ -244,7 +242,6 @@
     <div class="status-pill" id="onlineStatus">מצב שמירה: ממתין…</div>
   </div>
 
-  <!-- 3. אזור אינוונטר -->
   <div class="card">
     <div class="section-title">סריקת מספר הקלד קוד / מספר אינוונטר</div>
     <div class="row">
@@ -262,7 +259,6 @@
     </div>
   </div>
 
-  <!-- 4. רשימת עובדים ופריטים -->
   <div class="card">
     <div class="section-title">אינוונטר לעובד</div>
     <div id="groupsList" class="groups-list"></div>
@@ -273,7 +269,6 @@
     </div>
   </div>
 
-  <!-- 5. חיפוש -->
   <div class="card search-area">
     <div class="section-title">חיפוש עובד / אינוונטר</div>
     <div class="row">
@@ -283,7 +278,6 @@
     <div id="searchResults">אין תוצאות חיפוש עדיין.</div>
   </div>
 
-  <!-- שכבת סורק מצלמה -->
   <div id="scannerOverlay">
     <video id="scannerVideo" autoplay playsinline></video>
     <div class="hint">ממקם את הברקוד במרכז התמונה…</div>
@@ -292,7 +286,6 @@
     </div>
   </div>
 
-  <!-- Toast קטן להודעות -->
   <div id="toast" style="
       position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
       background:#4caf50;color:#fff;padding:8px 14px;border-radius:999px;
@@ -300,7 +293,6 @@
     נשמר בהצלחה לשרת
   </div>
 
-  <!-- Firebase + לוגיקה -->
   <script type="module">
     import { initializeApp } 
       from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -325,7 +317,7 @@
     // ----- מצב אפליקציה -----
     let state = {
       currentEmployee: null,      // ת.ז נוכחית
-      employees: {},              // id -> { id, name, items: [{inv, ts}], location?: {site,building,room} }
+      employees: {},              // id -> { id, name, items: [{inv, ts}], location?: {site,building,room,fullText} }
       lastInv: null
     };
 
@@ -410,38 +402,18 @@
 
     // ----- לוגיקה עסקית -----
 
-    // 1. סריקת חדר / מיקום
+    // 1. סריקת חדר / מיקום - תוקן כך שיקבל כל פורמט
     function setRoomLocation(){
       const raw = roomLocationInput.value.trim();
       if(!raw){ return; }
 
-      // מנקים מפרידים (- ,) ורווחים כפולים
-      const cleaned = raw.replace(/[-,]/g," ");
-      const parts = cleaned.trim().split(/\s+/);
-      if(parts.length < 3){
-        alert("פורמט מיקום לא תקין. צפה ל: אתר מבנה חדר (לדוגמה: L 291 6)");
-        playBeep("err");
-        return;
-      }
-
-      const site     = parts[0].toUpperCase();
-      const building = parts[1].replace(/\D/g,"");
-      const room     = parts[2].replace(/\D/g,"");
-
-      if(!site || !building || !room){
-        alert("לא זוהו אתר / מבנה / חדר מהמחרוזת.");
-        playBeep("err");
-        return;
-      }
-
-      const loc = {site, building, room};
+      // פשוט שומרים את כל הטקסט כפי שהוא
+      const loc = { fullText: raw };
 
       if(state.currentEmployee && state.employees[state.currentEmployee]){
-        // יש עובד פעיל – משייכים אליו
         state.employees[state.currentEmployee].location = loc;
         pendingLocation = null;
       }else{
-        // עדיין אין עובד – נשמור זמנית עד סריקת עובד
         pendingLocation = loc;
       }
 
@@ -460,7 +432,6 @@
       }
       state.currentEmployee = id;
 
-      // אם יש מיקום שנשמר לפני בחירת העובד – משייכים אותו עכשיו
       if(pendingLocation){
         state.employees[id].location = pendingLocation;
         pendingLocation = null;
@@ -543,17 +514,6 @@
       saveState();
     }
 
-    function clearAllData(){
-      if(!confirm("האם אתה בטוח שברצונך לנקות את כל הנתונים מהמסך?")) return;
-      state.currentEmployee = null;
-      state.employees = {};
-      state.lastInv = null;
-      pendingLocation = null;
-      rebuildInvSet();
-      renderAll();
-      saveState();
-    }
-
     function hardClearAll(){
       if(!confirm("אזהרה: פעולה זו תמחק את כל הנתונים מהשרת. להמשיך?")) return;
       if(!confirm("ווידוא נוסף: אתה בטוח שאתה רוצה למחוק לצמיתות?")) return;
@@ -566,21 +526,18 @@
       saveState();
     }
 
-    // ----- ייצוא לאקסל (CSV) – לפי הקוד הישן שלך, עם העמודות החדשות -----
     function exportToExcel(){
-      const rows = [["Employee Name","Inventory Number","Employee ID","Date Time","Site","Building","Room"]];
+      const rows = [["Employee Name","Inventory Number","Employee ID","Date Time","Location"]];
       Object.values(state.employees).forEach(emp=>{
         emp.items.forEach(it=>{
           const dateStr = new Date(it.ts).toLocaleString("he-IL");
-          const loc = emp.location || {};
+          const loc = emp.location ? emp.location.fullText : "";
           rows.push([
             emp.name || "",
             it.inv,
             emp.id,
             dateStr,
-            loc.site || "",
-            loc.building || "",
-            loc.room || ""
+            loc
           ]);
         });
       });
@@ -592,7 +549,6 @@
           .join(",") + "\r\n";
       });
 
-      // בדיוק כמו בקוד המקורי – CSV + BOM + UTF-8
       const blob = new Blob(["\uFEFF" + csv],{
         type:"text/csv;charset=utf-8;"
       });
@@ -607,7 +563,6 @@
       URL.revokeObjectURL(url);
     }
 
-    // ----- חיפוש -----
     function runSearch(){
       const q = searchInput.value.trim();
       if(!q){
@@ -651,9 +606,7 @@
       searchResults.innerHTML = html;
     }
 
-    // ----- רינדור -----
     function renderAll(){
-      // עובד פעיל
       if(state.currentEmployee && state.employees[state.currentEmployee]){
         const emp = state.employees[state.currentEmployee];
         activeEmployeeBox.style.display = "block";
@@ -662,7 +615,7 @@
 
         if(emp.location){
           activeLocationBox.style.display = "block";
-          activeLocationVal.textContent = `${emp.location.site} ${emp.location.building} ${emp.location.room}`;
+          activeLocationVal.textContent = emp.location.fullText || `${emp.location.site} ${emp.location.building} ${emp.location.room}`;
         }else{
           activeLocationBox.style.display = "none";
           activeLocationVal.textContent = "";
@@ -689,7 +642,7 @@
         header.className = "group-header";
 
         const locText = emp.location
-          ? ` · ${emp.location.site} ${emp.location.building} ${emp.location.room}`
+          ? ` · ${emp.location.fullText || (emp.location.site + ' ' + emp.location.building + ' ' + emp.location.room)}`
           : "";
 
         const idDiv = document.createElement("div");
@@ -733,7 +686,6 @@
       if(!state.employees[empId]) return;
       state.currentEmployee = empId;
 
-      // אם היה מיקום ממתין – משייכים אותו עכשיו
       if(pendingLocation){
         state.employees[empId].location = pendingLocation;
         pendingLocation = null;
@@ -749,11 +701,7 @@
     let cameraStream = null;
     let scanLoopRunning = false;
     let barcodeDetector = null;
-
-    // 🔒 דגל לפתיחה חד-פעמית של המצלמה לכל טעינת דף
     let cameraUnlocked = false;
-
-    // ⏱ סריקה כל 3 שניות + זיכרון של הברקוד האחרון כדי לא לשגע
     let scanIntervalId = null;
     let lastScannedValue = null;
 
@@ -769,7 +717,7 @@
 
       try{
         if(!("BarcodeDetector" in window)){
-          alert("הדפדפן לא תומך בסריקת ברקוד דרך מצלמה. אפשר להשתמש בסורק USB.");
+          alert("הדפדפן לא תומך בסריקת ברקוד דרך מצלמה.");
           return;
         }
         barcodeDetector = new BarcodeDetector({formats:["code_128","ean_13","ean_8","code_39","qr_code","upc_a","upc_e"]});
@@ -781,16 +729,12 @@
         videoEl.srcObject = cameraStream;
         scanLoopRunning = true;
         lastScannedValue = null;
-        if (scanIntervalId) {
-          clearInterval(scanIntervalId);
-          scanIntervalId = null;
-        }
-        // סריקה כל 3 שניות בלי לסגור את המצלמה
+        if (scanIntervalId) clearInterval(scanIntervalId);
         scanIntervalId = setInterval(scanLoop, 3000);
         playBeep("scan");
       }catch(e){
         console.error(e);
-        alert("לא ניתן לפתוח מצלמה. בדוק הרשאות.");
+        alert("לא ניתן לפתוח מצלמה.");
       }
     }
 
@@ -803,7 +747,7 @@
           if(value && value !== lastScannedValue){
             lastScannedValue = value;
             inventoryInput.value = value;
-            addInventory();  // לא סוגר מצלמה – ממשיך סריקה עד שלוחצים 'בטל'
+            addInventory();
           }
         }
       }catch(e){
@@ -813,10 +757,7 @@
 
     function stopCameraScan(){
       scanLoopRunning = false;
-      if (scanIntervalId) {
-        clearInterval(scanIntervalId);
-        scanIntervalId = null;
-      }
+      if (scanIntervalId) clearInterval(scanIntervalId);
       overlay.style.display = "none";
       if(cameraStream){
         cameraStream.getTracks().forEach(t=>t.stop());
@@ -824,14 +765,12 @@
       }
     }
 
-    // ----- Toast -----
     function showToast(msg){
       toast.textContent = msg;
       toast.style.display = "block";
       setTimeout(()=>{toast.style.display="none";},1000);
     }
 
-    // תמיכה ב־Enter בסורק ברקוד לשדה האינוונטר
     inventoryInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -839,13 +778,11 @@
       }
     });
 
-    // ----- חשיפה לפונקציות גלובליות -----
     window.setActiveEmployee  = setActiveEmployee;
     window.saveEmployeeName   = saveEmployeeName;
     window.addInventory       = addInventory;
     window.deleteItem         = deleteItem;
     window.removeEmployee     = removeEmployee;
-    window.clearAllData       = clearAllData;
     window.hardClearAll       = hardClearAll;
     window.exportToExcel      = exportToExcel;
     window.runSearch          = runSearch;
@@ -854,7 +791,6 @@
     window.stopCameraScan     = stopCameraScan;
     window.setRoomLocation    = setRoomLocation;
 
-    // טעינה ראשונית
     loadState();
   </script>
 </body>
