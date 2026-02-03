@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>שיבוץ עובדים לחדרים - מובייל</title>
+  <style>
+    :root{
+      --sky1:#eaf7ff;
+      --sky2:#cfefff;
+      --sky3:#b7e6ff;
+      --card:#ffffffcc;
+      --line:#9fd8ff;
+      --txt:#0b2233;
+      --muted:#3a6b85;
+      --focus:#2aa8ff;
+      --btn:#23a6ff;
+      --btn2:#2ec5ff;
+      --danger:#ff3b30;
+      --ok:#18a957;
+      --shadow: 0 10px 30px rgba(0,60,90,.12);
+      --r:18px;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: system-ui, Arial;
+      color:var(--txt);
+      background: radial-gradient(1200px 700px at 20% 0%, #ffffff 0%, var(--sky1) 35%, var(--sky2) 70%, var(--sky3) 100%);
+      min-height:100vh;
+    }
+
+    .wrap{
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 14px 12px 22px;
+    }
+
+    .header{
+      background: var(--card);
+      border: 1px solid rgba(159,216,255,.8);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 14px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:0;
+    }
+
+    .title{
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+
+    .panel{
+      margin-top: 12px;
+      background: var(--card);
+      border: 1px solid rgba(159,216,255,.8);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-bottom: 14px;
+    }
+    .label{
+      font-size: 15px;
+      font-weight: 800;
+      color:#0b3a52;
+    }
+
+    input{
+      width:100%;
+      border: 2px solid rgba(159,216,255,.9);
+      border-radius: 16px;
+      padding: 16px 16px;
+      font-size: 26px;
+      font-weight: 900;
+      text-align:center;
+      background: rgba(255,255,255,.95);
+      outline: none;
+      box-shadow: 0 6px 18px rgba(0,60,90,.08);
+    }
+
+    input::placeholder{ color:#7aa8c1; font-weight:700; }
+    input:focus{
+      border-color: var(--focus);
+      box-shadow: 0 0 0 4px rgba(42,168,255,.18), 0 6px 18px rgba(0,60,90,.10);
+    }
+
+    .room input{ font-size: 34px; padding: 18px 16px; }
+    .workers input{ font-size: 28px; }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top: 8px;
+      align-items:center;
+    }
+
+    button{
+      border:0;
+      border-radius: 16px;
+      padding: 12px 14px;
+      font-size: 16px;
+      font-weight: 900;
+      cursor:pointer;
+      box-shadow: 0 10px 22px rgba(0,60,90,.16);
+    }
+    .save{ background: linear-gradient(135deg, var(--btn), var(--btn2)); color:white; flex: 1 1 160px; }
+    .export{ background:#0b3a52; color:white; flex: 1 1 160px; }
+    .danger{ background: var(--danger); color:white; flex: 1 1 160px; }
+    .undo{ background:#345b74; color:white; flex: 1 1 160px; }
+
+    .status{
+      margin-top: 10px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .status .ok{ color: var(--ok); font-weight: 900; }
+
+    .history{
+      margin-top: 12px;
+      background: var(--card);
+      border: 1px solid rgba(159,216,255,.8);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .historyHead{
+      padding: 12px 14px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      border-bottom: 1px solid rgba(159,216,255,.8);
+      background: rgba(255,255,255,.65);
+    }
+    .historyTitle{ font-weight: 900; }
+    .count{ font-size: 13px; color: var(--muted); font-weight: 800; }
+
+    .tableWrap{
+      max-height: 340px;
+      overflow:auto;
+    }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+    }
+    th, td{
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(159,216,255,.7);
+      text-align:center;
+      font-size: 13px;
+    }
+    th{
+      position: sticky;
+      top: 0;
+      background: rgba(234,247,255,.95);
+      z-index: 2;
+      font-weight: 900;
+      color:#0b3a52;
+    }
+    td{ background: rgba(255,255,255,.75); }
+
+    @media (max-width:420px){
+      input{ font-size: 24px; }
+      .room input{ font-size: 30px; }
+      .workers input{ font-size: 26px; }
+      button{ font-size: 15px; padding: 12px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title">שיבוץ עובדים לחדרים</div>
+    </div>
+
+    <div class="panel">
+      <div class="field room">
+        <div class="label">מספר חדר</div>
+        <input id="room" inputmode="numeric" autocomplete="off" placeholder="סרוק חדר" />
+      </div>
+
+      <div class="workers">
+        <div class="field">
+          <div class="label">עובד 1</div>
+          <input id="w1" inputmode="numeric" autocomplete="off" placeholder="סרוק עובד 1" />
+        </div>
+        <div class="field">
+          <div class="label">עובד 2</div>
+          <input id="w2" inputmode="numeric" autocomplete="off" placeholder="סרוק עובד 2" />
+        </div>
+        <div class="field" style="margin-bottom:6px;">
+          <div class="label">עובד 3</div>
+          <input id="w3" inputmode="numeric" autocomplete="off" placeholder="סרוק עובד 3" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="save" id="btnSave">שמור עכשיו</button>
+        <button class="export" id="btnExport">יצוא לאקסל (CSV)</button>
+        <button class="undo" id="btnUndo">בטל שמירה אחרונה</button>
+        <button class="danger" id="btnClear">מחק הכל</button>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="history">
+      <div class="historyHead">
+        <div class="historyTitle">היסטוריה</div>
+        <div class="count" id="countInfo"></div>
+      </div>
+      <div class="tableWrap">
+        <table id="histTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>חדר</th>
+              <th>עובד 1</th>
+              <th>עובד 2</th>
+              <th>עובד 3</th>
+              <th>זמן</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const STORAGE_KEY = "room_assignments_mobile_v1";
+
+  const el = (id) => document.getElementById(id);
+  const room = el("room"), w1 = el("w1"), w2 = el("w2"), w3 = el("w3");
+  const status = el("status"), countInfo = el("countInfo");
+  const histBody = el("histTable").querySelector("tbody");
+
+  const inputs = [room, w1, w2, w3];
+
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function nowStamp(){
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  // "L-5100-588" => "588"
+  function extractLastNumber(raw){
+    if(!raw) return "";
+    const s = String(raw).trim();
+    const m = s.match(/\d+/g);
+    if(!m || !m.length) return "";
+    return m[m.length-1];
+  }
+
+  function loadData(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const data = raw ? JSON.parse(raw) : [];
+      return Array.isArray(data) ? data : [];
+    }catch{ return []; }
+  }
+  function saveData(data){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function setStatus(msg, ok=false){
+    status.innerHTML = ok ? `<span class="ok">${msg}</span>` : msg;
+  }
+
+  function clearFields(){
+    room.value=""; w1.value=""; w2.value=""; w3.value="";
+  }
+
+  function focusRoom(){
+    room.focus();
+    room.select?.();
+  }
+
+  function escapeHtml(s){
+    return String(s ?? "").replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  function renderHistory(){
+    const data = loadData();
+    histBody.innerHTML = "";
+    data.forEach((r, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td>${escapeHtml(r.room)}</td>
+        <td>${escapeHtml(r.w1)}</td>
+        <td>${escapeHtml(r.w2)}</td>
+        <td>${escapeHtml(r.w3)}</td>
+        <td>${escapeHtml(r.ts)}</td>
+      `;
+      histBody.appendChild(tr);
+    });
+    countInfo.textContent = `שורות שמורות: ${data.length}`;
+  }
+
+  function normalizeAll(){
+    room.value = extractLastNumber(room.value);
+    w1.value   = extractLastNumber(w1.value);
+    w2.value   = extractLastNumber(w2.value);
+    w3.value   = extractLastNumber(w3.value);
+  }
+
+  function validate(){
+    normalizeAll();
+    if(!room.value) return {ok:false, msg:"חסר מספר חדר."};
+    if(!w1.value || !w2.value || !w3.value) return {ok:false, msg:"חסר תג אחד או יותר של עובדים (1–3)."};
+    return {ok:true};
+  }
+
+  function doSave(auto=false){
+    const v = validate();
+    if(!v.ok){ setStatus(v.msg, false); return false; }
+
+    const data = loadData();
+    const row = {
+      room: room.value.trim(),
+      w1: w1.value.trim(),
+      w2: w2.value.trim(),
+      w3: w3.value.trim(),
+      ts: nowStamp()
+    };
+    data.push(row);
+    saveData(data);
+
+    setStatus(auto ? `נשמר אוטומטית: חדר ${row.room}` : `נשמר: חדר ${row.room}`, true);
+    clearFields();
+    renderHistory();
+    focusRoom();
+    return true;
+  }
+
+  // Enter -> next field; after w3 -> auto save
+  inputs.forEach((inp, idx) => {
+    inp.addEventListener("keydown", (e) => {
+      if(e.key === "Enter"){
+        e.preventDefault();
+        inp.value = extractLastNumber(inp.value);
+
+        if(idx < inputs.length-1){
+          const next = inputs[idx+1];
+          next.focus();
+          next.select?.();
+          return;
+        }
+        doSave(true);
+      }
+    });
+
+    inp.addEventListener("change", () => { inp.value = extractLastNumber(inp.value); });
+    inp.addEventListener("blur",   () => { inp.value = extractLastNumber(inp.value); });
+  });
+
+  function exportCSV(){
+    const data = loadData();
+    if(!data.length){ setStatus("אין נתונים לייצוא.", false); return; }
+
+    const headers = ["Room","Worker1","Worker2","Worker3","Timestamp"];
+    const lines = [headers.join(",")];
+
+    for(const r of data){
+      lines.push([
+        csvCell(r.room),
+        csvCell(r.w1),
+        csvCell(r.w2),
+        csvCell(r.w3),
+        csvCell(r.ts)
+      ].join(","));
+    }
+
+    const csv = "\uFEFF" + lines.join("\r\n"); // BOM for Excel Hebrew
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `room_assignments_${new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+
+    setStatus("יוצא קובץ CSV (אקסל).", true);
+  }
+
+  function csvCell(v){
+    const s = String(v ?? "");
+    const needs = /[",\r\n]/.test(s);
+    const esc = s.replace(/"/g,'""');
+    return needs ? `"${esc}"` : esc;
+  }
+
+  function clearAll(){
+    localStorage.removeItem(STORAGE_KEY);
+    renderHistory();
+    setStatus("כל הנתונים נמחקו.", true);
+    focusRoom();
+  }
+
+  function undoLast(){
+    const data = loadData();
+    if(!data.length){ setStatus("אין מה לבטל.", false); return; }
+    const last = data.pop();
+    saveData(data);
+    renderHistory();
+    setStatus(`בוטלה שמירה אחרונה (חדר ${last.room}).`, true);
+    focusRoom();
+  }
+
+  // Buttons
+  el("btnSave").addEventListener("click", () => doSave(false));
+  el("btnExport").addEventListener("click", exportCSV);
+  el("btnUndo").addEventListener("click", undoLast);
+  el("btnClear").addEventListener("click", () => {
+    if(confirm("למחוק את כל הנתונים השמורים?")) clearAll();
+  });
+
+  // Start
+  renderHistory();
+  focusRoom();
+})();
+</script>
+</body>
+</html>
