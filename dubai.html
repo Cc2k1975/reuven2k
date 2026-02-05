@@ -9,16 +9,19 @@
     body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); padding: 10px; color: #1e293b; }
     .card { background: white; border-radius: 20px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 500px; margin: auto; }
     
-    /* מחשבון המרה משקל לדירהם */
-    .converter { background: #e2e8f0; padding: 12px; border-radius: 12px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px; align-items: center; border: 1px solid #cbd5e1; }
-    .conv-row { display: flex; gap: 10px; align-items: center; width: 100%; justify-content: center; }
-    .converter input { width: 80px; padding: 8px; border-radius: 8px; border: 2px solid var(--brand); font-weight: bold; font-size: 16px; text-align: center; }
-    .converter span { font-weight: bold; font-size: 14px; min-width: 60px; }
+    /* מחשבון המרה משופר - תא אחד בלבד */
+    .converter { background: #e2e8f0; padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: center; border: 1px solid #cbd5e1; }
+    .conv-input-group { display: flex; gap: 8px; justify-content: center; align-items: center; margin-bottom: 10px; }
+    .converter input { width: 120px; padding: 12px; border-radius: 8px; border: 2px solid var(--brand); font-weight: bold; font-size: 18px; text-align: center; }
+    .calc-btn { padding: 12px 20px; background: var(--brand); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; }
+    .res-area { display: flex; justify-content: space-around; font-size: 14px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; }
+    .res-box { text-align: center; flex: 1; }
+    .res-box b { display: block; font-size: 18px; color: var(--brand); }
 
     .selectors { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: end; gap: 5px; margin-bottom: 20px; }
     label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #475569; }
     select { width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #cbd5e1; background: #fff; font-size: 15px; }
-    optgroup { font-size: 18px; font-weight: 900; background: #f1f5f9; }
+    optgroup { font-size: 16px; font-weight: bold; background: #f1f5f9; }
 
     .swap-btn { background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; }
     .btn { width: 100%; padding: 18px; background: var(--brand); color: white; border: none; border-radius: 14px; font-size: 20px; font-weight: 800; cursor: pointer; }
@@ -34,23 +37,29 @@
     
     #compass-container { display: none; text-align: center; margin-top: 15px; padding: 15px; background: #000; color: #0f0; border-radius: 15px; }
     #arrow { font-size: 50px; transition: transform 0.2s; display: inline-block; }
+    #dist-gps { font-size: 12px; margin-top: 10px; color: #aaa; }
   </style>
 </head>
 <body>
 
 <div class="card">
   <div class="converter">
-    <div class="conv-row">
-      <span>₪ שקלים:</span>
-      <input type="number" id="ils_input" placeholder="0" oninput="convertIlsToAed(this.value)">
-      <span> = </span>
-      <b id="aed_res" style="color: var(--brand); width: 60px; text-align: center;">0</b> <span>דירהם</span>
+    <div class="conv-input-group">
+      <input type="number" id="main_input" placeholder="הכנס סכום...">
+      <button class="calc-btn" onclick="quickCalc()">חשב</button>
     </div>
-    <div class="conv-row">
-      <span>דובאי AED:</span>
-      <input type="number" id="aed_input" placeholder="0" oninput="convertAedToIls(this.value)">
-      <span> = </span>
-      <b id="ils_res" style="color: var(--brand); width: 60px; text-align: center;">0</b> <span>שקלים</span>
+    <div class="res-area">
+      <div class="res-box">
+        <span>₪ לשקל</span>
+        <b id="res_ils_to_aed">0</b>
+        <small>דירהם</small>
+      </div>
+      <div style="border-left: 1px solid #cbd5e1; margin: 0 10px;"></div>
+      <div class="res-box">
+        <span>דירהם ל-₪</span>
+        <b id="res_aed_to_ils">0</b>
+        <small>שקלים</small>
+      </div>
     </div>
   </div>
 
@@ -67,7 +76,7 @@
     <div id="compass-container">
       <div>🧭 מכוון ליעד (צא מהתחנה והתקדם)</div>
       <div id="arrow">⬆</div>
-      <div id="dist-gps">המכשיר מוכן - התחל ללכת</div>
+      <div id="dist-gps">ממתין לאות GPS...</div>
     </div>
   </div>
 </div>
@@ -95,17 +104,14 @@ const DATA = {
   ]
 };
 
-// לוגיקת המרה מעודכנת לפי שער 1.18
+// יחס המרה קבוע
 const RATE = 1.18;
 
-function convertIlsToAed(val) {
-  const res = val / RATE;
-  document.getElementById('aed_res').innerText = val ? res.toFixed(1) : "0";
-}
-
-function convertAedToIls(val) {
-  const res = val * RATE;
-  document.getElementById('ils_res').innerText = val ? res.toFixed(1) : "0";
+function quickCalc() {
+  const val = parseFloat(document.getElementById('main_input').value);
+  if (isNaN(val)) return;
+  document.getElementById('res_ils_to_aed').innerText = (val / RATE).toFixed(2);
+  document.getElementById('res_aed_to_ils').innerText = (val * RATE).toFixed(2);
 }
 
 function swap() {
@@ -146,19 +152,20 @@ function buildRoute() {
   let st = RED_LINE.slice(Math.min(idx1, idx2), Math.max(idx1, idx2) + 1);
   if (idx1 > idx2) st.reverse();
 
-  let html = `<div class="v-step"><div class="v-dot active"></div><div class="v-text"><b>צא מ: ${p1.name}</b></div></div>`;
+  let html = `<div class="v-step"><div class="v-dot" style="background:var(--red)"></div><div class="v-text"><b>צא מ: ${p1.name}</b><br><small>תחנה: ${p1.station}</small></div></div>`;
+  
   for (let i = 1; i < st.length - 1; i++) {
-    html += `<div class="v-step"><div class="v-dot small"></div><div class="v-text" style="color:#64748b;font-size:12px">${st[i]}</div></div>`;
+    html += `<div class="v-step"><div class="v-dot" style="width:10px;height:10px;margin-right:8px;border:2px solid var(--red)"></div><div class="v-text" style="color:#64748b;font-size:12px">${st[i]}</div></div>`;
   }
   
   html += `
     <div class="v-step">
-      <div class="v-dot active"></div>
+      <div class="v-dot" style="background:var(--green); border-color:var(--green)"></div>
       <div class="v-text">
         <b>רד בתחנת: ${p2.station}</b>
         <div class="walk-box">
-          <b>ספור: ${st.length - 1} תחנות במטרו</b><br>
-          <b>יעד סופי: ${p2.name}</b><br>
+          <b>ספור: ${st.length - 1} תחנות</b><br>
+          <b>יעד: ${p2.name}</b><br>
           🚶‍♂️ הליכה: כ-${p2.walk}<br>
           <span class="exit-info">🏁 צא ב: ${p2.exit}</span>
         </div>
@@ -172,9 +179,22 @@ function buildRoute() {
 function startGps() {
   if ("geolocation" in navigator) {
     navigator.geolocation.watchPosition(pos => {
-      const heading = pos.coords.heading || 0;
-      document.getElementById('arrow').style.transform = `rotate(${heading}deg)`;
-    }, null, { enableHighAccuracy: true });
+      const heading = pos.coords.heading;
+      if (heading !== null && heading !== undefined) {
+        document.getElementById('arrow').style.transform = `rotate(${heading}deg)`;
+        document.getElementById('dist-gps').innerText = "כיוון מעודכן לפי תנועה";
+      } else {
+        document.getElementById('dist-gps').innerText = "קולט מיקום... התחל ללכת כדי לראות כיוון";
+      }
+    }, err => {
+      document.getElementById('dist-gps').innerText = "יש לאשר מיקום (GPS) בהגדרות הדפדפן";
+    }, { 
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 10000 
+    });
+  } else {
+    document.getElementById('dist-gps').innerText = "הדפדפן שלך לא תומך ב-GPS";
   }
 }
 
