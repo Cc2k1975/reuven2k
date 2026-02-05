@@ -19,7 +19,10 @@
     .btn-ils { background: #1e293b; } 
     .btn-aed { background: #16a34a; }
 
-    .selectors { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: end; gap: 5px; margin-bottom: 20px; }
+    /* כפתור שמירת מיקום חדש */
+    .save-loc-btn { width: 100%; margin-top: 10px; padding: 10px; background: #fff; border: 2px dashed var(--brand); color: var(--brand); border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; }
+
+    .selectors { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: end; gap: 5px; margin-bottom: 20px; margin-top: 15px; }
     label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #475569; }
     select { width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #cbd5e1; background: #fff; font-size: 14px; }
     optgroup { font-size: 15px; font-weight: bold; background: #f1f5f9; }
@@ -36,7 +39,6 @@
     .walk-box { background: var(--yellow); padding: 12px; border-radius: 10px; margin-top: 10px; border: 2px solid #fbc02d; font-size: 14px; }
     .exit-info { color: var(--green); font-weight: 800; display: block; margin-top: 5px; border-top: 1px dashed #16a34a; padding-top: 5px; }
 
-    /* עיצוב המפה החדש */
     #map { height: 300px; width: 100%; border-radius: 15px; margin-top: 15px; display: none; border: 2px solid #cbd5e1; }
     .map-btn { width: 100%; padding: 12px; background: #475569; color: white; border: none; border-radius: 10px; font-weight: bold; margin-top: 10px; cursor: pointer; display: none; }
   </style>
@@ -50,6 +52,7 @@
       <button class="calc-btn btn-aed" onclick="toAed()">💰 הפוך לדירהם</button>
       <button class="calc-btn btn-ils" onclick="toIls()">🇮🇱 הפוך לשקלים</button>
     </div>
+    <button class="save-loc-btn" onclick="saveCurrentLocation()">📍 שמור מיקום נוכחי כאן</button>
   </div>
 
   <div class="selectors">
@@ -68,9 +71,20 @@
 </div>
 
 <script>
+// קואורדינטות תחנות המטרו לחישוב מרחק
+const METRO_COORDS = {
+  "DMCC": [25.0671, 55.1402], "Sobha Realty": [25.0784, 55.1481], "Al Khail": [25.0933, 55.1614],
+  "Onpassive": [25.1278, 55.2017], "Business Bay": [25.1903, 55.2694], "Burj Khalifa / Dubai Mall": [25.1994, 55.2773],
+  "Financial Centre": [25.2104, 55.2761], "Emirates Towers": [25.2185, 55.2811], "World Trade Centre": [25.2268, 55.2882],
+  "Max": [25.2364, 55.3021], "ADCB": [25.2428, 55.3049], "BurJuman": [25.2530, 55.3033], "Union": [25.2662, 55.3125],
+  "Deira City Centre": [25.2510, 55.3341], "Al Rigga": [25.2628, 55.3235], "GGICO": [25.2517, 55.3444],
+  "Airport T1": [25.2482, 55.3510], "Airport T3": [25.2447, 55.3639], "Mall of the Emirates": [25.1181, 55.2014],
+  "Equiti": [25.1051, 55.1878], "Mashreq": [25.1118, 55.1951], "Dubai Internet City": [25.1011, 55.1706]
+};
+
 const RED_LINE = ["DMCC", "Sobha Realty", "Al Khail", "Onpassive", "Business Bay", "Burj Khalifa / Dubai Mall", "Financial Centre", "Emirates Towers", "World Trade Centre", "Max", "ADCB", "BurJuman", "Union", "Deira City Centre", "Al Rigga", "GGICO", "Airport T1", "Airport T3", "Mall of the Emirates", "Equiti", "Mashreq", "Dubai Internet City"];
 
-const DATA = {
+let DATA = {
   "🏨 בתי מלון": [
     { id: "lux", name: "🏨 מלון LUXE JBR", station: "DMCC", exit: "Exit 1", walk: "12 דק'", lat: 25.0769, lng: 55.1311 },
     { id: "para", name: "🏨 מלון Paramount", station: "Business Bay", exit: "Exit 1", walk: "10 דק'", lat: 25.1855, lng: 55.2858 }
@@ -95,8 +109,13 @@ const DATA = {
   "✈️ תחבורה": [
     { id: "air3", name: "✈️ שדה תעופה T3", station: "Airport T3", exit: "מפלס הגעה", walk: "2 דק'", lat: 25.2447, lng: 55.3639 },
     { id: "air1", name: "✈️ שדה תעופה T1", station: "Airport T1", exit: "מפלס הגעה", walk: "2 דק'", lat: 25.2482, lng: 55.3510 }
-  ]
+  ],
+  "⭐ מקומות ששמרתי": []
 };
+
+// טעינת מקומות מהזיכרון במידה וקיימים
+const saved = localStorage.getItem('myDubaiPlaces');
+if(saved) DATA["⭐ מקומות ששמרתי"] = JSON.parse(saved);
 
 const RATE = 1.18;
 let liveMap = null;
@@ -123,13 +142,62 @@ function swap() {
 function fillSelects() {
   let h = '';
   for (let c in DATA) {
+    if (DATA[c].length === 0 && c === "⭐ מקומות ששמרתי") continue;
     h += `<optgroup label="${c}">`;
     DATA[c].forEach(p => h += `<option value="${p.id}">${p.name}</option>`);
     h += `</optgroup>`;
   }
   document.getElementById('from').innerHTML = h;
   document.getElementById('to').innerHTML = h;
-  document.getElementById('from').value = "lux"; // ברירת מחדל מלון
+  document.getElementById('from').value = "lux";
+}
+
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2-lat1) * Math.PI / 180;
+    const dLon = (lon2-lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+}
+
+function saveCurrentLocation() {
+  if (!navigator.geolocation) { alert("GPS לא נתמך במכשיר זה"); return; }
+  
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    
+    let closestStation = "";
+    let minDistance = Infinity;
+    
+    for (let station in METRO_COORDS) {
+      let d = getDistance(lat, lng, METRO_COORDS[station][0], METRO_COORDS[station][1]);
+      if (d < minDistance) { minDistance = d; closestStation = station; }
+    }
+    
+    if (minDistance > 2) {
+      alert("המקום רחוק מדי מתחנת מטרו (מעל 2 ק\"מ). עדיף לקחת מונית. המיקום לא נשמר.");
+      return;
+    }
+    
+    const placeName = prompt("תן שם למקום (למשל: פיצרייה זולה):");
+    if (!placeName) return;
+    
+    const newPlace = {
+      id: "custom_" + Date.now(),
+      name: "📍 " + placeName,
+      station: closestStation,
+      exit: "בדוק שילוט",
+      walk: (minDistance * 1000).toFixed(0) + " מטרים",
+      lat: lat,
+      lng: lng
+    };
+    
+    DATA["⭐ מקומות ששמרתי"].push(newPlace);
+    localStorage.setItem('myDubaiPlaces', JSON.stringify(DATA["⭐ מקומות ששמרתי"]));
+    fillSelects();
+    alert("המקום נשמר בהצלחה תחת 'מקומות ששמרתי'!");
+  }, () => alert("לא ניתן לקבל מיקום GPS. וודא שהמיקום פועל."), {enableHighAccuracy: true});
 }
 
 function buildRoute() {
@@ -143,8 +211,8 @@ function buildRoute() {
   if (idx1 === -1 || idx2 === -1) return;
 
   document.getElementById('output').style.display = 'block';
-  document.getElementById('showMapBtn').style.display = 'block'; // הצגת כפתור המפה
-  document.getElementById('map').style.display = 'none'; // הסתרת מפה קודמת אם הייתה פתוחה
+  document.getElementById('showMapBtn').style.display = 'block';
+  document.getElementById('map').style.display = 'none';
 
   let st = RED_LINE.slice(Math.min(idx1, idx2), Math.max(idx1, idx2) + 1);
   if (idx1 > idx2) st.reverse();
@@ -173,52 +241,26 @@ function buildRoute() {
   document.getElementById('vMap').innerHTML = html;
 }
 
-// לוגיקת המפה החדשה
 function toggleLiveMap() {
-  if (!navigator.onLine) {
-    alert("אין חיבור אינטרנט. כדי לצפות במפה הינך חייב להיות מחובר לאינטרנט.");
-    return;
-  }
-
+  if (!navigator.onLine) { alert("אין חיבור אינטרנט. כדי לצפות במפה הינך חייב להיות מחובר לאינטרנט."); return; }
   const mapDiv = document.getElementById('map');
-  if (mapDiv.style.display === 'block') {
-    mapDiv.style.display = 'none';
-    return;
-  }
-
+  if (mapDiv.style.display === 'block') { mapDiv.style.display = 'none'; return; }
   mapDiv.style.display = 'block';
-  
   let p2;
   const toVal = document.getElementById('to').value;
-  for (let c in DATA) {
-    let f2 = DATA[c].find(p => p.id === toVal); if(f2) p2 = f2;
-  }
-
+  for (let c in DATA) { let f2 = DATA[c].find(p => p.id === toVal); if(f2) p2 = f2; }
   if (!liveMap) {
     liveMap = L.map('map').setView([p2.lat, p2.lng], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(liveMap);
-  } else {
-    liveMap.setView([p2.lat, p2.lng], 15);
-  }
-
-  // ניקוי מרקרים קודמים
-  liveMap.eachLayer((layer) => {
-    if (layer instanceof L.Marker) liveMap.removeLayer(layer);
-  });
-
-  // הוספת יעד (אדום)
+  } else { liveMap.setView([p2.lat, p2.lng], 15); }
+  liveMap.eachLayer((layer) => { if (layer instanceof L.Marker || layer instanceof L.CircleMarker) liveMap.removeLayer(layer); });
   L.marker([p2.lat, p2.lng]).addTo(liveMap).bindPopup(`<b>היעד:</b> ${p2.name}`).openPopup();
-
-  // מעקב מיקום חי (נקודה כחולה)
   if (navigator.geolocation) {
     navigator.geolocation.watchPosition((pos) => {
       const { latitude, longitude } = pos.coords;
       if (userMarker) liveMap.removeLayer(userMarker);
       userMarker = L.circleMarker([latitude, longitude], { color: 'blue', radius: 8, fillOpacity: 0.8 }).addTo(liveMap);
-      userMarker.bindPopup("אתה כאן").openPopup();
-    }, () => {
-      console.log("GPS לא זמין");
-    }, { enableHighAccuracy: true });
+    }, null, { enableHighAccuracy: true });
   }
 }
 
