@@ -11,7 +11,6 @@
     body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); padding: 10px; color: #1e293b; }
     .card { background: white; border-radius: 20px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 500px; margin: auto; }
     
-    /* מחשבון החלפה - תא אחד */
     .converter { background: #e2e8f0; padding: 15px; border-radius: 12px; margin-bottom: 15px; text-align: center; border: 1px solid #cbd5e1; }
     .converter input { width: 85%; padding: 15px; border-radius: 10px; border: 2px solid var(--brand); font-weight: bold; font-size: 24px; text-align: center; margin-bottom: 12px; }
     .calc-btns { display: flex; gap: 8px; justify-content: center; }
@@ -19,7 +18,6 @@
     .btn-ils { background: #1e293b; } 
     .btn-aed { background: #16a34a; }
 
-    /* כפתור שמירת מיקום חדש */
     .save-loc-btn { width: 100%; margin-top: 10px; padding: 10px; background: #fff; border: 2px dashed var(--brand); color: var(--brand); border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; }
 
     .selectors { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: end; gap: 5px; margin-bottom: 20px; margin-top: 15px; }
@@ -71,7 +69,6 @@
 </div>
 
 <script>
-// קואורדינטות תחנות המטרו לחישוב מרחק
 const METRO_COORDS = {
   "DMCC": [25.0671, 55.1402], "Sobha Realty": [25.0784, 55.1481], "Al Khail": [25.0933, 55.1614],
   "Onpassive": [25.1278, 55.2017], "Business Bay": [25.1903, 55.2694], "Burj Khalifa / Dubai Mall": [25.1994, 55.2773],
@@ -113,24 +110,21 @@ let DATA = {
   "⭐ מקומות ששמרתי": []
 };
 
-// טעינת מקומות מהזיכרון במידה וקיימים
 const saved = localStorage.getItem('myDubaiPlaces');
 if(saved) DATA["⭐ מקומות ששמרתי"] = JSON.parse(saved);
 
-const RATE = 1.18;
-let liveMap = null;
-let userMarker = null;
+const RATE = 1.18; // 1 ILS = 1.18 AED (לפי התמונה ששלחת)
 
 function toAed() {
   const input = document.getElementById('main_input');
   const val = parseFloat(input.value);
-  if (!isNaN(val)) input.value = (val / RATE).toFixed(2);
+  if (!isNaN(val)) input.value = (val * RATE).toFixed(2); // כפל (שקל לדירהם)
 }
 
 function toIls() {
   const input = document.getElementById('main_input');
   const val = parseFloat(input.value);
-  if (!isNaN(val)) input.value = (val * RATE).toFixed(2);
+  if (!isNaN(val)) input.value = (val / RATE).toFixed(2); // חילוק (דירהם לשקל)
 }
 
 function swap() {
@@ -162,27 +156,21 @@ function getDistance(lat1, lon1, lat2, lon2) {
 
 function saveCurrentLocation() {
   if (!navigator.geolocation) { alert("GPS לא נתמך במכשיר זה"); return; }
-  
   navigator.geolocation.getCurrentPosition(pos => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
-    
     let closestStation = "";
     let minDistance = Infinity;
-    
     for (let station in METRO_COORDS) {
       let d = getDistance(lat, lng, METRO_COORDS[station][0], METRO_COORDS[station][1]);
       if (d < minDistance) { minDistance = d; closestStation = station; }
     }
-    
     if (minDistance > 2) {
       alert("המקום רחוק מדי מתחנת מטרו (מעל 2 ק\"מ). עדיף לקחת מונית. המיקום לא נשמר.");
       return;
     }
-    
     const placeName = prompt("תן שם למקום (למשל: פיצרייה זולה):");
     if (!placeName) return;
-    
     const newPlace = {
       id: "custom_" + Date.now(),
       name: "📍 " + placeName,
@@ -192,12 +180,11 @@ function saveCurrentLocation() {
       lat: lat,
       lng: lng
     };
-    
     DATA["⭐ מקומות ששמרתי"].push(newPlace);
     localStorage.setItem('myDubaiPlaces', JSON.stringify(DATA["⭐ מקומות ששמרתי"]));
     fillSelects();
-    alert("המקום נשמר בהצלחה תחת 'מקומות ששמרתי'!");
-  }, () => alert("לא ניתן לקבל מיקום GPS. וודא שהמיקום פועל."), {enableHighAccuracy: true});
+    alert("המקום נשמר בהצלחה!");
+  }, () => alert("לא ניתן לקבל מיקום GPS."), {enableHighAccuracy: true});
 }
 
 function buildRoute() {
@@ -206,23 +193,17 @@ function buildRoute() {
     let f1 = DATA[c].find(p => p.id === document.getElementById('from').value); if(f1) p1 = f1;
     let f2 = DATA[c].find(p => p.id === document.getElementById('to').value); if(f2) p2 = f2;
   }
-  
   const idx1 = RED_LINE.indexOf(p1.station), idx2 = RED_LINE.indexOf(p2.station);
   if (idx1 === -1 || idx2 === -1) return;
-
   document.getElementById('output').style.display = 'block';
   document.getElementById('showMapBtn').style.display = 'block';
   document.getElementById('map').style.display = 'none';
-
   let st = RED_LINE.slice(Math.min(idx1, idx2), Math.max(idx1, idx2) + 1);
   if (idx1 > idx2) st.reverse();
-
   let html = `<div class="v-step"><div class="v-dot" style="background:var(--red)"></div><div class="v-text"><b>עלה בתחנה: ${p1.station}</b><br><small>מוצא: ${p1.name}</small></div></div>`;
-  
   for (let i = 1; i < st.length - 1; i++) {
     html += `<div class="v-step"><div class="v-dot" style="width:10px;height:10px;margin-right:6px;border:2px solid var(--red)"></div><div class="v-text" style="color:#64748b;font-size:12px">${st[i]}</div></div>`;
   }
-  
   html += `
     <div class="v-step">
       <div class="v-dot" style="background:var(--green); border-color:var(--green)"></div>
@@ -237,12 +218,11 @@ function buildRoute() {
         </div>
       </div>
     </div>`;
-
   document.getElementById('vMap').innerHTML = html;
 }
 
 function toggleLiveMap() {
-  if (!navigator.onLine) { alert("אין חיבור אינטרנט. כדי לצפות במפה הינך חייב להיות מחובר לאינטרנט."); return; }
+  if (!navigator.onLine) { alert("אין חיבור אינטרנט."); return; }
   const mapDiv = document.getElementById('map');
   if (mapDiv.style.display === 'block') { mapDiv.style.display = 'none'; return; }
   mapDiv.style.display = 'block';
@@ -255,13 +235,6 @@ function toggleLiveMap() {
   } else { liveMap.setView([p2.lat, p2.lng], 15); }
   liveMap.eachLayer((layer) => { if (layer instanceof L.Marker || layer instanceof L.CircleMarker) liveMap.removeLayer(layer); });
   L.marker([p2.lat, p2.lng]).addTo(liveMap).bindPopup(`<b>היעד:</b> ${p2.name}`).openPopup();
-  if (navigator.geolocation) {
-    navigator.geolocation.watchPosition((pos) => {
-      const { latitude, longitude } = pos.coords;
-      if (userMarker) liveMap.removeLayer(userMarker);
-      userMarker = L.circleMarker([latitude, longitude], { color: 'blue', radius: 8, fillOpacity: 0.8 }).addTo(liveMap);
-    }, null, { enableHighAccuracy: true });
-  }
 }
 
 fillSelects();
