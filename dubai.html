@@ -218,37 +218,41 @@ function toggleLiveMap() {
   const toVal = document.getElementById('to').value;
   for (let c in DATA) { let f2 = DATA[c].find(p => p.id === toVal); if(f2) p2 = f2; }
   
+  // הגדרת מפה עם זום גבוה כדי שתראה רחובות
   if (!liveMap) {
-    liveMap = L.map('map').setView([p2.lat, p2.lng], 13);
+    liveMap = L.map('map').setView([25.2, 55.3], 15); // ערך התחלתי זמני
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(liveMap);
-  } else {
-    liveMap.setView([p2.lat, p2.lng], 13);
   }
 
   // ניקוי מרקרים ישנים
   liveMap.eachLayer((layer) => { if (layer instanceof L.Marker || layer instanceof L.CircleMarker) liveMap.removeLayer(layer); });
 
-  // נקודה אדומה - היעד בדובאי
+  // הוספת יעד (אדום)
   L.marker([p2.lat, p2.lng], {
     icon: L.icon({
       iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
       shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
       iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
     })
-  }).addTo(liveMap).bindPopup(`<b>היעד בדובאי:</b><br>${p2.name}`).openPopup();
+  }).addTo(liveMap).bindPopup(`<b>היעד:</b> ${p2.name}`);
 
-  // נקודה כחולה - איפה אתה באמת (GPS)
+  // משיכת מיקום והתמקדות במשתמש
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition((pos) => {
       const { latitude, longitude } = pos.coords;
+      
+      // התמקדות בך (הנקודה הכחולה)
+      liveMap.setView([latitude, longitude], 16);
+
       if (userMarker) liveMap.removeLayer(userMarker);
       userMarker = L.circleMarker([latitude, longitude], { 
         color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9, radius: 10 
-      }).addTo(liveMap).bindPopup("אתה נמצא כאן (מיקום אמיתי)");
+      }).addTo(liveMap).bindPopup("אתה נמצא כאן").openPopup();
       
-      // אם אתה בישראל, המפה תישאר על דובאי אבל הנקודה שלך קיימת בישראל
-      console.log("User real location:", latitude, longitude);
-    }, null, { enableHighAccuracy: true });
+    }, () => {
+      // אם אין GPS, לפחות שיראה את היעד
+      liveMap.setView([p2.lat, p2.lng], 15);
+    }, { enableHighAccuracy: true });
   }
 
   setTimeout(() => { liveMap.invalidateSize(); }, 300);
