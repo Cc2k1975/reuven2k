@@ -9,9 +9,10 @@
     body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); padding: 10px; color: #1e293b; }
     .card { background: white; border-radius: 20px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 500px; margin: auto; }
     
-    /* מחשבון המרה */
-    .converter { background: #e2e8f0; padding: 10px; border-radius: 12px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
-    .converter input { width: 80px; padding: 8px; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: bold; }
+    /* מחשבון המרה משקל לדירהם */
+    .converter { background: #e2e8f0; padding: 12px; border-radius: 12px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; justify-content: center; border: 1px solid #cbd5e1; }
+    .converter input { width: 90px; padding: 10px; border-radius: 8px; border: 2px solid var(--brand); font-weight: bold; font-size: 16px; text-align: center; }
+    .converter span { font-weight: bold; font-size: 15px; }
 
     .selectors { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: end; gap: 5px; margin-bottom: 20px; }
     label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #475569; }
@@ -21,7 +22,6 @@
     .swap-btn { background: #f1f5f9; border: 2px solid #cbd5e1; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 5px; }
     .btn { width: 100%; padding: 18px; background: var(--brand); color: white; border: none; border-radius: 14px; font-size: 20px; font-weight: 800; cursor: pointer; }
 
-    /* מסלול אנכי */
     .route-container { margin-top: 25px; border-top: 3px solid #e2e8f0; padding-top: 20px; }
     .v-step { display: flex; gap: 12px; position: relative; padding-bottom: 22px; }
     .v-step:not(:last-child)::after { content: ''; position: absolute; right: 10px; top: 24px; width: 5px; height: 100%; background: var(--red); z-index: 1; }
@@ -31,8 +31,7 @@
     .walk-box { background: var(--yellow); padding: 12px; border-radius: 10px; margin-top: 10px; border: 2px solid #fbc02d; }
     .exit-info { color: var(--green); font-weight: 800; display: block; margin-top: 5px; border-top: 1px dashed #16a34a; padding-top: 5px; }
     
-    /* מפת הליכה אופליין */
-    #compass-container { display: none; text-align: center; margin-top: 15px; padding: 15px; background: #000; color: #0f0; border-radius: 15px; border: 3px solid #333; }
+    #compass-container { display: none; text-align: center; margin-top: 15px; padding: 15px; background: #000; color: #0f0; border-radius: 15px; }
     #arrow { font-size: 50px; transition: transform 0.2s; display: inline-block; }
   </style>
 </head>
@@ -40,10 +39,10 @@
 
 <div class="card">
   <div class="converter">
-    <span>💰 המרה:</span>
-    <input type="number" id="aed" placeholder="AED" oninput="convert(this.value)">
-    <span>AED = </span>
-    <b id="ils">0</b> ₪
+    <span>₪ שקלים:</span>
+    <input type="number" id="ils_input" placeholder="0" oninput="convertToAed(this.value)">
+    <span> = </span>
+    <b id="aed_result" style="font-size: 18px; color: var(--brand);">0</b> <b>דירהם</b>
   </div>
 
   <div class="selectors">
@@ -56,12 +55,10 @@
 
   <div id="output" style="display:none;" class="route-container">
     <div id="vMap"></div>
-    
     <div id="compass-container">
       <div>🧭 מכוון ליעד (צא מהתחנה והתקדם)</div>
       <div id="arrow">⬆</div>
-      <div id="dist-gps">מרחק: -- מטר</div>
-      <small style="display:block;margin-top:5px;color:#aaa;">*עובד מחוץ למבנה בלבד</small>
+      <div id="dist-gps">המכשיר מוכן - התחל ללכת</div>
     </div>
   </div>
 </div>
@@ -83,14 +80,18 @@ const DATA = {
     { id: "d2d_d", name: "DAY TO DAY דיירה", station: "Deira City Centre", exit: "Exit 1 (City Centre Side)", walk: "2 דק'" },
     { id: "gift_v", name: "GIFT VILLAGE", station: "Max", exit: "Exit 1 (Zabeel Park)", walk: "8 דק'" }
   ],
-  "🍽️ אוכל": [
-    { id: "safadi", name: "AL SAFADI", station: "Emirates Towers", exit: "Exit 1 (DIFC Side)", walk: "6 דק'" },
-    { id: "fish_h", name: "FISH HUT", station: "Mall of the Emirates", exit: "Exit 1 (Al Barsha)", walk: "15 דק'" }
+  "🍽️ אוכל בזול (עד 50 שח)": [
+    { id: "safadi", name: "AL SAFADI (עד 50 שח)", station: "Emirates Towers", exit: "Exit 1 (DIFC Side)", walk: "6 דק'" },
+    { id: "fish_h", name: "FISH HUT (עד 50 שח)", station: "Mall of the Emirates", exit: "Exit 1 (Al Barsha)", walk: "15 דק'" }
   ]
 };
 
-function convert(val) {
-  document.getElementById('ils').innerText = (val * 1).toFixed(1); // שער משוער 1 AED = 1 ILS (תעדכן אם צריך)
+// פונקציית המרה משקל לדירהם
+function convertToAed(ils) {
+  // שער משוער: 1 שקל שווה בערך 1 דירהם (במציאות זה קרוב מאוד)
+  // אם תרצה לדייק, שנה את ה-1 למטה לשער העדכני
+  const rate = 1.0; 
+  document.getElementById('aed_result').innerText = (ils * rate).toFixed(1);
 }
 
 function swap() {
@@ -128,12 +129,12 @@ function buildRoute() {
   document.getElementById('output').style.display = 'block';
   document.getElementById('compass-container').style.display = 'block';
 
-  let stations = RED_LINE.slice(Math.min(idx1, idx2), Math.max(idx1, idx2) + 1);
-  if (idx1 > idx2) stations.reverse();
+  let st = RED_LINE.slice(Math.min(idx1, idx2), Math.max(idx1, idx2) + 1);
+  if (idx1 > idx2) st.reverse();
 
   let html = `<div class="v-step"><div class="v-dot active"></div><div class="v-text"><b>צא מ: ${p1.name}</b></div></div>`;
-  for (let i = 1; i < stations.length - 1; i++) {
-    html += `<div class="v-step"><div class="v-dot small"></div><div class="v-text" style="color:#64748b;font-size:12px">${stations[i]}</div></div>`;
+  for (let i = 1; i < st.length - 1; i++) {
+    html += `<div class="v-step"><div class="v-dot small"></div><div class="v-text" style="color:#64748b;font-size:12px">${st[i]}</div></div>`;
   }
   
   html += `
@@ -142,7 +143,7 @@ function buildRoute() {
       <div class="v-text">
         <b>רד בתחנת: ${p2.station}</b>
         <div class="walk-box">
-          <b>ספור: ${stations.length - 1} תחנות</b><br>
+          <b>ספור: ${st.length - 1} תחנות</b><br>
           🚶‍♂️ הליכה: כ-${p2.walk}<br>
           <span class="exit-info">🏁 צא ב: ${p2.exit}</span>
         </div>
@@ -156,10 +157,8 @@ function buildRoute() {
 function startGps() {
   if ("geolocation" in navigator) {
     navigator.geolocation.watchPosition(pos => {
-      // כאן הלוגיקה של החץ (סילולרי - בסיסי אופליין)
       const heading = pos.coords.heading || 0;
       document.getElementById('arrow').style.transform = `rotate(${heading}deg)`;
-      document.getElementById('dist-gps').innerText = `המכשיר מוכן - התחל ללכת`;
     }, null, { enableHighAccuracy: true });
   }
 }
