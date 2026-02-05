@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-  <title>דובאי מטרו - המדריך המלא 2025</title>
+  <title>דובאי מטרו - PRO 2025</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
@@ -37,7 +37,7 @@
     .walk-box { background: var(--yellow); padding: 12px; border-radius: 10px; margin-top: 10px; border: 2px solid #fbc02d; font-size: 14px; }
     .exit-info { color: var(--green); font-weight: 800; display: block; margin-top: 5px; border-top: 1px dashed #16a34a; padding-top: 5px; }
 
-    #map { height: 300px; width: 100%; border-radius: 15px; margin-top: 15px; display: none; border: 2px solid #cbd5e1; }
+    #map { height: 300px; width: 100%; border-radius: 15px; margin-top: 15px; display: none; border: 2px solid #cbd5e1; z-index: 100; }
     .map-btn { width: 100%; padding: 12px; background: #475569; color: white; border: none; border-radius: 10px; font-weight: bold; margin-top: 10px; cursor: pointer; display: none; }
   </style>
 </head>
@@ -113,18 +113,20 @@ let DATA = {
 const saved = localStorage.getItem('myDubaiPlaces');
 if(saved) DATA["⭐ מקומות ששמרתי"] = JSON.parse(saved);
 
-const RATE = 1.18; // 1 ILS = 1.18 AED (לפי התמונה ששלחת)
+const RATE = 1.18;
+let liveMap = null;
+let userMarker = null;
 
 function toAed() {
   const input = document.getElementById('main_input');
   const val = parseFloat(input.value);
-  if (!isNaN(val)) input.value = (val * RATE).toFixed(2); // כפל (שקל לדירהם)
+  if (!isNaN(val)) input.value = (val * RATE).toFixed(2);
 }
 
 function toIls() {
   const input = document.getElementById('main_input');
   const val = parseFloat(input.value);
-  if (!isNaN(val)) input.value = (val / RATE).toFixed(2); // חילוק (דירהם לשקל)
+  if (!isNaN(val)) input.value = (val / RATE).toFixed(2);
 }
 
 function swap() {
@@ -155,7 +157,7 @@ function getDistance(lat1, lon1, lat2, lon2) {
 }
 
 function saveCurrentLocation() {
-  if (!navigator.geolocation) { alert("GPS לא נתמך במכשיר זה"); return; }
+  if (!navigator.geolocation) { alert("GPS לא נתמך"); return; }
   navigator.geolocation.getCurrentPosition(pos => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
@@ -166,32 +168,26 @@ function saveCurrentLocation() {
       if (d < minDistance) { minDistance = d; closestStation = station; }
     }
     if (minDistance > 2) {
-      alert("המקום רחוק מדי מתחנת מטרו (מעל 2 ק\"מ). עדיף לקחת מונית. המיקום לא נשמר.");
+      alert("המקום רחוק מדי (מעל 2 ק\"מ). המיקום לא נשמר.");
       return;
     }
-    const placeName = prompt("תן שם למקום (למשל: פיצרייה זולה):");
+    const placeName = prompt("שם המקום:");
     if (!placeName) return;
-    const newPlace = {
-      id: "custom_" + Date.now(),
-      name: "📍 " + placeName,
-      station: closestStation,
-      exit: "בדוק שילוט",
-      walk: (minDistance * 1000).toFixed(0) + " מטרים",
-      lat: lat,
-      lng: lng
-    };
+    const newPlace = { id: "custom_" + Date.now(), name: "📍 " + placeName, station: closestStation, exit: "בדוק שילוט", walk: (minDistance * 1000).toFixed(0) + " מ'", lat: lat, lng: lng };
     DATA["⭐ מקומות ששמרתי"].push(newPlace);
     localStorage.setItem('myDubaiPlaces', JSON.stringify(DATA["⭐ מקומות ששמרתי"]));
     fillSelects();
-    alert("המקום נשמר בהצלחה!");
-  }, () => alert("לא ניתן לקבל מיקום GPS."), {enableHighAccuracy: true});
+    alert("נשמר בהצלחה!");
+  }, () => alert("שגיאת מיקום"), {enableHighAccuracy: true});
 }
 
 function buildRoute() {
   let p1, p2;
+  const fromVal = document.getElementById('from').value;
+  const toVal = document.getElementById('to').value;
   for (let c in DATA) {
-    let f1 = DATA[c].find(p => p.id === document.getElementById('from').value); if(f1) p1 = f1;
-    let f2 = DATA[c].find(p => p.id === document.getElementById('to').value); if(f2) p2 = f2;
+    let f1 = DATA[c].find(p => p.id === fromVal); if(f1) p1 = f1;
+    let f2 = DATA[c].find(p => p.id === toVal); if(f2) p2 = f2;
   }
   const idx1 = RED_LINE.indexOf(p1.station), idx2 = RED_LINE.indexOf(p2.station);
   if (idx1 === -1 || idx2 === -1) return;
@@ -200,29 +196,20 @@ function buildRoute() {
   document.getElementById('map').style.display = 'none';
   let st = RED_LINE.slice(Math.min(idx1, idx2), Math.max(idx1, idx2) + 1);
   if (idx1 > idx2) st.reverse();
-  let html = `<div class="v-step"><div class="v-dot" style="background:var(--red)"></div><div class="v-text"><b>עלה בתחנה: ${p1.station}</b><br><small>מוצא: ${p1.name}</small></div></div>`;
+  let html = `<div class="v-step"><div class="v-dot" style="background:var(--red)"></div><div class="v-text"><b>עלה ב: ${p1.station}</b><br><small>${p1.name}</small></div></div>`;
   for (let i = 1; i < st.length - 1; i++) {
     html += `<div class="v-step"><div class="v-dot" style="width:10px;height:10px;margin-right:6px;border:2px solid var(--red)"></div><div class="v-text" style="color:#64748b;font-size:12px">${st[i]}</div></div>`;
   }
   html += `
     <div class="v-step">
       <div class="v-dot" style="background:var(--green); border-color:var(--green)"></div>
-      <div class="v-text">
-        <b>רד בתחנה: ${p2.station}</b>
-        <div class="walk-box">
-          <b>הוראות הגעה:</b><br>
-          📍 יעד סופי: ${p2.name}<br>
-          🔢 נסיעה של ${st.length - 1} תחנות<br>
-          🚶‍♂️ הליכה מהמטרו: ${p2.walk}<br>
-          <span class="exit-info">🏁 צא ביציאה: ${p2.exit}</span>
-        </div>
-      </div>
+      <div class="v-text"><b>רד ב: ${p2.station}</b><div class="walk-box">📍 יעד: ${p2.name}<br>🔢 ${st.length - 1} תחנות<br>🚶‍♂️ הליכה: ${p2.walk}<br><span class="exit-info">🏁 יציאה: ${p2.exit}</span></div></div>
     </div>`;
   document.getElementById('vMap').innerHTML = html;
 }
 
 function toggleLiveMap() {
-  if (!navigator.onLine) { alert("אין חיבור אינטרנט."); return; }
+  if (!navigator.onLine) { alert("אין אינטרנט"); return; }
   const mapDiv = document.getElementById('map');
   if (mapDiv.style.display === 'block') { mapDiv.style.display = 'none'; return; }
   mapDiv.style.display = 'block';
@@ -234,7 +221,15 @@ function toggleLiveMap() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(liveMap);
   } else { liveMap.setView([p2.lat, p2.lng], 15); }
   liveMap.eachLayer((layer) => { if (layer instanceof L.Marker || layer instanceof L.CircleMarker) liveMap.removeLayer(layer); });
-  L.marker([p2.lat, p2.lng]).addTo(liveMap).bindPopup(`<b>היעד:</b> ${p2.name}`).openPopup();
+  L.marker([p2.lat, p2.lng]).addTo(liveMap).bindPopup(`<b>יעד:</b> ${p2.name}`).openPopup();
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition((pos) => {
+      const { latitude, longitude } = pos.coords;
+      if (userMarker) liveMap.removeLayer(userMarker);
+      userMarker = L.circleMarker([latitude, longitude], { color: 'blue', radius: 8, fillOpacity: 0.8 }).addTo(liveMap);
+    }, null, { enableHighAccuracy: true });
+  }
+  setTimeout(() => { liveMap.invalidateSize(); }, 200);
 }
 
 fillSelects();
