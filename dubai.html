@@ -42,16 +42,21 @@
 </div>
 
 <script>
-const RED_LINE = ["DMCC", "Sobha Realty", "Al Khail", "Onpassive", "Business Bay", "Burj Khalifa / Dubai Mall", "Financial Centre", "Emirates Towers", "World Trade Centre", "Max", "ADCB", "BurJuman", "Union", "Deira City Centre", "Al Rigga", "GGICO", "Airport T1", "Airport T3"];
+// רשימת התחנות המדויקת של הקו האדום
+const RED_LINE = ["DMCC", "Sobha Realty", "Al Khail", "Onpassive", "Business Bay", "Burj Khalifa / Dubai Mall", "Financial Centre", "Emirates Towers", "World Trade Centre", "Max", "ADCB", "BurJuman", "Union", "Deira City Centre", "Al Rigga", "GGICO", "Airport T1", "Airport T3", "Mall of the Emirates", "Equiti", "Mashreq", "Dubai Internet City"];
 
 const DATA = {
+  "שדה תעופה (DXB)": [
+    { id: "air3", name: "שדה תעופה טרמינל 3 (אל על)", station: "Airport T3", walk: "3 דק'", dist: "בתוך הטרמינל" },
+    { id: "air1", name: "שדה תעופה טרמינל 1", station: "Airport T1", walk: "3 דק'", dist: "בתוך הטרמינל" }
+  ],
   "מלונות": [
     { id: "lux", name: "מלון LUXE JBR", station: "DMCC", walk: "12 דק'", dist: "1.1 ק\"מ" },
     { id: "para", name: "מלון Paramount", station: "Business Bay", walk: "10 דק'", dist: "850 מטר" }
   ],
   "קניות בזול (בזיל הזול)": [
     { id: "d2d_k1", name: "DAY TO DAY כרמה (1-20 שח)", station: "ADCB", walk: "5 דק'", dist: "ADCB Metro" },
-    { id: "d2d_d", name: "DAY TO DAY דיירה (1-20 שח)", station: "Deira City Centre", walk: "2 דק'", dist: "מול היציאה מהמטרו" },
+    { id: "d2d_d", name: "DAY TO DAY דיירה (1-20 שח)", station: "Deira City Centre", walk: "2 דק'", dist: "מול היציאה" },
     { id: "d2d_f", name: "DAY TO DAY פריים (1-20 שח)", station: "Max", walk: "7 דק'", dist: "ליד Zabeel Park" },
     { id: "gift_v", name: "GIFT VILLAGE (עד 50 שח)", station: "Max", walk: "8 דק'", dist: "מול המסגרת" },
     { id: "mazaya_av", name: "Mazaya Avenue (בגדים בזול)", station: "Deira City Centre", walk: "6 דק'", dist: "500 מטר" },
@@ -89,19 +94,26 @@ function fillSelects() {
   }
   fromSel.innerHTML = html;
   toSel.innerHTML = html;
-  fromSel.value = "lux";
-  toSel.value = "d2d_k1";
+  fromSel.value = "air3"; // ברירת מחדל מהשדה
+  toSel.value = "lux"; // למלון
 }
 
 function buildRoute() {
-  let p1, p2;
+  let p1 = null, p2 = null;
   for (let cat in DATA) {
     let f1 = DATA[cat].find(p => p.id === fromSel.value); if(f1) p1 = f1;
     let f2 = DATA[cat].find(p => p.id === toSel.value); if(f2) p2 = f2;
   }
+  
+  if(!p1 || !p2) return;
+
   const idx1 = RED_LINE.indexOf(p1.station);
   const idx2 = RED_LINE.indexOf(p2.station);
-  if (idx1 === -1 || idx2 === -1) return;
+
+  if (idx1 === -1 || idx2 === -1) {
+    alert("תקלה בחישוב התחנות.");
+    return;
+  }
   
   document.getElementById('output').style.display = 'block';
   const start = Math.min(idx1, idx2);
@@ -111,11 +123,16 @@ function buildRoute() {
 
   const numStops = stations.length - 1;
 
-  let html = `<div class="v-step"><div class="v-dot active"></div><div class="v-text"><b>צא מ: ${p1.name}</b><br>הליכה לתחנת <b>${p1.station}</b></div></div>`;
+  let html = `<div class="v-step"><div class="v-dot active"></div><div class="v-text"><b>צא מ: ${p1.name}</b><br>עליה בתחנת <b>${p1.station}</b></div></div>`;
   for (let i = 1; i < stations.length - 1; i++) {
     html += `<div class="v-step"><div class="v-dot small"></div><div class="v-text" style="color:#64748b; font-size:12px;">${stations[i]}</div></div>`;
   }
   
+  let airportNote = "";
+  if(p2.id === "air1" || p2.id === "air3") {
+    airportNote = "<br><small>💡 המטרו עוצר בטרמינל 1 ו-3. לטרמינל 2 יש לקחת שאטל מהטרמינלים האלו.</small>";
+  }
+
   html += `
     <div class="v-step">
       <div class="v-dot active"></div>
@@ -123,8 +140,8 @@ function buildRoute() {
         <b>רד בתחנת: ${p2.station}</b>
         <div class="walk-box">
           <span class="stops-count">ספור: ${numStops} תחנות מהעלייה</span>
-          🚶‍♂️ <b>הגעה ליעד (${p2.name}):</b><br>
-          כ-${p2.walk} (${p2.dist})
+          🚶‍♂️ <b>הגעה ליעד:</b><br>
+          ${p2.name} - כ-${p2.walk} הליכה ${airportNote}
         </div>
       </div>
     </div>`;
