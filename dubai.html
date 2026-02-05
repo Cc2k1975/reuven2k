@@ -168,7 +168,7 @@ function saveCurrentLocation() {
       if (d < minDistance) { minDistance = d; closestStation = station; }
     }
     if (minDistance > 2) {
-      alert("המקום רחוק מדי (מעל 2 ק\"מ). המיקום לא נשמר.");
+      alert("המקום רחוק מדי מתחנה (מעל 2 ק\"מ). המיקום לא נשמר.");
       return;
     }
     const placeName = prompt("שם המקום:");
@@ -213,23 +213,45 @@ function toggleLiveMap() {
   const mapDiv = document.getElementById('map');
   if (mapDiv.style.display === 'block') { mapDiv.style.display = 'none'; return; }
   mapDiv.style.display = 'block';
+  
   let p2;
   const toVal = document.getElementById('to').value;
   for (let c in DATA) { let f2 = DATA[c].find(p => p.id === toVal); if(f2) p2 = f2; }
+  
   if (!liveMap) {
-    liveMap = L.map('map').setView([p2.lat, p2.lng], 15);
+    liveMap = L.map('map').setView([p2.lat, p2.lng], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(liveMap);
-  } else { liveMap.setView([p2.lat, p2.lng], 15); }
+  } else {
+    liveMap.setView([p2.lat, p2.lng], 13);
+  }
+
+  // ניקוי מרקרים ישנים
   liveMap.eachLayer((layer) => { if (layer instanceof L.Marker || layer instanceof L.CircleMarker) liveMap.removeLayer(layer); });
-  L.marker([p2.lat, p2.lng]).addTo(liveMap).bindPopup(`<b>יעד:</b> ${p2.name}`).openPopup();
+
+  // נקודה אדומה - היעד בדובאי
+  L.marker([p2.lat, p2.lng], {
+    icon: L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+    })
+  }).addTo(liveMap).bindPopup(`<b>היעד בדובאי:</b><br>${p2.name}`).openPopup();
+
+  // נקודה כחולה - איפה אתה באמת (GPS)
   if (navigator.geolocation) {
-    navigator.geolocation.watchPosition((pos) => {
+    navigator.geolocation.getCurrentPosition((pos) => {
       const { latitude, longitude } = pos.coords;
       if (userMarker) liveMap.removeLayer(userMarker);
-      userMarker = L.circleMarker([latitude, longitude], { color: 'blue', radius: 8, fillOpacity: 0.8 }).addTo(liveMap);
+      userMarker = L.circleMarker([latitude, longitude], { 
+        color: '#2563eb', fillColor: '#3b82f6', fillOpacity: 0.9, radius: 10 
+      }).addTo(liveMap).bindPopup("אתה נמצא כאן (מיקום אמיתי)");
+      
+      // אם אתה בישראל, המפה תישאר על דובאי אבל הנקודה שלך קיימת בישראל
+      console.log("User real location:", latitude, longitude);
     }, null, { enableHighAccuracy: true });
   }
-  setTimeout(() => { liveMap.invalidateSize(); }, 200);
+
+  setTimeout(() => { liveMap.invalidateSize(); }, 300);
 }
 
 fillSelects();
