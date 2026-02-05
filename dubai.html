@@ -4,6 +4,8 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
   <title>דובאי מטרו - המדריך המלא 2025</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     :root { --brand: #2563eb; --bg: #f8fafc; --red: #ef4444; --yellow: #fff9c4; --green: #16a34a; }
     body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); padding: 10px; color: #1e293b; }
@@ -33,6 +35,10 @@
     
     .walk-box { background: var(--yellow); padding: 12px; border-radius: 10px; margin-top: 10px; border: 2px solid #fbc02d; font-size: 14px; }
     .exit-info { color: var(--green); font-weight: 800; display: block; margin-top: 5px; border-top: 1px dashed #16a34a; padding-top: 5px; }
+
+    /* עיצוב המפה החדש */
+    #map { height: 300px; width: 100%; border-radius: 15px; margin-top: 15px; display: none; border: 2px solid #cbd5e1; }
+    .map-btn { width: 100%; padding: 12px; background: #475569; color: white; border: none; border-radius: 10px; font-weight: bold; margin-top: 10px; cursor: pointer; display: none; }
   </style>
 </head>
 <body>
@@ -56,6 +62,8 @@
 
   <div id="output" style="display:none;" class="route-container">
     <div id="vMap"></div>
+    <button id="showMapBtn" class="map-btn" onclick="toggleLiveMap()">🗺️ פתח מפה חיה (דורש אינטרנט)</button>
+    <div id="map"></div>
   </div>
 </div>
 
@@ -64,33 +72,35 @@ const RED_LINE = ["DMCC", "Sobha Realty", "Al Khail", "Onpassive", "Business Bay
 
 const DATA = {
   "🏨 בתי מלון": [
-    { id: "lux", name: "🏨 מלון LUXE JBR", station: "DMCC", exit: "Exit 1", walk: "12 דק'" },
-    { id: "para", name: "🏨 מלון Paramount", station: "Business Bay", exit: "Exit 1", walk: "10 דק'" }
+    { id: "lux", name: "🏨 מלון LUXE JBR", station: "DMCC", exit: "Exit 1", walk: "12 דק'", lat: 25.0769, lng: 55.1311 },
+    { id: "para", name: "🏨 מלון Paramount", station: "Business Bay", exit: "Exit 1", walk: "10 דק'", lat: 25.1855, lng: 55.2858 }
   ],
   "🛍️ חנויות וזול": [
-    { id: "d2d_k", name: "🛒 Day to Day כרמה (1-20 שח)", station: "ADCB", exit: "Exit 1", walk: "5 דק'" },
-    { id: "d2d_d", name: "🛒 Day to Day דיירה (זול)", station: "Deira City Centre", exit: "Exit 1", walk: "2 דק'" },
-    { id: "gift_v", name: "🎁 Gift Village (הכל בזול)", station: "Max", exit: "Exit 1", walk: "8 דק'" },
-    { id: "ansari", name: "💱 Al Ansari (המרת כסף)", station: "Al Rigga", exit: "Exit 2", walk: "3 דק'" }
+    { id: "d2d_k", name: "🛒 Day to Day כרמה (1-20 שח)", station: "ADCB", exit: "Exit 1", walk: "5 דק'", lat: 25.2424, lng: 55.3023 },
+    { id: "d2d_d", name: "🛒 Day to Day דיירה (זול)", station: "Deira City Centre", exit: "Exit 1", walk: "2 דק'", lat: 25.2505, lng: 55.3330 },
+    { id: "gift_v", name: "🎁 Gift Village (הכל בזול)", station: "Max", exit: "Exit 1", walk: "8 דק'", lat: 25.2366, lng: 55.3041 },
+    { id: "ansari", name: "💱 Al Ansari (המרת כסף)", station: "Al Rigga", exit: "Exit 2", walk: "3 דק'", lat: 25.2625, lng: 55.3228 }
   ],
   "🍴 מסעדות ואוכל": [
-    { id: "safadi", name: "🍴 Al Safadi (עד 50 שח)", station: "Financial Centre", exit: "Exit 1", walk: "5 דק'" },
-    { id: "fantastico", name: "🍕 קפה פנטסטיקו (כשר חלבי)", station: "Business Bay", exit: "Exit 1 (Mazaya)", walk: "10 דק'" },
-    { id: "tlv", name: "🥩 מסעדת TLV (כשר בשרי)", station: "Max", exit: "Exit 1 (Hotel H)", walk: "6 דק'" },
-    { id: "fish", name: "🐟 Fish Hut (זול וטעים)", station: "Mall of the Emirates", exit: "Exit 1", walk: "12 דק'" }
+    { id: "safadi", name: "🍴 Al Safadi (עד 50 שח)", station: "Financial Centre", exit: "Exit 1", walk: "5 דק'", lat: 25.2075, lng: 55.2714 },
+    { id: "fantastico", name: "🍕 קפה פנטסטיקו (כשר חלבי)", station: "Business Bay", exit: "Exit 1 (Mazaya)", walk: "10 דק'", lat: 25.1919, lng: 55.2678 },
+    { id: "tlv", name: "🥩 מסעדת TLV (כשר בשרי)", station: "Max", exit: "Exit 1 (Hotel H)", walk: "6 דק'", lat: 25.2272, lng: 55.2835 },
+    { id: "fish", name: "🐟 Fish Hut (זול וטעים)", station: "Mall of the Emirates", exit: "Exit 1", walk: "12 דק'", lat: 25.1181, lng: 55.2014 }
   ],
   "✨ אטרקציות": [
-    { id: "frame", name: "🖼️ המסגרת (Dubai Frame)", station: "Max", exit: "Exit 1", walk: "10 דק'" },
-    { id: "museum", name: "🚀 מוזיאון העתיד", station: "Emirates Towers", exit: "Direct Link", walk: "2 דק'" },
-    { id: "burj", name: "🏙️ בורג' חליפה ומזרקות", station: "Burj Khalifa / Dubai Mall", exit: "Mall Bridge", walk: "15 דק'" }
+    { id: "frame", name: "🖼️ המסגרת (Dubai Frame)", station: "Max", exit: "Exit 1", walk: "10 דק'", lat: 25.2355, lng: 55.3003 },
+    { id: "museum", name: "🚀 מוזיאון העתיד", station: "Emirates Towers", exit: "Direct Link", walk: "2 דק'", lat: 25.2191, lng: 55.2819 },
+    { id: "burj", name: "🏙️ בורג' חליפה ומזרקות", station: "Burj Khalifa / Dubai Mall", exit: "Mall Bridge", walk: "15 דק'", lat: 25.1972, lng: 55.2744 }
   ],
   "✈️ תחבורה": [
-    { id: "air3", name: "✈️ שדה תעופה T3", station: "Airport T3", exit: "מפלס הגעה", walk: "2 דק'" },
-    { id: "air1", name: "✈️ שדה תעופה T1", station: "Airport T1", exit: "מפלס הגעה", walk: "2 דק'" }
+    { id: "air3", name: "✈️ שדה תעופה T3", station: "Airport T3", exit: "מפלס הגעה", walk: "2 דק'", lat: 25.2447, lng: 55.3639 },
+    { id: "air1", name: "✈️ שדה תעופה T1", station: "Airport T1", exit: "מפלס הגעה", walk: "2 דק'", lat: 25.2482, lng: 55.3510 }
   ]
 };
 
 const RATE = 1.18;
+let liveMap = null;
+let userMarker = null;
 
 function toAed() {
   const input = document.getElementById('main_input');
@@ -133,6 +143,9 @@ function buildRoute() {
   if (idx1 === -1 || idx2 === -1) return;
 
   document.getElementById('output').style.display = 'block';
+  document.getElementById('showMapBtn').style.display = 'block'; // הצגת כפתור המפה
+  document.getElementById('map').style.display = 'none'; // הסתרת מפה קודמת אם הייתה פתוחה
+
   let st = RED_LINE.slice(Math.min(idx1, idx2), Math.max(idx1, idx2) + 1);
   if (idx1 > idx2) st.reverse();
 
@@ -158,6 +171,55 @@ function buildRoute() {
     </div>`;
 
   document.getElementById('vMap').innerHTML = html;
+}
+
+// לוגיקת המפה החדשה
+function toggleLiveMap() {
+  if (!navigator.onLine) {
+    alert("אין חיבור אינטרנט. כדי לצפות במפה הינך חייב להיות מחובר לאינטרנט.");
+    return;
+  }
+
+  const mapDiv = document.getElementById('map');
+  if (mapDiv.style.display === 'block') {
+    mapDiv.style.display = 'none';
+    return;
+  }
+
+  mapDiv.style.display = 'block';
+  
+  let p2;
+  const toVal = document.getElementById('to').value;
+  for (let c in DATA) {
+    let f2 = DATA[c].find(p => p.id === toVal); if(f2) p2 = f2;
+  }
+
+  if (!liveMap) {
+    liveMap = L.map('map').setView([p2.lat, p2.lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(liveMap);
+  } else {
+    liveMap.setView([p2.lat, p2.lng], 15);
+  }
+
+  // ניקוי מרקרים קודמים
+  liveMap.eachLayer((layer) => {
+    if (layer instanceof L.Marker) liveMap.removeLayer(layer);
+  });
+
+  // הוספת יעד (אדום)
+  L.marker([p2.lat, p2.lng]).addTo(liveMap).bindPopup(`<b>היעד:</b> ${p2.name}`).openPopup();
+
+  // מעקב מיקום חי (נקודה כחולה)
+  if (navigator.geolocation) {
+    navigator.geolocation.watchPosition((pos) => {
+      const { latitude, longitude } = pos.coords;
+      if (userMarker) liveMap.removeLayer(userMarker);
+      userMarker = L.circleMarker([latitude, longitude], { color: 'blue', radius: 8, fillOpacity: 0.8 }).addTo(liveMap);
+      userMarker.bindPopup("אתה כאן").openPopup();
+    }, () => {
+      console.log("GPS לא זמין");
+    }, { enableHighAccuracy: true });
+  }
 }
 
 fillSelects();
