@@ -10,9 +10,10 @@
     .card { background: white; border-radius: 20px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 500px; margin: auto; }
     
     /* מחשבון המרה משקל לדירהם */
-    .converter { background: #e2e8f0; padding: 12px; border-radius: 12px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; justify-content: center; border: 1px solid #cbd5e1; }
-    .converter input { width: 90px; padding: 10px; border-radius: 8px; border: 2px solid var(--brand); font-weight: bold; font-size: 16px; text-align: center; }
-    .converter span { font-weight: bold; font-size: 15px; }
+    .converter { background: #e2e8f0; padding: 12px; border-radius: 12px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px; align-items: center; border: 1px solid #cbd5e1; }
+    .conv-row { display: flex; gap: 10px; align-items: center; width: 100%; justify-content: center; }
+    .converter input { width: 80px; padding: 8px; border-radius: 8px; border: 2px solid var(--brand); font-weight: bold; font-size: 16px; text-align: center; }
+    .converter span { font-weight: bold; font-size: 14px; min-width: 60px; }
 
     .selectors { display: grid; grid-template-columns: 1fr 45px 1fr; align-items: end; gap: 5px; margin-bottom: 20px; }
     label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #475569; }
@@ -39,10 +40,18 @@
 
 <div class="card">
   <div class="converter">
-    <span>₪ שקלים:</span>
-    <input type="number" id="ils_input" placeholder="0" oninput="convertToAed(this.value)">
-    <span> = </span>
-    <b id="aed_result" style="font-size: 18px; color: var(--brand);">0</b> <b>דירהם</b>
+    <div class="conv-row">
+      <span>₪ שקלים:</span>
+      <input type="number" id="ils_input" placeholder="0" oninput="convertIlsToAed(this.value)">
+      <span> = </span>
+      <b id="aed_res" style="color: var(--brand); width: 60px; text-align: center;">0</b> <span>דירהם</span>
+    </div>
+    <div class="conv-row">
+      <span>דובאי AED:</span>
+      <input type="number" id="aed_input" placeholder="0" oninput="convertAedToIls(this.value)">
+      <span> = </span>
+      <b id="ils_res" style="color: var(--brand); width: 60px; text-align: center;">0</b> <span>שקלים</span>
+    </div>
   </div>
 
   <div class="selectors">
@@ -68,17 +77,17 @@ const RED_LINE = ["DMCC", "Sobha Realty", "Al Khail", "Onpassive", "Business Bay
 
 const DATA = {
   "✈️ שדה תעופה": [
-    { id: "air3", name: "טרמינל 3", station: "Airport T3", exit: "Exit 1 - Departure", walk: "3 דק'" },
-    { id: "air1", name: "טרמינל 1", station: "Airport T1", exit: "Exit 1 - Arrivals", walk: "3 דק'" }
+    { id: "air3", name: "שדה תעופה טרמינל 3", station: "Airport T3", exit: "Exit 1 - Departure", walk: "3 דק'" },
+    { id: "air1", name: "שדה תעופה טרמינל 1", station: "Airport T1", exit: "Exit 1 - Arrivals", walk: "3 דק'" }
   ],
   "🏨 מלונות": [
     { id: "lux", name: "מלון LUXE JBR", station: "DMCC", exit: "Exit 1 (JBR Side)", walk: "12 דק'" },
     { id: "para", name: "מלון Paramount", station: "Business Bay", exit: "Exit 1 (SZR South)", walk: "10 דק'" }
   ],
   "🛒 קניות בזול": [
-    { id: "d2d_k", name: "DAY TO DAY כרמה", station: "ADCB", exit: "Exit 1 (Sheikh Khalifa St)", walk: "5 דק'" },
-    { id: "d2d_d", name: "DAY TO DAY דיירה", station: "Deira City Centre", exit: "Exit 1 (City Centre Side)", walk: "2 דק'" },
-    { id: "gift_v", name: "GIFT VILLAGE", station: "Max", exit: "Exit 1 (Zabeel Park)", walk: "8 דק'" }
+    { id: "d2d_k", name: "DAY TO DAY כרמה (זול)", station: "ADCB", exit: "Exit 1 (Sheikh Khalifa St)", walk: "5 דק'" },
+    { id: "d2d_d", name: "DAY TO DAY דיירה (זול)", station: "Deira City Centre", exit: "Exit 1 (City Centre Side)", walk: "2 דק'" },
+    { id: "gift_v", name: "GIFT VILLAGE (מתנות בזול)", station: "Max", exit: "Exit 1 (Zabeel Park)", walk: "8 דק'" }
   ],
   "🍽️ אוכל בזול (עד 50 שח)": [
     { id: "safadi", name: "AL SAFADI (עד 50 שח)", station: "Emirates Towers", exit: "Exit 1 (DIFC Side)", walk: "6 דק'" },
@@ -86,12 +95,17 @@ const DATA = {
   ]
 };
 
-// פונקציית המרה משקל לדירהם
-function convertToAed(ils) {
-  // שער משוער: 1 שקל שווה בערך 1 דירהם (במציאות זה קרוב מאוד)
-  // אם תרצה לדייק, שנה את ה-1 למטה לשער העדכני
-  const rate = 1.0; 
-  document.getElementById('aed_result').innerText = (ils * rate).toFixed(1);
+// לוגיקת המרה מעודכנת לפי שער 1.18
+const RATE = 1.18;
+
+function convertIlsToAed(val) {
+  const res = val / RATE;
+  document.getElementById('aed_res').innerText = val ? res.toFixed(1) : "0";
+}
+
+function convertAedToIls(val) {
+  const res = val * RATE;
+  document.getElementById('ils_res').innerText = val ? res.toFixed(1) : "0";
 }
 
 function swap() {
@@ -143,7 +157,8 @@ function buildRoute() {
       <div class="v-text">
         <b>רד בתחנת: ${p2.station}</b>
         <div class="walk-box">
-          <b>ספור: ${st.length - 1} תחנות</b><br>
+          <b>ספור: ${st.length - 1} תחנות במטרו</b><br>
+          <b>יעד סופי: ${p2.name}</b><br>
           🚶‍♂️ הליכה: כ-${p2.walk}<br>
           <span class="exit-info">🏁 צא ב: ${p2.exit}</span>
         </div>
