@@ -3,61 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>מערכת מעקב מזוודות - ראובן</title>
+    <title>Baggage Master - Reuven</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: white; text-align: center; padding: 20px; }
-        .container { max-width: 500px; margin: auto; background: #333; padding: 20px; border-radius: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        input { width: 80%; padding: 15px; margin: 10px 0; border-radius: 10px; border: none; font-size: 18px; }
-        button { background: #ff9800; color: white; border: none; padding: 15px 30px; border-radius: 10px; cursor: pointer; font-size: 18px; font-weight: bold; }
-        
-        /* עיצוב הסטטוס שיופיע אצלך בדף */
-        #statusCard { 
-            display: none; margin-top: 20px; padding: 20px; border-radius: 15px; 
-            background: #444; border-right: 10px solid #4caf50; text-align: right;
-        }
-        .step { margin: 15px 0; padding-right: 25px; position: relative; }
-        .step::before { content: '✓'; position: absolute; right: 0; color: #4caf50; }
-        .step.active { color: #ff9800; font-weight: bold; }
-        .step.active::before { content: '●'; color: #ff9800; }
+        body { font-family: 'Segoe UI', Arial; background: #222; color: white; text-align: center; padding: 20px; }
+        .card { background: #333; padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; border: 1px solid #444; }
+        input { width: 90%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #555; background: #111; color: #fff; font-size: 18px; text-align: center; }
+        .btn-track { background: #2ecc71; color: white; border: none; padding: 15px; width: 95%; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .airline-badge { display: inline-block; padding: 5px 15px; background: #e67e22; border-radius: 20px; font-size: 14px; margin-bottom: 10px; }
+        .history { margin-top: 20px; text-align: right; font-size: 14px; color: #bbb; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>מעקב מזוודה בזמן אמת ✈️</h2>
-    <input type="text" id="bagId" placeholder="הכנס מספר מזוודה (נסה 123)">
-    <button onclick="checkStatus()">בדוק סטטוס</button>
+<div class="card">
+    <h2>מעקב מזוודות חכם ✈️</h2>
+    <div id="badge" class="airline-badge" style="display:none;"></div>
+    
+    <input type="text" id="bagNumber" placeholder="הכנס מספר מזוודה (למשל 141...)" oninput="detectAirline()">
+    <input type="text" id="lastName" placeholder="שם משפחה (באנגלית)">
+    
+    <button class="btn-track" onclick="goTrack()">העתק מספר ופתח מעקב</button>
 
-    <div id="statusCard">
-        <h3 id="airlineTitle">סטטוס מטען: flydubai</h3>
-        <hr>
-        <div class="step">המזוודה נסרקה בנתב"ג (Checked-in)</div>
-        <div class="step">עברה בידוק בטחוני</div>
-        <div class="step active" id="currentStep">בדרך למטוס (Loading...)</div>
-        <div class="step" style="opacity: 0.5;">העברה לקונקשן (דובאי)</div>
-        <br>
-        <small id="lastUpdate"></small>
+    <div class="history">
+        <p>💡 <b>טיפ:</b> אחרי הלחיצה, האתר של החברה ייפתח. פשוט תעשה "הדבק" (Paste) בשדה המספר.</p>
     </div>
 </div>
 
 <script>
-function checkStatus() {
-    const id = document.getElementById('bagId').value;
-    const card = document.getElementById('statusCard');
-    
-    if (id === "123") {
-        // סימולציה של נתונים שמשכנו
-        card.style.display = 'block';
-        document.getElementById('lastUpdate').innerText = "עדכון אחרון: לפני 2 דקות";
-        document.getElementById('currentStep').innerText = "המזוודה עלתה לטיסה FZ1164";
-    } else if (id.startsWith("141")) {
-        // במקרה של מספר אמיתי, כרגע אנחנו חייבים להפנות לאתר הרשמי
-        alert("מזהה מספר של flydubai. פותח את דף המעקב המקורי בחלון חדש...");
-        window.open("https://www.flydubai.com/en/information/baggage/delayed-baggage-and-tracking", "_blank");
-    } else {
-        alert("הכנס 123 כדי לראות איך הסטטוס ייראה בדף שלך");
+    const airlineMap = {
+        "141": { name: "flydubai", url: "https://www.flydubai.com/en/information/baggage/delayed-baggage-and-tracking" },
+        "008": { name: "El Al", url: "https://www.elal.com/heb/passengers/baggage/baggage-tracking" },
+        "235": { name: "Turkish Airlines", url: "https://www.turkishairlines.com/en-int/any-questions/baggage-tracking/" },
+        "176": { name: "Emirates", url: "https://www.emirates.com/english/before-you-fly/baggage/delayed-damaged-baggage/" }
+    };
+
+    function detectAirline() {
+        const num = document.getElementById('bagNumber').value;
+        const badge = document.getElementById('badge');
+        const prefix = num.substring(0, 3);
+        
+        if (airlineMap[prefix]) {
+            badge.innerText = "זוהה: " + airlineMap[prefix].name;
+            badge.style.display = "inline-block";
+        } else {
+            badge.style.display = "none";
+        }
     }
-}
+
+    function goTrack() {
+        const num = document.getElementById('bagNumber').value;
+        const prefix = num.substring(0, 3);
+        
+        if (!num) return alert("שכחת להכניס מספר");
+
+        // העתקה אוטומטית ללוח
+        navigator.clipboard.writeText(num).then(() => {
+            const airline = airlineMap[prefix];
+            if (airline) {
+                alert("המספר הועתק! עוברים לאתר " + airline.name);
+                window.open(airline.url, '_blank');
+            } else {
+                alert("חברה לא זוהתה, מחפש בגוגל...");
+                window.open("https://www.google.com/search?q=tracking+baggage+" + num, '_blank');
+            }
+        });
+    }
 </script>
 
 </body>
