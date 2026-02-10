@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Charles Logistics Bot</title>
     <style>
         :root {
@@ -16,9 +16,12 @@
             font-family: -apple-system, system-ui, sans-serif;
             background-color: var(--bg-color);
             margin: 0;
+            padding: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
+            /* מונע קפיצות באייפון */
+            height: -webkit-fill-available; 
             overflow: hidden;
         }
 
@@ -29,7 +32,8 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            padding-bottom: 20px;
+            /* משאיר מקום לשורה למטה שלא תסתיר הודעות */
+            padding-bottom: 80px; 
         }
 
         .bubble {
@@ -39,12 +43,12 @@
             font-size: 16px;
             line-height: 1.4;
             animation: fadeIn 0.3s ease-out;
+            position: relative;
         }
 
         .bot { background-color: var(--bot-bg); align-self: flex-start; border-bottom-right-radius: 4px; color: #000; }
         .user { background-color: var(--user-bg); color: white; align-self: flex-end; border-bottom-left-radius: 4px; }
 
-        /* אנימציית נקודות */
         .typing { display: flex; gap: 4px; padding: 15px 20px !important; width: fit-content; }
         .dot { width: 6px; height: 6px; background: #8e8e93; border-radius: 50%; animation: blink 1.4s infinite; }
         .dot:nth-child(2) { animation-delay: 0.2s; }
@@ -53,14 +57,20 @@
         @keyframes blink { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* אזור קלט קבוע בתחתית */
+        /* שורת קלט - מקובעת לתחתית באגרסיביות */
         .input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
             background: white;
             padding: 10px 15px;
             display: flex;
             gap: 10px;
             border-top: 1px solid #ddd;
-            padding-bottom: env(safe-area-inset-bottom);
+            /* תמיכה במכשירי אייפון חדשים (Safe Area) */
+            padding-bottom: calc(10px + env(safe-area-inset-bottom));
+            z-index: 9999;
         }
 
         input {
@@ -70,6 +80,8 @@
             border-radius: 25px;
             font-size: 16px;
             outline: none;
+            /* מונע מהאייפון לעשות זום אוטומטי */
+            -webkit-appearance: none;
         }
 
         .send-btn {
@@ -80,14 +92,24 @@
             height: 44px;
             border-radius: 50%;
             font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* אזור בחירה */
         #options-container {
             display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
             background: white;
             border-top: 1px solid #ddd;
             padding: 15px;
+            z-index: 10000;
+            padding-bottom: calc(15px + env(safe-area-inset-bottom));
         }
 
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -98,8 +120,9 @@
             background: #f9f9f9;
             font-weight: bold;
             font-size: 14px;
+            cursor: pointer;
         }
-        .btn-opt.selected { background: var(--whatsapp); color: white; }
+        .btn-opt.selected { background: var(--whatsapp); color: white; border-color: var(--whatsapp); }
         .mood-btn { font-size: 26px; }
 
         .submit-all {
@@ -120,7 +143,7 @@
 <div id="chat-window"></div>
 
 <div id="input-wrapper" class="input-area">
-    <input type="text" id="userInput" placeholder="הקלד כאן...">
+    <input type="text" id="userInput" placeholder="הקלד כאן..." autocomplete="off">
     <button class="send-btn" onclick="handleSend()">➔</button>
 </div>
 
@@ -137,7 +160,7 @@
     <div id="item-selector" style="display:none;">
         <div style="text-align:center; margin-bottom:10px; font-weight:bold;">מה חסר לך בחדר?</div>
         <div class="grid">
-        <button class="item-btn" onclick="toggleItem(this)">כיסא</button>
+                    <button class="item-btn" onclick="toggleItem(this)">כיסא</button>
         <button class="item-btn" onclick="toggleItem(this)">שולחן</button>
         <button class="item-btn" onclick="toggleItem(this)">שלוחת שולחן</button>
         <button class="item-btn" onclick="toggleItem(this)">ארון</button>
@@ -179,7 +202,7 @@
         chat.appendChild(typing);
         chat.scrollTop = chat.scrollHeight;
 
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 1000));
         typing.remove();
 
         const div = document.createElement('div');
@@ -223,7 +246,6 @@
             await botSay(`באיזה מספר חדר אתה נמצא?`);
         } else if (step === 2) {
             roomNum = val;
-            // רק עכשיו מסתירים את המקלדת ועוברים לכפתורים
             inputWrapper.style.display = 'none';
             optionsContainer.style.display = 'block';
             document.getElementById('mood-selector').style.display = 'block';
@@ -247,6 +269,14 @@
         const msg = `היי צ'רלס\n${moodText}\nכדי להשלים את המעבר לחדר ה-${roomNum}\nאני זקוק ל:\n${sel}\n\nתודה, ${userName}`;
         window.location.href = `https://wa.me/972523719856?text=${encodeURIComponent(msg)}`;
     }
+
+    // פותר בעיות מקלדת בסלולר
+    userInput.addEventListener('focus', () => {
+        setTimeout(() => {
+            window.scrollTo(0, 0);
+            chat.scrollTop = chat.scrollHeight;
+        }, 300);
+    });
 
     userInput.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSend(); });
 </script>
