@@ -190,7 +190,7 @@
             </div>
             <div class="mood-btn-container">
                 <button class="mood-btn" onclick="setMood('😁', 'המעבר הולך אחלה!')">😁</button>
-                <span class="mood-label">כך כך</span>
+                <span class="mood-label">כך כל</span>
             </div>
             <div class="mood-btn-container">
                 <button class="mood-btn" onclick="setMood('🤩', 'המעבר פשוט מושלם!')">🤩</button>
@@ -261,6 +261,13 @@
     }
 
     window.onload = async () => {
+        // בדיקת חסימה - שליחה פעם אחת בלבד
+        if (localStorage.getItem('hasSent') === 'true') {
+            inputWrapper.style.display = 'none';
+            await botSay(`נא פנה בצורה מסודרת במייל הפנימי`);
+            return;
+        }
+
         const greet = getGreeting();
         if (userName) {
             await botSay(`${greet} ${userName}!`);
@@ -286,7 +293,6 @@
             await botSay(`ובאיזה מספר חדר אתה נמצא?`);
         } else if (step === 2) {
             roomNum = val;
-            // סגירת מקלדת והצגת האפשרויות
             userInput.blur();
             inputWrapper.style.display = 'none';
             optionsContainer.style.display = 'block';
@@ -311,11 +317,35 @@
         const sel = Array.from(document.querySelectorAll('.btn-opt.selected'))
                          .map((b, i) => `${i+1}. ${b.innerText}`).join('\n');
         if (!sel) { alert('בחר לפחות פריט אחד'); return; }
+        
+        // סימון שנשלחה הודעה
+        localStorage.setItem('hasSent', 'true');
+        
         const msg = `היי צ'רלס\n${moodText}\nכדי להשלים את המעבר לחדר ה-${roomNum}\nאני זקוק ל:\n${sel}\n\nתודה רבה, ${userName}`;
         window.location.href = `https://wa.me/972523719856?text=${encodeURIComponent(msg)}`;
     }
 
     userInput.addEventListener("keypress", (e) => { if (e.key === "Enter") handleSend(); });
+
+    // מנגנון סודי: לחיצה ארוכה של 3 שניות לאיפוס החסימה
+    let pressTimer;
+    document.body.addEventListener('touchstart', (e) => {
+        pressTimer = window.setTimeout(function() {
+            localStorage.removeItem('hasSent');
+            alert('המערכת אותחלה - ניתן לשלוח שוב');
+            location.reload();
+        }, 3000);
+    });
+    document.body.addEventListener('touchend', () => clearTimeout(pressTimer));
+    document.body.addEventListener('mousedown', () => { // תמיכה גם בעכבר למחשב
+        pressTimer = window.setTimeout(function() {
+            localStorage.removeItem('hasSent');
+            alert('המערכת אותחלה - ניתן לשלוח שוב');
+            location.reload();
+        }, 3000);
+    });
+    document.body.addEventListener('mouseup', () => clearTimeout(pressTimer));
+
 </script>
 
 </body>
