@@ -3,75 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dubai Online Custom Map</title>
+    <title>Dubai Smart Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; }
+        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
         .search-bar { 
             position: fixed; top: 10px; left: 10px; right: 10px; z-index: 1000;
             display: flex; gap: 8px; background: white; padding: 10px; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
         input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 8px; font-weight: bold; }
+        button { padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-weight: bold; }
         #map { flex: 1; width: 100%; }
     </style>
 </head>
 <body>
 
     <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="חפש מקום (למשל: מלון פייב פאנס, בורג'...)">
-        <button onclick="mySearch()">חפש</button>
+        <input type="text" id="searchInput" placeholder="חפש מקום (למשל: בורג' חליפה, מלון פייב)">
+        <button onclick="smartSearch()">חפש</button>
     </div>
 
     <div id="map"></div>
 
     <script>
-        // 1. הגדרת המפה החיה על דובאי
+        // יצירת המפה החיה (Leaflet)
         var map = L.map('map').setView([25.2048, 55.2708], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         var marker;
 
-        // 2. רשימת השמות האישיים שלך (כאן אתה רושם איך שבא לך!)
-        const mySecretPlaces = {
+        // רשימת "קיצורי דרך" למקומות שאתה רוצה שיעבדו תמיד במילים שלך
+        const myShortcuts = {
             "בורג'": [25.1972, 55.2744],
-            "מלון פייב פאנס": [25.1112, 55.1389],
-            "פייב פאנס": [25.1112, 55.1389],
-            "הבית שלי": [25.2048, 55.2708], // סתם דוגמה
+            "חליפה": [25.1972, 55.2744],
+            "דובאי מול": [25.1972, 55.2744],
+            "פייב": [25.1112, 55.1389],
             "טרמינל 1": [25.2422, 55.3589]
         };
 
-        async function mySearch() {
-            const val = document.getElementById('searchInput').value.trim();
+        async function smartSearch() {
+            let val = document.getElementById('searchInput').value.trim();
             if (!val) return;
 
-            let coords;
-            let name = val;
+            let coords = null;
 
-            // בדיקה אם זה שם מהרשימה האישית שלך
-            if (mySecretPlaces[val]) {
-                coords = mySecretPlaces[val];
-            } else {
-                // אם לא מצא ברשימה שלך, מחפש באונליין (גוגל/OSM) כגיבוי
+            // 1. בדיקה אם המילה קיימת בקיצורי הדרך שלך (כדי שלא תקבל "לא נמצא")
+            for (let key in myShortcuts) {
+                if (val.includes(key)) {
+                    coords = myShortcuts[key];
+                    break;
+                }
+            }
+
+            // 2. אם לא מצאנו בקיצורים, ננקה מילים כמו "תחנת מטרו" ונחפש באונליין
+            if (!coords) {
+                let cleanVal = val.replace("תחנת מטרו", "").replace("תחנת", "").trim();
                 try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val + " Dubai")}`);
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cleanVal + " Dubai")}`);
                     const data = await res.json();
                     if (data.length > 0) {
                         coords = [data[0].lat, data[0].lon];
-                        name = data[0].display_name.split(',')[0];
                     }
-                } catch (e) { console.log("error search"); }
+                } catch (e) { console.log("Search error"); }
             }
 
             if (coords) {
                 if (marker) map.removeLayer(marker);
-                marker = L.marker(coords).addTo(map).bindPopup(name).openPopup();
-                map.setView(coords, 15);
-                document.activeElement.blur();
+                marker = L.marker(coords).addTo(map).bindPopup(val).openPopup();
+                map.setView(coords, 16); // זום חזק למקום
+                document.activeElement.blur(); // סגירת מקלדת
             } else {
-                alert("המקום לא נמצא, אפילו לא באונליין.");
+                alert("המקום '" + val + "' עדיין לא נמצא. נסה שם קצר יותר.");
             }
         }
     </script>
