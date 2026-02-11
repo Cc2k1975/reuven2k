@@ -3,15 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dubai Ultimate Map & Planner</title>
+    <title>Dubai Ultimate Map 2026</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
         
-        /* --- שורת החיפוש וכפתור המסלול --- */
+        /* --- סטריפ מידע עליון (חדש) --- */
+        .info-strip {
+            position: fixed; top: 0; left: 0; right: 0; height: 35px;
+            background: white; color: #8e44ad; /* סגול כמו שביקשת */
+            display: flex; justify-content: space-around; align-items: center;
+            font-size: 13px; font-weight: bold; z-index: 2000;
+            border-bottom: 1px solid #eee; box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+        }
+
+        /* --- שורת החיפוש וכפתור המסלול (הוזזו למטה) --- */
         .top-bar {
-            position: fixed; top: 10px; left: 10px; right: 10px; z-index: 1000;
+            position: fixed; top: 45px; /* ירד למטה בגלל הסטריפ */
+            left: 10px; right: 10px; z-index: 1000;
             display: flex; gap: 8px;
         }
         
@@ -28,11 +38,12 @@
             display: flex; align-items: center; justify-content: center;
         }
 
-        #map { flex: 1; width: 100%; }
+        #map { flex: 1; width: 100%; margin-top: 35px; /* שלא יוסתר ע"י הסטריפ */ }
 
         /* --- חלונית מחשבון המסלול --- */
         .route-modal {
-            display: none; position: fixed; top: 70px; left: 10px; right: 10px;
+            display: none; position: fixed; top: 100px; /* ירד למטה */
+            left: 10px; right: 10px;
             background: white; padding: 15px; border-radius: 15px; z-index: 2000;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideDown 0.3s ease;
         }
@@ -43,23 +54,17 @@
         .calc-btn { background: #27ae60; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; width: 100%; cursor: pointer; }
         .close-route { position: absolute; top: 10px; left: 10px; background: none; border: none; font-size: 20px; color: #999; cursor: pointer; }
         
-        /* --- תוצאות מסלול (עיצוב משודרג) --- */
+        /* תוצאות מסלול */
         .route-result { margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; display: none; }
-        
-        /* התיקון הגדול: פס עבה וברור בצד ימין */
         .step-box { 
-            background: #f8f9fa; 
-            padding: 15px; /* יותר מרווח פנימי */
-            border-radius: 8px; 
-            margin-bottom: 12px; 
-            border-right: 12px solid #ccc; /* פס עבה מאוד (12px) */
-            font-size: 15px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            background: #f8f9fa; padding: 15px; border-radius: 8px; 
+            margin-bottom: 12px; border-right: 12px solid #ccc; 
+            font-size: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
         .step-title { font-weight: bold; margin-bottom: 6px; display: block; font-size: 16px; }
         .stop-count { color: #e74c3c; font-weight: bold; font-size: 18px; }
 
-        /* אייקונים ובועות */
+        /* אלמנטים גרפיים */
         .station-number-icon {
             background-color: white; border: 2px solid #333; border-radius: 50%;
             color: black; font-weight: bold; font-size: 10px; text-align: center; line-height: 16px; box-shadow: 0 0 4px rgba(0,0,0,0.5);
@@ -70,12 +75,20 @@
         .walk-time { color: #27ae60; font-weight: bold; }
         .leaflet-popup-content { font-size: 14px; text-align: center; }
         
-        /* --- תיקון זום: הרמה משמעותית למעלה --- */
+        /* זום למטה */
         .leaflet-left .leaflet-control { margin-left: 15px; }
-        .leaflet-bottom .leaflet-control { margin-bottom: 90px; } /* הועלה למעלה כדי לא להסתיר את המינוס */
+        .leaflet-bottom .leaflet-control { margin-bottom: 90px; }
     </style>
 </head>
 <body>
+
+    <div class="info-strip">
+        <span id="dubaiCurrency">₪ טוען...</span>
+        <span style="color:#ddd">|</span>
+        <span id="dubaiTemp">°C טוען...</span>
+        <span style="color:#ddd">|</span>
+        <span id="dubaiTime">--:--</span>
+    </div>
 
     <div class="top-bar">
         <div class="search-container">
@@ -93,20 +106,51 @@
             <input type="text" id="toInput" class="route-input" placeholder="לאן? (למשל: בורג' חליפה)">
         </div>
         <button class="calc-btn" onclick="calculateRoute()">חשב מסלול</button>
-        
         <div id="routeResult" class="route-result"></div>
     </div>
 
     <div id="map"></div>
 
     <script>
-        // יצירת המפה עם זום למטה-שמאל (כדי שלא יפריע לחיפוש)
+        // --- עדכון נתונים לסטריפ העליון ---
+        
+        // 1. שעון דובאי (UTC+4)
+        function updateDubaiTime() {
+            const now = new Date();
+            const options = { timeZone: 'Asia/Dubai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+            const timeString = new Intl.DateTimeFormat('en-GB', options).format(now);
+            document.getElementById('dubaiTime').innerText = "שעה בדובאי: " + timeString;
+        }
+        setInterval(updateDubaiTime, 1000);
+        updateDubaiTime();
+
+        // 2. מזג אוויר ומטבע (חד פעמי בטעינה)
+        async function fetchLiveData() {
+            // מזג אוויר (Open-Meteo API - חינם ללא מפתח)
+            try {
+                const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=25.20&longitude=55.27&current_weather=true');
+                const weatherData = await weatherRes.json();
+                document.getElementById('dubaiTemp').innerText = `דובאי: ${weatherData.current_weather.temperature}°C`;
+            } catch (e) { document.getElementById('dubaiTemp').innerText = "25°C (משוער)"; }
+
+            // מטבע (ExchangeRate-API - חינם)
+            try {
+                const currencyRes = await fetch('https://api.exchangerate-api.com/v4/latest/AED');
+                const currencyData = await currencyRes.json();
+                const rate = currencyData.rates.ILS;
+                document.getElementById('dubaiCurrency').innerText = `1 דירהם = ${rate.toFixed(2)} ₪`;
+            } catch (e) { document.getElementById('dubaiCurrency').innerText = "1 דירהם = 0.85 ₪"; }
+        }
+        fetchLiveData();
+
+        // --- סוף קוד סטריפ ---
+
+
         var map = L.map('map', { zoomControl: false }).setView([25.20, 55.27], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
         var searchMarker;
-        var routeLayers = [];
         var allStationsList = []; 
 
         // --- המאגר האישי ---
@@ -138,7 +182,7 @@
             { names: ["five luxe", "פייב לוקס"], coords: [25.0755, 55.1310], desc: "מלון ב-JBR", type: "מלון" } 
         ];
 
-        // --- נתוני המטרו (מתוקנים) ---
+        // --- נתוני המטרו ---
         const redLineMain = {
             id: 'red', color: '#ff0000', name: 'הקו האדום', stations: [
                 {n: "1. Centrepoint", c: [25.2285, 55.4052]}, {n: "2. Emirates", c: [25.2307, 55.3697]},
@@ -179,8 +223,6 @@
             });
         }
         drawSystem();
-
-        // --- לוגיקה למציאת מקום וחישוב מסלול ---
 
         function toggleRoutePlanner() {
             const el = document.getElementById('routeModal');
@@ -280,7 +322,6 @@
                         3. החלף קו וסע ל-<b>${endStation.name}</b>.
                     </div>`;
             }
-
             resultDiv.innerHTML = html;
         }
 
