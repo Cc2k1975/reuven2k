@@ -3,40 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dubai Ultimate Transit Map</title>
+    <title>Dubai Metro - Official Tourist Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: sans-serif; }
+        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .search-bar { 
             position: fixed; top: 10px; left: 10px; right: 10px; z-index: 1000;
-            display: flex; gap: 8px; background: white; padding: 10px; border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex; gap: 8px; background: white; padding: 12px; border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
-        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; }
-        button { padding: 10px 20px; background: #2c3e50; color: white; border: none; border-radius: 8px; font-weight: bold; }
-        #map { flex: 1; width: 100%; }
+        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; }
+        button { padding: 10px 25px; background: #e74c3c; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        #map { flex: 1; width: 100%; z-index: 1; }
+        .leaflet-popup-content-wrapper { border-radius: 8px; text-align: right; }
     </style>
 </head>
 <body>
 
     <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="חפש כל מקום בדובאי...">
+        <input type="text" id="searchInput" placeholder="חפש תחנה, מלון או אטרקציה בדובאי...">
         <button onclick="smartSearch()">חפש</button>
     </div>
 
     <div id="map"></div>
 
     <script>
-        var map = L.map('map').setView([25.18, 55.30], 11);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        var map = L.map('map').setView([25.12, 55.25], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
         var searchMarker;
 
-        // מאגר הנתונים המלא של כל הקווים
-        const transportNetwork = {
-            red: { color: "#ff0000", name: "הקו האדום", stations: [
-                {n: "Centrepoint", c: [25.2285, 55.4052]}, {n: "Etisalat", c: [25.2307, 55.3697]},
+        // הגדרת הרשת לפי סדר נסיעה מדויק ופיצול ענפים
+        const transportNetwork = [
+            // הקו האדום - מקטע מרכזי
+            { id: 'red_main', color: '#ff0000', name: 'הקו האדום', stations: [
+                {n: "Centrepoint", c: [25.2285, 55.4052]}, {n: "Emirates", c: [25.2307, 55.3697]},
                 {n: "Airport T3", c: [25.2458, 55.3594]}, {n: "Airport T1", c: [25.2450, 55.3519]},
                 {n: "GGICO", c: [25.2505, 55.3440]}, {n: "Deira City Centre", c: [25.2505, 55.3331]},
                 {n: "Al Rigga", c: [25.2630, 55.3210]}, {n: "Union", c: [25.2655, 55.3093]},
@@ -44,61 +48,69 @@
                 {n: "Max", c: [25.2275, 55.2885]}, {n: "WTC", c: [25.2185, 55.2825]},
                 {n: "Emirates Towers", c: [25.2120, 55.2790]}, {n: "Financial Centre", c: [25.2075, 55.2760]},
                 {n: "Burj Khalifa/Dubai Mall", c: [25.1972, 55.2744]}, {n: "Business Bay", c: [25.1876, 55.2561]},
-                {n: "Onpassive", c: [25.1610, 55.2285]}, {n: "Equiti", c: [25.1415, 55.2140]},
-                {n: "Mall of the Emirates", c: [25.1181, 55.2006]}, {n: "InsuranceMarket", c: [25.1015, 55.1855]},
-                {n: "DIC", c: [25.0945, 55.1720]}, {n: "Sobha Realty", c: [25.0782, 55.1403]},
-                {n: "DMCC", c: [25.0685, 55.1312]}, {n: "Jebel Ali", c: [25.0295, 55.1125]},
-                {n: "Ibn Battuta", c: [25.0441, 55.1201]}, {n: "Energy", c: [25.0255, 55.1090]},
-                {n: "Danube", c: [25.0110, 55.0880]}, {n: "UAE Exchange", c: [24.9890, 55.0650]},
-                {n: "The Gardens", c: [25.0425, 55.1420]}, {n: "Discovery Gardens", c: [25.0340, 55.1470]},
-                {n: "Al Furjan", c: [25.0240, 55.1580]}, {n: "Jumeirah Golf Estates", c: [25.0090, 55.1860]},
-                {n: "DIP", c: [24.9850, 55.1780]}, {n: "Expo 2020", c: [24.9633, 55.1511]}
+                {n: "Onpassive", c: [25.1610, 55.2285]}, {n: "Al Safa", c: [25.1500, 55.2190]},
+                {n: "Equiti", c: [25.1415, 55.2140]}, {n: "Mall of the Emirates", c: [25.1181, 55.2006]},
+                {n: "InsuranceMarket (Mashreq)", c: [25.1015, 55.1855]}, {n: "DIC", c: [25.0945, 55.1720]},
+                {n: "Al Khail", c: [25.0870, 55.1580]}, {n: "Sobha Realty", c: [25.0782, 55.1403]},
+                {n: "DMCC", c: [25.0685, 55.1312]}, {n: "Jebel Ali", c: [25.0295, 55.1125]}
             ]},
-            green: { color: "#00b300", name: "הקו הירוק", stations: [
+            // הקו האדום - ענף UAE Exchange
+            { id: 'red_branch_uae', color: '#ff0000', name: 'הקו האדום (לכיוון UAE Exchange)', stations: [
+                {n: "Jebel Ali", c: [25.0295, 55.1125]}, {n: "Ibn Battuta", c: [25.0441, 55.1201]},
+                {n: "Energy", c: [25.0255, 55.1090]}, {n: "Danube", c: [25.0110, 55.0880]},
+                {n: "UAE Exchange", c: [24.9890, 55.0650]}
+            ]},
+            // הקו האדום - ענף אקספו (Route 2020)
+            { id: 'red_branch_expo', color: '#ff0000', name: 'הקו האדום (לכיוון אקספו)', stations: [
+                {n: "Jebel Ali", c: [25.0295, 55.1125]}, {n: "The Gardens", c: [25.0425, 55.1420]},
+                {n: "Discovery Gardens", c: [25.0340, 55.1470]}, {n: "Al Furjan", c: [25.0240, 55.1580]},
+                {n: "Jumeirah Golf Estates", c: [25.0090, 55.1860]}, {n: "DIP", c: [24.9850, 55.1780]},
+                {n: "Expo 2020", c: [24.9633, 55.1511]}
+            ]},
+            // הקו הירוק
+            { id: 'green', color: '#00b300', name: 'הקו הירוק', stations: [
                 {n: "Etisalat by e&", c: [25.2639, 55.4050]}, {n: "Al Qusais", c: [25.2631, 55.3831]},
                 {n: "DAFZA", c: [25.2605, 55.3720]}, {n: "Al Nahda", c: [25.2650, 55.3610]},
-                {n: "Stadium", c: [25.2736, 55.3564]}, {n: "Al Qiyadah", c: [25.2755, 55.3440]},
-                {n: "Abu Hail", c: [25.2765, 55.3375]}, {n: "Abu Baker", c: [25.2715, 55.3285]},
-                {n: "Salah Al Din", c: [25.2697, 55.3236]}, {n: "Union", c: [25.2655, 55.3093]},
-                {n: "Baniyas Square", c: [25.2680, 55.3005]}, {n: "Gold Souq", c: [25.2721, 55.2975]},
-                {n: "Al Ras", c: [25.2690, 55.2930]}, {n: "Al Ghubaiba", c: [25.2619, 55.2905]},
-                {n: "Sharaf DG", c: [25.2555, 55.2930]}, {n: "BurJuman", c: [25.2533, 55.3033]},
-                {n: "Oud Metha", c: [25.2345, 55.3105]}, {n: "Healthcare City", c: [25.2305, 55.3215]},
-                {n: "Al Jadaf", c: [25.2235, 55.3305]}, {n: "Creek", c: [25.2217, 55.3386]}
+                {n: "Stadium", c: [25.2736, 55.3564]}, {n: "Salah Al Din", c: [25.2697, 55.3236]},
+                {n: "Union", c: [25.2655, 55.3093]}, {n: "Gold Souq", c: [25.2721, 55.2975]},
+                {n: "Al Ghubaiba", c: [25.2619, 55.2905]}, {n: "BurJuman", c: [25.2533, 55.3033]},
+                {n: "Creek", c: [25.2217, 55.3386]}
             ]},
-            blue: { color: "#0055ff", name: "הקו הכחול (עתידי)", stations: [
-                {n: "Creek", c: [25.2217, 55.3386]}, {n: "Dubai Festival City", c: [25.2230, 55.3510]},
-                {n: "Ras Al Khor", c: [25.1950, 55.3650]}, {n: "Dubai Intl City", c: [25.1650, 55.4080]},
-                {n: "Academic City", c: [25.1200, 55.4150]}
-            ]},
-            gold: { color: "#d4af37", name: "קו הזהב (עתידי)", stations: [
-                {n: "BurJuman", c: [25.2533, 55.3033]}, {n: "Meydan", c: [25.1580, 55.3120]},
-                {n: "Global Village", c: [25.0680, 55.3000]}, {n: "Dubailand", c: [25.0450, 55.2850]}
-            ]},
-            orange: { color: "#ff8c00", name: "Tram", stations: [
+            // Tram (כתום)
+            { id: 'orange', color: '#ff8c00', name: 'חשמלית (Tram)', stations: [
                 {n: "JBR 1", c: [25.0765, 55.1305]}, {n: "JBR 2", c: [25.0735, 55.1275]},
-                {n: "Marina Mall", c: [25.0768, 55.1354]}, {n: "Dubai Marina", c: [25.0792, 55.1382]},
-                {n: "Mina Seyahi", c: [25.0905, 55.1465]}
+                {n: "Marina Mall", c: [25.0768, 55.1354]}, {n: "Dubai Marina", c: [25.0792, 55.1382]}
             ]},
-            lightblue: { color: "#00bfff", name: "Monorail", stations: [
-                {n: "Palm Gateway", c: [25.0934, 55.1504]}, {n: "Al Ittihad Park", c: [25.1090, 55.1380]},
-                {n: "Nakheel Mall", c: [25.1140, 55.1350]}, {n: "Atlantis", c: [25.1332, 55.1171]}
+            // Monorail (תכלת)
+            { id: 'lightblue', color: '#00bfff', name: 'מונורייל פאלם', stations: [
+                {n: "Palm Gateway", c: [25.0934, 55.1504]}, {n: "Nakheel Mall", c: [25.1140, 55.1350]},
+                {n: "Atlantis", c: [25.1332, 55.1171]}
             ]}
-        };
+        ];
 
-        function drawFullTransit() {
-            for (let id in transportNetwork) {
-                const line = transportNetwork[id];
-                // קו דק במיוחד (weight: 2)
-                L.polyline(line.stations.map(s => s.c), {color: line.color, weight: 2, opacity: 0.8}).addTo(map);
+        function initMap() {
+            transportNetwork.forEach(line => {
+                // ציור המסלול בקו דק (weight 2) ללא הצלבות
+                L.polyline(line.stations.map(s => s.c), {
+                    color: line.color, 
+                    weight: 2, 
+                    opacity: 0.8
+                }).addTo(map);
+
+                // הוספת נקודות התחנה
                 line.stations.forEach(s => {
-                    L.circleMarker(s.c, {radius: 4, fillColor: line.color, color: "#fff", weight: 1, fillOpacity: 1})
-                    .addTo(map).bindPopup(`<b>${s.n}</b><br>${line.name}`);
+                    L.circleMarker(s.c, {
+                        radius: 5, 
+                        fillColor: line.color, 
+                        color: "#fff", 
+                        weight: 1, 
+                        fillOpacity: 1
+                    }).addTo(map).bindPopup(`<b>${s.n}</b><br>${line.name}`);
                 });
-            }
+            });
         }
 
-        drawFullTransit();
+        initMap();
 
         async function smartSearch() {
             let val = document.getElementById('searchInput').value.trim();
@@ -106,10 +118,9 @@
             const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val + " Dubai")}`);
             const data = await res.json();
             if (data.length > 0) {
-                const lat = data[0].lat; const lon = data[0].lon;
                 if (searchMarker) map.removeLayer(searchMarker);
-                searchMarker = L.marker([lat, lon]).addTo(map).bindPopup(val).openPopup();
-                map.setView([lat, lon], 15);
+                searchMarker = L.marker([data[0].lat, data[0].lon]).addTo(map).bindPopup(val).openPopup();
+                map.setView([data[0].lat, data[0].lon], 15);
             }
         }
     </script>
