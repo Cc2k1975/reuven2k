@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dubai Ultimate Map & Planner</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -15,7 +15,6 @@
             display: flex; gap: 8px;
         }
         
-        /* הקטנו טיפה את החיפוש כדי שיהיה מקום לכפתור */
         .search-container {
             flex: 1; display: flex; background: white; padding: 5px; border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
@@ -23,7 +22,6 @@
         input { flex: 1; padding: 10px; border: none; font-size: 16px; outline: none; border-radius: 8px; }
         .search-btn { padding: 0 20px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
         
-        /* כפתור המסלול החדש */
         .route-btn-toggle {
             background: #2980b9; color: white; border: none; border-radius: 12px; width: 50px;
             font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
@@ -32,7 +30,7 @@
 
         #map { flex: 1; width: 100%; }
 
-        /* --- חלונית מחשבון המסלול (מוסתרת בהתחלה) --- */
+        /* --- חלונית מחשבון המסלול --- */
         .route-modal {
             display: none; position: fixed; top: 70px; left: 10px; right: 10px;
             background: white; padding: 15px; border-radius: 15px; z-index: 2000;
@@ -45,13 +43,13 @@
         .calc-btn { background: #27ae60; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; width: 100%; cursor: pointer; }
         .close-route { position: absolute; top: 10px; left: 10px; background: none; border: none; font-size: 20px; color: #999; cursor: pointer; }
         
-        /* אזור התוצאות */
+        /* תוצאות מסלול */
         .route-result { margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; display: none; }
         .step-box { background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-right: 4px solid #ccc; font-size: 14px; }
         .step-title { font-weight: bold; margin-bottom: 4px; display: block; }
         .stop-count { color: #e74c3c; font-weight: bold; font-size: 16px; }
 
-        /* עיצוב המפה הקיים */
+        /* אייקונים ובועות */
         .station-number-icon {
             background-color: white; border: 2px solid #333; border-radius: 50%;
             color: black; font-weight: bold; font-size: 10px; text-align: center; line-height: 16px; box-shadow: 0 0 4px rgba(0,0,0,0.5);
@@ -61,6 +59,10 @@
         .nearest-box { background: #f8f9fa; border-radius: 8px; padding: 8px; margin-top: 8px; border: 1px solid #eee; }
         .walk-time { color: #27ae60; font-weight: bold; }
         .leaflet-popup-content { font-size: 14px; text-align: center; }
+        
+        /* תיקון זום - הזזה למטה */
+        .leaflet-left .leaflet-control { margin-left: 10px; }
+        .leaflet-bottom .leaflet-control { margin-bottom: 20px; }
     </style>
 </head>
 <body>
@@ -88,14 +90,16 @@
     <div id="map"></div>
 
     <script>
-        var map = L.map('map').setView([25.20, 55.27], 11);
+        // יצירת המפה עם זום למטה-שמאל (כדי שלא יפריע לחיפוש)
+        var map = L.map('map', { zoomControl: false }).setView([25.20, 55.27], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
         var searchMarker;
         var routeLayers = [];
         var allStationsList = []; 
 
-        // --- המאגר האישי (לא שונה) ---
+        // --- המאגר האישי ---
         const myRecommendations = [
             { names: ["day to day karama", "דיי טו דיי", "חנות זולה"], coords: [25.2435, 55.3050], desc: "סניף אל כרמה", type: "קניות בזול" },
             { names: ["day to day deira", "דיי טו דיי דיירה"], coords: [25.2510, 55.3335], desc: "סניף דיירה", type: "קניות בזול" },
@@ -153,7 +157,6 @@
             allLines.forEach(line => {
                 L.polyline(line.stations.map(s => s.c), { color: line.color, weight: 3, opacity: 0.8 }).addTo(map);
                 line.stations.forEach((s, idx) => {
-                    // שומרים גם את האינדקס כדי לחשב מרחקים
                     allStationsList.push({ name: s.n, coords: s.c, lineName: line.name, lineId: line.id, color: line.color, idx: idx });
                     const stationNum = s.n.split('.')[0];
                     const numberedIcon = L.divIcon({
@@ -175,11 +178,9 @@
         }
 
         async function getPlaceCoords(query) {
-            // בדיקה ברשימה האישית
             const customMatch = myRecommendations.find(item => item.names.some(name => query.toLowerCase().includes(name)));
             if (customMatch) return { lat: customMatch.coords[0], lon: customMatch.coords[1], name: customMatch.names[0] };
             
-            // חיפוש חיצוני
             const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + " Dubai")}`);
             const data = await res.json();
             if (data.length > 0) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), name: query };
@@ -212,10 +213,8 @@
             const startStation = findNearestStation(startLoc.lat, startLoc.lon);
             const endStation = findNearestStation(endLoc.lat, endLoc.lon);
 
-            // לוגיקה חכמה לחישוב (כולל החלפות)
             let html = `<div style="text-align:center; margin-bottom:10px;"><b>${startLoc.name}</b> ➝ <b>${endLoc.name}</b></div>`;
 
-            // מקרה 1: אותו קו
             if (startStation.lineId === endStation.lineId) {
                 const stops = Math.abs(startStation.idx - endStation.idx);
                 html += `
@@ -227,19 +226,12 @@
                         🏁 <b>רד בתחנה: ${endStation.name}</b>
                     </div>`;
             } 
-            // מקרה 2: חשמלית (Tram) למטרו (Red) - המקרה של פייב לוקס לבורג'
             else if ((startStation.lineId === 'tram' && endStation.lineId === 'red') || (startStation.lineId === 'red' && endStation.lineId === 'tram')) {
-                // תמיד מחליפים ב-Sobha Realty / Dubai Marina
-                // בדיקה מי זה מי
                 const tramSt = startStation.lineId === 'tram' ? startStation : endStation;
                 const redSt = startStation.lineId === 'red' ? startStation : endStation;
-                
-                // תחנת המעבר בחשמלית היא מס' 5 (Dubai Marina)
-                const tramTransferIdx = 4; // אינדקס של תחנה 5
+                const tramTransferIdx = 4;
+                const redTransferIdx = 22;
                 const tramStops = Math.abs(tramSt.idx - tramTransferIdx);
-                
-                // תחנת המעבר במטרו היא Sobha Realty (מס' 23)
-                const redTransferIdx = 22; // אינדקס של תחנה 23
                 const redStops = Math.abs(redSt.idx - redTransferIdx);
 
                 if (startStation.lineId === 'tram') {
@@ -256,7 +248,6 @@
                             סע <span class="stop-count">${redStops}</span> תחנות עד <b>${redSt.name}</b>.
                         </div>`;
                 } else {
-                    // הפוך (מבורג' לפייב לוקס)
                     html += `
                         <div class="step-box" style="border-right-color:#ff0000">
                             <span class="step-title">🚇 עלה במטרו: ${redSt.name}</span>
@@ -271,7 +262,6 @@
                         </div>`;
                 }
             }
-            // ברירת מחדל (קווים שונים אחרים)
             else {
                  html += `
                     <div class="step-box">
@@ -284,7 +274,6 @@
             resultDiv.innerHTML = html;
         }
 
-        // --- חיפוש רגיל (מה שהיה קודם) ---
         async function smartSearch() {
             let val = document.getElementById('searchInput').value.trim();
             if (!val) return;
