@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dubai Metro Multi-Color Map</title>
+    <title>Dubai Metro Full Network</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -33,47 +33,65 @@
 
         var searchMarker;
 
-        // נתונים לפי צבעים מהמפה שלך
-        const metroLines = {
-            red: { color: "#ff0000", stations: [
-                { name: "Burj Khalifa / Dubai Mall", coords: [25.1972, 55.2744] },
-                { name: "Airport Terminal 3", coords: [25.2458, 55.3594] },
-                { name: "Expo 2020", coords: [24.9633, 55.1511] },
-                { name: "Mall of the Emirates", coords: [25.1181, 55.2006] }
-            ]},
-            green: { color: "#00b300", stations: [
-                { name: "Gold Souq", coords: [25.2721, 55.2975] },
-                { name: "Al Ghubaiba", coords: [25.2619, 55.2905] },
-                { name: "Creek", coords: [25.2217, 55.3386] }
-            ]},
-            orange: { color: "#ff8c00", stations: [ // Tram
-                { name: "JBR 1", coords: [25.0765, 55.1305] },
-                { name: "Dubai Marina", coords: [25.0792, 55.1382] }
-            ]},
-            lightblue: { color: "#00bfff", stations: [ // Monorail
-                { name: "Atlantis Aquaventure", coords: [25.1332, 55.1171] },
-                { name: "Palm Gateway", coords: [25.0934, 55.1504] }
-            ]}
+        // נתוני קווים ותחנות לפי המפה שלך
+        const metroData = {
+            red: {
+                color: "#ff0000",
+                stations: [
+                    { name: "Centrepoint", coords: [25.2285, 55.4052] },
+                    { name: "Airport Terminal 3", coords: [25.2458, 55.3594] },
+                    { name: "Airport Terminal 1", coords: [25.2450, 55.3519] },
+                    { name: "Deira City Centre", coords: [25.2505, 55.3331] },
+                    { name: "Union", coords: [25.2655, 55.3093] },
+                    { name: "BurJuman", coords: [25.2533, 55.3033] },
+                    { name: "Burj Khalifa / Dubai Mall", coords: [25.1972, 55.2744] },
+                    { name: "Business Bay", coords: [25.1876, 55.2561] },
+                    { name: "Mall of the Emirates", coords: [25.1181, 55.2006] },
+                    { name: "Sobha Realty", coords: [25.0782, 55.1403] },
+                    { name: "DMCC", coords: [25.0685, 55.1312] },
+                    { name: "Expo 2020", coords: [24.9633, 55.1511] }
+                ]
+            },
+            green: {
+                color: "#00b300",
+                stations: [
+                    { name: "Etisalat", coords: [25.2639, 55.4050] },
+                    { name: "Stadium", coords: [25.2736, 55.3564] },
+                    { name: "Union", coords: [25.2655, 55.3093] },
+                    { name: "BurJuman", coords: [25.2533, 55.3033] },
+                    { name: "Gold Souq", coords: [25.2721, 55.2975] },
+                    { name: "Al Ghubaiba", coords: [25.2619, 55.2905] },
+                    { name: "Creek", coords: [25.2217, 55.3386] }
+                ]
+            }
         };
 
-        // פונקציה לציור כל הנקודות
-        function drawAllStations() {
-            for (let line in metroLines) {
-                let currentLine = metroLines[line];
-                currentLine.stations.forEach(st => {
+        function drawNetwork() {
+            for (let lineId in metroData) {
+                const line = metroData[lineId];
+                const coordsArray = line.stations.map(st => st.coords);
+
+                // ציור הקו המחבר (Polyline)
+                L.polyline(coordsArray, {
+                    color: line.color,
+                    weight: 3,
+                    opacity: 0.7
+                }).addTo(map);
+
+                // ציור הנקודות (Markers)
+                line.stations.forEach(st => {
                     L.circleMarker(st.coords, {
-                        radius: 8,
-                        fillColor: currentLine.color,
+                        radius: 6,
+                        fillColor: line.color,
                         color: "#fff",
                         weight: 2,
-                        opacity: 1,
-                        fillOpacity: 0.9
-                    }).addTo(map).bindPopup(`<b>קו: ${line}</b><br>${st.name}`);
+                        fillOpacity: 1
+                    }).addTo(map).bindPopup(`<b>${st.name}</b><br>קו: ${lineId}`);
                 });
             }
         }
 
-        drawAllStations();
+        drawNetwork();
 
         async function smartSearch() {
             let val = document.getElementById('searchInput').value.trim();
