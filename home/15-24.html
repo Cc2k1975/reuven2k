@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>כלי מיפוי הבית</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f0f0f0; margin: 0; padding: 20px; }
+        .controls { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: inline-block; margin-bottom: 20px; position: sticky; top: 0; z-index: 100; }
+        input { padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 15px; font-size: 16px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; margin: 0 5px; }
+        button:hover { background: #0056b3; }
+        button.finish { background: #28a745; }
+        button.reset { background: #dc3545; }
+        
+        #canvas-container { position: relative; display: inline-block; border: 2px solid #333; cursor: crosshair; }
+        canvas { display: block; }
+        
+        #output-area { width: 80%; height: 150px; margin-top: 20px; font-family: monospace; direction: ltr; padding: 10px; }
+        .instructions { font-size: 0.9em; color: #555; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h3>1. הכן איזור</h3>
+        <input type="text" id="areaName" placeholder="שם החדר (למשל: מקלחת הורים)">
+        <div class="instructions">לחץ עם העכבר על הפינות של החדר בתמונה. לסיום לחץ על "סגור איזור ושמור".</div>
+        <button class="finish" onclick="finishShape()">סגור איזור ושמור לרשימה</button>
+        <button class="reset" onclick="resetCurrent()">ניקוי סימון נוכחי</button>
+    </div>
+
+    <br>
+
+    <div id="canvas-container">
+        <canvas id="mapCanvas"></canvas>
+    </div>
+
+    <h3>2. העתק את התוצאה לאינטליגנציה המלאכותית</h3>
+    <textarea id="output-area" placeholder="כאן יופיעו הנתונים אחרי שתסיים לסמן..."></textarea>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        // כאן שם הקובץ שלך - חייב להיות באותה תיקייה
+        img.src = 'master15-24.jpg'; 
+
+        let points = [];
+        let allAreas = []; // כאן נשמור את כל החדרים שתכין
+
+        img.onload = function() {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            drawImage();
+        };
+
+        // פונקציה שמציירת את התמונה ואת הקווים
+        function drawImage() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            // ציור הקווים האדומים
+            if (points.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    ctx.lineTo(points[i].x, points[i].y);
+                }
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // ציור נקודות בפינות
+                ctx.fillStyle = 'yellow';
+                for (let i = 0; i < points.length; i++) {
+                    ctx.beginPath();
+                    ctx.arc(points[i].x, points[i].y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // האזנה ללחיצות עכבר
+        canvas.addEventListener('mousedown', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            // חישוב המיקום היחסי לתמונה (גם אם עשית זום בדפדפן)
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            points.push({x: Math.round(x), y: Math.round(y)});
+            drawImage();
+        });
+
+        // סגירת הצורה ושמירת הנתונים
+        function finishShape() {
+            if (points.length < 3) {
+                alert("צריך לפחות 3 נקודות כדי ליצור איזור!");
+                return;
+            }
+
+            const name = document.getElementById('areaName').value || "איזור ללא שם";
+            
+            // יצירת רשימת קואורדינטות שטוחה (x,y,x,y)
+            let coords = points.map(p => `${p.x},${p.y}`).join(',');
+
+            // הוספה למאגר
+            let newRecord = `ROOM: ${name}\nCOORDS: ${coords}\n--------------------------\n`;
+            
+            // עדכון תיבת הטקסט למטה
+            const output = document.getElementById('output-area');
+            output.value += newRecord;
+
+            // ניקוי לקראת החדר הבא
+            points = [];
+            document.getElementById('areaName').value = "";
+            drawImage();
+            alert("האיזור נשמר! אתה יכול לעבור לחדר הבא.");
+        }
+
+        function resetCurrent() {
+            points = [];
+            drawImage();
+        }
+    </script>
+</body>
+</html>
