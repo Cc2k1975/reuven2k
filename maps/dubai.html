@@ -2,185 +2,128 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
-    <title>Dubai Metro Finder</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Dubai Smart Finder</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: #121212;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+        body { margin: 0; background: #1a1a1a; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* שורת חיפוש עליונה */
+        .header { 
+            position: fixed; top: 0; width: 100%; height: 70px; 
+            background: #222; display: flex; align-items: center; 
+            padding: 0 10px; gap: 8px; z-index: 1000; box-sizing: border-box;
         }
-
-        /* שורת חיפוש בעיצוב מודרני */
-        .search-box {
-            padding: 15px;
-            background: #1f1f1f;
-            display: flex;
-            gap: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            z-index: 100;
-        }
-
-        input {
-            flex: 1;
-            padding: 14px;
-            border-radius: 12px;
-            border: 1px solid #333;
-            background: #2d2d2d;
-            color: white;
-            font-size: 16px;
-            outline: none;
-        }
-
-        button {
-            padding: 0 25px;
-            background: #ff4757;
-            border: none;
-            color: white;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 16px;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-
-        button:active { transform: scale(0.95); }
+        input { flex: 1; padding: 12px; border-radius: 8px; border: none; background: #333; color: white; font-size: 16px; outline: none; }
+        .search-btn { padding: 10px 18px; background: #ff4757; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .settings-btn { background: none; border: none; font-size: 20px; cursor: pointer; filter: grayscale(1); }
 
         /* אזור המפה */
-        .map-viewport {
-            flex: 1;
-            overflow: auto;
-            position: relative;
-            background: #e0e0e0;
-            cursor: crosshair;
-        }
+        .viewport { margin-top: 70px; flex: 1; overflow: auto; background: white; position: relative; }
+        .container { position: relative; display: inline-block; }
+        
+        /* גודל התמונה ב-1200 פיקסלים כדי שתהיה חדה ונוחה לגלילה */
+        #metro-map { display: block; width: 1200px; height: auto; }
 
-        .map-container {
-            position: relative;
-            display: inline-block;
-        }
-
-        #metro-map {
-            display: block;
-            width: 1000px; /* רוחב קבוע לשמירה על דיוק הנעץ */
-            height: auto;
-        }
-
-        /* הנעץ המשופר */
-        #pin {
-            position: absolute;
-            width: 40px;
-            height: 40px;
+        /* הנעץ */
+        #pin { 
+            position: absolute; width: 38px; height: 38px; 
             background: url('https://cdn-icons-png.flaticon.com/512/684/684908.png') no-repeat center;
-            background-size: contain;
-            transform: translate(-50%, -100%);
-            display: none;
+            background-size: contain; transform: translate(-50%, -100%);
+            display: none; z-index: 50; animation: bounce 0.5s infinite alternate;
             pointer-events: none;
-            z-index: 50;
-            /* אפקט פעימה קטן כדי שיבלוט */
-            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
-            animation: bounce 0.5s infinite alternate;
         }
+        @keyframes bounce { from { transform: translate(-50%, -100%); } to { transform: translate(-50%, -110%); } }
 
-        @keyframes bounce {
-            from { transform: translate(-50%, -100%); }
-            to { transform: translate(-50%, -110%); }
-        }
-
-        /* בועית שם מעל הנעץ */
+        /* בועית שם המקום */
         #label {
-            position: absolute;
-            background: #ff4757;
-            color: white;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: bold;
-            transform: translate(-50%, -240%);
-            display: none;
-            white-space: nowrap;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            position: absolute; background: rgba(255, 71, 87, 0.9); color: white;
+            padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: bold;
+            transform: translate(-50%, -240%); display: none; white-space: nowrap;
         }
     </style>
 </head>
 <body>
 
-    <div class="search-box">
-        <input type="text" id="dest" placeholder="חפש תחנה (למשל: Burj, Mall, Airport)">
-        <button onclick="search()">חפש</button>
+    <div class="header">
+        <button class="settings-btn" onclick="toggleCalib()">⚙️</button>
+        <input type="text" id="searchInput" placeholder="חפש מסעדה, מלון או אטרקציה...">
+        <button class="search-btn" onclick="runSearch()">חפש</button>
     </div>
 
-    <div class="map-viewport" id="viewport">
-        <div class="map-container">
-            <img src="metro.jpg" id="metro-map" alt="Dubai Metro Map">
+    <div class="viewport" id="view">
+        <div class="container">
+            <img src="metro.jpg" id="metro-map">
             <div id="pin"></div>
             <div id="label"></div>
         </div>
     </div>
 
     <script>
-        // מאגר המיקומים - מעודכן לפי הלחיצה שלך!
-        const locations = {
-            "burj": { x: 45.7, y: 36.3, name: "Burj Khalifa / Dubai Mall" },
-            "dubai mall": { x: 45.7, y: 36.3, name: "Burj Khalifa / Dubai Mall" },
-            "khalifa": { x: 45.7, y: 36.3, name: "Burj Khalifa / Dubai Mall" },
-            "airport": { x: 74.2, y: 19.3, name: "Airport Terminal 1" }, // דוגמה לכיול משוער
-            "expo": { x: 30.5, y: 94.5, name: "Expo 2020" }
-        };
+        let isCalib = false;
 
-        function search() {
-            const val = document.getElementById('dest').value.toLowerCase().trim();
-            const pin = document.getElementById('pin');
-            const label = document.getElementById('label');
-            
-            // חיפוש חכם בתוך המפתחות
-            const key = Object.keys(locations).find(k => k.includes(val));
-            
-            if (key && val !== "") {
-                const target = locations[key];
-                
-                // עדכון מיקום הנעץ והתווית
-                pin.style.left = target.x + "%";
-                pin.style.top = target.y + "%";
-                pin.style.display = "block";
+        // --- מנוע ההמרה (כיול) ---
+        // עוגן 1: בורג' חליפה (לפי הנתונים ששלחת)
+        const a1 = { lat: 25.1972, lon: 55.2744, x: 45.7, y: 36.3 };
+        // עוגן 2: אקספו 2020 (נקודת קצה לחישוב המרחקים)
+        const a2 = { lat: 24.9633, lon: 55.1511, x: 28.5, y: 94.3 };
 
-                label.innerText = target.name;
-                label.style.left = target.x + "%";
-                label.style.top = target.y + "%";
-                label.style.display = "block";
-                
-                // סגירת מקלדת בטלפון
-                document.activeElement.blur();
+        async function runSearch() {
+            const query = document.getElementById('searchInput').value;
+            if (!query) return;
 
-                // גלילה חלקה למרכז הנעץ
-                setTimeout(() => {
-                    pin.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-                }, 100);
-                
-            } else if (val !== "") {
-                alert("התחנה '" + val + "' לא נמצאה במערכת עדיין.");
+            try {
+                // משיכת מיקום GPS אמיתי מהאינטרנט
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + " Dubai")}`);
+                const data = await res.json();
+
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+
+                    // תרגום מתמטי מ-GPS לנקודה על המפה שלך
+                    const x = a1.x + (lon - a1.lon) * (a1.x - a2.x) / (a1.lon - a2.lon);
+                    const y = a1.y + (lat - a1.lat) * (a1.y - a2.y) / (a1.lat - a2.lat);
+
+                    showResult(x, y, data[0].display_name.split(',')[0]);
+                } else {
+                    alert("המקום לא נמצא. נסה שם אחר.");
+                }
+            } catch (e) {
+                alert("שגיאת חיבור. וודא שאתה מחובר לאינטרנט.");
             }
         }
 
-        // מאפשר לחיצה על "Enter" במקלדת לחיפוש
-        document.getElementById('dest').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') search();
-        });
+        function showResult(x, y, name) {
+            const pin = document.getElementById('pin');
+            const label = document.getElementById('label');
+            
+            pin.style.left = x + "%"; pin.style.top = y + "%";
+            pin.style.display = "block";
 
-        // פונקציית הכיול שלך - תמשיך ללחוץ על תחנות כדי להוסיף אותן!
+            label.innerText = name;
+            label.style.left = x + "%"; label.style.top = y + "%";
+            label.style.display = "block";
+
+            document.activeElement.blur(); // סגירת מקלדת
+            
+            // גלילה אוטומטית לנעץ
+            setTimeout(() => {
+                pin.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+            }, 300);
+        }
+
+        function toggleCalib() {
+            isCalib = !isCalib;
+            document.querySelector('.settings-btn').style.filter = isCalib ? "grayscale(0)" : "grayscale(1)";
+            alert(isCalib ? "מצב כיול פעיל - לחץ על המפה לקבלת נתונים" : "מצב כיול כבוי");
+        }
+
         document.getElementById('metro-map').onclick = function(e) {
+            if (!isCalib) return;
             const rect = this.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
-            
-            // מציג לך את הקואורדינטות להעתקה
-            alert(`מיקום לכיול:\nx: ${x.toFixed(1)}, y: ${y.toFixed(1)}`);
+            alert(`X: ${x.toFixed(1)}, Y: ${y.toFixed(1)}`);
         };
     </script>
 </body>
