@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dubai Metro Full Network</title>
+    <title>Dubai Full Transport Network</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -28,85 +28,60 @@
     <div id="map"></div>
 
     <script>
-        var map = L.map('map').setView([25.15, 55.25], 11);
+        var map = L.map('map').setView([25.12, 55.20], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        var searchMarker;
-
-        // נתוני קווים ותחנות לפי המפה שלך
-        const metroData = {
-            red: {
-                color: "#ff0000",
-                stations: [
-                    { name: "Centrepoint", coords: [25.2285, 55.4052] },
-                    { name: "Airport Terminal 3", coords: [25.2458, 55.3594] },
-                    { name: "Airport Terminal 1", coords: [25.2450, 55.3519] },
-                    { name: "Deira City Centre", coords: [25.2505, 55.3331] },
-                    { name: "Union", coords: [25.2655, 55.3093] },
-                    { name: "BurJuman", coords: [25.2533, 55.3033] },
-                    { name: "Burj Khalifa / Dubai Mall", coords: [25.1972, 55.2744] },
-                    { name: "Business Bay", coords: [25.1876, 55.2561] },
-                    { name: "Mall of the Emirates", coords: [25.1181, 55.2006] },
-                    { name: "Sobha Realty", coords: [25.0782, 55.1403] },
-                    { name: "DMCC", coords: [25.0685, 55.1312] },
-                    { name: "Expo 2020", coords: [24.9633, 55.1511] }
-                ]
-            },
-            green: {
-                color: "#00b300",
-                stations: [
-                    { name: "Etisalat", coords: [25.2639, 55.4050] },
-                    { name: "Stadium", coords: [25.2736, 55.3564] },
-                    { name: "Union", coords: [25.2655, 55.3093] },
-                    { name: "BurJuman", coords: [25.2533, 55.3033] },
-                    { name: "Gold Souq", coords: [25.2721, 55.2975] },
-                    { name: "Al Ghubaiba", coords: [25.2619, 55.2905] },
-                    { name: "Creek", coords: [25.2217, 55.3386] }
-                ]
-            }
+        // נתוני כל הקווים והצבעים מהמפה שלך
+        const transportData = {
+            red: { color: "#ff0000", name: "הקו האדום", stations: [
+                {name: "Centrepoint", c: [25.2285, 55.4052]}, {name: "Airport T3", c: [25.2458, 55.3594]}, 
+                {name: "Union", c: [25.2655, 55.3093]}, {name: "BurJuman", c: [25.2533, 55.3033]}, 
+                {name: "Burj Khalifa", c: [25.1972, 55.2744]}, {name: "Expo 2020", c: [24.9633, 55.1511]}
+            ]},
+            green: { color: "#00b300", name: "הקו הירוק", stations: [
+                {name: "Etisalat", c: [25.2639, 55.4050]}, {name: "Union", c: [25.2655, 55.3093]}, 
+                {name: "Gold Souq", c: [25.2721, 55.2975]}, {name: "Creek", c: [25.2217, 55.3386]}
+            ]},
+            orange: { color: "#ff8c00", name: "Tram (כתום)", stations: [
+                {name: "JBR 1", c: [25.0765, 55.1305]}, {name: "Marina Mall", c: [25.0768, 55.1354]}, 
+                {name: "Palm Jumeirah Tram", c: [25.0945, 55.1466]}
+            ]},
+            blue: { color: "#0000ff", name: "הקו הכחול (עתידי)", stations: [
+                {name: "Creek", c: [25.2217, 55.3386]}, {name: "Dubai Festival City", c: [25.2230, 55.3510]},
+                {name: "International City", c: [25.1650, 55.4080]}
+            ]},
+            lightblue: { color: "#00bfff", name: "Monorail (תכלת)", stations: [
+                {name: "Palm Gateway", c: [25.0934, 55.1504]}, {name: "Atlantis", c: [25.1332, 55.1171]}
+            ]}
         };
 
-        function drawNetwork() {
-            for (let lineId in metroData) {
-                const line = metroData[lineId];
-                const coordsArray = line.stations.map(st => st.coords);
+        function drawAll() {
+            for (let id in transportData) {
+                const line = transportData[id];
+                const coords = line.stations.map(s => s.c);
 
-                // ציור הקו המחבר (Polyline)
-                L.polyline(coordsArray, {
-                    color: line.color,
-                    weight: 3,
-                    opacity: 0.7
-                }).addTo(map);
+                // קו מחבר בצבע הקו
+                L.polyline(coords, {color: line.color, weight: 3, opacity: 0.8}).addTo(map);
 
-                // ציור הנקודות (Markers)
-                line.stations.forEach(st => {
-                    L.circleMarker(st.coords, {
-                        radius: 6,
-                        fillColor: line.color,
-                        color: "#fff",
-                        weight: 2,
-                        fillOpacity: 1
-                    }).addTo(map).bindPopup(`<b>${st.name}</b><br>קו: ${lineId}`);
+                // נקודות תחנה
+                line.stations.forEach(s => {
+                    L.circleMarker(s.c, {
+                        radius: 6, fillColor: line.color, color: "#fff", weight: 2, fillOpacity: 1
+                    }).addTo(map).bindPopup(`<b>${s.name}</b><br>${line.name}`);
                 });
             }
         }
 
-        drawNetwork();
+        drawAll();
 
         async function smartSearch() {
-            let val = document.getElementById('searchInput').value.trim();
-            if (!val) return;
-            try {
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val + " Dubai")}`);
-                const data = await res.json();
-                if (data.length > 0) {
-                    const lat = data[0].lat; const lon = data[0].lon;
-                    if (searchMarker) map.removeLayer(searchMarker);
-                    searchMarker = L.marker([lat, lon]).addTo(map).bindPopup(val).openPopup();
-                    map.setView([lat, lon], 14);
-                    document.activeElement.blur();
-                }
-            } catch (e) { console.log("err"); }
+            let val = document.getElementById('searchInput').value;
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val + " Dubai")}`);
+            const data = await res.json();
+            if (data.length > 0) {
+                map.setView([data[0].lat, data[0].lon], 15);
+                L.marker([data[0].lat, data[0].lon]).addTo(map).bindPopup(val).openPopup();
+            }
         }
     </script>
 </body>
