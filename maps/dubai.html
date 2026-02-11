@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dubai Metro - Official Accurate Map</title>
+    <title>Dubai Ultimate Map 2025</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: 'Segoe UI', sans-serif; }
         
-        /* עיצוב שורת החיפוש */
         .search-bar { 
             position: fixed; top: 10px; left: 10px; right: 10px; z-index: 1000;
             display: flex; gap: 8px; background: white; padding: 12px; border-radius: 12px;
@@ -20,16 +19,16 @@
         
         #map { flex: 1; width: 100%; }
 
-        /* עיצוב המספרים על התחנות */
+        /* אייקונים */
         .station-number-icon {
             background-color: white; border: 2px solid #333; border-radius: 50%;
-            color: black; font-weight: bold; font-size: 10px;
-            text-align: center; line-height: 16px; box-shadow: 0 0 4px rgba(0,0,0,0.5);
+            color: black; font-weight: bold; font-size: 10px; text-align: center; line-height: 16px; box-shadow: 0 0 4px rgba(0,0,0,0.5);
         }
         
-        /* עיצוב הבועה החכמה */
+        /* עיצוב הבועה */
         .leaflet-popup-content { font-size: 14px; line-height: 1.6; text-align: center; }
         .popup-title { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #333; }
+        .tag-badge { background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; display: inline-block; margin-bottom: 5px; }
         .nearest-box { background: #f8f9fa; border-radius: 8px; padding: 8px; margin-top: 8px; border: 1px solid #eee; }
         .walk-time { color: #27ae60; font-weight: bold; }
     </style>
@@ -37,20 +36,175 @@
 <body>
 
     <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="חפש מלון, קניון או אטרקציה...">
+        <input type="text" id="searchInput" placeholder="חפש: 'מסעדה כשרה', 'השוק הסיני', 'זול'...">
         <button onclick="smartSearch()">חפש</button>
     </div>
 
     <div id="map"></div>
 
     <script>
-        var map = L.map('map').setView([25.11, 55.14], 12); // זום ראשוני על הפאלם והמרינה
+        var map = L.map('map').setView([25.20, 55.27], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
         var searchMarker;
-        var allStationsList = []; // רשימה שטוחה לחישובים
+        var allStationsList = []; 
 
-        // --- נתונים מתוקנים ---
+        // --- 1. המאגר האישי שלך (ההמלצות מהקובץ) ---
+        const myRecommendations = [
+            // --- חנויות זולות (Day to Day וכו') ---
+            { 
+                names: ["day to day karama", "דיי טו דיי", "חנות זולה", "חנות ב-20", "today's deal"], 
+                coords: [25.2435, 55.3050], 
+                desc: "סניף אל כרמה (ליד ADCB ומול הפארק)", 
+                type: "קניות בזול" 
+            },
+            { 
+                names: ["day to day deira", "דיי טו דיי דיירה", "חנות זולה"], 
+                coords: [25.2510, 55.3335], 
+                desc: "סניף מול Deira City Centre", 
+                type: "קניות בזול" 
+            },
+            { 
+                names: ["gift village", "גיפט וילג", "גיפט וויליג"], 
+                coords: [25.2405, 55.3010], 
+                desc: "ליד המסגרת (Zabeel Park) - הכל עד 11 שקל", 
+                type: "קניות בזול" 
+            },
+            { 
+                names: ["השוק הסיני", "china mall ajman", "עג'מאן", "שוק סיני"], 
+                coords: [25.4265, 55.5780], 
+                desc: "קניון ענק וזול (כ-40 דק' נסיעה מדובאי)", 
+                type: "שוק" 
+            },
+            { 
+                names: ["שוק נאיף", "grand souk deira", "שוק דיירה"], 
+                coords: [25.2668, 55.2982], 
+                desc: "שוק מקומי זול בלב דיירה", 
+                type: "שוק" 
+            },
+            { 
+                names: ["mazaya center", "קניון מאזאיה", "איפור זול"], 
+                coords: [25.2030, 55.2640], 
+                desc: "מרכז מסחרי זול (איפור, בשמים) + קפה פנטסטיקו", 
+                type: "קניון" 
+            },
+
+            // --- מסעדות כשרות ---
+            { 
+                names: ["fantastico", "קפה פנטסטיקו", "מסעדה כשרה", "חלבי כשר"], 
+                coords: [25.2030, 55.2640], 
+                desc: "חלבי - קניון Mazaya (לשעבר ביבי)", 
+                type: "כשר" 
+            },
+            { 
+                names: ["bamidbar", "במדבר", "מסעדה כשרה", "בשרי כשר"], 
+                coords: [25.1876, 55.2561], 
+                desc: "בשרי/סושי - אזור Business Bay", 
+                type: "כשר" 
+            },
+            { 
+                names: ["mul hayam", "מול הים", "מסעדה כשרה", "כשר במרינה"], 
+                coords: [25.0785, 55.1385], 
+                desc: "מסעדה במרינה", 
+                type: "כשר" 
+            },
+            { 
+                names: ["le fournil", "לה פורניל", "מאפיה כשרה"], 
+                coords: [25.0715, 55.1325], 
+                desc: "מאפים וקינוחים (סניף מרינה/ג'ומיירה)", 
+                type: "כשר" 
+            },
+            { 
+                names: ["armani kaf", "ארמני כשר", "מסעדה כשרה"], 
+                coords: [25.1972, 55.2744], 
+                desc: "בשרי - במלון ארמני (בורג' חליפה)", 
+                type: "כשר יוקרה" 
+            },
+            { 
+                names: ["tlv", "טי אל וי", "מסעדה כשרה"], 
+                coords: [25.2280, 55.2835], 
+                desc: "בשרי - מלון H Hotel", 
+                type: "כשר" 
+            },
+
+            // --- מסעדות עד 50 שקל ---
+            { 
+                names: ["rowley's", "רוליס", "עד 50", "מסעדה זולה"], 
+                coords: [25.1181, 55.2006], 
+                desc: "בשר + קינוח בזול (אזור מול האמירויות)", 
+                type: "אוכל זול" 
+            },
+            { 
+                names: ["fish hut", "פיש האט", "מסעדת דגים", "עד 50"], 
+                coords: [25.2385, 55.3150], 
+                desc: "דגים בזול - סניף Oud Metha", 
+                type: "אוכל זול" 
+            },
+            { 
+                names: ["lavash", "לוואש", "ארוחת בוקר זולה"], 
+                coords: [25.0792, 55.1382], 
+                desc: "ארוחות בוקר במרינה", 
+                type: "אוכל זול" 
+            },
+            { 
+                names: ["beirut", "מסעדת ביירות", "לבנונית"], 
+                coords: [25.0760, 55.1300], 
+                desc: "אוכל לבנוני ליד הגלגל הענק", 
+                type: "אוכל זול" 
+            },
+            { 
+                names: ["mandi", "מסעדת מנדי", "ליד המסגרת"], 
+                coords: [25.2410, 55.3015], 
+                desc: "ליד גיפט וילג' והמסגרת", 
+                type: "אוכל זול" 
+            },
+            { 
+                names: ["cheesecake factory", "ציזקייק פקטורי"], 
+                coords: [25.1972, 55.2744], 
+                desc: "בקניון דובאי מול האקווריום", 
+                type: "קינוחים" 
+            },
+
+            // --- אטרקציות ---
+            { 
+                names: ["global village", "הכפר הגלובלי", "גלובל וילג"], 
+                coords: [25.0677, 55.3010], 
+                desc: "ביתנים מכל העולם (לבוא רעבים!)", 
+                type: "אטרקציה" 
+            },
+            { 
+                names: ["miracle garden", "גן הפרחים"], 
+                coords: [25.0600, 55.2445], 
+                desc: "גן הפרחים הגדול בעולם", 
+                type: "אטרקציה" 
+            },
+            { 
+                names: ["dubai frame", "המסגרת", "מסגרת דובאי"], 
+                coords: [25.2355, 55.3004], 
+                desc: "תצפית מדהימה + ליד שוקי הזיופים", 
+                type: "אטרקציה" 
+            },
+            { 
+                names: ["aura skypool", "אורה סקייפול", "בריכה 360"], 
+                coords: [25.1118, 55.1492], 
+                desc: "הבריכה הגבוהה בעולם בפאלם", 
+                type: "אטרקציה" 
+            },
+            { 
+                names: ["ain dubai", "הגלגל הענק", "העין של דובאי"], 
+                coords: [25.0796, 55.1225], 
+                desc: "באי בלו ווטרס", 
+                type: "אטרקציה" 
+            },
+             { 
+                names: ["museum of the future", "מוזיאון העתיד"], 
+                coords: [25.2190, 55.2815], 
+                desc: "המבנה הכי יפה בעולם", 
+                type: "אטרקציה" 
+            }
+        ];
+
+        // --- 2. נתוני המטרו המתוקנים (עם מונורייל וחשמלית תקינים) ---
 
         const redLineMain = {
             color: '#ff0000', name: 'הקו האדום', stations: [
@@ -118,36 +272,22 @@
             ]
         };
 
-        // --- התיקון הגדול כאן: הוזז מערבה (שמאלה) משמעותית ---
         const monorailLine = {
             color: '#00bfff', name: 'מונורייל פאלם', stations: [
-                {n: "1. Palm Gateway", c: [25.1005, 55.1560]}, // בסיס
-                {n: "2. Al Ittihad Park", c: [25.1115, 55.1440]}, // תוקן: זז שמאלה ליבשה
-                {n: "3. Nakheel Mall", c: [25.1170, 55.1390]}, // תוקן: זז שמאלה
-                {n: "4. The Pointe", c: [25.1260, 55.1270]}, // תוקן: זז שמאלה
-                {n: "5. Atlantis Aquaventure", c: [25.1332, 55.1171]} // קצה
+                {n: "1. Palm Gateway", c: [25.1005, 55.1560]},
+                {n: "2. Al Ittihad Park", c: [25.1115, 55.1440]}, 
+                {n: "3. Nakheel Mall", c: [25.1170, 55.1390]}, 
+                {n: "4. The Pointe", c: [25.1260, 55.1270]}, 
+                {n: "5. Atlantis Aquaventure", c: [25.1332, 55.1171]} 
             ]
         };
 
-        // פונקציה לבניית המפה ואיסוף נתונים לחישובים
         function drawSystem() {
             const allLines = [redLineMain, redLineExpo, redLineUAE, greenLine, tramLine, monorailLine];
-
             allLines.forEach(line => {
-                // ציור הקו
                 L.polyline(line.stations.map(s => s.c), { color: line.color, weight: 3, opacity: 0.8 }).addTo(map);
-
-                // ציור תחנות והוספה לרשימה הכללית לחישובים
                 line.stations.forEach(s => {
-                    // הוספה למאגר התחנות לחיפוש הקרוב ביותר
-                    allStationsList.push({
-                        name: s.n,
-                        coords: s.c,
-                        lineName: line.name,
-                        color: line.color
-                    });
-
-                    // ציור על המפה
+                    allStationsList.push({ name: s.n, coords: s.c, lineName: line.name, color: line.color });
                     const stationNum = s.n.split('.')[0];
                     const numberedIcon = L.divIcon({
                         className: 'custom-div-icon',
@@ -158,68 +298,76 @@
                 });
             });
         }
-
         drawSystem();
 
-        // --- המוח החדש: מציאת התחנה הקרובה ביותר ---
         function findNearestStation(lat, lng) {
             let nearest = null;
             let minDistance = Infinity;
-
             allStationsList.forEach(station => {
-                // שימוש בפונקציה של Leaflet למדידת מרחק במטרים
                 const dist = map.distance([lat, lng], station.coords);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    nearest = station;
-                }
+                if (dist < minDistance) { minDistance = dist; nearest = station; }
             });
-
             return { station: nearest, distance: minDistance };
         }
 
+        // --- 3. מנוע החיפוש המשולב (אישי + עולמי) ---
         async function smartSearch() {
-            let val = document.getElementById('searchInput').value.trim();
+            let val = document.getElementById('searchInput').value.toLowerCase().trim();
             if (!val) return;
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val + " Dubai")}`);
-            const data = await res.json();
 
-            if (data.length > 0) {
-                const placeLat = parseFloat(data[0].lat);
-                const placeLon = parseFloat(data[0].lon);
+            let placeLat, placeLon, displayName, placeType = "מקום כללי";
+            let foundInCustom = false;
 
-                if (searchMarker) map.removeLayer(searchMarker);
+            // בדיקה במאגר האישי שלך קודם
+            const customMatch = myRecommendations.find(item => 
+                item.names.some(name => val.includes(name) || name.includes(val))
+            );
 
-                // 1. מציאת התחנה הקרובה
-                const result = findNearestStation(placeLat, placeLon);
-                
-                // 2. חישוב זמן הליכה (בערך 80 מטר לדקה)
-                const walkTime = Math.ceil(result.distance / 80); 
-                const distDisplay = result.distance > 1000 ? (result.distance/1000).toFixed(1) + " ק\u0022מ" : Math.round(result.distance) + " מטר";
-
-                // 3. יצירת תוכן הבועה החכמה
-                const popupContent = `
-                    <div class="popup-title">${val}</div>
-                    <div style="font-size:12px; color:#666;">המיקום שנמצא</div>
-                    <div class="nearest-box">
-                        🚇 <b>התחנה הכי קרובה:</b><br>
-                        <span style="color:${result.station.color}; font-weight:bold; font-size:15px;">${result.station.name}</span><br>
-                        <span style="font-size:11px;">(${result.station.lineName})</span><br>
-                        <hr style="margin:5px 0; border:0; border-top:1px solid #ddd;">
-                        👣 <b>מרחק הליכה:</b><br>
-                        <span class="walk-time">כ-${walkTime} דקות</span> (${distDisplay})
-                    </div>
-                `;
-
-                // 4. הצגת הנעץ והבועה
-                searchMarker = L.marker([placeLat, placeLon]).addTo(map)
-                    .bindPopup(popupContent)
-                    .openPopup();
-
-                map.setView([placeLat, placeLon], 15);
+            if (customMatch) {
+                placeLat = customMatch.coords[0];
+                placeLon = customMatch.coords[1];
+                displayName = customMatch.names[0] + " (ההמלצה שלך)";
+                placeType = customMatch.type;
+                foundInCustom = true;
+                // הודעה קטנה למשתמש שזה מהרשימה
+                console.log("נמצא ברשימה האישית: " + customMatch.desc);
             } else {
-                alert("לא נמצא. נסה שם אחר.");
+                // אם לא מצא ברשימה, חפש באינטרנט
+                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val + " Dubai")}`);
+                const data = await res.json();
+                if (data.length > 0) {
+                    placeLat = parseFloat(data[0].lat);
+                    placeLon = parseFloat(data[0].lon);
+                    displayName = val;
+                } else {
+                    alert("לא נמצא. נסה שם אחר.");
+                    return;
+                }
             }
+
+            // הצגת התוצאה
+            if (searchMarker) map.removeLayer(searchMarker);
+            const result = findNearestStation(placeLat, placeLon);
+            const walkTime = Math.ceil(result.distance / 80); 
+            const distDisplay = result.distance > 1000 ? (result.distance/1000).toFixed(1) + " ק\u0022מ" : Math.round(result.distance) + " מטר";
+            const extraInfo = foundInCustom ? `<div style="font-size:11px; color:#e67e22; margin-bottom:5px;">${customMatch.desc}</div>` : "";
+
+            const popupContent = `
+                <div class="popup-title">${displayName}</div>
+                <div class="tag-badge">${placeType}</div>
+                ${extraInfo}
+                <div class="nearest-box">
+                    🚇 <b>התחנה הכי קרובה:</b><br>
+                    <span style="color:${result.station.color}; font-weight:bold; font-size:15px;">${result.station.name}</span><br>
+                    <span style="font-size:11px;">(${result.station.lineName})</span><br>
+                    <hr style="margin:5px 0; border:0; border-top:1px solid #ddd;">
+                    👣 <b>מרחק הליכה:</b><br>
+                    <span class="walk-time">כ-${walkTime} דקות</span> (${distDisplay})
+                </div>
+            `;
+
+            searchMarker = L.marker([placeLat, placeLon]).addTo(map).bindPopup(popupContent).openPopup();
+            map.setView([placeLat, placeLon], 15);
         }
     </script>
 </body>
