@@ -2,164 +2,134 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dubai Metro Finder</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+    <title>Dubai Metro Map</title>
     <style>
         body {
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
+            padding: 0;
+            font-family: sans-serif;
+            background: #1a1a1a;
+            color: white;
             display: flex;
             flex-direction: column;
-            align-items: center;
             height: 100vh;
-            overflow: hidden;
         }
 
-        /* שורת חיפוש עליונה */
-        .search-container {
-            width: 100%;
+        /* שורת חיפוש מגניבה */
+        .search-box {
             padding: 15px;
-            background: #2c3e50;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 10;
+            background: #222;
             display: flex;
-            gap: 10px;
-            box-sizing: border-box;
+            gap: 8px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         input {
-            flex-grow: 1;
+            flex: 1;
             padding: 12px;
-            border-radius: 25px;
-            border: none;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
             font-size: 16px;
-            outline: none;
         }
 
         button {
             padding: 10px 20px;
-            border-radius: 25px;
+            background: #e74c3c;
             border: none;
-            background-color: #e74c3c;
             color: white;
+            border-radius: 8px;
             font-weight: bold;
-            cursor: pointer;
         }
 
-        /* אזור המפה */
-        .map-wrapper {
+        /* המפה תופסת את כל שאר המסך */
+        .map-viewport {
+            flex: 1;
+            overflow: auto; /* מאפשר לגלול ולראות את כל המפה */
             position: relative;
-            flex-grow: 1;
-            width: 100%;
-            overflow: auto; /* מאפשר גלילה במובייל */
-            display: flex;
-            justify-content: center;
-            background: #ddd;
+            background: #fff;
         }
 
         .map-container {
             position: relative;
-            display: inline-block;
+            display: inline-block; /* שומר על גודל התמונה המקורי */
         }
 
         #metro-map {
             display: block;
-            max-height: 85vh; /* מתאים לגובה המסך */
-            width: auto;
+            width: 1000px; /* קובע רוחב קבוע כדי שהקואורדינטות לא יזוזו */
+            height: auto;
         }
 
-        /* הנעץ */
         #pin {
             position: absolute;
-            width: 30px;
-            height: 30px;
-            background-image: url('https://cdn-icons-png.flaticon.com/512/684/684908.png');
+            width: 35px;
+            height: 35px;
+            background: url('https://cdn-icons-png.flaticon.com/512/684/684908.png') no-repeat center;
             background-size: contain;
-            background-repeat: no-repeat;
-            transform: translate(-50%, -100%); /* שהקצה של הנעץ יהיה בנקודה */
+            transform: translate(-50%, -100%);
             display: none;
-            transition: all 0.5s ease;
-            z-index: 5;
-        }
-
-        /* בועית שם מעל הנעץ */
-        #label {
-            position: absolute;
-            background: white;
-            padding: 5px 10px;
-            border-radius: 10px;
-            font-size: 12px;
-            font-weight: bold;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transform: translate(-50%, -140%);
-            display: none;
-            white-space: nowrap;
+            pointer-events: none;
+            z-index: 50;
         }
     </style>
 </head>
 <body>
 
-    <div class="search-container">
-        <input type="text" id="locationInput" placeholder="חפש תחנה (למשל: Burj Khalifa, Dubai Mall)...">
-        <button onclick="findLocation()">חפש</button>
+    <div class="search-box">
+        <input type="text" id="dest" placeholder="חפש תחנה (למשל: Burj Khalifa)">
+        <button onclick="search()">חפש</button>
     </div>
 
-    <div class="map-wrapper">
+    <div class="map-viewport">
         <div class="map-container">
-            <img src="metro.jpg" id="metro-map" alt="Dubai Metro Map">
+            <img src="metro.jpg" id="metro-map">
             <div id="pin"></div>
-            <div id="label"></div>
         </div>
     </div>
 
     <script>
-        // מאגר נתונים של מיקומים (אחוזים מהתמונה כדי שיעבוד בכל גודל מסך)
-        // את הערכים האלו צריך "לכייל" פעם אחת לפי התמונה שלך
+        // בסיס נתונים - כאן אתה מוסיף את התחנות
         const locations = {
-            "burj khalifa": { x: 44.5, y: 37.8, name: "Burj Khalifa / Dubai Mall" },
-            "dubai mall": { x: 44.5, y: 37.8, name: "Burj Khalifa / Dubai Mall" },
-            "business bay": { x: 41.5, y: 40.5, name: "Business Bay" },
-            "airport terminal 1": { x: 74.5, y: 19.5, name: "Airport Terminal 1" },
-            "mall of the emirates": { x: 31.5, y: 58.5, name: "Mall of the Emirates" },
-            "expo 2020": { x: 30.5, y: 94.5, name: "Expo 2020" },
-            "union": { x: 61.5, y: 13.5, name: "Union Square" }
+            "burj": {x: 44.3, y: 37.5, name: "Burj Khalifa"},
+            "dubai mall": {x: 44.3, y: 37.5, name: "Burj Khalifa"},
+            "airport": {x: 74.2, y: 19.3, name: "Airport Terminal 1"},
+            "expo": {x: 30.5, y: 94.5, name: "Expo 2020"}
         };
 
-        function findLocation() {
-            const input = document.getElementById('locationInput').value.toLowerCase().trim();
+        function search() {
+            const val = document.getElementById('dest').value.toLowerCase();
             const pin = document.getElementById('pin');
-            const label = document.getElementById('label');
             
-            if (locations[input]) {
-                const loc = locations[input];
-                
-                // מיקום הנעץ באחוזים
-                pin.style.left = loc.x + "%";
-                pin.style.top = loc.y + "%";
+            // חיפוש חלקי (כדי שלא תצטרך לרשום הכל מדויק)
+            const key = Object.keys(locations).find(k => k.includes(val));
+            
+            if (key) {
+                const target = locations[key];
+                pin.style.left = target.x + "%";
+                pin.style.top = target.y + "%";
                 pin.style.display = "block";
-
-                // עדכון התווית
-                label.innerText = loc.name;
-                label.style.left = loc.x + "%";
-                label.style.top = loc.y + "%";
-                label.style.display = "block";
-
+                
                 // גלילה אוטומטית לנעץ
-                pin.scrollIntoView({ behavior: "smooth", block: "center" });
+                pin.scrollIntoView({behavior: "smooth", block: "center", inline: "center"});
             } else {
-                alert("המקום לא נמצא. נסה: Burj Khalifa, Expo 2020 או Union");
+                alert("לא נמצאה תחנה כזו");
             }
         }
 
-        // פונקציית עזר למפתחים (בשבילך): 
-        // לחיצה על המפה תדפיס לקונסול את ה-X וה-Y כדי שתוכל להוסיף עוד מקומות בקלות
-        document.getElementById('metro-map').addEventListener('click', function(e) {
+        // טריק לכיול מהטלפון: לחיצה על המפה תקפיץ לך את המיקומים
+        document.getElementById('metro-map').onclick = function(e) {
             const rect = this.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
-            console.log(`מיקום חדש: x: ${x.toFixed(1)}, y: ${y.toFixed(1)}`);
-        });
+            
+            // תעתיק את המספרים שיצאו לך כאן לתוך ה-locations למעלה
+            alert(`מיקום לכיול: x: ${x.toFixed(1)}, y: ${y.toFixed(1)}`);
+        };
     </script>
 </body>
 </html>
