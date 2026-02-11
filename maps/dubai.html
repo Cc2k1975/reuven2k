@@ -9,19 +9,18 @@
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
         
-        /* --- סטריפ מידע עליון (חדש) --- */
+        /* --- סטריפ מידע עליון (סגול) --- */
         .info-strip {
             position: fixed; top: 0; left: 0; right: 0; height: 35px;
-            background: white; color: #8e44ad; /* סגול כמו שביקשת */
+            background: white; color: #8e44ad;
             display: flex; justify-content: space-around; align-items: center;
             font-size: 13px; font-weight: bold; z-index: 2000;
             border-bottom: 1px solid #eee; box-shadow: 0 1px 5px rgba(0,0,0,0.05);
         }
 
-        /* --- שורת החיפוש וכפתור המסלול (הוזזו למטה) --- */
+        /* --- שורת החיפוש --- */
         .top-bar {
-            position: fixed; top: 45px; /* ירד למטה בגלל הסטריפ */
-            left: 10px; right: 10px; z-index: 1000;
+            position: fixed; top: 45px; left: 10px; right: 10px; z-index: 1000;
             display: flex; gap: 8px;
         }
         
@@ -38,19 +37,29 @@
             display: flex; align-items: center; justify-content: center;
         }
 
-        #map { flex: 1; width: 100%; margin-top: 35px; /* שלא יוסתר ע"י הסטריפ */ }
+        #map { flex: 1; width: 100%; margin-top: 35px; }
 
         /* --- חלונית מחשבון המסלול --- */
         .route-modal {
-            display: none; position: fixed; top: 100px; /* ירד למטה */
-            left: 10px; right: 10px;
+            display: none; position: fixed; top: 100px; left: 10px; right: 10px;
             background: white; padding: 15px; border-radius: 15px; z-index: 2000;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideDown 0.3s ease;
         }
         @keyframes slideDown { from {opacity:0; transform: translateY(-20px);} to {opacity:1; transform: translateY(0);} }
         
-        .route-inputs { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+        .route-inputs { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; position: relative; }
         .route-input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; }
+        
+        /* כפתור ההחלפה החדש */
+        .swap-btn-container { text-align: center; height: 0; z-index: 10; margin-top: -12px; margin-bottom: 12px; }
+        .swap-btn {
+            background: white; border: 1px solid #ddd; border-radius: 50%; width: 30px; height: 30px;
+            color: #2980b9; font-weight: bold; cursor: pointer; font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .swap-btn:active { transform: scale(0.95); background: #f0f0f0; }
+
         .calc-btn { background: #27ae60; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; width: 100%; cursor: pointer; }
         .close-route { position: absolute; top: 10px; left: 10px; background: none; border: none; font-size: 20px; color: #999; cursor: pointer; }
         
@@ -101,10 +110,17 @@
     <div id="routeModal" class="route-modal">
         <button class="close-route" onclick="toggleRoutePlanner()">✕</button>
         <h3 style="margin:0 0 15px 0; text-align:center;">מחשבון מסלול מהיר</h3>
+        
         <div class="route-inputs">
             <input type="text" id="fromInput" class="route-input" placeholder="מאיפה? (למשל: Five Luxe)">
+            
+            <div class="swap-btn-container">
+                <button class="swap-btn" onclick="swapInputs()">⇅</button>
+            </div>
+
             <input type="text" id="toInput" class="route-input" placeholder="לאן? (למשל: בורג' חליפה)">
         </div>
+
         <button class="calc-btn" onclick="calculateRoute()">חשב מסלול</button>
         <div id="routeResult" class="route-result"></div>
     </div>
@@ -112,9 +128,7 @@
     <div id="map"></div>
 
     <script>
-        // --- עדכון נתונים לסטריפ העליון ---
-        
-        // 1. שעון דובאי (UTC+4)
+        // --- עדכון נתונים לסטריפ ---
         function updateDubaiTime() {
             const now = new Date();
             const options = { timeZone: 'Asia/Dubai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
@@ -124,16 +138,13 @@
         setInterval(updateDubaiTime, 1000);
         updateDubaiTime();
 
-        // 2. מזג אוויר ומטבע (חד פעמי בטעינה)
         async function fetchLiveData() {
-            // מזג אוויר (Open-Meteo API - חינם ללא מפתח)
             try {
                 const weatherRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=25.20&longitude=55.27&current_weather=true');
                 const weatherData = await weatherRes.json();
                 document.getElementById('dubaiTemp').innerText = `דובאי: ${weatherData.current_weather.temperature}°C`;
             } catch (e) { document.getElementById('dubaiTemp').innerText = "25°C (משוער)"; }
 
-            // מטבע (ExchangeRate-API - חינם)
             try {
                 const currencyRes = await fetch('https://api.exchangerate-api.com/v4/latest/AED');
                 const currencyData = await currencyRes.json();
@@ -143,9 +154,7 @@
         }
         fetchLiveData();
 
-        // --- סוף קוד סטריפ ---
-
-
+        // --- מפה ---
         var map = L.map('map', { zoomControl: false }).setView([25.20, 55.27], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
         L.control.zoom({ position: 'bottomleft' }).addTo(map);
@@ -227,6 +236,24 @@
         function toggleRoutePlanner() {
             const el = document.getElementById('routeModal');
             el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // --- הפונקציה החדשה להחלפת שדות ---
+        function swapInputs() {
+            const fromEl = document.getElementById('fromInput');
+            const toEl = document.getElementById('toInput');
+            
+            // שמירת ערכים במשתנה זמני
+            const tempVal = fromEl.value;
+            
+            // החלפה
+            fromEl.value = toEl.value;
+            toEl.value = tempVal;
+            
+            // חישוב מחדש אם יש נתונים
+            if (fromEl.value && toEl.value) {
+                calculateRoute();
+            }
         }
 
         async function getPlaceCoords(query) {
