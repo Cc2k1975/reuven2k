@@ -3,132 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
-    <title>Dubai Metro Map</title>
+    <title>Dubai Metro Finder</title>
     <style>
         body {
             margin: 0;
             padding: 0;
-            font-family: sans-serif;
-            background: #1a1a1a;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #121212;
             color: white;
             display: flex;
             flex-direction: column;
             height: 100vh;
+            overflow: hidden;
         }
 
-        /* שורת חיפוש מגניבה */
+        /* שורת חיפוש בעיצוב מודרני */
         .search-box {
             padding: 15px;
-            background: #222;
+            background: #1f1f1f;
             display: flex;
-            gap: 8px;
-            position: sticky;
-            top: 0;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             z-index: 100;
         }
 
         input {
             flex: 1;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #444;
-            background: #333;
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid #333;
+            background: #2d2d2d;
             color: white;
             font-size: 16px;
+            outline: none;
         }
 
         button {
-            padding: 10px 20px;
-            background: #e74c3c;
+            padding: 0 25px;
+            background: #ff4757;
             border: none;
             color: white;
-            border-radius: 8px;
+            border-radius: 12px;
             font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.1s;
         }
 
-        /* המפה תופסת את כל שאר המסך */
+        button:active { transform: scale(0.95); }
+
+        /* אזור המפה */
         .map-viewport {
             flex: 1;
-            overflow: auto; /* מאפשר לגלול ולראות את כל המפה */
+            overflow: auto;
             position: relative;
-            background: #fff;
+            background: #e0e0e0;
+            cursor: crosshair;
         }
 
         .map-container {
             position: relative;
-            display: inline-block; /* שומר על גודל התמונה המקורי */
+            display: inline-block;
         }
 
         #metro-map {
             display: block;
-            width: 1000px; /* קובע רוחב קבוע כדי שהקואורדינטות לא יזוזו */
+            width: 1000px; /* רוחב קבוע לשמירה על דיוק הנעץ */
             height: auto;
         }
 
+        /* הנעץ המשופר */
         #pin {
             position: absolute;
-            width: 35px;
-            height: 35px;
+            width: 40px;
+            height: 40px;
             background: url('https://cdn-icons-png.flaticon.com/512/684/684908.png') no-repeat center;
             background-size: contain;
             transform: translate(-50%, -100%);
             display: none;
             pointer-events: none;
             z-index: 50;
+            /* אפקט פעימה קטן כדי שיבלוט */
+            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
+            animation: bounce 0.5s infinite alternate;
+        }
+
+        @keyframes bounce {
+            from { transform: translate(-50%, -100%); }
+            to { transform: translate(-50%, -110%); }
+        }
+
+        /* בועית שם מעל הנעץ */
+        #label {
+            position: absolute;
+            background: #ff4757;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            transform: translate(-50%, -240%);
+            display: none;
+            white-space: nowrap;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
     </style>
 </head>
 <body>
 
     <div class="search-box">
-        <input type="text" id="dest" placeholder="חפש תחנה (למשל: Burj Khalifa)">
+        <input type="text" id="dest" placeholder="חפש תחנה (למשל: Burj, Mall, Airport)">
         <button onclick="search()">חפש</button>
     </div>
 
-    <div class="map-viewport">
+    <div class="map-viewport" id="viewport">
         <div class="map-container">
-            <img src="metro.jpg" id="metro-map">
+            <img src="metro.jpg" id="metro-map" alt="Dubai Metro Map">
             <div id="pin"></div>
+            <div id="label"></div>
         </div>
     </div>
 
     <script>
-        // בסיס נתונים - כאן אתה מוסיף את התחנות
+        // מאגר המיקומים - מעודכן לפי הלחיצה שלך!
         const locations = {
-            "burj": {x: 44.3, y: 37.5, name: "Burj Khalifa"},
-            "dubai mall": {x: 44.3, y: 37.5, name: "Burj Khalifa"},
-            "airport": {x: 74.2, y: 19.3, name: "Airport Terminal 1"},
-            "expo": {x: 30.5, y: 94.5, name: "Expo 2020"}
+            "burj": { x: 45.7, y: 36.3, name: "Burj Khalifa / Dubai Mall" },
+            "dubai mall": { x: 45.7, y: 36.3, name: "Burj Khalifa / Dubai Mall" },
+            "khalifa": { x: 45.7, y: 36.3, name: "Burj Khalifa / Dubai Mall" },
+            "airport": { x: 74.2, y: 19.3, name: "Airport Terminal 1" }, // דוגמה לכיול משוער
+            "expo": { x: 30.5, y: 94.5, name: "Expo 2020" }
         };
 
         function search() {
-            const val = document.getElementById('dest').value.toLowerCase();
+            const val = document.getElementById('dest').value.toLowerCase().trim();
             const pin = document.getElementById('pin');
+            const label = document.getElementById('label');
             
-            // חיפוש חלקי (כדי שלא תצטרך לרשום הכל מדויק)
+            // חיפוש חכם בתוך המפתחות
             const key = Object.keys(locations).find(k => k.includes(val));
             
-            if (key) {
+            if (key && val !== "") {
                 const target = locations[key];
+                
+                // עדכון מיקום הנעץ והתווית
                 pin.style.left = target.x + "%";
                 pin.style.top = target.y + "%";
                 pin.style.display = "block";
+
+                label.innerText = target.name;
+                label.style.left = target.x + "%";
+                label.style.top = target.y + "%";
+                label.style.display = "block";
                 
-                // גלילה אוטומטית לנעץ
-                pin.scrollIntoView({behavior: "smooth", block: "center", inline: "center"});
-            } else {
-                alert("לא נמצאה תחנה כזו");
+                // סגירת מקלדת בטלפון
+                document.activeElement.blur();
+
+                // גלילה חלקה למרכז הנעץ
+                setTimeout(() => {
+                    pin.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+                }, 100);
+                
+            } else if (val !== "") {
+                alert("התחנה '" + val + "' לא נמצאה במערכת עדיין.");
             }
         }
 
-        // טריק לכיול מהטלפון: לחיצה על המפה תקפיץ לך את המיקומים
+        // מאפשר לחיצה על "Enter" במקלדת לחיפוש
+        document.getElementById('dest').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') search();
+        });
+
+        // פונקציית הכיול שלך - תמשיך ללחוץ על תחנות כדי להוסיף אותן!
         document.getElementById('metro-map').onclick = function(e) {
             const rect = this.getBoundingClientRect();
             const x = ((e.clientX - rect.left) / rect.width) * 100;
             const y = ((e.clientY - rect.top) / rect.height) * 100;
             
-            // תעתיק את המספרים שיצאו לך כאן לתוך ה-locations למעלה
-            alert(`מיקום לכיול: x: ${x.toFixed(1)}, y: ${y.toFixed(1)}`);
+            // מציג לך את הקואורדינטות להעתקה
+            alert(`מיקום לכיול:\nx: ${x.toFixed(1)}, y: ${y.toFixed(1)}`);
         };
     </script>
 </body>
