@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dubai Ultimate Map Pro</title>
+    <title>Dubai Ultimate Map Pro Fixed</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
@@ -44,7 +44,7 @@
             display: none; position: fixed; top: 90px; left: 10px; right: 10px;
             background: white; padding: 15px; border-radius: 15px; z-index: 2000;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideDown 0.3s ease;
-            max-height: 80vh; overflow-y: auto; /* גלילה אם המסלול ארוך */
+            max-height: 80vh; overflow-y: auto;
         }
         @keyframes slideDown { from {opacity:0; transform: translateY(-20px);} to {opacity:1; transform: translateY(0);} }
         
@@ -62,13 +62,13 @@
         .calc-btn { background: #27ae60; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; width: 100%; cursor: pointer; }
         .close-route { position: absolute; top: 10px; left: 10px; background: none; border: none; font-size: 20px; color: #999; cursor: pointer; }
         
-        /* --- עיצוב תוצאות המסלול (החזרתי את העיצוב המקצועי) --- */
+        /* --- עיצוב תוצאות המסלול --- */
         .route-result { margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; display: none; }
         
         .step-box { 
             background: #f8f9fa; padding: 12px; border-radius: 8px; 
             margin-bottom: 10px; 
-            border-right: 10px solid #ccc; /* הקו הצבעוני העבה בצד ימין */
+            border-right: 10px solid #ccc; 
             font-size: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             position: relative;
         }
@@ -227,13 +227,15 @@
             return null;
         }
 
+        // --- התיקון הקריטי כאן: הפונקציה מחזירה עכשיו גם מרחק ---
         function findNearestStation(lat, lng) {
             let nearest = null; let minDistance = Infinity;
             allStationsList.forEach(station => {
                 const dist = map.distance([lat, lng], station.coords);
                 if (dist < minDistance) { minDistance = dist; nearest = station; }
             });
-            return nearest;
+            // מחזירים אובייקט שמכיל גם את התחנה וגם את המרחק
+            return { station: nearest, distance: minDistance };
         }
 
         async function calculateRoute() {
@@ -248,8 +250,12 @@
             const endLoc = await getPlaceCoords(toVal);
             if(!startLoc || !endLoc) { resultDiv.innerHTML = "לא הצלחתי למצוא את המקום."; return; }
 
-            const startStation = findNearestStation(startLoc.lat, startLoc.lon);
-            const endStation = findNearestStation(endLoc.lat, endLoc.lon);
+            // שימוש בתיקון החדש
+            const startObj = findNearestStation(startLoc.lat, startLoc.lon);
+            const endObj = findNearestStation(endLoc.lat, endLoc.lon);
+            
+            const startStation = startObj.station;
+            const endStation = endObj.station;
 
             let html = `<div style="text-align:center; margin-bottom:10px;"><b>${startLoc.name}</b> ➝ <b>${endLoc.name}</b></div>`;
 
@@ -267,7 +273,7 @@
                         <span class="step-title">רד בתחנה: ${endStation.name}</span>
                     </div>`;
             } 
-            // מקרה 2: חשמלית (Tram) <-> מטרו (Red)
+            // מקרה 2: חשמלית <-> מטרו
             else if ((startStation.lineId === 'tram' && endStation.lineId === 'red') || (startStation.lineId === 'red' && endStation.lineId === 'tram')) {
                 const tramSt = startStation.lineId === 'tram' ? startStation : endStation;
                 const redSt = startStation.lineId === 'red' ? startStation : endStation;
@@ -288,8 +294,7 @@
                 html += `<div class="transfer-box"><span style="font-size:20px">🚶</span> החלף קו (עבור בגשר)</div>`;
                 html += secondBlock;
             }
-            // מקרה 3: מונורייל (Five Palm) <-> מטרו (Halifa)
-            // זה התיקון שהיה חסר לך! הוספתי תמיכה ספציפית במונורייל
+            // מקרה 3: מונורייל <-> מטרו
             else if ((startStation.lineId === 'mono' && endStation.lineId === 'red') || (startStation.lineId === 'red' && endStation.lineId === 'mono')) {
                 const monoSt = startStation.lineId === 'mono' ? startStation : endStation;
                 const redSt = startStation.lineId === 'red' ? startStation : endStation;
@@ -297,7 +302,6 @@
                 const redStops = Math.abs(redSt.idx - redTransferIdx);
 
                 if (startStation.lineId === 'mono') {
-                     // מונורייל -> גייטוויי -> חשמלית -> מטרו
                      html += `
                         <div class="step-box" style="border-right-color:#00bfff">
                             <span class="step-icon">🚝</span>
@@ -317,7 +321,6 @@
                             סע <span class="stop-count">${redStops}</span> תחנות עד <b>${redSt.name}</b>.
                         </div>`;
                 } else {
-                    // הפוך: מטרו -> מונורייל
                     html += `
                         <div class="step-box" style="border-right-color:#ff0000">
                             <span class="step-icon">🚇</span>
@@ -338,7 +341,7 @@
                         </div>`;
                 }
             }
-            // ברירת מחדל (עיצוב צבעוני גם כאן)
+            // ברירת מחדל
             else {
                  html += `
                     <div class="step-box" style="border-right-color:${startStation.color}">
@@ -359,16 +362,22 @@
             const loc = await getPlaceCoords(val);
             if (loc) {
                 if (searchMarker) map.removeLayer(searchMarker);
-                const result = findNearestStation(loc.lat, loc.lon);
-                const walkTime = Math.ceil(result.distance / 80); 
-                const distDisplay = result.distance > 1000 ? (result.distance/1000).toFixed(1) + " ק\u0022מ" : Math.round(result.distance) + " מטר";
+                
+                // שימוש בתיקון החדש גם כאן
+                const resultObj = findNearestStation(loc.lat, loc.lon);
+                const resultStation = resultObj.station;
+                const dist = resultObj.distance;
+                
+                // חישוב מרחק והצגה
+                const walkTime = Math.ceil(dist / 80); 
+                const distDisplay = dist > 1000 ? (dist/1000).toFixed(1) + " ק\u0022מ" : Math.round(dist) + " מטר";
                 
                 const popupContent = `
                     <div class="popup-title">${loc.name}</div>
                     <div class="nearest-box">
                         🚇 <b>התחנה הכי קרובה:</b><br>
-                        <span style="color:${result.color}; font-weight:bold; font-size:15px;">${result.name}</span><br>
-                        <span style="font-size:11px;">(${result.lineName})</span><br>
+                        <span style="color:${resultStation.color}; font-weight:bold; font-size:15px;">${resultStation.name}</span><br>
+                        <span style="font-size:11px;">(${resultStation.lineName})</span><br>
                         <hr style="margin:5px 0; border:0; border-top:1px solid #ddd;">
                         👣 <b>מרחק הליכה:</b><br>
                         <span class="walk-time">כ-${walkTime} דקות</span> (${distDisplay})
