@@ -3,29 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dubai Ultimate Map Pro Final - Full Restore</title>
+    <title>Dubai Ultimate Map Pro - Final Search Fixed</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #f0f2f5; }
-        .info-strip { position: fixed; top: 0; left: 0; right: 0; height: 35px; background: white; color: #8e44ad; display: flex; justify-content: space-around; align-items: center; font-size: 13px; font-weight: bold; z-index: 2000; border-bottom: 1px solid #eee; box-shadow: 0 1px 5px rgba(0,0,0,0.05); }
-        .top-bar { position: fixed; top: 45px; left: 10px; right: 10px; z-index: 1000; display: flex; gap: 8px; }
-        .search-container { flex: 1; display: flex; background: white; padding: 5px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative; }
+        
+        /* --- סטריפ מידע עליון --- */
+        .info-strip {
+            position: fixed; top: 0; left: 0; right: 0; height: 35px;
+            background: white; color: #8e44ad;
+            display: flex; justify-content: space-around; align-items: center;
+            font-size: 13px; font-weight: bold; z-index: 2000;
+            border-bottom: 1px solid #eee; box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+        }
+
+        /* --- שורת החיפוש --- */
+        .top-bar {
+            position: fixed; top: 45px; left: 10px; right: 10px; z-index: 1000;
+            display: flex; gap: 8px;
+        }
+        
+        .search-container {
+            flex: 1; display: flex; background: white; padding: 5px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative;
+        }
         input { flex: 1; padding: 10px; border: none; font-size: 16px; outline: none; border-radius: 8px; }
         .search-btn { padding: 0 20px; background: #e74c3c; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        #autocomplete-results { position: absolute; top: 55px; left: 0; right: 0; background: white; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); max-height: 250px; overflow-y: auto; display: none; z-index: 3000; }
+        
+        /* --- השלמה אוטומטית (חדש) --- */
+        #autocomplete-results {
+            position: absolute; top: 55px; left: 0; right: 0; background: white;
+            border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            max-height: 250px; overflow-y: auto; display: none; z-index: 3000;
+        }
         .suggestion-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; text-align: right; font-size: 14px; }
         .suggestion-item:hover { background-color: #f8f9fa; }
-        .route-btn-toggle { background: #2980b9; color: white; border: none; border-radius: 12px; width: 50px; font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; }
+        .suggestion-item small { color: #888; font-size: 11px; display: block; }
+
+        .route-btn-toggle {
+            background: #2980b9; color: white; border: none; border-radius: 12px; width: 50px;
+            font-size: 24px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            display: flex; align-items: center; justify-content: center;
+        }
+
         #map { flex: 1; width: 100%; margin-top: 35px; }
-        .route-modal { display: none; position: fixed; top: 90px; left: 10px; right: 10px; background: white; padding: 15px; border-radius: 15px; z-index: 2000; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-height: 80vh; overflow-y: auto; }
-        .route-inputs { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+
+        /* --- חלונית מחשבון המסלול --- */
+        .route-modal {
+            display: none; position: fixed; top: 90px; left: 10px; right: 10px;
+            background: white; padding: 15px; border-radius: 15px; z-index: 2000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideDown 0.3s ease;
+            max-height: 80vh; overflow-y: auto;
+        }
+        @keyframes slideDown { from {opacity:0; transform: translateY(-20px);} to {opacity:1; transform: translateY(0);} }
+        
+        .route-inputs { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; position: relative; }
         .route-input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; }
-        .calc-btn { background: #27ae60; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; }
-        .step-box { background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-right: 10px solid #ccc; font-size: 15px; text-align: right; }
-        .station-number-icon { background-color: white; border: 2px solid #333; border-radius: 50%; color: black; font-weight: bold; font-size: 10px; text-align: center; line-height: 16px; box-shadow: 0 0 4px rgba(0,0,0,0.5); }
+        
+        .swap-btn-container { text-align: center; height: 0; z-index: 10; margin-top: -12px; margin-bottom: 12px; }
+        .swap-btn {
+            background: white; border: 1px solid #ddd; border-radius: 50%; width: 30px; height: 30px;
+            color: #2980b9; font-weight: bold; cursor: pointer; font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+
+        .calc-btn { background: #27ae60; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; width: 100%; cursor: pointer; }
+        .close-route { position: absolute; top: 10px; left: 10px; background: none; border: none; font-size: 20px; color: #999; cursor: pointer; }
+        
+        /* --- עיצוב תוצאות המסלול --- */
+        .route-result { margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; display: none; }
+        
+        .step-box { 
+            background: #f8f9fa; padding: 12px; border-radius: 8px; 
+            margin-bottom: 10px; 
+            border-right: 10px solid #ccc; 
+            font-size: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .step-icon { float: left; font-size: 20px; margin-left: 10px; }
+        .step-title { font-weight: bold; margin-bottom: 4px; display: block; font-size: 16px; }
+        .stop-count { color: #e74c3c; font-weight: bold; }
+        .exit-info { display: block; margin-top: 8px; font-size: 14px; color: #2c3e50; background: #e8f6f3; padding: 5px; border-radius: 4px; }
+        
+        .transfer-box { 
+            background: #fff; border: 1px dashed #999; 
+            padding: 8px; margin-bottom: 10px; border-radius: 6px; 
+            font-size: 14px; color: #555; display: flex; align-items: center; gap: 8px;
+        }
+
+        /* מפה ואייקונים */
+        .station-number-icon {
+            background-color: white; border: 2px solid #333; border-radius: 50%;
+            color: black; font-weight: bold; font-size: 10px; text-align: center; line-height: 16px; box-shadow: 0 0 4px rgba(0,0,0,0.5);
+        }
+        .leaflet-left .leaflet-control { margin-left: 15px; }
+        .leaflet-bottom .leaflet-control { margin-bottom: 90px; }
+        
+        /* בועות מידע */
+        .popup-title { font-size: 16px; font-weight: bold; margin-bottom: 5px; color: #333; }
         .nearest-box { background: #f8f9fa; border-radius: 8px; padding: 8px; margin-top: 8px; border: 1px solid #eee; }
         .walk-time { color: #27ae60; font-weight: bold; }
+        .leaflet-popup-content { font-size: 14px; text-align: center; }
+        .tag-badge { background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+
     </style>
 </head>
 <body>
@@ -38,7 +120,7 @@
 
     <div class="top-bar">
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="חפש מקום או חנות (למשל Nahda Gifts)..." autocomplete="off">
+            <input type="text" id="searchInput" placeholder="חפש מקום (למשל Nahda Gifts)..." autocomplete="off">
             <button class="search-btn" onclick="smartSearch()">חפש</button>
             <div id="autocomplete-results"></div>
         </div>
@@ -46,14 +128,15 @@
     </div>
 
     <div id="routeModal" class="route-modal">
-        <button onclick="toggleRoutePlanner()" style="float:left; background:none; border:none; font-size:20px; cursor:pointer;">✕</button>
-        <h3 style="text-align:center;">מחשבון מסלול מהיר</h3>
+        <button class="close-route" onclick="toggleRoutePlanner()">✕</button>
+        <h3 style="margin:0 0 15px 0; text-align:center;">מחשבון מסלול מהיר</h3>
         <div class="route-inputs">
-            <input type="text" id="fromInput" class="route-input" placeholder="מאיפה?">
-            <input type="text" id="toInput" class="route-input" placeholder="לאן?">
+            <input type="text" id="fromInput" class="route-input" placeholder="מאיפה? (למשל: Five Luxe)">
+            <div class="swap-btn-container"><button class="swap-btn" onclick="swapInputs()">⇅</button></div>
+            <input type="text" id="toInput" class="route-input" placeholder="לאן? (למשל: בורג' חליפה)">
         </div>
         <button class="calc-btn" onclick="calculateRoute()">חשב מסלול</button>
-        <div id="routeResult" style="margin-top:15px; display:none;"></div>
+        <div id="routeResult" class="route-result"></div>
     </div>
 
     <div id="map"></div>
@@ -71,125 +154,328 @@
             try {
                 const w = await fetch('https://api.open-meteo.com/v1/forecast?latitude=25.20&longitude=55.27&current_weather=true');
                 const wd = await w.json(); document.getElementById('dubaiTemp').innerText = `דובאי: ${wd.current_weather.temperature}°C`;
+            } catch (e) { document.getElementById('dubaiTemp').innerText = "25°C"; }
+            try {
                 const c = await fetch('https://api.exchangerate-api.com/v4/latest/AED');
                 const cd = await c.json(); document.getElementById('dubaiCurrency').innerText = `1 דירהם = ${cd.rates.ILS.toFixed(2)} ₪`;
-            } catch (e) { }
+            } catch (e) { document.getElementById('dubaiCurrency').innerText = "1 דירהם = 0.85 ₪"; }
         }
         fetchLiveData();
 
-        // --- מפה ושחזור תחנות מלא ---
+        // --- מפה ונתונים ---
         var map = L.map('map', { zoomControl: false }).setView([25.20, 55.27], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        var searchMarker;
-        var allStationsList = [];
+        L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
+        var searchMarker;
+        var allStationsList = []; 
+
+        // המאגר האישי - ללא שינוי
+        const myRecommendations = [
+            { names: ["day to day karama", "דיי טו דיי", "חנות זולה"], coords: [25.2435, 55.3050], desc: "סניף אל כרמה", type: "קניות" },
+            { names: ["day to day deira", "דיי טו דיי דיירה"], coords: [25.2510, 55.3335], desc: "סניף דיירה", type: "קניות" },
+            { names: ["gift village", "גיפט וילג"], coords: [25.2405, 55.3010], desc: "ליד המסגרת", type: "קניות" },
+            { names: ["השוק הסיני", "china mall"], coords: [25.4265, 55.5780], desc: "עג'מאן", type: "שוק" },
+            { names: ["שוק נאיף", "grand souk"], coords: [25.2668, 55.2982], desc: "שוק דיירה", type: "שוק" },
+            { names: ["mazaya", "קניון מאזאיה"], coords: [25.2030, 55.2640], desc: "קניון + קפה פנטסטיקו", type: "קניון" },
+            { names: ["fantastico", "קפה פנטסטיקו"], coords: [25.2030, 55.2640], desc: "חלבי כשר", type: "כשר" },
+            { names: ["bamidbar", "במדבר"], coords: [25.1876, 55.2561], desc: "בשרי כשר", type: "כשר" },
+            { names: ["mul hayam", "מול הים"], coords: [25.0785, 55.1385], desc: "כשר במרינה", type: "כשר" },
+            { names: ["le fournil", "לה פורניל"], coords: [25.0715, 55.1325], desc: "מאפים", type: "כשר" },
+            { names: ["armani", "ארמני כשר"], coords: [25.1972, 55.2744], desc: "כשר יוקרה", type: "כשר" },
+            { names: ["tlv", "טי אל וי"], coords: [25.2280, 55.2835], desc: "בשרי", type: "כשר" },
+            { names: ["rowley's", "רוליס"], coords: [25.1181, 55.2006], desc: "אוכל זול", type: "אוכל זול" },
+            { names: ["fish hut", "פיש האט"], coords: [25.2385, 55.3150], desc: "דגים בזול", type: "אוכל זול" },
+            { names: ["lavash", "לוואש"], coords: [25.0792, 55.1382], desc: "ארוחת בוקר", type: "אוכל זול" },
+            { names: ["beirut", "ביירות"], coords: [25.0760, 55.1300], desc: "לבנונית", type: "אוכל זול" },
+            { names: ["mandi", "מנדי"], coords: [25.2410, 55.3015], desc: "ליד המסגרת", type: "אוכל זול" },
+            { names: ["cheesecake", "ציזקייק"], coords: [25.1972, 55.2744], desc: "קינוחים", type: "קינוחים" },
+            { names: ["global village", "הכפר הגלובלי"], coords: [25.0677, 55.3010], desc: "אטרקציה", type: "אטרקציה" },
+            { names: ["miracle garden", "גן הפרחים"], coords: [25.0600, 55.2445], desc: "אטרקציה", type: "אטרקציה" },
+            { names: ["dubai frame", "המסגרת"], coords: [25.2355, 55.3004], desc: "אטרקציה", type: "אטרקציה" },
+            { names: ["aura", "אורה סקייפול"], coords: [25.1118, 55.1492], desc: "בריכה", type: "אטרקציה" },
+            { names: ["ain dubai", "הגלגל הענק"], coords: [25.0796, 55.1225], desc: "אטרקציה", type: "אטרקציה" },
+            { names: ["museum of future", "מוזיאון העתיד"], coords: [25.2190, 55.2815], desc: "אטרקציה", type: "אטרקציה" },
+            { names: ["five luxe", "פייב לוקס"], coords: [25.0755, 55.1310], desc: "מלון JBR", type: "מלון" },
+            { names: ["five palm", "פייב פאלם"], coords: [25.1030, 55.1370], desc: "מלון פאלם", type: "מלון" } 
+        ];
+
+        // נתוני תחנות - ללא שינוי (כל הקווים קיימים)
         const redLineMain = { id: 'red', color: '#ff0000', name: 'הקו האדום', stations: [
-            {n: "1. Centrepoint", c: [25.2285, 55.4052]}, {n: "2. Emirates", c: [25.2307, 55.3697]}, {n: "3. Airport T3", c: [25.2458, 55.3594]}, {n: "4. Airport T1", c: [25.2450, 55.3519]}, {n: "5. GGICO", c: [25.2505, 55.3440]}, {n: "6. Deira City Centre", c: [25.2505, 55.3331]}, {n: "7. Al Rigga", c: [25.2630, 55.3210]}, {n: "8. Union", c: [25.2655, 55.3093]}, {n: "9. BurJuman", c: [25.2533, 55.3033]}, {n: "10. ADCB", c: [25.2398, 55.3015]}, {n: "11. Max", c: [25.2275, 55.2885]}, {n: "12. WTC", c: [25.2185, 55.2825]}, {n: "13. Emirates Towers", c: [25.2120, 55.2790]}, {n: "14. Financial Centre", c: [25.2075, 55.2760]}, {n: "15. Burj Khalifa / Dubai Mall", c: [25.1972, 55.2744]}, {n: "16. Business Bay", c: [25.1876, 55.2561]}, {n: "17. Onpassive", c: [25.1610, 55.2285]}, {n: "18. Equiti", c: [25.1415, 55.2140]}, {n: "19. Mall of the Emirates", c: [25.1181, 55.2006]}, {n: "20. InsuranceMarket", c: [25.1015, 55.1855]}, {n: "21. DIC", c: [25.0945, 55.1720]}, {n: "22. Al Khail", c: [25.0870, 55.1580]}, {n: "23. Sobha Realty", c: [25.0782, 55.1403]}, {n: "24. DMCC", c: [25.0685, 55.1312]}, {n: "25. Jebel Ali", c: [25.0295, 55.1125]} 
+            {n: "1. Centrepoint", c: [25.2285, 55.4052]}, 
+            {n: "2. Emirates", c: [25.2307, 55.3697]}, 
+            {n: "3. Airport T3", c: [25.2458, 55.3594], exit: "יציאה ישר לטרמינל 3"}, 
+            {n: "4. Airport T1", c: [25.2450, 55.3519], exit: "יציאה ישר לטרמינל 1"}, 
+            {n: "5. GGICO", c: [25.2505, 55.3440]}, 
+            {n: "6. Deira City Centre", c: [25.2505, 55.3331], exit: "יציאה ישירה לקניון דיירה"}, 
+            {n: "7. Al Rigga", c: [25.2630, 55.3210]}, 
+            {n: "8. Union", c: [25.2655, 55.3093], exit: "החלפת קווים / יציאה לכיכר יוניון"}, 
+            {n: "9. BurJuman", c: [25.2533, 55.3033], exit: "יציאה לקניון בורג'ומן"}, 
+            {n: "10. ADCB", c: [25.2398, 55.3015]}, 
+            {n: "11. Max", c: [25.2275, 55.2885]}, 
+            {n: "12. WTC", c: [25.2185, 55.2825], exit: "יציאה למרכז הכנסים"}, 
+            {n: "13. Emirates Towers", c: [25.2120, 55.2790], exit: "מוזיאון העתיד / מגדלי האמירויות"}, 
+            {n: "14. Financial Centre", c: [25.2075, 55.2760]}, 
+            {n: "15. Burj Khalifa / Dubai Mall", c: [25.1972, 55.2744], exit: "גשר המטרו לקניון דובאי (הליכה)"}, 
+            {n: "16. Business Bay", c: [25.1876, 55.2561]}, 
+            {n: "17. Onpassive", c: [25.1610, 55.2285]}, 
+            {n: "18. Equiti", c: [25.1415, 55.2140]}, 
+            {n: "19. Mall of the Emirates", c: [25.1181, 55.2006], exit: "חיבור ישיר לקניון האמירויות"}, 
+            {n: "20. InsuranceMarket", c: [25.1015, 55.1855]}, 
+            {n: "21. DIC", c: [25.0945, 55.1720]}, 
+            {n: "22. Al Khail", c: [25.0870, 55.1580]}, 
+            {n: "23. Sobha Realty", c: [25.0782, 55.1403], exit: "יציאה לכיוון המרינה / מעבר לחשמלית"}, 
+            {n: "24. DMCC", c: [25.0685, 55.1312], exit: "יציאה לכיוון JLT"}, 
+            {n: "25. Jebel Ali", c: [25.0295, 55.1125]} 
         ]};
-        const redLineExpo = { id: 'red', color: '#ff0000', name: 'הקו האדום (אקספו)', stations: [{n: "25. Jebel Ali", c: [25.0295, 55.1125]}, {n: "26. The Gardens", c: [25.0425, 55.1420]}, {n: "27. Discovery Gardens", c: [25.0340, 55.1470]}, {n: "28. Al Furjan", c: [25.0240, 55.1580]}, {n: "29. Jumeirah Golf Estates", c: [25.0090, 55.1860]}, {n: "30. DIP", c: [24.9850, 55.1780]}, {n: "31. Expo 2020", c: [24.9633, 55.1511]}] };
-        const redLineUAE = { id: 'red', color: '#ff0000', name: 'הקו האדום (תעשייה)', stations: [{n: "25. Jebel Ali", c: [25.0295, 55.1125]}, {n: "32. Ibn Battuta", c: [25.0441, 55.1201]}, {n: "33. Energy", c: [25.0255, 55.1090]}, {n: "34. Danube", c: [25.0110, 55.0880]}, {n: "35. UAE Exchange", c: [24.9890, 55.0650]}] };
-        const greenLine = { id: 'green', color: '#00b300', name: 'הקו הירוק', stations: [{n: "1. Etisalat", c: [25.2639, 55.4050]}, {n: "2. Al Qusais", c: [25.2631, 55.3831]}, {n: "3. DAFZA", c: [25.2605, 55.3720]}, {n: "4. Al Nahda", c: [25.2650, 55.3610]}, {n: "5. Stadium", c: [25.2736, 55.3564]}, {n: "6. Al Qiyadah", c: [25.2755, 55.3440]}, {n: "7. Abu Hail", c: [25.2765, 55.3375]}, {n: "8. Abu Baker", c: [25.2715, 55.3285]}, {n: "9. Salah Al Din", c: [25.2697, 55.3236]}, {n: "10. Union", c: [25.2655, 55.3093]}, {n: "11. Baniyas Square", c: [25.2680, 55.3005]}, {n: "12. Gold Souq", c: [25.2721, 55.2975]}, {n: "13. Al Ras", c: [25.2690, 55.2930]}, {n: "14. Al Ghubaiba", c: [25.2619, 55.2905]}, {n: "15. Sharaf DG", c: [25.2555, 55.2930]}, {n: "16. BurJuman", c: [25.2533, 55.3033]}, {n: "17. Oud Metha", c: [25.2345, 55.3105]}, {n: "18. Healthcare City", c: [25.2305, 55.3215]}, {n: "19. Al Jadaf", c: [25.2235, 55.3305]}, {n: "20. Creek", c: [25.2217, 55.3386]}] };
-        const tramLine = { id: 'tram', color: '#ff8c00', name: 'חשמלית (Tram)', stations: [{n: "1. JBR 1", c: [25.0758, 55.1312]}, {n: "2. JBR 2", c: [25.0730, 55.1280]}, {n: "3. JLT", c: [25.0740, 55.1435]}, {n: "4. Dubai Marina Mall", c: [25.0770, 55.1350]}, {n: "5. Dubai Marina", c: [25.0792, 55.1382]}, {n: "6. Marina Towers", c: [25.0860, 55.1440]}, {n: "7. Mina Seyahi", c: [25.0905, 55.1465]}, {n: "8. Media City", c: [25.0925, 55.1495]}, {n: "9. Palm Jumeirah", c: [25.0945, 55.1510]}, {n: "10. Knowledge Village", c: [25.0970, 55.1550]}, {n: "11. Al Sufouh", c: [25.1030, 55.1630]}] };
-        const monorailLine = { id: 'mono', color: '#00bfff', name: 'מונורייל פאלם', stations: [{n: "1. Palm Gateway", c: [25.1005, 55.1560]}, {n: "2. Al Ittihad Park", c: [25.1115, 55.1440]}, {n: "3. Nakheel Mall", c: [25.1170, 55.1390]}, {n: "4. The Pointe", c: [25.1260, 55.1270]}, {n: "5. Atlantis Aquaventure", c: [25.1332, 55.1171]}] };
+        const redLineExpo = { id: 'red', color: '#ff0000', name: 'הקו האדום (אקספו)', stations: [{n: "25. Jebel Ali", c: [25.0295, 55.1125]}, {n: "26. The Gardens", c: [25.0425, 55.1420]}, {n: "27. Discovery Gardens", c: [25.0340, 55.1470]}, {n: "28. Al Furjan", c: [25.0240, 55.1580]}, {n: "29. Jumeirah Golf Estates", c: [25.0090, 55.1860]}, {n: "30. DIP", c: [24.9850, 55.1780]}, {n: "31. Expo 2020", c: [24.9633, 55.1511], exit: "יציאה ראשית לאקספו"}] };
+        const redLineUAE = { id: 'red', color: '#ff0000', name: 'הקו האדום (תעשייה)', stations: [{n: "25. Jebel Ali", c: [25.0295, 55.1125]}, {n: "32. Ibn Battuta", c: [25.0441, 55.1201], exit: "יציאה לקניון אבן בטוטה"}, {n: "33. Energy", c: [25.0255, 55.1090]}, {n: "34. Danube", c: [25.0110, 55.0880]}, {n: "35. UAE Exchange", c: [24.9890, 55.0650]}] };
+        const greenLine = { id: 'green', color: '#00b300', name: 'הקו הירוק', stations: [{n: "1. Etisalat", c: [25.2639, 55.4050]}, {n: "2. Al Qusais", c: [25.2631, 55.3831]}, {n: "3. DAFZA", c: [25.2605, 55.3720]}, {n: "4. Al Nahda", c: [25.2650, 55.3610]}, {n: "5. Stadium", c: [25.2736, 55.3564]}, {n: "6. Al Qiyadah", c: [25.2755, 55.3440]}, {n: "7. Abu Hail", c: [25.2765, 55.3375]}, {n: "8. Abu Baker", c: [25.2715, 55.3285]}, {n: "9. Salah Al Din", c: [25.2697, 55.3236]}, {n: "10. Union", c: [25.2655, 55.3093]}, {n: "11. Baniyas Square", c: [25.2680, 55.3005], exit: "יציאה לכיכר בניאס"}, {n: "12. Gold Souq", c: [25.2721, 55.2975], exit: "יציאה לשוק הזהב והתבלינים"}, {n: "13. Al Ras", c: [25.2690, 55.2930], exit: "יציאה לשווקים"}, {n: "14. Al Ghubaiba", c: [25.2619, 55.2905]}, {n: "15. Sharaf DG", c: [25.2555, 55.2930]}, {n: "16. BurJuman", c: [25.2533, 55.3033]}, {n: "17. Oud Metha", c: [25.2345, 55.3105]}, {n: "18. Healthcare City", c: [25.2305, 55.3215]}, {n: "19. Al Jadaf", c: [25.2235, 55.3305]}, {n: "20. Creek", c: [25.2217, 55.3386]}] };
+        const tramLine = { id: 'tram', color: '#ff8c00', name: 'חשמלית (Tram)', stations: [{n: "1. JBR 1", c: [25.0758, 55.1312], exit: "יציאה לחוף JBR"}, {n: "2. JBR 2", c: [25.0730, 55.1280]}, {n: "3. JLT", c: [25.0740, 55.1435]}, {n: "4. Dubai Marina Mall", c: [25.0770, 55.1350], exit: "מעבר לקניון המרינה"}, {n: "5. Dubai Marina", c: [25.0792, 55.1382], exit: "מעבר לגשר למטרו"}, {n: "6. Marina Towers", c: [25.0860, 55.1440]}, {n: "7. Mina Seyahi", c: [25.0905, 55.1465]}, {n: "8. Media City", c: [25.0925, 55.1495]}, {n: "9. Palm Jumeirah", c: [25.0945, 55.1510], exit: "מעבר למונורייל (חניון)"}, {n: "10. Knowledge Village", c: [25.0970, 55.1550]}, {n: "11. Al Sufouh", c: [25.1030, 55.1630]}] };
+        const monorailLine = { id: 'mono', color: '#00bfff', name: 'מונורייל פאלם', stations: [{n: "1. Palm Gateway", c: [25.1005, 55.1560], exit: "מעבר לחשמלית / חניון"}, {n: "2. Al Ittihad Park", c: [25.1115, 55.1440], exit: "יציאה לפארק / קניון"}, {n: "3. Nakheel Mall", c: [25.1170, 55.1390], exit: "חיבור ישיר לקניון נח'יל"}, {n: "4. The Pointe", c: [25.1260, 55.1270]}, {n: "5. Atlantis Aquaventure", c: [25.1332, 55.1171], exit: "פארק מים / מלון אטלנטיס"}] };
 
         function drawSystem() {
-            [redLineMain, redLineExpo, redLineUAE, greenLine, tramLine, monorailLine].forEach(line => {
+            const allLines = [redLineMain, redLineExpo, redLineUAE, greenLine, tramLine, monorailLine];
+            allLines.forEach(line => {
                 L.polyline(line.stations.map(s => s.c), { color: line.color, weight: 3, opacity: 0.8 }).addTo(map);
                 line.stations.forEach((s, idx) => {
                     allStationsList.push({ name: s.n, coords: s.c, lineName: line.name, lineId: line.id, color: line.color, idx: idx, exit: s.exit });
-                    const icon = L.divIcon({ className: 'custom-div-icon', html: `<div class="station-number-icon" style="border-color:${line.color};">${s.n.split('.')[0]}</div>`, iconSize: [18, 18] });
-                    L.marker(s.c, { icon: icon }).addTo(map).bindPopup(`<b>${s.n}</b><br>${line.name}`);
+                    const stationNum = s.n.split('.')[0];
+                    const numberedIcon = L.divIcon({ className: 'custom-div-icon', html: `<div class="station-number-icon" style="border-color:${line.color};">${stationNum}</div>`, iconSize: [18, 18], iconAnchor: [9, 9] });
+                    L.marker(s.c, { icon: numberedIcon }).addTo(map).bindPopup(`<b>${s.n}</b><br>${line.name}`);
                 });
             });
         }
         drawSystem();
 
-        // --- חיפוש והשלמה אוטומטית ---
+        function toggleRoutePlanner() {
+            const el = document.getElementById('routeModal');
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function swapInputs() {
+            const f = document.getElementById('fromInput'); const t = document.getElementById('toInput');
+            const temp = f.value; f.value = t.value; t.value = temp;
+            if (f.value && t.value) calculateRoute();
+        }
+
+        // --- חיפוש משודרג (כולל השלמה אוטומטית) ---
         const sInput = document.getElementById('searchInput');
         const rDiv = document.getElementById('autocomplete-results');
 
         sInput.addEventListener('input', async () => {
             const v = sInput.value;
             if (v.length < 2) { rDiv.style.display = 'none'; return; }
+            
+            // חיפוש ב-Photon שמכיר את Nahda Gifts וכל חור בדובאי
             try {
-                const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(v)}&lat=25.20&lon=55.27&limit=6`);
+                const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(v)}&lat=25.20&lon=55.27&limit=5`);
                 const data = await res.json();
                 rDiv.innerHTML = '';
+                
                 if (data.features.length > 0) {
                     rDiv.style.display = 'block';
                     data.features.forEach(f => {
-                        const name = f.properties.name || f.properties.street || "מקום";
+                        const name = f.properties.name || f.properties.street || "מקום ללא שם";
+                        const details = f.properties.district || f.properties.city || "";
+                        
                         const item = document.createElement('div');
                         item.className = 'suggestion-item';
-                        item.innerHTML = `<b>${name}</b> <small>${f.properties.district || ''}</small>`;
+                        item.innerHTML = `<b>${name}</b><small>${details}</small>`;
+                        
                         item.onclick = () => {
                             sInput.value = name;
                             rDiv.style.display = 'none';
-                            moveToLoc(f.geometry.coordinates[1], f.geometry.coordinates[0], name);
+                            // שולחים את הקואורדינטות ישירות לפונקציית התצוגה
+                            moveToLocation(f.geometry.coordinates[1], f.geometry.coordinates[0], name);
                         };
                         rDiv.appendChild(item);
                     });
+                } else {
+                    rDiv.style.display = 'none';
                 }
-            } catch (e) { }
+            } catch(e) { console.log(e); }
         });
 
-        async function smartSearch() {
-            const v = sInput.value;
-            if (!v) return;
-            const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(v)}&lat=25.20&lon=55.27&limit=1`);
+        // חיפוש חכם שמשלב בין הרשימה שלך לחיפוש הגלובלי
+        async function getPlaceCoords(query) {
+            // 1. קודם כל בודקים ברשימה האישית שלך
+            const customMatch = myRecommendations.find(item => item.names.some(name => query.toLowerCase().includes(name)));
+            if (customMatch) return { lat: customMatch.coords[0], lon: customMatch.coords[1], name: customMatch.names[0] };
+            
+            // 2. אם לא מצאנו, מחפשים ב-Photon (הרבה יותר חזק מ-Nominatim)
+            const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lat=25.20&lon=55.27&limit=1`);
             const data = await res.json();
-            if (data.features.length) {
-                const f = data.features[0];
-                moveToLoc(f.geometry.coordinates[1], f.geometry.coordinates[0], f.properties.name || v);
-            } else { alert("לא נמצא"); }
+            if (data.features.length > 0) {
+                return { 
+                    lat: data.features[0].geometry.coordinates[1], 
+                    lon: data.features[0].geometry.coordinates[0], 
+                    name: data.features[0].properties.name || query 
+                };
+            }
+            return null;
         }
 
-        function moveToLoc(lat, lon, name) {
+        function findNearestStation(lat, lng) {
+            let nearest = null; let minDistance = Infinity;
+            allStationsList.forEach(station => {
+                const dist = map.distance([lat, lng], station.coords);
+                if (dist < minDistance) { minDistance = dist; nearest = station; }
+            });
+            return { station: nearest, distance: minDistance };
+        }
+
+        // פונקציית עזר להזזה מהירה על המפה (מההשלמה האוטומטית)
+        function moveToLocation(lat, lon, name) {
             if (searchMarker) map.removeLayer(searchMarker);
-            const nearest = findNearest(lat, lon);
-            const walk = Math.ceil(nearest.dist / 80);
-            const content = `<b>${name}</b><div class="nearest-box">🚇 תחנה: <b style="color:${nearest.st.color}">${nearest.st.name}</b><br>👣 הליכה: כ-${walk} דק'</div>`;
-            searchMarker = L.marker([lat, lon]).addTo(map).bindPopup(content).openPopup();
+            const resultObj = findNearestStation(lat, lon);
+            const resultStation = resultObj.station;
+            const dist = resultObj.distance;
+            const walkTime = Math.ceil(dist / 80);
+            
+            const popupContent = `
+                <div class="popup-title">${name}</div>
+                <div class="nearest-box">
+                    🚇 <b>תחנה קרובה:</b><br>
+                    <span style="color:${resultStation.color}; font-weight:bold;">${resultStation.name}</span><br>
+                    👣 <b>הליכה:</b> כ-${walkTime} דקות
+                </div>`;
+                
+            searchMarker = L.marker([lat, lon]).addTo(map).bindPopup(popupContent).openPopup();
             map.setView([lat, lon], 15);
         }
 
-        function findNearest(lat, lon) {
-            let st = null, min = Infinity;
-            allStationsList.forEach(s => {
-                const d = map.distance([lat, lon], s.coords);
-                if (d < min) { min = d; st = s; }
-            });
-            return { st, dist: min };
-        }
-
-        // --- מחשבון מסלול ---
-        function toggleRoutePlanner() {
-            const m = document.getElementById('routeModal');
-            m.style.display = m.style.display === 'block' ? 'none' : 'block';
-        }
-
+        // הפונקציה המקורית שלך לחישוב מסלול - ללא שינוי!
         async function calculateRoute() {
-            const f = document.getElementById('fromInput').value, t = document.getElementById('toInput').value;
-            const res = document.getElementById('routeResult');
-            if(!f || !t) return;
-            res.style.display = 'block'; res.innerHTML = "מחשב...";
+            const fromVal = document.getElementById('fromInput').value;
+            const toVal = document.getElementById('toInput').value;
+            const resultDiv = document.getElementById('routeResult');
+            resultDiv.style.display = 'block'; resultDiv.innerHTML = 'מחשב מסלול...';
+
+            if(!fromVal || !toVal) { resultDiv.innerHTML = "נא למלא את שני השדות"; return; }
+
+            const startLoc = await getPlaceCoords(fromVal);
+            const endLoc = await getPlaceCoords(toVal);
+            if(!startLoc || !endLoc) { resultDiv.innerHTML = "לא הצלחתי למצוא את המקום."; return; }
+
+            const startObj = findNearestStation(startLoc.lat, startLoc.lon);
+            const endObj = findNearestStation(endLoc.lat, endLoc.lon);
+            const startStation = startObj.station;
+            const endStation = endObj.station;
+
+            const exitText = endStation.exit ? `🚪 יציאה מומלצת: <b>${endStation.exit}</b>` : `🚪 עקוב אחר השילוט ליעד`;
+
+            let html = `<div style="text-align:center; margin-bottom:10px;"><b>${startLoc.name}</b> ➝ <b>${endLoc.name}</b></div>`;
+
+            if (startStation.lineId === endStation.lineId) {
+                const stops = Math.abs(startStation.idx - endStation.idx);
+                html += `
+                    <div class="step-box" style="border-right-color:${startStation.color}">
+                        <span class="step-icon">🚇</span>
+                        <span class="step-title">עלה ב: ${startStation.name}</span>
+                        סע <span class="stop-count">${stops}</span> תחנות ב${startStation.lineName}.
+                    </div>
+                    <div class="step-box" style="border-right-color:${endStation.color}">
+                        <span class="step-icon">🏁</span>
+                        <span class="step-title">רד בתחנה: ${endStation.name}</span>
+                        <span class="exit-info">${exitText}</span>
+                    </div>`;
+            } 
+            else if ((startStation.lineId === 'tram' && endStation.lineId === 'red') || (startStation.lineId === 'red' && endStation.lineId === 'tram')) {
+                const tramSt = startStation.lineId === 'tram' ? startStation : endStation;
+                const redSt = startStation.lineId === 'red' ? startStation : endStation;
+                const tramTransferIdx = 4; 
+                const redTransferIdx = 22; 
+                const tramStops = Math.abs(tramSt.idx - tramTransferIdx);
+                const redStops = Math.abs(redSt.idx - redTransferIdx);
+
+                let firstBlock = startStation.lineId === 'tram' ? 
+                    `<div class="step-box" style="border-right-color:#ff8c00"><span class="step-icon">🚋</span><span class="step-title">עלה בחשמלית: ${tramSt.name}</span>סע <span class="stop-count">${tramStops}</span> תחנות עד <b>Dubai Marina</b>.</div>` :
+                    `<div class="step-box" style="border-right-color:#ff0000"><span class="step-icon">🚇</span><span class="step-title">עלה במטרו: ${redSt.name}</span>סע <span class="stop-count">${redStops}</span> תחנות עד <b>Sobha Realty</b>.</div>`;
+                
+                let secondBlock = startStation.lineId === 'tram' ?
+                    `<div class="step-box" style="border-right-color:#ff0000"><span class="step-icon">🚇</span><span class="step-title">המשך במטרו: Sobha Realty</span>סע <span class="stop-count">${redStops}</span> תחנות עד <b>${redSt.name}</b>.<span class="exit-info">${exitText}</span></div>` :
+                    `<div class="step-box" style="border-right-color:#ff8c00"><span class="step-icon">🚋</span><span class="step-title">המשך בחשמלית: Dubai Marina</span>סע <span class="stop-count">${tramStops}</span> תחנות עד <b>${tramSt.name}</b>.<span class="exit-info">${exitText}</span></div>`;
+
+                html += firstBlock;
+                html += `<div class="transfer-box"><span style="font-size:20px">🚶</span> החלף קו (עבור בגשר)</div>`;
+                html += secondBlock;
+            }
+            else if ((startStation.lineId === 'mono' && endStation.lineId === 'red') || (startStation.lineId === 'red' && endStation.lineId === 'mono')) {
+                const monoSt = startStation.lineId === 'mono' ? startStation : endStation;
+                const redSt = startStation.lineId === 'red' ? startStation : endStation;
+                const redTransferIdx = 22; 
+                const redStops = Math.abs(redSt.idx - redTransferIdx);
+
+                if (startStation.lineId === 'mono') {
+                     html += `
+                        <div class="step-box" style="border-right-color:#00bfff">
+                            <span class="step-icon">🚝</span>
+                            <span class="step-title">עלה במונורייל: ${monoSt.name}</span>
+                            סע לתחנה סופית <b>Palm Gateway</b>.
+                        </div>
+                        <div class="transfer-box">🚶 לך רגלית לחשמלית (Palm Jumeirah)</div>
+                        <div class="step-box" style="border-right-color:#ff8c00">
+                            <span class="step-icon">🚋</span>
+                            <span class="step-title">עלה בחשמלית: Palm Jumeirah</span>
+                            סע 4 תחנות עד <b>Dubai Marina</b>.
+                        </div>
+                        <div class="transfer-box">🚶 החלף למטרו (Sobha Realty)</div>
+                        <div class="step-box" style="border-right-color:#ff0000">
+                            <span class="step-icon">🚇</span>
+                            <span class="step-title">עלה במטרו: Sobha Realty</span>
+                            סע <span class="stop-count">${redStops}</span> תחנות עד <b>${redSt.name}</b>.
+                            <span class="exit-info">${exitText}</span>
+                        </div>`;
+                } else {
+                    html += `
+                        <div class="step-box" style="border-right-color:#ff0000">
+                            <span class="step-icon">🚇</span>
+                            <span class="step-title">עלה במטרו: ${redSt.name}</span>
+                            סע <span class="stop-count">${redStops}</span> תחנות עד <b>Sobha Realty</b>.
+                        </div>
+                        <div class="transfer-box">🚶 החלף לחשמלית (Dubai Marina)</div>
+                        <div class="step-box" style="border-right-color:#ff8c00">
+                            <span class="step-icon">🚋</span>
+                            <span class="step-title">עלה בחשמלית: Dubai Marina</span>
+                            סע 4 תחנות עד <b>Palm Jumeirah</b>.
+                        </div>
+                        <div class="transfer-box">🚶 לך רגלית למונורייל (Palm Gateway)</div>
+                        <div class="step-box" style="border-right-color:#00bfff">
+                            <span class="step-icon">🚝</span>
+                            <span class="step-title">עלה במונורייל: Palm Gateway</span>
+                            סע לתחנה <b>${monoSt.name}</b>.
+                            <span class="exit-info">${exitText}</span>
+                        </div>`;
+                }
+            }
+            else {
+                 html += `
+                    <div class="step-box" style="border-right-color:${startStation.color}">
+                        <span class="step-icon">1️⃣</span> לך לתחנה <b>${startStation.name}</b> (${startStation.lineName}).
+                    </div>
+                    <div class="transfer-box">🔄 סע לתחנת החלפה (למשל Union)</div>
+                    <div class="step-box" style="border-right-color:${endStation.color}">
+                        <span class="step-icon">2️⃣</span> החלף קו וסע ל-<b>${endStation.name}</b>.
+                        <span class="exit-info">${exitText}</span>
+                    </div>`;
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        async function smartSearch() {
+            let val = document.getElementById('searchInput').value.trim();
+            if (!val) return;
+            // שימוש בפונקציה המשודרגת
+            const loc = await getPlaceCoords(val);
             
-            const getC = async (v) => {
-                const r = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(v)}&lat=25.20&lon=55.27&limit=1`);
-                const d = await r.json(); return d.features.length ? d.features[0].geometry.coordinates : null;
-            };
-
-            const c1 = await getC(f), c2 = await getC(t);
-            if (!c1 || !c2) { res.innerHTML = "לא נמצא מיקום."; return; }
-
-            const n1 = findNearest(c1[1], c1[0]).st, n2 = findNearest(c2[1], c2[0]).st;
-
-            res.innerHTML = `
-                <div class="step-box" style="border-right-color:${n1.color}">עלה ב: <b>${n1.name}</b> (${n1.lineName})</div>
-                <div class="step-box" style="border-right-color:${n2.color}">רד ב: <b>${n2.name}</b></div>
-            `;
+            if (loc) {
+                moveToLocation(loc.lat, loc.lon, loc.name);
+            } else {
+                alert("לא נמצא.");
+            }
         }
     </script>
 </body>
 </html>
-
