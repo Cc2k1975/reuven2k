@@ -270,6 +270,118 @@
         #panorama { width: 100%; height: 100%; }
         area { cursor: pointer; }
 
+        /* ======================= */
+        /* גלריית 9 תמונות (חדש)  */
+        /* ======================= */
+        .mini-gallery-wrap{
+            max-width: 1100px;
+            margin: 10px auto 0 auto; /* יושב מעל הפוטר */
+            padding: 0 20px 10px 20px;
+            text-align: center;
+        }
+        .mini-gallery-grid{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2mm; /* כמו שביקשת */
+            width: 100%;
+        }
+        .mini-gallery-thumb{
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+            border: 1px solid rgba(212, 175, 55, 0.35);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: transform 0.12s ease;
+            background: #0b0b0b;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mini-gallery-thumb:active{
+            transform: scale(0.99);
+        }
+
+        /* מודאל לתמונה המוגדלת */
+        #galleryModal{
+            display:none;
+            position: fixed;
+            z-index: 2500; /* מעל הכל */
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.92);
+            backdrop-filter: blur(4px);
+        }
+        .gallery-modal-inner{
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            box-sizing: border-box;
+        }
+        .gallery-modal-img{
+            max-width: 60vw;   /* “מגדיל ב-60%” -> תצוגה בגודל 60% מהמסך */
+            max-height: 60vh;
+            width: auto;
+            height: auto;
+            border-radius: 14px;
+            border: 2px solid rgba(212,175,55,0.65);
+            box-shadow: 0 18px 55px rgba(0,0,0,0.7);
+            background: #000;
+        }
+        .gallery-close{
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: 2px solid #d4af37;
+            background: rgba(0,0,0,0.65);
+            color: #fff;
+            font-size: 28px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 2501;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .gallery-close:hover{
+            background: #d4af37;
+        }
+
+        /* התאמה למובייל */
+        @media (max-width: 768px) {
+            p.instruction { font-size: 1.2rem; width: 90%; margin: 10px auto 20px auto; }
+            .main-description { font-size: 1.1rem; }
+            .details-section { padding: 10px; }
+            .contact-text { font-size: 1.5rem; }
+            .contact-phone { font-size: 2rem; }
+            
+            /* התאמת גודל כפתורים צפים במובייל */
+            .floating-actions{ left: 14px; bottom: 14px; }
+            .floating-btn{ width: 48px; height: 48px; }
+            .floating-btn svg{ width: 22px; height: 22px; }
+
+            /* התאמת גודל אייקונים על המפה במובייל - מחושב אוטומטית כ-90% מהגודל שהגדרת */
+            .map-icon-overlay { 
+                width: calc(var(--camera-size) * 0.9); 
+                height: calc(var(--camera-size) * 0.9);
+            }
+
+            /* גלריה במובייל - עדיין 3x3, רק תמונה מוגדלת תתאים למסך */
+            .gallery-modal-img{
+                max-width: 90vw;
+                max-height: 70vh;
+            }
+        }
+
         /* פוטר ליצירת קשר */
         .contact-footer {
             margin-top: 80px;
@@ -344,27 +456,6 @@
             height: 24px;
             fill: #fff;
         }
-
-        /* התאמה למובייל */
-        @media (max-width: 768px) {
-            p.instruction { font-size: 1.2rem; width: 90%; margin: 10px auto 20px auto; }
-            .main-description { font-size: 1.1rem; }
-            .details-section { padding: 10px; }
-            .contact-text { font-size: 1.5rem; }
-            .contact-phone { font-size: 2rem; }
-            
-            /* התאמת גודל כפתורים צפים במובייל */
-            .floating-actions{ left: 14px; bottom: 14px; }
-            .floating-btn{ width: 48px; height: 48px; }
-            .floating-btn svg{ width: 22px; height: 22px; }
-
-            /* התאמת גודל אייקונים על המפה במובייל - מחושב אוטומטית כ-90% מהגודל שהגדרת */
-            .map-icon-overlay { 
-                width: calc(var(--camera-size) * 0.9); 
-                height: calc(var(--camera-size) * 0.9);
-            }
-        }
-
     </style>
 </head>
 <body>
@@ -446,6 +537,33 @@
                     <li>מרחק הליכה לרכבת, מרכזי קניות ופארקים</li>
                 </ul>
             </div>
+        </div>
+    </div>
+
+    <!-- ============================ -->
+    <!-- גלריית 9 תמונות (חדש)       -->
+    <!-- שים קבצים: 1.jpg ... 9.jpg  -->
+    <!-- באותה תיקיה של ה-HTML       -->
+    <!-- ============================ -->
+    <div class="mini-gallery-wrap" aria-label="גלריית תמונות">
+        <div class="mini-gallery-grid">
+            <img class="mini-gallery-thumb" src="1.jpg" alt="תמונה 1" onclick="openGallery('1.jpg')">
+            <img class="mini-gallery-thumb" src="2.jpg" alt="תמונה 2" onclick="openGallery('2.jpg')">
+            <img class="mini-gallery-thumb" src="3.jpg" alt="תמונה 3" onclick="openGallery('3.jpg')">
+            <img class="mini-gallery-thumb" src="4.jpg" alt="תמונה 4" onclick="openGallery('4.jpg')">
+            <img class="mini-gallery-thumb" src="5.jpg" alt="תמונה 5" onclick="openGallery('5.jpg')">
+            <img class="mini-gallery-thumb" src="6.jpg" alt="תמונה 6" onclick="openGallery('6.jpg')">
+            <img class="mini-gallery-thumb" src="7.jpg" alt="תמונה 7" onclick="openGallery('7.jpg')">
+            <img class="mini-gallery-thumb" src="8.jpg" alt="תמונה 8" onclick="openGallery('8.jpg')">
+            <img class="mini-gallery-thumb" src="9.jpg" alt="תמונה 9" onclick="openGallery('9.jpg')">
+        </div>
+    </div>
+
+    <!-- מודאל לגלריה (חדש) -->
+    <div id="galleryModal" aria-hidden="true">
+        <div class="gallery-modal-inner" onclick="galleryBackdropClick(event)">
+            <div class="gallery-close" onclick="closeGallery()" aria-label="סגור">&times;</div>
+            <img id="galleryModalImg" class="gallery-modal-img" src="" alt="תמונה מוגדלת">
         </div>
     </div>
 
@@ -636,6 +754,41 @@
                 closePano();
             }
         }
+
+        // ==========================
+        // גלריית 9 תמונות (חדש)
+        // ==========================
+        function openGallery(src){
+            const m = document.getElementById('galleryModal');
+            const img = document.getElementById('galleryModalImg');
+            img.src = src;
+            m.style.display = 'block';
+            m.setAttribute('aria-hidden','false');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeGallery(){
+            const m = document.getElementById('galleryModal');
+            const img = document.getElementById('galleryModalImg');
+            m.style.display = 'none';
+            m.setAttribute('aria-hidden','true');
+            img.src = '';
+            document.body.style.overflow = 'auto';
+        }
+
+        function galleryBackdropClick(e){
+            // לחיצה מחוץ לתמונה סוגרת (אבל האיקס כבר קיים)
+            const img = document.getElementById('galleryModalImg');
+            if (e.target !== img) closeGallery();
+        }
+
+        // ESC לסגירה (דסקטופ)
+        document.addEventListener('keydown', function(e){
+            if (e.key === 'Escape'){
+                const m = document.getElementById('galleryModal');
+                if (m && m.style.display === 'block') closeGallery();
+            }
+        });
     </script>
 
 </body>
