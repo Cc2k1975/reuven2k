@@ -146,7 +146,7 @@
     .close-modal { margin-top: 15px; width: 100%; padding: 10px; background: #ddd; border: none; border-radius: 8px; cursor: pointer; }
     .row-inputs { display: flex; gap: 8px; margin-bottom: 8px; }
     .row-inputs select, .row-inputs input { flex: 1; padding: 8px; }
-    
+
     .backup-section { margin-top: 20px; padding-top: 20px; border-top: 2px dashed #eee; background: #f8faff; padding: 15px; border-radius: 12px; }
     .btn-backup { flex:1; background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; padding: 10px; border-radius: 8px; cursor: pointer; font-weight:600; }
     .btn-restore { flex:1; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; padding: 10px; border-radius: 8px; cursor: pointer; font-weight:600; }
@@ -167,7 +167,7 @@
       <span class="date-label">תאריך:</span>
       <input type="date" id="datePicker" class="date-input">
     </div>
-    
+
     <div class="current-date-display" id="displayDateLabel"></div>
 
     <div class="field-group">
@@ -178,9 +178,9 @@
     <div class="field-group" id="durationGroup">
       <label>משך טיפול</label>
       <div class="duration-buttons">
-        <button type="button" class="btn-duration" onclick="selectDuration(15, this)">15 דק'</button>
-        <button type="button" class="btn-duration" onclick="selectDuration(20, this)">20 דק'</button>
-        <button type="button" class="btn-duration" onclick="selectDuration(30, this)">30 דק'</button>
+        <button type="button" class="btn-duration" data-mins="15" onclick="selectDuration(15, this)">15 דק'</button>
+        <button type="button" class="btn-duration" data-mins="20" onclick="selectDuration(20, this)">20 דק'</button>
+        <button type="button" class="btn-duration" data-mins="30" onclick="selectDuration(30, this)">30 דק'</button>
       </div>
     </div>
 
@@ -214,7 +214,7 @@
   <div id="settingsModal" class="modal-overlay">
       <div class="modal-content">
           <div class="modal-title">הגדרות</div>
-          
+
           <label>הוסף לקוחה קבועה (שבועי):</label>
           <div class="field-group">
               <div class="row-inputs">
@@ -227,7 +227,7 @@
                       <option value="5">שישי</option>
                       <option value="6">שבת</option>
                   </select>
-                  <select id="fixTime"></select> 
+                  <select id="fixTime"></select>
               </div>
               <div class="row-inputs">
                    <select id="fixDuration">
@@ -241,6 +241,32 @@
           </div>
 
           <div class="fixed-list" id="fixedListContainer"></div>
+
+          <!-- חדש: זמן קבוע לפי שם לקוחה -->
+          <div class="fixed-list">
+            <label style="margin-bottom:8px;">זמן קבוע לפי שם לקוחה (בחירה אוטומטית כשבוחרים לקוחה):</label>
+
+            <div class="field-group" style="margin-bottom:0;">
+              <div class="row-inputs">
+                <input type="text" id="presetName" placeholder="שם הלקוחה">
+                <select id="presetMinutes">
+                  <option value="15">15 דק'</option>
+                  <option value="20">20 דק'</option>
+                  <option value="30">30 דק'</option>
+                </select>
+              </div>
+              <button class="btn-primary" style="padding: 8px; font-size: 0.9rem;" id="btnAddPreset">שמור זמן ללקוחה</button>
+
+              <!-- כותרת 2 עמודות -->
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;margin-bottom:8px;font-size:0.85rem;color:#555;font-weight:700;">
+                <span>שם לקוחה</span>
+                <span>זמן</span>
+              </div>
+
+              <div id="presetListContainer"></div>
+            </div>
+          </div>
+          <!-- /חדש -->
 
           <div class="backup-section">
               <div style="font-weight:700;margin-bottom:10px;">גיבוי ושחזור נתונים</div>
@@ -267,18 +293,20 @@ for(let h=16;h<=22;h++){
   }
 }
 
-let selectedDuration = 0; 
+let selectedDuration = 0;
 let selectedTimeStr = '';
 
 const LS_CLIENTS_KEY = 'salonClients';
 const LS_APPTS_KEY   = 'salonAppointmentsByDate';
 const LS_FIXED_KEY   = 'salonFixedSlots';
+const LS_PRESET_KEY  = 'salonClientPresetDurations'; // חדש
 const MANAGER_PHONE  = '972507449001';
 
-let clients = [];           
-let appointmentsByDate = {}; 
-let appointments = {};       
+let clients = [];
+let appointmentsByDate = {};
+let appointments = {};
 let fixedSlots = [];
+let presetDurations = []; // חדש
 
 let currentDateKey = '';
 let todayKey = '';
@@ -292,7 +320,7 @@ const statsContainer  = document.getElementById('statsContainer');
 const btnSaveAppt     = document.getElementById('btnSaveAppt');
 const btnNewDay       = document.getElementById('btnNewDay');
 const datePicker      = document.getElementById('datePicker');
-const displayDateLabel= document.getElementById('displayDateLabel'); // חדש
+const displayDateLabel= document.getElementById('displayDateLabel');
 const filterInput     = document.getElementById('filterInput');
 const btnReport       = document.getElementById('btnReport');
 
@@ -309,6 +337,12 @@ const fixedListContainer = document.getElementById('fixedListContainer');
 const btnDownloadBackup = document.getElementById('btnDownloadBackup');
 const btnUploadRestore  = document.getElementById('btnUploadRestore');
 const fileInput         = document.getElementById('fileInput');
+
+/* חדש: זמן קבוע לפי לקוחה */
+const presetName          = document.getElementById('presetName');
+const presetMinutes       = document.getElementById('presetMinutes');
+const btnAddPreset        = document.getElementById('btnAddPreset');
+const presetListContainer = document.getElementById('presetListContainer');
 
 times.forEach(t => {
     const op = document.createElement('option');
@@ -330,7 +364,7 @@ function niceDateFromKey(dateKey){
 function setDateLimits(){
   const today = new Date();
   datePicker.min = formatDateKey(today);
-  datePicker.max = ''; 
+  datePicker.max = '';
 }
 function getDayOfWeek(dateKey) {
     const [y, m, d] = dateKey.split('-').map(Number);
@@ -343,6 +377,25 @@ function selectDuration(mins, btnElement){
   document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
   btnElement.classList.add('active');
 }
+
+/* חדש: הפעלה אוטומטית לפי זמן קבוע ללקוחה */
+function setDurationByMinutes(mins){
+  selectedDuration = parseInt(mins,10) || 0;
+  document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`.btn-duration[data-mins="${selectedDuration}"]`);
+  if(btn) btn.classList.add('active');
+}
+function normalizeName(name){ return name.trim(); }
+function findPresetByName(name){
+  const norm = normalizeName(name).toLowerCase();
+  if(!norm) return null;
+  return presetDurations.find(p => (p.name||'').trim().toLowerCase() === norm) || null;
+}
+function getPresetMinutes(name){
+  const p = findPresetByName(name);
+  return p ? parseInt(p.minutes,10) : null;
+}
+/* /חדש */
 
 function renderTimeGrid() {
     timeGrid.innerHTML = '';
@@ -360,6 +413,12 @@ function renderTimeGrid() {
                 selectedTimeStr = t;
                 updateGridVisuals();
                 durationGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // חדש: כשבוחרים שעה - לפתוח אוטומטית את רשימת הלקוחות (כולל אלה עם זמן קבוע)
+                setTimeout(() => {
+                  clientInput.focus();
+                  showSuggestions(clientInput.value.trim()); // אם ריק -> יציג את כל הרשימה, עם הקבועים למעלה
+                }, 50);
             };
         }
         if(t === selectedTimeStr) btn.classList.add('selected');
@@ -376,7 +435,6 @@ function updateGridVisuals() {
     });
 }
 
-function normalizeName(name){ return name.trim(); }
 function findClientByName(name){
   const norm = normalizeName(name).toLowerCase();
   if(!norm) return null;
@@ -399,37 +457,30 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 datePicker.addEventListener('change', (e) => {
-  // קריאה ישירה לטעינה עם הערך החדש
   loadDate(e.target.value);
 });
 
 function loadDate(dateKey) {
   currentDateKey = dateKey;
-  
-  // עדכון כותרת חיווי
+
   displayDateLabel.textContent = "מציג תורים לתאריך: " + niceDateFromKey(currentDateKey);
 
-  // וודא שהאובייקט קיים
   if(!appointmentsByDate[currentDateKey]) {
       appointmentsByDate[currentDateKey] = {};
   }
-  
-  // הפעלת לוגיקה של לקוחות קבועים (תמיד, כדי למלא חורים)
+
   applyFixedSlots(currentDateKey);
-  
-  // עדכון המשתנה הגלובלי
+
   appointments = appointmentsByDate[currentDateKey];
 
-  // איפוס בחירות
   selectedTimeStr = '';
   selectedDuration = 0;
   document.querySelectorAll('.btn-duration').forEach(b => b.classList.remove('active'));
-  
+
   clientInput.value = '';
   filterInput.value = '';
   hideSuggestions();
-  
-  // רינדור מחדש
+
   renderTimeGrid();
   renderAppointments();
   setNextFreeTime();
@@ -437,7 +488,7 @@ function loadDate(dateKey) {
 
 /* לוגיקה חכמה ללקוחות קבועים */
 function applyFixedSlots(dateKey) {
-    const dayOfWeek = getDayOfWeek(dateKey); 
+    const dayOfWeek = getDayOfWeek(dateKey);
     const slotsToday = fixedSlots.filter(s => parseInt(s.day) === dayOfWeek);
     let changed = false;
 
@@ -447,14 +498,11 @@ function applyFixedSlots(dateKey) {
         const slotsNeeded = Math.ceil(slot.minutes / 5);
         if(startIdx + slotsNeeded > times.length) return;
 
-        // בדיקה אם המשבצות פנויות
         let isFree = true;
         for(let i=0; i<slotsNeeded; i++){
-            // אם המקום תפוס, אנחנו לא דורסים
             if(appointmentsByDate[dateKey][times[startIdx + i]]) isFree = false;
         }
 
-        // אם פנוי - מכניסים את הלקוחה הקבועה
         if(isFree) {
             for(let i=0; i<slotsNeeded; i++){
                 appointmentsByDate[dateKey][times[startIdx + i]] = {
@@ -466,8 +514,7 @@ function applyFixedSlots(dateKey) {
             changed = true;
         }
     });
-    
-    // אם היו שינויים, שומרים לזיכרון
+
     if(changed) saveAppointments();
 }
 
@@ -486,35 +533,83 @@ function loadFromStorage(){
     const f = localStorage.getItem(LS_FIXED_KEY);
     if(f) fixedSlots = JSON.parse(f) || [];
   }catch {}
+
+  // חדש: טעינת זמני-ברירת-מחדל לפי לקוחה
+  try{
+    const p = localStorage.getItem(LS_PRESET_KEY);
+    if(p) presetDurations = JSON.parse(p) || [];
+  }catch {}
 }
 
 function saveClients(){ localStorage.setItem(LS_CLIENTS_KEY, JSON.stringify(clients)); }
 function saveAppointments(){
   if(!currentDateKey) currentDateKey = datePicker.value || todayKey;
-  appointmentsByDate[currentDateKey] = appointments; // עדכון הרפרנס
+  appointmentsByDate[currentDateKey] = appointments;
   localStorage.setItem(LS_APPTS_KEY, JSON.stringify(appointmentsByDate));
 }
 function saveFixedSlots(){ localStorage.setItem(LS_FIXED_KEY, JSON.stringify(fixedSlots)); }
+function savePresetDurations(){ localStorage.setItem(LS_PRESET_KEY, JSON.stringify(presetDurations)); } // חדש
 
 clientInput.addEventListener('input', () => showSuggestions(clientInput.value.trim()));
 clientInput.addEventListener('focus', () => showSuggestions(clientInput.value.trim()));
+clientInput.addEventListener('blur', () => {
+  // חדש: אם הקלדת שם של לקוחה עם זמן קבוע - לבחור זמן אוטומטית (רק אם עוד לא נבחר זמן)
+  const mins = getPresetMinutes(clientInput.value.trim());
+  if(mins && selectedDuration === 0) setDurationByMinutes(mins);
+});
 document.addEventListener('click', e => { if(!e.target.closest('.field-group')) hideSuggestions(); });
 
 function showSuggestions(query){
-  const q = query.toLowerCase();
-  let filtered = clients;
-  if(q.length > 0) filtered = clients.filter(c => c.name && c.name.toLowerCase().startsWith(q));
+  const q = (query || '').toLowerCase();
+
+  // חדש: משלבים גם לקוחות מזמן-קבוע, גם אם לא נמצאים במערך clients
+  const presetNames = presetDurations
+    .map(p => (p.name || '').trim())
+    .filter(Boolean);
+
+  const clientNames = clients
+    .map(c => (c.name || '').trim())
+    .filter(Boolean);
+
+  // ייחודיות לפי lower-case
+  const map = new Map();
+  presetNames.forEach(n => map.set(n.toLowerCase(), n));
+  clientNames.forEach(n => { if(!map.has(n.toLowerCase())) map.set(n.toLowerCase(), n); });
+
+  let allNames = Array.from(map.values());
+
+  // סינון לפי חיפוש
+  if(q.length > 0){
+    allNames = allNames.filter(n => n.toLowerCase().startsWith(q));
+  }
+
+  // מיון: קודם מי שיש לו זמן קבוע, ואז לפי שם בעברית
+  allNames.sort((a,b) => {
+    const ap = !!findPresetByName(a);
+    const bp = !!findPresetByName(b);
+    if(ap !== bp) return ap ? -1 : 1;
+    return a.localeCompare(b,'he');
+  });
+
   suggestionsList.innerHTML = '';
-  if(filtered.length === 0){ suggestionsList.classList.add('empty'); return; }
+  if(allNames.length === 0){ suggestionsList.classList.add('empty'); return; }
   suggestionsList.classList.remove('empty');
-  filtered.forEach(c => {
+
+  allNames.forEach(name => {
     const item = document.createElement('div');
     item.className = 'suggestion-item';
-    item.textContent = c.name;
+
+    const mins = getPresetMinutes(name);
+    item.textContent = mins ? `${name} (${mins} דק')` : name;
+
     item.addEventListener('click', () => {
-      clientInput.value = c.name;
+      clientInput.value = name;
       hideSuggestions();
+
+      // חדש: בחירת זמן אוטומטית אם יש זמן קבוע
+      if(mins) setDurationByMinutes(mins);
     });
+
     suggestionsList.appendChild(item);
   });
 }
@@ -579,13 +674,17 @@ btnNewDay.addEventListener('click', () => {
   setNextFreeTime();
 });
 
-btnSettings.addEventListener('click', () => { renderFixedList(); settingsModal.classList.add('open'); });
+btnSettings.addEventListener('click', () => {
+  renderFixedList();
+  renderPresetList(); // חדש
+  settingsModal.classList.add('open');
+});
 btnCloseModal.addEventListener('click', () => { settingsModal.classList.remove('open'); });
 
 btnAddFixed.addEventListener('click', () => {
     const name = fixName.value.trim();
     if(!name) { alert('נא להזין שם'); return; }
-    
+
     const exists = fixedSlots.some(s => s.day == fixDay.value && s.time == fixTime.value);
     if(exists){ alert('כבר קיים לקוח בזמן הזה'); return; }
 
@@ -598,7 +697,7 @@ btnAddFixed.addEventListener('click', () => {
     saveFixedSlots();
     renderFixedList();
     fixName.value = '';
-    
+
     // רענון מיידי לתאריך הנוכחי
     loadDate(currentDateKey);
     alert('נוסף בהצלחה!');
@@ -621,7 +720,6 @@ function renderFixedList() {
                 fixedSlots.splice(idx, 1);
                 saveFixedSlots();
                 renderFixedList();
-                // רענון למקרה שמחקנו משהו שמשפיע על היום
                 loadDate(currentDateKey);
             }
         };
@@ -630,8 +728,76 @@ function renderFixedList() {
     });
 }
 
+/* חדש: ניהול זמן קבוע לפי שם לקוחה */
+btnAddPreset.addEventListener('click', () => {
+  const name = (presetName.value || '').trim();
+  const mins = parseInt(presetMinutes.value,10);
+  if(!name){ alert('נא להזין שם'); return; }
+
+  const existing = findPresetByName(name);
+  if(existing){
+    existing.minutes = mins;
+  } else {
+    presetDurations.push({ name, minutes: mins });
+  }
+
+  // לשמור גם במאגר הלקוחות (כדי שיצוץ אוטומטית)
+  if(!findClientByName(name)){
+    clients.push({name});
+    clients.sort((a,b)=>a.name.localeCompare(b.name,'he'));
+    saveClients();
+  }
+
+  presetDurations.sort((a,b)=> (a.name||'').localeCompare(b.name||'','he'));
+  savePresetDurations();
+  renderPresetList();
+
+  presetName.value = '';
+  alert('נשמר בהצלחה!');
+});
+
+function renderPresetList(){
+  presetListContainer.innerHTML = '';
+  if(!presetDurations || presetDurations.length === 0){
+    presetListContainer.innerHTML = '<div style="text-align:center;color:#777;">אין זמנים קבועים ללקוחות</div>';
+    return;
+  }
+
+  // מיון לפי שם
+  presetDurations.sort((a,b)=> (a.name||'').localeCompare(b.name||'','he'));
+
+  presetDurations.forEach((p, idx) => {
+    const item = document.createElement('div');
+    item.className = 'fixed-item';
+    item.innerHTML = `<span style="display:flex;gap:10px;align-items:center;justify-content:space-between;width:100%;">
+        <span>${p.name}</span>
+        <span style="font-weight:700;">${parseInt(p.minutes,10)} דק'</span>
+      </span>`;
+
+    const btnDel = document.createElement('button');
+    btnDel.className = 'btn-del-fixed';
+    btnDel.textContent = 'מחק';
+    btnDel.onclick = () => {
+      if(confirm('למחוק?')){
+        presetDurations.splice(idx, 1);
+        savePresetDurations();
+        renderPresetList();
+      }
+    };
+
+    item.appendChild(btnDel);
+    presetListContainer.appendChild(item);
+  });
+}
+/* /חדש */
+
 btnDownloadBackup.addEventListener('click', () => {
-    const data = { clients: localStorage.getItem(LS_CLIENTS_KEY), appts: localStorage.getItem(LS_APPTS_KEY), fixed: localStorage.getItem(LS_FIXED_KEY) };
+    const data = {
+      clients: localStorage.getItem(LS_CLIENTS_KEY),
+      appts: localStorage.getItem(LS_APPTS_KEY),
+      fixed: localStorage.getItem(LS_FIXED_KEY),
+      preset: localStorage.getItem(LS_PRESET_KEY) // חדש
+    };
     const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -650,6 +816,7 @@ fileInput.addEventListener('change', (e) => {
             if(data.clients) localStorage.setItem(LS_CLIENTS_KEY, data.clients);
             if(data.appts) localStorage.setItem(LS_APPTS_KEY, data.appts);
             if(data.fixed) localStorage.setItem(LS_FIXED_KEY, data.fixed);
+            if(data.preset) localStorage.setItem(LS_PRESET_KEY, data.preset); // חדש
             alert('שוחזר בהצלחה!'); location.reload();
         } catch(err) { alert('שגיאה בקובץ'); }
     };
